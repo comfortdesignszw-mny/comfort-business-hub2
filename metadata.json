@@ -1,0 +1,13 @@
+{
+  "name": "Comfort Business Hub",
+  "description": "An offline-first, dual-sided marketplace for the African market, featuring location-based discovery, real-time messaging, and local payment integrations.",
+  "requestFramePermissions": [
+    "geolocation"
+  ],
+  "majorCapabilities": [
+    "Real-time messaging",
+    "Offline-first sync",
+    "Location-based marketplace",
+    "Local payment gateway interfaces"
+  ]
+}

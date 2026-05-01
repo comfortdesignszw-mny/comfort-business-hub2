@@ -1,0 +1,160 @@
+{
+  "entities": {
+    "User": {
+      "title": "User Profile",
+      "description": "User profile containing both customer and supplier persona data.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "name": { "type": "string" },
+        "phone": { "type": "string" },
+        "avatar": { "type": "string" },
+        "currentRole": { "type": "string", "enum": ["customer", "supplier"] },
+        "geohash": { "type": "string" },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" },
+        "businessName": { "type": "string" },
+        "businessCategory": { "type": "string" },
+        "whatsappUrl": { "type": "string" },
+        "avatar": { "type": "string" },
+        "location": {
+          "type": "object",
+          "properties": {
+            "city": { "type": "string" },
+            "address": { "type": "string" },
+            "coordinates": {
+              "type": "object",
+              "properties": {
+                "lat": { "type": "number" },
+                "lng": { "type": "number" }
+              }
+            }
+          }
+        },
+        "gateway": {
+          "type": "object",
+          "properties": {
+            "provider": { "type": "string", "enum": ["paypal", "stripe", "paynow", "custom"] },
+            "details": { "type": "string" },
+            "isActive": { "type": "boolean" }
+          }
+        },
+        "isVerified": { "type": "boolean" },
+        "requiredProducts": { "type": "array", "items": { "type": "string" } },
+        "createdAt": { "type": "string", "format": "date-time" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "phone", "currentRole"]
+    },
+    "Store": {
+      "title": "Supplier Store",
+      "description": "Storefront information for suppliers.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "contactNumbers": { "type": "array", "items": { "type": "string" } },
+        "email": { "type": "string" },
+        "category": { "type": "string" },
+        "geohash": { "type": "string" },
+        "lat": { "type": "number" },
+        "lng": { "type": "number" },
+        "logo": { "type": "string" },
+        "rating": { "type": "number" },
+        "reviewCount": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "ownerId", "name", "geohash", "email", "contactNumbers"]
+    },
+    "Product": {
+      "title": "Marketplace Product",
+      "description": "Goods or services offered by suppliers.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "storeId": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "name": { "type": "string" },
+        "description": { "type": "string" },
+        "price": { "type": "number" },
+        "currency": { "type": "string" },
+        "category": { "type": "string" },
+        "images": { "type": "array", "items": { "type": "string" } },
+        "buyButtonType": { "type": "string", "enum": ["checkout", "chat", "link"] },
+        "buyButtonLink": { "type": "string" },
+        "isActive": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["id", "storeId", "ownerId", "name", "price", "buyButtonType"]
+    },
+    "Deal": {
+      "title": "Marketplace Deal (Negotiation)",
+      "description": "Active negotiations between customers and suppliers.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "customerId": { "type": "string" },
+        "supplierId": { "type": "string" },
+        "productId": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "quoted", "accepted", "delivered", "cancelled"] },
+        "agreedPrice": { "type": "number" },
+        "customerNotes": { "type": "string" },
+        "supplierNotes": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Message": {
+      "title": "Chat Message",
+      "description": "Real-time message in a conversation.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "conversationId": { "type": "string" },
+        "senderId": { "type": "string" },
+        "text": { "type": "string" },
+        "type": { "type": "string", "enum": ["text", "quote", "location", "image"] },
+        "payload": { "type": "object" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      }
+    },
+    "Conversation": {
+      "title": "Chat Conversation",
+      "description": "Shared record for a chat between two users.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "participants": { "type": "array", "items": { "type": "string" } },
+        "lastMessage": { "type": "string" },
+        "updatedAt": { "type": "string", "format": "date-time" }
+      }
+    }
+  },
+  "firestore": {
+    "users": {
+      "schema": "User",
+      "description": "User profiles"
+    },
+    "stores": {
+      "schema": "Store",
+      "description": "Supplier store locations"
+    },
+    "products": {
+      "schema": "Product",
+      "description": "Supplier items"
+    },
+    "deals": {
+      "schema": "Deal",
+      "description": "Active business deals"
+    },
+    "conversations": {
+      "schema": "Conversation",
+      "description": "Chat metadata"
+    },
+    "conversations/{convoId}/messages": {
+      "schema": "Message",
+      "description": "Chat messages within a conversation"
+    }
+  }
+}

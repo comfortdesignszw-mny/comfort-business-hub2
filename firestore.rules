@@ -1,0 +1,83 @@
+rules_version = '2';
+service cloud.firestore {
+  match /databases/{database}/documents {
+    // Basic Helpers
+    function isSignedIn() { return request.auth != null; }
+    function isOwner(uid) { return isSignedIn() && request.auth.uid == uid; }
+    function incoming() { return request.resource.data; }
+    function existing() { return resource.data; }
+    
+    // Default deny
+    match /{document=**} {
+      allow read, write: if false;
+    }
+
+    // User Profiles
+    function isValidUser(data) {
+      return data.uid is string && data.uid == request.auth.uid
+        && data.phone is string && data.phone.size() <= 20
+        && data.currentRole in ['customer', 'supplier']
+        && (!('email' in data) || (data.email is string && data.email.size() <= 100));
+    }
+
+    match /users/{userId} {
+      allow read: if isSignedIn();
+      allow create: if isOwner(userId) && isValidUser(incoming());
+      allow update: if isOwner(userId) && isValidUser(incoming()) 
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'phone', 'avatar', 'currentRole', 'geohash', 'lat', 'lng', 'businessName', 'businessCategory', 'whatsappUrl', 'requiredProducts', 'location', 'gateway', 'isVerified', 'updatedAt']);
+    }
+
+    // Stores
+    function isValidStore(data) {
+      return data.ownerId == request.auth.uid
+        && data.name is string && data.name.size() >= 2 && data.name.size() <= 100
+        && data.email is string && data.email.size() <= 100
+        && data.contactNumbers is list && data.contactNumbers.size() > 0
+        && data.geohash is string;
+    }
+
+    match /stores/{storeId} {
+      allow read: if true;
+      allow create: if isSignedIn() && isValidStore(incoming());
+      allow update: if isSignedIn() && isOwner(existing().ownerId) && isValidStore(incoming())
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'contactNumbers', 'email', 'category', 'logo', 'geohash', 'lat', 'lng']);
+      allow delete: if isSignedIn() && isOwner(existing().ownerId);
+    }
+
+    // Products
+    function isValidProduct(data) {
+      return data.ownerId == request.auth.uid
+        && data.name is string && data.name.size() >= 2 && data.name.size() <= 100
+        && data.price is number && data.price >= 0
+        && data.buyButtonType in ['checkout', 'chat', 'link'];
+    }
+
+    match /products/{productId} {
+      allow read: if true;
+      allow create: if isSignedIn() && isValidProduct(incoming())
+        && get(/databases/$(database)/documents/stores/$(incoming().storeId)).data.ownerId == request.auth.uid;
+      allow update: if isSignedIn() && isOwner(existing().ownerId) && isValidProduct(incoming())
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'price', 'currency', 'category', 'images', 'buyButtonType', 'buyButtonLink', 'isActive']);
+      allow delete: if isSignedIn() && isOwner(existing().ownerId);
+    }
+
+    // Conversations & Messages
+    match /conversations/{convoId} {
+      allow read, update: if isSignedIn() && request.auth.uid in existing().participants;
+      allow create: if isSignedIn() && request.auth.uid in incoming().participants;
+
+      match /messages/{messageId} {
+        allow read: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/conversations/$(convoId)).data.participants;
+        allow create: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/conversations/$(convoId)).data.participants 
+          && incoming().senderId == request.auth.uid;
+      }
+    }
+    
+    // Deals
+    match /deals/{dealId} {
+      allow read: if isSignedIn() && (existing().customerId == request.auth.uid || existing().supplierId == request.auth.uid);
+      allow create: if isSignedIn() && (incoming().customerId == request.auth.uid || incoming().supplierId == request.auth.uid);
+      allow update: if isSignedIn() && (existing().customerId == request.auth.uid || existing().supplierId == request.auth.uid);
+    }
+  }
+}
