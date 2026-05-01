@@ -1,15 +1,11 @@
-import React, { useState, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Store, Camera, Plus, Mail, Phone, MapPin, Loader2, Sparkles, X } from 'lucide-react';
-import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
+import { Store, Plus, Mail, Phone, Loader2, Sparkles } from 'lucide-react';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { collection, addDoc, doc, updateDoc } from 'firebase/firestore';
 import { UserProfile, Store as StoreType } from '../types';
-import { useNavigate } from 'react-router-dom';
-import { useEffect } from 'react';
-import { uploadAndCompressImage } from '../lib/upload-utils';
-import { validateImage } from '../lib/image-utils';
-import { cn } from '../lib/utils';
 import { BUSINESS_CATEGORIES } from '../constants';
+import ImageInput from '../components/ImageInput';
 
 export default function SupplierSetup({ profile, onComplete, existingStore }: { profile: UserProfile, onComplete?: () => void, existingStore?: StoreType }) {
   const [loading, setLoading] = useState(false);
@@ -20,9 +16,6 @@ export default function SupplierSetup({ profile, onComplete, existingStore }: { 
   const [category, setCategory] = useState(existingStore?.category || BUSINESS_CATEGORIES[0]);
   const [specificBusinessType, setSpecificBusinessType] = useState(existingStore?.specificBusinessType || '');
   const [logo, setLogo] = useState(existingStore?.logo || '');
-  const [uploading, setUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-  const navigate = useNavigate();
 
   useEffect(() => {
     if (existingStore) {
@@ -35,39 +28,6 @@ export default function SupplierSetup({ profile, onComplete, existingStore }: { 
       setLogo(existingStore.logo || '');
     }
   }, [existingStore]);
-
-  const handleLogoUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Fast validation
-    const validationError = validateImage(file);
-    if (validationError) {
-      alert(validationError);
-      return;
-    }
-
-    // Fast local preview
-    const previewUrl = URL.createObjectURL(file);
-    setLogo(previewUrl);
-    setUploading(true);
-
-    try {
-      const url = await uploadAndCompressImage(file, `stores/${profile.uid}/logo`, {
-        maxWidth: 300,
-        maxHeight: 300,
-        quality: 0.5
-      });
-      setLogo(url);
-    } catch (error) {
-      console.error("Logo upload error:", error);
-      alert("Failed to upload logo. Please check the image format.");
-      setLogo(''); // Revert
-    } finally {
-      setUploading(false);
-      URL.revokeObjectURL(previewUrl);
-    }
-  };
 
   const handleAddContact = () => setContacts([...contacts, '']);
   const handleContactChange = (index: number, value: string) => {
@@ -143,41 +103,13 @@ export default function SupplierSetup({ profile, onComplete, existingStore }: { 
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="neon-card p-6 space-y-6">
-          <div className="flex flex-col items-center gap-4 py-4">
-            <input 
-              type="file"
-              ref={fileInputRef}
-              onChange={handleLogoUpload}
-              className="hidden"
-              accept="image/*"
+          <div className="max-w-[200px] mx-auto w-full">
+            <ImageInput 
+              value={logo} 
+              onChange={setLogo} 
+              label="Business Logo Identity"
+              aspectRatio="square"
             />
-            <div 
-              onClick={() => !uploading && fileInputRef.current?.click()}
-              className={cn(
-                "w-24 h-24 bg-white/5 rounded-[2rem] border-2 border-dashed flex flex-col items-center justify-center text-gray-600 gap-2 cursor-pointer hover:border-primary/50 hover:text-primary transition-all relative overflow-hidden",
-                logo ? "border-solid border-primary/20" : "border-white/10"
-              )}
-            >
-              {uploading ? (
-                <Loader2 className="animate-spin text-primary" size={24} />
-              ) : logo ? (
-                <img src={logo} alt="Logo" className="w-full h-full object-cover" />
-              ) : (
-                <>
-                  <Camera size={24} />
-                  <span className="text-[8px] font-black uppercase tracking-widest text-center px-2">Upload Identity Logo</span>
-                </>
-              )}
-            </div>
-            {logo && (
-              <button 
-                type="button"
-                onClick={() => setLogo('')}
-                className="text-[8px] font-black uppercase text-red-500 tracking-widest hover:opacity-80 flex items-center gap-1"
-              >
-                <X size={10} /> Remove Logo
-              </button>
-            )}
           </div>
 
           <div className="space-y-4">

@@ -6,6 +6,7 @@ import { cn, formatCurrency } from '../lib/utils';
 import { db } from '../lib/firebase';
 import { collection, query, where, getDocs, addDoc, serverTimestamp, doc, getDoc, orderBy } from 'firebase/firestore';
 import { useLocation, useNavigate } from 'react-router-dom';
+import { offlineResilientWrite } from '../lib/sync';
 
 export default function DealRoom({ profile }: { profile: UserProfile | null }) {
   const [activeTab, setActiveTab] = useState<'buying' | 'selling'>('buying');
@@ -64,14 +65,15 @@ export default function DealRoom({ profile }: { profile: UserProfile | null }) {
           
           if (existingSnap.empty) {
             // Create new deal
-            await addDoc(collection(db, 'deals'), {
+            const dealId = `deal_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+            await offlineResilientWrite('deals', dealId, 'create', {
               customerId: profile.uid,
               supplierId: productData.ownerId,
               productId: productId,
               status: 'pending',
               agreedPrice: productData.price,
-              updatedAt: serverTimestamp(),
-              createdAt: serverTimestamp()
+              updatedAt: new Date().toISOString(),
+              createdAt: new Date().toISOString()
             });
             // Refresh
             navigate('/deals', { replace: true });
@@ -195,12 +197,12 @@ function DealCard({ deal }: { deal: Deal, key?: React.Key }) {
     fetchProduct();
   }, [deal.productId]);
 
-  const statusConfig: Record<DealStatus, { color: string, glow: string, icon: any, label: string }> = {
-    pending: { color: 'text-amber-400', glow: 'shadow-[0_0_10px_rgba(251,191,36,0.3)]', icon: Clock, label: 'ENQUIRED' },
-    quoted: { color: 'text-blue-400', glow: 'shadow-[0_0_10px_rgba(96,165,250,0.3)]', icon: DollarSign, label: 'QUOTED' },
-    accepted: { color: 'text-neon-green', glow: 'shadow-[0_0_10px_rgba(57,255,20,0.3)]', icon: CheckCircle2, label: 'ENGAGED' },
-    delivered: { color: 'text-primary', glow: 'shadow-[0_0_10px_rgba(0,242,254,0.3)]', icon: Zap, label: 'CLOSED' },
-    cancelled: { color: 'text-red-400', glow: 'shadow-[0_0_10px_rgba(248,113,113,0.3)]', icon: AlertCircle, label: 'ABORTED' }
+  const statusConfig: Record<DealStatus, { color: string, glow: string, icon: any, label: string, border: string, shadow: string }> = {
+    pending: { color: 'text-amber-400', glow: 'shadow-[0_0_10px_rgba(251,191,36,0.3)]', icon: Clock, label: 'ENQUIRED', border: 'rgba(251,191,36,0.4)', shadow: '0 0 20px rgba(251,191,36,0.1)' },
+    quoted: { color: 'text-blue-400', glow: 'shadow-[0_0_10px_rgba(96,165,250,0.3)]', icon: DollarSign, label: 'QUOTED', border: 'rgba(96,165,250,0.4)', shadow: '0 0 20px rgba(96,165,250,0.1)' },
+    accepted: { color: 'text-neon-green', glow: 'shadow-[0_0_10px_rgba(57,255,20,0.3)]', icon: CheckCircle2, label: 'ENGAGED', border: 'rgba(57,255,20,0.4)', shadow: '0 0 20px rgba(57,255,20,0.1)' },
+    delivered: { color: 'text-primary', glow: 'shadow-[0_0_10px_rgba(0,242,254,0.3)]', icon: Zap, label: 'CLOSED', border: 'rgba(0,242,254,0.4)', shadow: '0 0 20px rgba(0,242,254,0.1)' },
+    cancelled: { color: 'text-red-400', glow: 'shadow-[0_0_10px_rgba(248,113,113,0.3)]', icon: AlertCircle, label: 'ABORTED', border: 'rgba(248,113,113,0.4)', shadow: '0 0 20px rgba(248,113,113,0.1)' }
   };
 
   const config = statusConfig[deal.status];
@@ -211,10 +213,16 @@ function DealCard({ deal }: { deal: Deal, key?: React.Key }) {
 
   return (
     <motion.div 
-      whileHover={{ y: -4, border: '1px solid rgba(0, 242, 254, 0.2)' }}
-      className="neon-card p-5 space-y-6 cursor-pointer relative group overflow-hidden"
+      whileHover={{ 
+        y: -4, 
+        scale: 1.01,
+        borderColor: config.border,
+        boxShadow: config.shadow
+      }}
+      transition={{ duration: 0.3, ease: "easeOut" }}
+      className="neon-card p-5 space-y-6 cursor-pointer relative group overflow-hidden border border-white/5"
     >
-      <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl -mr-16 -mt-16 pointer-events-none"></div>
+      <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl -mr-16 -mt-16 pointer-events-none group-hover:bg-primary/10 transition-colors"></div>
       
       <div className="flex justify-between items-start relative z-10">
         <div className="flex gap-4">
@@ -222,7 +230,7 @@ function DealCard({ deal }: { deal: Deal, key?: React.Key }) {
             <img 
               src={product?.images?.[0] || 'https://images.unsplash.com/photo-1540350394557-8ae14678e7f91?w=200&q=80'} 
               alt="Thumbnail" 
-              className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700" 
+              className="w-full h-full object-cover group-hover:scale-125 transition-transform duration-1000 ease-out" 
             />
           </div>
           <div className="space-y-1">

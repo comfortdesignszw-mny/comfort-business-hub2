@@ -215,24 +215,33 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
 
 function ProductCard({ product, profile }: { product: Product, profile: UserProfile | null, key?: React.Key }) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
-  const [storeName, setStoreName] = useState<string>('Verified Node');
+  const [storeData, setStoreData] = useState<{ name: string; rating: number; reviewCount: number }>({
+    name: 'Verified Node',
+    rating: 5.0,
+    reviewCount: 0
+  });
   const [isStoreLoading, setIsStoreLoading] = useState(true);
 
   useEffect(() => {
-    const fetchStoreName = async () => {
+    const fetchStoreData = async () => {
       try {
         const { getDoc, doc } = await import('firebase/firestore');
         const storeSnap = await getDoc(doc(db, 'stores', product.storeId));
         if (storeSnap.exists()) {
-          setStoreName(storeSnap.data().name);
+          const data = storeSnap.data();
+          setStoreData({
+            name: data.name || 'Verified Node',
+            rating: data.rating || 5.0,
+            reviewCount: data.reviewCount || 0
+          });
         }
       } catch (err) {
-        console.error("Error fetching store name:", err);
+        console.error("Error fetching store data:", err);
       } finally {
         setIsStoreLoading(false);
       }
     };
-    fetchStoreName();
+    fetchStoreData();
   }, [product.storeId]);
 
   const handleAction = (type: 'shop' | 'engage') => {
@@ -328,7 +337,7 @@ function ProductCard({ product, profile }: { product: Product, profile: UserProf
 
         <div className="absolute top-4 left-4 flex flex-col gap-2">
           <span className="glass-pill flex items-center gap-1 group-hover:border-primary/50 transition-colors">
-            <Star size={10} className="fill-primary text-primary" /> 4.9
+            <Star size={10} className="fill-primary text-primary" /> {storeData.rating.toFixed(1)}
           </span>
           <span className="glass-pill text-[8px] uppercase tracking-widest">{product.category}</span>
         </div>
@@ -350,15 +359,30 @@ function ProductCard({ product, profile }: { product: Product, profile: UserProf
           <div className="flex items-center justify-between">
             <div className="flex items-center gap-2.5">
               <div className="w-9 h-9 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center text-[10px] font-black text-primary group-hover:bg-primary/10 transition-all">
-                {storeName.charAt(0)}
+                {storeData.name.charAt(0)}
               </div>
               <div>
-                <p className="text-[8px] font-black text-gray-500 uppercase tracking-widest">Supplier Entity</p>
+                <p className="text-[8px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
+                  Supplier Entity
+                  <span className="flex items-center gap-0.5 ml-1">
+                    {[1, 2, 3, 4, 5].map((star) => (
+                      <Star 
+                        key={star} 
+                        size={6} 
+                        className={cn(
+                          "transition-colors",
+                          star <= Math.round(storeData.rating) ? "fill-primary text-primary" : "text-gray-600"
+                        )} 
+                      />
+                    ))}
+                    <span className="text-[6px] text-gray-400 font-bold ml-1">({storeData.reviewCount})</span>
+                  </span>
+                </p>
                 <p className={cn(
                   "text-[10px] font-black text-white italic truncate max-w-[120px]",
                   isStoreLoading && "animate-pulse bg-white/5 rounded-sm h-3 w-20"
                 )}>
-                  {isStoreLoading ? '' : storeName}
+                  {isStoreLoading ? '' : storeData.name}
                 </p>
               </div>
             </div>

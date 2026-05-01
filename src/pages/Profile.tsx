@@ -1,17 +1,16 @@
-import React, { useState, useRef, useTransition } from 'react';
+import React, { useState, useTransition } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  User, Store, Phone, MapPin, Shield, LogOut, ChevronRight, Share2, Wallet, 
-  Bell, Zap, Image as ImageIcon, X, Check, Globe, CreditCard, 
-  Navigation, Crosshair, Save, Loader2, Mail
+  User, Store, Phone, MapPin, Shield, LogOut, ChevronRight, Wallet, 
+  Bell, Zap, Image as ImageIcon, X, Check, CreditCard, 
+  Navigation, Crosshair, Save, Loader2 
 } from 'lucide-react';
 import { UserProfile, Role } from '../types';
-import { auth, db, storage, handleFirestoreError, OperationType } from '../lib/firebase';
+import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
-import { uploadAndCompressImage } from '../lib/upload-utils';
-import { validateImage } from '../lib/image-utils';
 import { cn } from '../lib/utils';
+import ImageInput from '../components/ImageInput';
 
 export default function Profile({ profile, setProfile }: { profile: UserProfile | null, setProfile: (p: UserProfile) => void }) {
   const [loading, setLoading] = useState(false);
@@ -280,41 +279,6 @@ function ProfileEditor({ profile, onSave }: { profile: UserProfile, onSave: (p: 
   const [name, setName] = useState(profile.name);
   const [phone, setPhone] = useState(profile.phone);
   const [avatar, setAvatar] = useState(profile.avatar || '');
-  const [uploading, setUploading] = useState(false);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file) return;
-
-    // Fast validation
-    const validationError = validateImage(file);
-    if (validationError) {
-      alert(validationError);
-      return;
-    }
-
-    // 1. Instant Optimistic Preview
-    const previewUrl = URL.createObjectURL(file);
-    setAvatar(previewUrl); 
-    setUploading(true);
-
-    try {
-      const url = await uploadAndCompressImage(file, `avatars/${profile.uid}`, {
-        maxWidth: 250,
-        maxHeight: 250,
-        quality: 0.5
-      });
-      setAvatar(url);
-    } catch (error) {
-      console.error("Avatar upload error:", error);
-      alert("Failed to update avatar. Please check your connection.");
-      setAvatar(profile.avatar || ''); // Revert on failure
-    } finally {
-      setUploading(false);
-      URL.revokeObjectURL(previewUrl); // Cleanup
-    }
-  };
 
   return (
     <div className="space-y-8">
@@ -324,42 +288,13 @@ function ProfileEditor({ profile, onSave }: { profile: UserProfile, onSave: (p: 
       </header>
 
       <div className="space-y-6">
-         <div className="flex flex-col items-center gap-4">
-           <div className="relative group">
-            <div className="w-24 h-24 rounded-full bg-white/5 border border-white/10 overflow-hidden flex items-center justify-center relative">
-               {avatar ? (
-                 <>
-                   <img src={avatar} className={cn("w-full h-full object-cover", uploading && "brightness-50")} />
-                   {uploading && (
-                     <div className="absolute inset-0 flex items-center justify-center">
-                       <Loader2 className="animate-spin text-primary" size={24} />
-                     </div>
-                   )}
-                 </>
-               ) : uploading ? (
-                 <Loader2 className="animate-spin text-primary" size={32} />
-               ) : (
-                 <div className="w-full h-full flex items-center justify-center text-gray-700">
-                    <User size={40} />
-                 </div>
-               )}
-            </div>
-            <input 
-              type="file" 
-              ref={fileInputRef} 
-              onChange={handleFileUpload} 
-              className="hidden" 
-              accept="image/*" 
+         <div className="max-w-[160px] mx-auto w-full">
+            <ImageInput 
+              value={avatar} 
+              onChange={setAvatar} 
+              label="Avatar Identity"
+              aspectRatio="square"
             />
-            <button 
-              disabled={uploading}
-              className="absolute bottom-0 right-0 w-8 h-8 bg-primary rounded-lg flex items-center justify-center text-[#05070a] disabled:opacity-50"
-              onClick={() => fileInputRef.current?.click()}
-            >
-              {uploading ? <Loader2 className="animate-spin" size={14} /> : <ImageIcon size={14} />}
-            </button>
-           </div>
-           <p className="text-[8px] text-gray-600 font-black uppercase tracking-[0.2em]">Change Avatar Identity</p>
          </div>
 
         <div className="space-y-4">

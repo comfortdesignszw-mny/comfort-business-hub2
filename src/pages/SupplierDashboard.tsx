@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef } from 'react';
+import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Store as StoreIcon, 
@@ -9,33 +9,27 @@ import {
   ShoppingBag, 
   MessageSquare, 
   Link as LinkIcon, 
-  Image as ImageIcon, 
   X, 
   Check,
-  ChevronRight,
-  TrendingUp,
   Users,
-  DollarSign
+  DollarSign,
+  Loader2
 } from 'lucide-react';
-import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { 
   collection, 
   query, 
   where, 
   getDocs, 
-  addDoc, 
   updateDoc, 
-  deleteDoc, 
   doc,
-  serverTimestamp 
 } from 'firebase/firestore';
 import { UserProfile, Store, Product, BuyButtonType } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
-import { uploadAndCompressImage } from '../lib/upload-utils';
-import { validateImage } from '../lib/image-utils';
 import { PRODUCT_CATEGORIES } from '../constants';
-import { Loader2 } from 'lucide-react';
 import SupplierSetup from './SupplierSetup';
+import { offlineResilientWrite } from '../lib/sync';
+import ImageInput from '../components/ImageInput';
 
 interface ProductForm {
   name: string;
@@ -72,10 +66,8 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState<ProductForm>(initialForm);
   const [isSubmitting, setIsSubmitting] = useState(false);
-  const [uploadingImage, setUploadingImage] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [customCategory, setCustomCategory] = useState('');
-  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     fetchData();
@@ -145,49 +137,6 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
     setShowProductForm(true);
   };
 
-  const handleProductImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const files = Array.from(e.target.files || []);
-    if (files.length === 0 || !activeStore) return;
-
-    // Limit to max 5 images
-    const currentImagesCount = formData.images.length;
-    if (currentImagesCount + files.length > 5) {
-      alert("Maximum 5 images allowed per product.");
-      return;
-    }
-
-    setUploadingImage(true);
-
-    try {
-      const uploadPromises = files.map(async (file: File) => {
-        // Validation
-        const validationError = validateImage(file);
-        if (validationError) {
-          throw new Error(`${file.name}: ${validationError}`);
-        }
-
-        // Upload and compress
-        return await uploadAndCompressImage(file, `products/${activeStore.id}/${Date.now()}-${Math.random().toString(36).substring(7)}`, {
-          maxWidth: 800,
-          maxHeight: 800,
-          quality: 0.6
-        });
-      });
-
-      const uploadedUrls = await Promise.all(uploadPromises);
-      setFormData(prev => ({
-        ...prev,
-        images: [...prev.images, ...uploadedUrls]
-      }));
-    } catch (error) {
-      console.error("Product image upload error:", error);
-      alert(error instanceof Error ? error.message : "Failed to upload one or more images.");
-    } finally {
-      setUploadingImage(false);
-      if (fileInputRef.current) fileInputRef.current.value = '';
-    }
-  };
-
   const removeProductImage = (index: number) => {
     setFormData(prev => ({
       ...prev,
@@ -213,10 +162,12 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
       };
 
       if (editingProduct) {
-        await updateDoc(doc(db, 'products', editingProduct.id), data);
+        await offlineResilientWrite('products', editingProduct.id, 'update', data);
       } else {
-        await addDoc(collection(db, 'products'), {
+        const newId = `prod_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+        await offlineResilientWrite('products', newId, 'create', {
           ...data,
+          id: newId,
           createdAt: new Date().toISOString()
         });
       }
@@ -232,7 +183,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
 
   const handleDeleteProduct = async (id: string) => {
     try {
-      await deleteDoc(doc(db, 'products', id));
+      await offlineResilientWrite('products', id, 'delete');
       setProductToDelete(null);
       fetchData();
     } catch (e) {
@@ -315,10 +266,10 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
       </section>
 
       {/* Store Header */}
-      <section className="neon-card p-6 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl -mr-16 -mt-16"></div>
-        <div className="flex items-center gap-6">
-          <div className="w-20 h-20 bg-white/5 rounded-2xl border border-white/10 flex items-center justify-center text-3xl font-black text-primary italic overflow-hidden">
+      <section className="neon-card p-6 relative overflow-hidden group">
+        <div className="absolute top-0 right-0 w-48 h-48 bg-primary/5 blur-3xl -mr-24 -mt-24 pointer-events-none group-hover:bg-primary/10 transition-colors"></div>
+        <div className="flex items-center gap-6 relative z-10">
+          <div className="w-20 h-20 bg-white/5 rounded-2xl border border-white/10 flex items-center justify-center text-3xl font-black text-primary italic overflow-hidden shadow-2xl">
             {activeStore.logo ? <img src={activeStore.logo} className="w-full h-full object-cover" /> : activeStore.name.charAt(0)}
           </div>
           <div className="space-y-1 flex-1">
@@ -326,13 +277,14 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
               <h1 className="text-2xl font-black text-white italic uppercase tracking-tighter leading-none">{activeStore.name}</h1>
               <button 
                 onClick={() => {
+                  console.log("Edit store clicked");
                   setIsEditingStore(true);
                   setShowStoreSetup(true);
                 }}
-                className="p-2 bg-white/5 border border-white/10 rounded-xl text-gray-500 hover:text-primary hover:border-primary/50 transition-all"
+                className="p-3 bg-white/5 border border-white/10 rounded-xl text-gray-500 hover:text-primary hover:border-primary/50 transition-all hover:scale-110 active:scale-95 shadow-xl relative z-20"
                 title="Edit Store Profile"
               >
-                <Edit3 size={16} />
+                <Edit3 size={18} />
               </button>
             </div>
             <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">{activeStore.category} Operations Unit</p>
@@ -482,231 +434,228 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
                 initial={{ opacity: 0, scale: 0.9, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
                 exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                className="relative w-full max-w-lg neon-card !bg-[#0d1117] p-8 max-h-[90vh] overflow-y-auto scroll-smooth no-scrollbar"
+                className="relative w-full max-w-lg neon-card !bg-[#0d1117] p-0 max-h-[90vh] flex flex-col overflow-hidden shadow-2xl border border-white/10"
               >
-              <button 
-                onClick={() => setShowProductForm(false)}
-                className="absolute top-6 right-6 text-gray-500 hover:text-white"
-              >
-                <X size={24} />
-              </button>
-
-              <header className="mb-8 space-y-2">
-                <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter">
-                  {editingProduct ? 'Edit Entity' : 'New Matrix Entry'}
-                </h3>
-                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Define operational parameters for the item</p>
-              </header>
-
-              <form onSubmit={handleSubmit} className="space-y-6">
-                <div className="space-y-4">
-                  {/* Image Matrix Upload */}
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between ml-1">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Visual Matrix ({formData.images.length}/5)</label>
-                      {formData.images.length < 5 && (
-                        <button 
-                          type="button"
-                          onClick={() => !uploadingImage && fileInputRef.current?.click()}
-                          className="text-primary text-[10px] font-black uppercase tracking-widest hover:opacity-80 flex items-center gap-1"
-                        >
-                          <Plus size={12} /> Add More
-                        </button>
-                      )}
-                    </div>
-                    
-                    <div className="grid grid-cols-3 gap-3">
-                      {formData.images.map((img, idx) => (
-                        <div key={idx} className="relative aspect-square rounded-xl overflow-hidden border border-white/10 group">
-                          <img src={img} className="w-full h-full object-cover" />
-                          <button 
-                            type="button"
-                            onClick={() => removeProductImage(idx)}
-                            className="absolute top-1 right-1 p-1 bg-red-500/80 rounded-md text-white opacity-0 group-hover:opacity-100 transition-opacity"
-                          >
-                            <X size={12} />
-                          </button>
-                        </div>
-                      ))}
-                      
-                      {formData.images.length < 5 && (
-                        <div 
-                          onClick={() => !uploadingImage && fileInputRef.current?.click()}
-                          className={cn(
-                            "aspect-square bg-white/5 border border-white/10 border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 group transition-all relative",
-                            uploadingImage && "opacity-50 pointer-events-none"
-                          )}
-                        >
-                          {uploadingImage ? (
-                            <Loader2 className="animate-spin text-primary" size={20} />
-                          ) : (
-                            <>
-                              <Plus className="text-gray-700 group-hover:text-primary transition-colors" size={20} />
-                              <span className="text-[6px] font-black text-gray-500 group-hover:text-primary uppercase tracking-widest mt-1">Upload</span>
-                            </>
-                          )}
-                        </div>
-                      )}
-                    </div>
-                    
-                    <input 
-                      type="file" 
-                      ref={fileInputRef} 
-                      onChange={handleProductImageUpload} 
-                      className="hidden" 
-                      accept="image/*"
-                      multiple
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Item Name</label>
-                    <input 
-                      type="text"
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-white outline-none focus:border-primary/50 font-bold italic"
-                      placeholder="e.g. 5KVA Inverter System"
-                      value={formData.name}
-                      onChange={e => setFormData({ ...formData, name: e.target.value })}
-                      required
-                    />
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Data Description</label>
-                    <textarea 
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-white outline-none focus:border-primary/50 text-sm"
-                      placeholder="Full technical specifications..."
-                      rows={3}
-                      value={formData.description}
-                      onChange={e => setFormData({ ...formData, description: e.target.value })}
-                      required
-                    />
-                  </div>
-
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Unit Price</label>
-                      <div className="relative">
-                        <DollarSign size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-primary" />
-                        <input 
-                          type="number"
-                          className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-4 py-4 text-white outline-none focus:border-primary/50 font-mono"
-                          placeholder="0.00"
-                          value={formData.price || ''}
-                          onChange={e => setFormData({ ...formData, price: parseFloat(e.target.value) })}
-                          required
-                        />
-                      </div>
-                    </div>
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Currency</label>
-                      <select 
-                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-white outline-none focus:border-primary/50 text-xs font-bold appearance-none"
-                        value={formData.currency}
-                        onChange={e => setFormData({ ...formData, currency: e.target.value })}
-                      >
-                        <option value="USD">USD (US Dollar)</option>
-                        <option value="ZiG">ZiG (Zimbabwe Gold)</option>
-                      </select>
-                    </div>
-                  </div>
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Category Alignment</label>
-                    <select 
-                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-white outline-none focus:border-primary/50 text-xs font-bold appearance-none"
-                      value={formData.category}
-                      onChange={e => setFormData({ ...formData, category: e.target.value })}
-                    >
-                      {PRODUCT_CATEGORIES.map(cat => (
-                        <option key={cat} value={cat}>{cat}</option>
-                      ))}
-                      <option value="Other">Custom Category...</option>
-                    </select>
-                  </div>
-
-                  {formData.category === 'Other' && (
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Define Custom Category</label>
-                      <input 
-                        type="text"
-                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-white outline-none focus:border-primary/50 font-bold italic text-xs"
-                        placeholder="Enter specific category name"
-                        value={customCategory}
-                        onChange={e => setCustomCategory(e.target.value)}
-                        required
-                      />
-                    </div>
-                  )}
-
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Buy Logic Gateway</label>
-                    <div className="grid grid-cols-3 gap-2">
-                      {[
-                        { id: 'checkout', icon: ShoppingBag, label: 'Direct' },
-                        { id: 'chat', icon: MessageSquare, label: 'Inbox' },
-                        { id: 'link', icon: LinkIcon, label: 'Gateway' }
-                      ].map((t) => (
-                        <button
-                          key={t.id}
-                          type="button"
-                          onClick={() => setFormData({ ...formData, buyButtonType: t.id as BuyButtonType })}
-                          className={cn(
-                            "flex flex-col items-center gap-2 p-3 rounded-2xl border transition-all",
-                            formData.buyButtonType === t.id 
-                              ? "bg-primary/20 border-primary text-primary" 
-                              : "bg-white/5 border-white/5 text-gray-500"
-                          )}
-                        >
-                          <t.icon size={18} />
-                          <span className="text-[8px] font-black uppercase tracking-widest">{t.label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-
-                  {formData.buyButtonType === 'link' && (
-                    <div className="space-y-2">
-                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">External Matrix Link</label>
-                      <input 
-                        type="url"
-                        className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-white outline-none focus:border-primary/50 text-xs font-mono"
-                        placeholder="https://payments.gateway.zw/..."
-                        value={formData.buyButtonLink}
-                        onChange={e => setFormData({ ...formData, buyButtonLink: e.target.value })}
-                        required
-                      />
-                    </div>
-                  )}
-
-                  <div className="flex items-center gap-3 p-4 bg-white/5 rounded-2xl border border-white/5">
-                    <input 
-                      type="checkbox"
-                      id="isActive"
-                      className="w-5 h-5 accent-primary bg-transparent rounded border-white/10"
-                      checked={formData.isActive}
-                      onChange={e => setFormData({ ...formData, isActive: e.target.checked })}
-                    />
-                    <label htmlFor="isActive" className="text-[10px] font-black text-white uppercase tracking-widest">Online Availability</label>
-                  </div>
+                {/* Sticky Header */}
+                <div className="p-6 border-b border-white/5 relative z-10 bg-[#0d1117]/80 backdrop-blur-md flex justify-between items-start">
+                  <header className="space-y-1">
+                    <h3 className="text-xl font-black text-white italic uppercase tracking-tighter">
+                      {editingProduct ? 'Edit Entity' : 'New Matrix Entry'}
+                    </h3>
+                    <p className="text-[9px] text-primary/60 font-bold uppercase tracking-widest">Operational Parameters Identification</p>
+                  </header>
+                  <button 
+                    onClick={() => setShowProductForm(false)}
+                    className="text-gray-400 hover:text-white bg-white/5 p-2 rounded-xl border border-white/10 transition-all hover:scale-110 active:scale-95"
+                  >
+                    <X size={20} />
+                  </button>
                 </div>
 
-                <button 
-                  type="submit"
-                  disabled={isSubmitting}
-                  className="w-full btn-neon py-5 text-sm uppercase tracking-[0.2em] italic flex items-center justify-center gap-3 transition-all transform active:scale-[0.98]"
-                >
-                  {isSubmitting ? (
-                    <Loader2 className="animate-spin" size={20} />
-                  ) : (
-                    <>
-                      {editingProduct ? <Check size={20} /> : <Plus size={20} />}
-                      {editingProduct ? 'Update Listing' : 'Initialize Matrix Entry'}
-                    </>
-                  )}
-                </button>
-              </form>
-            </motion.div>
+                {/* Scrollable Form Content */}
+                <div className="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar scroll-smooth overscroll-behavior-contain">
+                  <form id="product-form" onSubmit={handleSubmit} className="space-y-6">
+                    <div className="space-y-6">
+                      {/* Image Matrix Upload */}
+                      <div className="space-y-4">
+                        <div className="flex items-center justify-between ml-1">
+                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Visual Matrix ({formData.images.length}/5)</label>
+                        </div>
+                        
+                        <div className="grid grid-cols-2 gap-4">
+                          {formData.images.map((img, idx) => (
+                            <div key={idx} className="relative">
+                              <ImageInput 
+                                value={img} 
+                                onChange={(val) => {
+                                  const newImages = [...formData.images];
+                                  if (val) {
+                                    newImages[idx] = val;
+                                  } else {
+                                    newImages.splice(idx, 1);
+                                  }
+                                  setFormData({ ...formData, images: newImages });
+                                }} 
+                                aspectRatio="square"
+                              />
+                            </div>
+                          ))}
+                          
+                          {formData.images.length < 5 && (
+                            <div className="relative">
+                              <ImageInput 
+                                value="" 
+                                onChange={(val) => {
+                                  if (val) {
+                                    setFormData({ ...formData, images: [...formData.images, val] });
+                                  }
+                                }} 
+                                aspectRatio="square"
+                                label="Add Asset"
+                              />
+                            </div>
+                          )}
+                        </div>
+                      </div>
+
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Item Name</label>
+                          <input 
+                            type="text"
+                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-white outline-none focus:border-primary/50 font-bold italic transition-all"
+                            placeholder="e.g. 5KVA Inverter System"
+                            value={formData.name}
+                            onChange={e => setFormData({ ...formData, name: e.target.value })}
+                            required
+                          />
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Data Description</label>
+                          <textarea 
+                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-white outline-none focus:border-primary/50 text-sm min-h-[100px] transition-all"
+                            placeholder="Full technical specifications..."
+                            rows={3}
+                            value={formData.description}
+                            onChange={e => setFormData({ ...formData, description: e.target.value })}
+                            required
+                          />
+                        </div>
+
+                        <div className="grid grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Unit Price</label>
+                            <div className="relative">
+                              <DollarSign size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-primary" />
+                              <input 
+                                type="number"
+                                className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-4 py-4 text-white outline-none focus:border-primary/50 font-mono"
+                                placeholder="0.00"
+                                value={formData.price || ''}
+                                onChange={e => setFormData({ ...formData, price: parseFloat(e.target.value) })}
+                                required
+                              />
+                            </div>
+                          </div>
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Currency</label>
+                            <select 
+                              className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-white outline-none focus:border-primary/50 text-xs font-bold appearance-none cursor-pointer shadow-xl"
+                              value={formData.currency}
+                              onChange={e => setFormData({ ...formData, currency: e.target.value })}
+                            >
+                              <option value="USD">USD (US Dollar)</option>
+                              <option value="ZiG">ZiG (Zimbabwe Gold)</option>
+                            </select>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Category Alignment</label>
+                          <select 
+                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-white outline-none focus:border-primary/50 text-xs font-bold appearance-none cursor-pointer shadow-xl"
+                            value={formData.category}
+                            onChange={e => setFormData({ ...formData, category: e.target.value })}
+                          >
+                            {PRODUCT_CATEGORIES.map(cat => (
+                              <option key={cat} value={cat}>{cat}</option>
+                            ))}
+                            <option value="Other">Custom Category...</option>
+                          </select>
+                        </div>
+
+                        {formData.category === 'Other' && (
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Define Custom Category</label>
+                            <input 
+                              type="text"
+                              className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-white outline-none focus:border-primary/50 font-bold italic text-xs transition-all"
+                              placeholder="Enter specific category name"
+                              value={customCategory}
+                              onChange={e => setCustomCategory(e.target.value)}
+                              required
+                            />
+                          </div>
+                        )}
+
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Buy Logic Gateway</label>
+                          <div className="grid grid-cols-3 gap-2">
+                            {[
+                              { id: 'checkout', icon: ShoppingBag, label: 'Direct' },
+                              { id: 'chat', icon: MessageSquare, label: 'Inbox' },
+                              { id: 'link', icon: LinkIcon, label: 'Gateway' }
+                            ].map((t) => (
+                              <button
+                                key={t.id}
+                                type="button"
+                                onClick={() => setFormData({ ...formData, buyButtonType: t.id as BuyButtonType })}
+                                className={cn(
+                                  "flex flex-col items-center gap-2 p-3 rounded-2xl border transition-all hover:scale-105 active:scale-95",
+                                  formData.buyButtonType === t.id 
+                                    ? "bg-primary/20 border-primary text-primary shadow-[0_0_15px_rgba(0,242,254,0.1)]" 
+                                    : "bg-white/5 border-white/5 text-gray-500"
+                                )}
+                              >
+                                <t.icon size={18} />
+                                <span className="text-[8px] font-black uppercase tracking-widest">{t.label}</span>
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
+                        {formData.buyButtonType === 'link' && (
+                          <div className="space-y-2">
+                            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">External Matrix Link</label>
+                            <input 
+                              type="url"
+                              className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-white outline-none focus:border-primary/50 text-xs font-mono transition-all"
+                              placeholder="https://payments.gateway.zw/..."
+                              value={formData.buyButtonLink}
+                              onChange={e => setFormData({ ...formData, buyButtonLink: e.target.value })}
+                              required
+                            />
+                          </div>
+                        )}
+
+                        <div className="flex items-center gap-3 p-4 bg-white/5 rounded-2xl border border-white/5 hover:border-white/10 transition-colors cursor-pointer group" onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}>
+                          <input 
+                            type="checkbox"
+                            id="isActive"
+                            className="w-5 h-5 accent-primary bg-transparent rounded border-white/10 cursor-pointer"
+                            checked={formData.isActive}
+                            onChange={e => {
+                               e.stopPropagation();
+                               setFormData({ ...formData, isActive: e.target.checked });
+                            }}
+                          />
+                          <label htmlFor="isActive" className="text-[10px] font-black text-white uppercase tracking-widest cursor-pointer group-hover:text-primary transition-colors">Online Availability</label>
+                        </div>
+                      </div>
+                    </div>
+                  </form>
+                </div>
+
+                {/* Sticky Footer */}
+                <div className="p-6 border-t border-white/5 bg-[#0d1117]/80 backdrop-blur-md">
+                  <button 
+                    type="submit"
+                    form="product-form"
+                    disabled={isSubmitting}
+                    className="w-full btn-neon py-5 text-sm uppercase tracking-[0.2em] italic flex items-center justify-center gap-3 transition-all transform active:scale-95 shadow-xl disabled:opacity-50"
+                  >
+                    {isSubmitting ? (
+                      <Loader2 className="animate-spin" size={20} />
+                    ) : (
+                      <>
+                        {editingProduct ? <Check size={20} /> : <Plus size={20} />}
+                        {editingProduct ? 'Update Listing' : 'Initialize Matrix Entry'}
+                      </>
+                    )}
+                  </button>
+                </div>
+              </motion.div>
           </div>
         )}
       </AnimatePresence>
