@@ -45,7 +45,7 @@ service cloud.firestore {
       allow read: if true;
       allow create: if isSignedIn() && isValidStore(incoming());
       allow update: if isSignedIn() && isOwner(existing().ownerId) && isValidStore(incoming())
-        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'contactNumbers', 'email', 'category', 'logo', 'geohash', 'lat', 'lng']);
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'contactNumbers', 'email', 'category', 'logo', 'geohash', 'lat', 'lng', 'updatedAt']);
       allow delete: if isSignedIn() && isOwner(existing().ownerId);
     }
 
@@ -62,7 +62,7 @@ service cloud.firestore {
       allow create: if isSignedIn() && isValidProduct(incoming())
         && get(/databases/$(database)/documents/stores/$(incoming().storeId)).data.ownerId == request.auth.uid;
       allow update: if isSignedIn() && isOwner(existing().ownerId) && isValidProduct(incoming())
-        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'price', 'currency', 'category', 'images', 'buyButtonType', 'buyButtonLink', 'isActive']);
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'price', 'currency', 'category', 'images', 'buyButtonType', 'buyButtonLink', 'isActive', 'updatedAt']);
       allow delete: if isSignedIn() && isOwner(existing().ownerId);
     }
 

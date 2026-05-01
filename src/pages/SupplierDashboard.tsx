@@ -270,7 +270,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
         <div className="absolute top-0 right-0 w-48 h-48 bg-primary/5 blur-3xl -mr-24 -mt-24 pointer-events-none group-hover:bg-primary/10 transition-colors"></div>
         <div className="flex items-center gap-6 relative z-10">
           <div className="w-20 h-20 bg-white/5 rounded-2xl border border-white/10 flex items-center justify-center text-3xl font-black text-primary italic overflow-hidden shadow-2xl">
-            {activeStore.logo ? <img src={activeStore.logo} className="w-full h-full object-cover" /> : activeStore.name.charAt(0)}
+            {activeStore.logo ? <img src={activeStore.logo} className="w-full h-full object-cover" referrerPolicy="no-referrer" /> : activeStore.name.charAt(0)}
           </div>
           <div className="space-y-1 flex-1">
             <div className="flex items-center justify-between">
@@ -345,7 +345,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
               className="neon-card p-4 flex gap-4 items-center group"
             >
               <div className="w-16 h-16 bg-white/5 rounded-xl overflow-hidden border border-white/5">
-                <img src={product.images[0]} className="w-full h-full object-cover" alt={product.name} />
+                <img src={product.images[0]} className="w-full h-full object-cover" alt={product.name} referrerPolicy="no-referrer" />
               </div>
               <div className="flex-1 space-y-1">
                 <h4 className="font-black text-white italic uppercase tracking-wider text-xs">{product.name}</h4>

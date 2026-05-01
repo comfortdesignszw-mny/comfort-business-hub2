@@ -162,7 +162,7 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
       {/* Featured Promo */}
       <section className="neon-card relative h-48 flex flex-col justify-end p-6 group cursor-pointer">
         <div className="absolute inset-0 z-0">
-          <img src="https://images.unsplash.com/photo-1540350394557-8d14678e7f91?w=800&q=80" className="w-full h-full object-cover opacity-40 group-hover:scale-110 transition-transform duration-1000" alt="Featured" />
+          <img src="https://images.unsplash.com/photo-1540350394557-8d14678e7f91?w=800&q=80" className="w-full h-full object-cover opacity-40 group-hover:scale-110 transition-transform duration-1000" alt="Featured" referrerPolicy="no-referrer" />
           <div className="absolute inset-0 bg-gradient-to-t from-[#05070a] via-[#05070a]/40 to-transparent"></div>
         </div>
         <div className="relative z-10 space-y-1">
@@ -298,6 +298,7 @@ function ProductCard({ product, profile }: { product: Product, profile: UserProf
             animate={{ opacity: 1, x: 0 }}
             exit={{ opacity: 0, x: -20 }}
             className="w-full h-full object-cover"
+            referrerPolicy="no-referrer"
           />
         </AnimatePresence>
         

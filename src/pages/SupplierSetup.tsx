@@ -6,6 +6,7 @@ import { collection, addDoc, doc, updateDoc } from 'firebase/firestore';
 import { UserProfile, Store as StoreType } from '../types';
 import { BUSINESS_CATEGORIES } from '../constants';
 import ImageInput from '../components/ImageInput';
+import { offlineResilientWrite } from '../lib/sync';
 
 export default function SupplierSetup({ profile, onComplete, existingStore }: { profile: UserProfile, onComplete?: () => void, existingStore?: StoreType }) {
   const [loading, setLoading] = useState(false);
@@ -55,10 +56,12 @@ export default function SupplierSetup({ profile, onComplete, existingStore }: { 
       };
 
       if (existingStore) {
-        await updateDoc(doc(db, 'stores', existingStore.id), storeData);
+        await offlineResilientWrite('stores', existingStore.id, 'update', storeData);
       } else {
+        const newStoreId = `store_${Date.now()}_${Math.random().toString(36).substring(7)}`;
         const newStoreData = {
           ...storeData,
+          id: newStoreId,
           rating: 5,
           reviewCount: 0,
           geohash: profile.geohash || 'demo-hash',
@@ -66,7 +69,7 @@ export default function SupplierSetup({ profile, onComplete, existingStore }: { 
           lng: profile.lng || 31.0335,
           createdAt: new Date().toISOString()
         };
-        await addDoc(collection(db, 'stores'), newStoreData);
+        await offlineResilientWrite('stores', newStoreId, 'create', newStoreData);
       }
 
       if (onComplete) {

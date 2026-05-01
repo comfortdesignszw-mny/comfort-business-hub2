@@ -8,6 +8,7 @@ import {
 } from 'lucide-react';
 import { UserProfile, Role } from '../types';
 import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { offlineResilientWrite } from '../lib/sync';
 import { doc, updateDoc } from 'firebase/firestore';
 import { cn } from '../lib/utils';
 import ImageInput from '../components/ImageInput';
@@ -60,7 +61,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
         ...updates,
         updatedAt: new Date().toISOString()
       };
-      await updateDoc(doc(db, 'users', profile.uid), data);
+      await offlineResilientWrite('users', profile.uid, 'update', data);
     } catch (e) {
       setProfile(prevProfile);
       handleFirestoreError(e, OperationType.UPDATE, `users/${profile.uid}`);
@@ -93,7 +94,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
           <div className="relative w-32 h-32 bg-[#0d1117] border-4 border-[#05070a] rounded-full flex items-center justify-center text-white text-4xl font-black shadow-2xl relative overflow-hidden">
             <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-accent/10"></div>
             {profile.avatar ? (
-              <img src={profile.avatar} alt={profile.name} className="w-full h-full object-cover" />
+              <img src={profile.avatar} alt={profile.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
             ) : profile.name.charAt(0)}
           </div>
           <button 
