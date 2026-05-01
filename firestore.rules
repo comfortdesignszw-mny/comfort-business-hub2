@@ -12,6 +12,11 @@ service cloud.firestore {
       allow read, write: if false;
     }
 
+    // Health Check
+    match /test/connection {
+      allow read: if true;
+    }
+
     // User Profiles
     function isValidUser(data) {
       return data.uid is string && data.uid == request.auth.uid

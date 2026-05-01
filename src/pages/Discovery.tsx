@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { motion } from 'motion/react';
+import { motion, AnimatePresence } from 'motion/react';
 import { Search, MapPin, Filter, Star, Zap, ShoppingBag, Store, ArrowRight, SlidersHorizontal, MessageSquare, Sparkles } from 'lucide-react';
 import { UserProfile, Product, Store as StoreType } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
@@ -192,7 +192,7 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
             ))}
           </div>
         ) : filteredDeals.length > 0 ? (
-          <div className="grid grid-cols-1 gap-8">
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 px-1">
             {filteredDeals.map((product) => (
               <ProductCard key={product.id} product={product} profile={profile} />
             ))}
@@ -214,18 +214,42 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
 }
 
 function ProductCard({ product, profile }: { product: Product, profile: UserProfile | null, key?: React.Key }) {
-  const handleAction = () => {
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const [storeName, setStoreName] = useState<string>('Verified Node');
+  const [isStoreLoading, setIsStoreLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchStoreName = async () => {
+      try {
+        const { getDoc, doc } = await import('firebase/firestore');
+        const storeSnap = await getDoc(doc(db, 'stores', product.storeId));
+        if (storeSnap.exists()) {
+          setStoreName(storeSnap.data().name);
+        }
+      } catch (err) {
+        console.error("Error fetching store name:", err);
+      } finally {
+        setIsStoreLoading(false);
+      }
+    };
+    fetchStoreName();
+  }, [product.storeId]);
+
+  const handleAction = (type: 'shop' | 'engage') => {
+    if (type === 'engage') {
+      window.location.href = `/chat?productId=${product.id}&supplierId=${product.ownerId}`;
+      return;
+    }
+
     switch (product.buyButtonType) {
       case 'link':
         if (product.buyButtonLink) window.open(product.buyButtonLink, '_blank');
         break;
       case 'chat':
-        // Navigation to chat would go here
         window.location.href = `/chat?productId=${product.id}&supplierId=${product.ownerId}`;
         break;
       case 'checkout':
-        // Direct checkout logic
-        alert("Direct Checkout Initiated. Securing Transaction...");
+        window.location.href = `/deals?productId=${product.id}&action=checkout`;
         break;
     }
   };
@@ -238,57 +262,127 @@ function ProductCard({ product, profile }: { product: Product, profile: UserProf
     }
   };
 
+  const images = product.images && product.images.length > 0 ? product.images : ['https://images.unsplash.com/photo-1555529733-0e670560f7e1?q=80&w=600&auto=format&fit=crop'];
+
+  const nextImage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCurrentImageIndex((prev) => (prev + 1) % images.length);
+  };
+
+  const prevImage = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setCurrentImageIndex((prev) => (prev - 1 + images.length) % images.length);
+  };
+
   return (
     <motion.div 
       whileTap={{ scale: 0.98 }}
-      className="neon-card group relative"
+      className="neon-card group relative overflow-hidden"
     >
       <div className="aspect-[16/10] relative overflow-hidden">
-        <img 
-          src={product.images[0]} 
-          alt={product.name}
-          className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-110"
-        />
-        <div className="absolute inset-0 bg-gradient-to-t from-[#05070a] via-transparent to-transparent opacity-60"></div>
-        <div className="absolute top-4 left-4 flex gap-2">
+        <AnimatePresence mode="wait">
+          <motion.img 
+            key={currentImageIndex}
+            src={images[currentImageIndex]} 
+            alt={product.name}
+            initial={{ opacity: 0, x: 20 }}
+            animate={{ opacity: 1, x: 0 }}
+            exit={{ opacity: 0, x: -20 }}
+            className="w-full h-full object-cover"
+          />
+        </AnimatePresence>
+        
+        <div className="absolute inset-0 bg-gradient-to-t from-[#05070a] via-transparent to-transparent opacity-60 pointer-events-none"></div>
+        
+        {images.length > 1 && (
+          <div className="absolute inset-0 flex items-center justify-between px-4 opacity-0 group-hover:opacity-100 transition-opacity">
+            <button 
+              onClick={prevImage}
+              className="w-8 h-8 bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-primary hover:text-black transition-all"
+            >
+              <ArrowRight size={14} className="rotate-180" />
+            </button>
+            <button 
+              onClick={nextImage}
+              className="w-8 h-8 bg-black/40 backdrop-blur-md rounded-full flex items-center justify-center text-white hover:bg-primary hover:text-black transition-all"
+            >
+              <ArrowRight size={14} />
+            </button>
+          </div>
+        )}
+
+        {/* Indicators */}
+        {images.length > 1 && (
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-1">
+            {images.map((_, idx) => (
+              <div 
+                key={idx} 
+                className={cn(
+                  "w-1 h-1 rounded-full transition-all duration-300",
+                  idx === currentImageIndex ? "w-4 bg-primary" : "bg-white/30"
+                )}
+              />
+            ))}
+          </div>
+        )}
+
+        <div className="absolute top-4 left-4 flex flex-col gap-2">
           <span className="glass-pill flex items-center gap-1 group-hover:border-primary/50 transition-colors">
             <Star size={10} className="fill-primary text-primary" /> 4.9
           </span>
           <span className="glass-pill text-[8px] uppercase tracking-widest">{product.category}</span>
         </div>
-        <button 
-          onClick={handleAction}
-          className="absolute bottom-4 right-4 w-12 h-12 bg-primary rounded-2xl flex items-center justify-center text-[#05070a] shadow-xl shadow-primary/30 group-hover:scale-110 transition-transform active:scale-95"
-        >
-          {getActionIcon()}
-        </button>
       </div>
       
       <div className="p-5 space-y-4">
-        <div className="flex justify-between items-start">
-          <div className="space-y-1">
-            <h3 className="text-lg font-black text-white italic group-hover:text-primary transition-colors">{product.name}</h3>
-            <p className="text-xs text-gray-500 font-medium line-clamp-1">{product.description}</p>
+        <div className="flex justify-between items-start gap-4">
+          <div className="space-y-1 flex-1">
+            <h3 className="text-sm font-black text-white uppercase tracking-tight group-hover:text-primary transition-colors line-clamp-1">{product.name}</h3>
+            <p className="text-[10px] text-gray-500 font-medium line-clamp-2 leading-relaxed">{product.description}</p>
           </div>
-          <div className="flex flex-col items-end">
-            <span className="text-2xl font-black text-white tracking-tighter">{formatCurrency(product.price, product.currency)}</span>
-            <span className="text-[8px] text-primary font-black uppercase tracking-widest">+ Tax Included</span>
+          <div className="flex flex-col items-end shrink-0">
+            <span className="text-xl font-black text-white tracking-tighter">{formatCurrency(product.price, product.currency)}</span>
+            <span className="text-[7px] text-primary font-black uppercase tracking-widest">Global Sync</span>
           </div>
         </div>
         
-        <div className="pt-4 border-t border-white/5 flex items-center justify-between">
-          <div className="flex items-center gap-3">
-            <div className="w-8 h-8 rounded-lg bg-white/5 flex items-center justify-center text-[10px] font-black text-gray-400 group-hover:text-primary transition-colors">
-              {product.name.charAt(0)}
+        <div className="pt-4 border-t border-white/5 space-y-4">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2.5">
+              <div className="w-9 h-9 rounded-xl bg-white/5 border border-white/5 flex items-center justify-center text-[10px] font-black text-primary group-hover:bg-primary/10 transition-all">
+                {storeName.charAt(0)}
+              </div>
+              <div>
+                <p className="text-[8px] font-black text-gray-500 uppercase tracking-widest">Supplier Entity</p>
+                <p className={cn(
+                  "text-[10px] font-black text-white italic truncate max-w-[120px]",
+                  isStoreLoading && "animate-pulse bg-white/5 rounded-sm h-3 w-20"
+                )}>
+                  {isStoreLoading ? '' : storeName}
+                </p>
+              </div>
             </div>
-            <div>
-              <p className="text-[10px] font-black text-white/50 uppercase tracking-widest">Supplier Entity</p>
-              <p className="text-xs font-bold text-white italic">Verified Node</p>
+            <div className="flex items-center gap-1 text-neon-green">
+              <Sparkles size={10} />
+              <span className="text-[8px] font-black uppercase tracking-widest">Active Node</span>
             </div>
           </div>
-          <div className="flex items-center gap-1.5 text-neon-green">
-            <MapPin size={12} />
-            <span className="text-[10px] font-black uppercase tracking-widest">LOCAL</span>
+
+          <div className="grid grid-cols-2 gap-2">
+            <button 
+              onClick={() => handleAction('engage')}
+              className="flex-1 py-3 px-4 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-white hover:bg-white/10 transition-all group/btn"
+            >
+              <MessageSquare size={14} className="group-hover/btn:scale-110 transition-transform" />
+              Engage
+            </button>
+            <button 
+              onClick={() => handleAction('shop')}
+              className="flex-1 py-3 px-4 bg-primary rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#05070a] shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all group/btn"
+            >
+              <ShoppingBag size={14} className="group-hover/btn:scale-110 transition-transform" />
+              Shop
+            </button>
           </div>
         </div>
       </div>

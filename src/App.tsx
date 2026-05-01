@@ -90,7 +90,7 @@ export default function App() {
 
   return (
     <Router>
-      <div className="flex flex-col h-screen max-w-md mx-auto bg-[#05070a] border-x border-white/5 relative shadow-2xl">
+      <div className="flex flex-col h-screen bg-[#05070a] relative shadow-2xl">
         {!user ? (
           <Routes>
             <Route path="/login" element={<Login />} />
@@ -100,26 +100,28 @@ export default function App() {
           <MessagingProvider profile={profile}>
             <Header profile={profile} />
             <main className="flex-1 overflow-y-auto no-scrollbar pb-24">
-              <AnimatePresence mode="wait">
-                <Routes>
-                  {isProfileIncomplete ? (
-                    <Route path="*" element={<CustomerSetup profile={profile!} />} />
-                  ) : (
-                    <>
-                      <Route path="/" element={<Discovery profile={profile} setProfile={setProfile} />} />
-                      <Route path="/deals" element={<DealRoom profile={profile} />} />
-                      <Route path="/chat" element={<Chat profile={profile} />} />
-                      {profile?.currentRole === 'supplier' && !hasStore ? (
-                        <Route path="/store" element={<SupplierSetup profile={profile!} />} />
-                      ) : profile?.currentRole === 'supplier' ? (
-                        <Route path="/store" element={<SupplierDashboard profile={profile!} />} />
-                      ) : null}
-                      <Route path="/profile" element={<Profile profile={profile} setProfile={setProfile} />} />
-                      <Route path="*" element={<Navigate to="/" replace />} />
-                    </>
-                  )}
-                </Routes>
-              </AnimatePresence>
+              <div className="max-w-7xl mx-auto w-full">
+                <AnimatePresence mode="wait">
+                  <Routes>
+                    {isProfileIncomplete ? (
+                      <Route path="*" element={<CustomerSetup profile={profile!} />} />
+                    ) : (
+                      <>
+                        <Route path="/" element={<Discovery profile={profile} setProfile={setProfile} />} />
+                        <Route path="/deals" element={<DealRoom profile={profile} />} />
+                        <Route path="/chat" element={<Chat profile={profile} />} />
+                        {profile?.currentRole === 'supplier' && !hasStore ? (
+                          <Route path="/store" element={<SupplierSetup profile={profile!} />} />
+                        ) : profile?.currentRole === 'supplier' ? (
+                          <Route path="/store" element={<SupplierDashboard profile={profile!} />} />
+                        ) : null}
+                        <Route path="/profile" element={<Profile profile={profile} setProfile={setProfile} />} />
+                        <Route path="*" element={<Navigate to="/" replace />} />
+                      </>
+                    )}
+                  </Routes>
+                </AnimatePresence>
+              </div>
             </main>
             <Navigation profile={profile} />
           </MessagingProvider>
@@ -135,45 +137,47 @@ function Header({ profile }: { profile: UserProfile | null }) {
   const isHome = location.pathname === '/' || location.pathname === '';
 
   return (
-    <header className="bg-white/5 backdrop-blur-xl border-b border-white/5 p-4 sticky top-0 z-20 flex items-center justify-between">
-      <div className="flex items-center gap-3">
-        {!isHome ? (
-          <button 
-            onClick={() => navigate(-1)}
-            className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center text-gray-400 hover:text-white transition-colors border border-white/5"
-          >
-            <ArrowLeft size={20} />
-          </button>
-        ) : (
-          <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center text-gray-400 hover:text-white transition-colors border border-white/5">
-            <Menu size={20} />
-          </div>
-        )}
-        <div className="flex items-center gap-2">
-          <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary-dark rounded-xl flex items-center justify-center text-[#05070a] shadow-[0_0_15px_rgba(0,242,254,0.4)]">
-            <Zap size={24} className="fill-current" />
-          </div>
-          <div>
-            <h1 className="text-sm font-black text-white uppercase tracking-tighter leading-none italic">Comfort Hub</h1>
-            <div className="flex items-center gap-1.5 mt-1">
-              <div className="w-1.5 h-1.5 bg-neon-green rounded-full shadow-[0_0_5px_#39FF14]"></div>
-              <p className="text-[9px] text-gray-400 uppercase font-bold tracking-widest">
-                {profile?.currentRole === 'supplier' ? 'Supplier Node' : 'Customer Node'}
-              </p>
+    <header className="bg-white/5 backdrop-blur-xl border-b border-white/5 p-4 sticky top-0 z-20">
+      <div className="max-w-7xl mx-auto flex items-center justify-between">
+        <div className="flex items-center gap-3">
+          {!isHome ? (
+            <button 
+              onClick={() => navigate(-1)}
+              className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center text-gray-400 hover:text-white transition-colors border border-white/5"
+            >
+              <ArrowLeft size={20} />
+            </button>
+          ) : (
+            <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center text-gray-400 hover:text-white transition-colors border border-white/5">
+              <Menu size={20} />
+            </div>
+          )}
+          <div className="flex items-center gap-2">
+            <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary-dark rounded-xl flex items-center justify-center text-[#05070a] shadow-[0_0_15px_rgba(0,242,254,0.4)]">
+              <Zap size={24} className="fill-current" />
+            </div>
+            <div>
+              <h1 className="text-sm font-black text-white uppercase tracking-tighter leading-none italic">Comfort Hub</h1>
+              <div className="flex items-center gap-1.5 mt-1">
+                <div className="w-1.5 h-1.5 bg-neon-green rounded-full shadow-[0_0_5px_#39FF14]"></div>
+                <p className="text-[9px] text-gray-400 uppercase font-bold tracking-widest">
+                  {profile?.currentRole === 'supplier' ? 'Supplier Node' : 'Customer Node'}
+                </p>
+              </div>
             </div>
           </div>
         </div>
-      </div>
-      <div className="flex items-center gap-2">
-        <button className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center text-gray-400 hover:text-primary transition-all relative group">
-          <Bell size={20} className="group-hover:scale-110" />
-          <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-accent rounded-full border-2 border-[#05070a] shadow-[0_0_10px_rgba(240,147,251,0.5)]"></span>
-        </button>
-        <Link to="/profile" className="w-10 h-10 rounded-xl overflow-hidden border border-white/10 hover:border-primary/50 transition-colors">
-          <div className="w-full h-full bg-primary/20 flex items-center justify-center text-primary font-bold">
-            {profile?.name?.charAt(0) || <UserIcon size={18} />}
-          </div>
-        </Link>
+        <div className="flex items-center gap-2">
+          <button className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center text-gray-400 hover:text-primary transition-all relative group">
+            <Bell size={20} className="group-hover:scale-110" />
+            <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-accent rounded-full border-2 border-[#05070a] shadow-[0_0_10px_rgba(240,147,251,0.5)]"></span>
+          </button>
+          <Link to="/profile" className="w-10 h-10 rounded-xl overflow-hidden border border-white/10 hover:border-primary/50 transition-colors text-primary font-bold">
+            <div className="w-full h-full bg-primary/20 flex items-center justify-center overflow-hidden">
+              {profile?.name?.charAt(0).toUpperCase() || <UserIcon size={18} />}
+            </div>
+          </Link>
+        </div>
       </div>
     </header>
   );
@@ -191,8 +195,8 @@ function Navigation({ profile }: { profile: UserProfile | null }) {
   ];
 
   return (
-    <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 w-[90%] max-w-[340px] z-30">
-      <div className="bg-white/5 backdrop-blur-2xl border border-white/10 p-2 rounded-2xl shadow-2xl flex items-center justify-between">
+    <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-7xl px-4 z-30 flex justify-center">
+      <div className="bg-[#0d1117]/80 backdrop-blur-2xl border border-white/10 p-2 rounded-2xl shadow-2xl flex items-center justify-between w-full max-w-[400px]">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path || (item.path === '/' && location.pathname === '');
           return (

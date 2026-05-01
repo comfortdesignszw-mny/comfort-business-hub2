@@ -146,46 +146,53 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
   };
 
   const handleProductImageUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !activeStore) return;
+    const files = Array.from(e.target.files || []);
+    if (files.length === 0 || !activeStore) return;
 
-    // Fast validation before anything else
-    const validationError = validateImage(file);
-    if (validationError) {
-      alert(validationError);
+    // Limit to max 5 images
+    const currentImagesCount = formData.images.length;
+    if (currentImagesCount + files.length > 5) {
+      alert("Maximum 5 images allowed per product.");
       return;
     }
 
-    // Instant Preview - UI feels instantaneous
-    const previewUrl = URL.createObjectURL(file);
-    setFormData(prev => ({ ...prev, images: [previewUrl] }));
     setUploadingImage(true);
 
     try {
-      // Start upload in background. We don't block the whole form here
-      const url = await uploadAndCompressImage(file, `products/${activeStore.id}/${Date.now()}`, {
-        maxWidth: 600,
-        maxHeight: 600,
-        quality: 0.5
-      });
-      
-      // Once uploaded, replace preview with permanent URL
-      setFormData(prev => {
-        // If image hasn't changed since we started (edge case), update it
-        if (prev.images[0] === previewUrl) {
-          return { ...prev, images: [url] };
+      const uploadPromises = files.map(async (file: File) => {
+        // Validation
+        const validationError = validateImage(file);
+        if (validationError) {
+          throw new Error(`${file.name}: ${validationError}`);
         }
-        return prev;
+
+        // Upload and compress
+        return await uploadAndCompressImage(file, `products/${activeStore.id}/${Date.now()}-${Math.random().toString(36).substring(7)}`, {
+          maxWidth: 800,
+          maxHeight: 800,
+          quality: 0.6
+        });
       });
+
+      const uploadedUrls = await Promise.all(uploadPromises);
+      setFormData(prev => ({
+        ...prev,
+        images: [...prev.images, ...uploadedUrls]
+      }));
     } catch (error) {
       console.error("Product image upload error:", error);
-      alert("Failed to upload image. Please try again.");
-      // Revert to nothing or original if it failed
-      setFormData(prev => ({ ...prev, images: [] }));
+      alert(error instanceof Error ? error.message : "Failed to upload one or more images.");
     } finally {
       setUploadingImage(false);
-      URL.revokeObjectURL(previewUrl);
+      if (fileInputRef.current) fileInputRef.current.value = '';
     }
+  };
+
+  const removeProductImage = (index: number) => {
+    setFormData(prev => ({
+      ...prev,
+      images: prev.images.filter((_, i) => i !== index)
+    }));
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -494,46 +501,62 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
               <form onSubmit={handleSubmit} className="space-y-6">
                 <div className="space-y-4">
                   {/* Image Matrix Upload */}
-                  <div className="space-y-2">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Visual Matrix (Image)</label>
-                    <div 
-                      onClick={() => !uploadingImage && fileInputRef.current?.click()}
-                      className="w-full aspect-video bg-white/5 border border-white/10 rounded-2xl flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 group transition-all overflow-hidden relative"
-                    >
-                      {formData.images.length > 0 ? (
-                        <>
-                          <img src={formData.images[0]} className={cn("w-full h-full object-cover", uploadingImage && "brightness-50")} />
-                          {uploadingImage ? (
-                            <div className="absolute inset-0 flex flex-col items-center justify-center">
-                              <Loader2 className="animate-spin text-primary mb-2" size={32} />
-                              <span className="text-[8px] font-black uppercase text-primary tracking-widest animate-pulse">Syncing Matrix...</span>
-                            </div>
-                          ) : (
-                            <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 flex flex-col items-center justify-center transition-opacity">
-                              <ImageIcon className="text-primary mb-2" size={24} />
-                              <span className="text-[8px] font-black uppercase text-white tracking-widest">Update Entity Image</span>
-                            </div>
-                          )}
-                        </>
-                      ) : uploadingImage ? (
-                         <div className="flex flex-col items-center justify-center">
-                           <Loader2 className="animate-spin text-primary mb-2" size={32} />
-                           <span className="text-[8px] font-black uppercase text-primary tracking-widest">Processing...</span>
-                         </div>
-                      ) : (
-                        <>
-                          <ImageIcon className="text-gray-700 group-hover:text-primary transition-colors mb-2" size={32} />
-                          <span className="text-[8px] font-black text-gray-500 group-hover:text-primary uppercase tracking-widest">Initialize Visual Identity</span>
-                        </>
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between ml-1">
+                      <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Visual Matrix ({formData.images.length}/5)</label>
+                      {formData.images.length < 5 && (
+                        <button 
+                          type="button"
+                          onClick={() => !uploadingImage && fileInputRef.current?.click()}
+                          className="text-primary text-[10px] font-black uppercase tracking-widest hover:opacity-80 flex items-center gap-1"
+                        >
+                          <Plus size={12} /> Add More
+                        </button>
                       )}
-                      <input 
-                        type="file" 
-                        ref={fileInputRef} 
-                        onChange={handleProductImageUpload} 
-                        className="hidden" 
-                        accept="image/*" 
-                      />
                     </div>
+                    
+                    <div className="grid grid-cols-3 gap-3">
+                      {formData.images.map((img, idx) => (
+                        <div key={idx} className="relative aspect-square rounded-xl overflow-hidden border border-white/10 group">
+                          <img src={img} className="w-full h-full object-cover" />
+                          <button 
+                            type="button"
+                            onClick={() => removeProductImage(idx)}
+                            className="absolute top-1 right-1 p-1 bg-red-500/80 rounded-md text-white opacity-0 group-hover:opacity-100 transition-opacity"
+                          >
+                            <X size={12} />
+                          </button>
+                        </div>
+                      ))}
+                      
+                      {formData.images.length < 5 && (
+                        <div 
+                          onClick={() => !uploadingImage && fileInputRef.current?.click()}
+                          className={cn(
+                            "aspect-square bg-white/5 border border-white/10 border-dashed rounded-xl flex flex-col items-center justify-center cursor-pointer hover:border-primary/50 group transition-all relative",
+                            uploadingImage && "opacity-50 pointer-events-none"
+                          )}
+                        >
+                          {uploadingImage ? (
+                            <Loader2 className="animate-spin text-primary" size={20} />
+                          ) : (
+                            <>
+                              <Plus className="text-gray-700 group-hover:text-primary transition-colors" size={20} />
+                              <span className="text-[6px] font-black text-gray-500 group-hover:text-primary uppercase tracking-widest mt-1">Upload</span>
+                            </>
+                          )}
+                        </div>
+                      )}
+                    </div>
+                    
+                    <input 
+                      type="file" 
+                      ref={fileInputRef} 
+                      onChange={handleProductImageUpload} 
+                      className="hidden" 
+                      accept="image/*"
+                      multiple
+                    />
                   </div>
 
                   <div className="space-y-2">

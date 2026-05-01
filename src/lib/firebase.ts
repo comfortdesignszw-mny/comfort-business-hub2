@@ -6,7 +6,7 @@ import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
-// Using initializeFirestore instead of getFirestore to pass settings
+// Using initializeFirestore instead of getFirestore for better network resilience in some environments
 export const db = initializeFirestore(app, {
   experimentalForceLongPolling: true,
 }, firebaseConfig.firestoreDatabaseId);
@@ -21,10 +21,9 @@ async function testConnection() {
     await getDocFromServer(doc(db, 'test', 'connection'));
     console.log("Firestore Signal: CONNECTED");
   } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
-      console.error("CRITICAL: Firestore is unreachable. Check network or Firebase Console allowlist.");
-    } else {
-      console.warn("Firestore Signal: INITIALIZING", error);
+    console.error("Firestore Signal Error:", error);
+    if (error instanceof Error && (error.message.includes('the client is offline') || error.message.includes('Insufficient permissions'))) {
+      console.error("CRITICAL: Firestore is unreachable or permissions are missing. Check network or Firebase Console rules/allowlist.");
     }
   }
 }

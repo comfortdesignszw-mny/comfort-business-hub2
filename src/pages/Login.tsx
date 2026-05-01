@@ -49,10 +49,12 @@ export default function Login() {
       console.error('Login Error:', err);
       let message = err.message || "Failed to establish uplink.";
       
-      if (err.code === 'auth/internal-error') {
-        message = "Node Synchronization Error (Internal). Please ensure the domain is allowlisted in Firebase Console.";
+      if (err.code === 'auth/internal-error' || err.code === 'auth/network-request-failed') {
+        message = "Network connectivity issues or unauthorized terminal. Ensure your domain is allowlisted in Firebase.";
       } else if (err.code === 'auth/popup-blocked') {
-        message = "Uplink Blocked. Please enable popups for this terminal.";
+        message = "Login interface blocked by browser. Please enable popups for this site and try again.";
+      } else if (err.code === 'auth/popup-closed-by-user') {
+        message = "Authentication sequence aborted by operator.";
       }
       
       setError(message);
@@ -106,15 +108,20 @@ export default function Login() {
                       <AlertTriangle size={14} className="shrink-0" />
                       {error}
                     </div>
-                    {error.includes("allowlisted") && (
+                    {(error.includes("allowlisted") || error.includes("unauthorized")) && (
                       <div className="p-4 bg-white/5 border border-white/10 rounded-xl space-y-2">
-                        <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest">Operator Action Required:</p>
+                        <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest text-primary italic">Required Administrator Action:</p>
                         <p className="text-[10px] text-gray-500 leading-relaxed">
-                          Allowlist these domains in Firebase &gt; Auth &gt; Settings:
+                          Add these domains to <strong>Firebase &gt; Auth &gt; Settings &gt; Authorized Domains</strong>:
                         </p>
-                        <code className="block p-2 bg-black/50 rounded text-[9px] text-primary font-mono break-all">
-                          {window.location.hostname}
-                        </code>
+                        <div className="space-y-1">
+                          <code className="block p-2 bg-black/50 rounded text-[9px] text-primary font-mono select-all">
+                            {window.location.hostname}
+                          </code>
+                          <code className="block p-2 bg-black/50 rounded text-[9px] text-primary font-mono select-all">
+                            comfort-business-hub.netlify.app
+                          </code>
+                        </div>
                       </div>
                     )}
                   </div>
