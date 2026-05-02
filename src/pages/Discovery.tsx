@@ -126,13 +126,16 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
     };
   }, [profile]);
 
+  const sharedProductRef = React.useRef<HTMLDivElement>(null);
+
   useEffect(() => {
-    if (spotlights.length <= 1) return;
-    const interval = setInterval(() => {
-      setActiveSpotlightIndex(prev => (prev + 1) % spotlights.length);
-    }, 8000);
-    return () => clearInterval(interval);
-  }, [spotlights.length]);
+    if (sharedProductId && !loading && filteredDeals.length > 0) {
+      const element = document.getElementById(`product-${sharedProductId}`);
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+  }, [sharedProductId, loading, filteredDeals]);
 
   return (
     <motion.div 
@@ -390,7 +393,7 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
           <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4 snap-x px-1">
             {filteredStores.map((store) => (
               <div key={store.id} className="min-w-[240px] snap-center">
-                <StoreCard store={store} />
+                <StoreCard store={store} profile={profile} />
               </div>
             ))}
           </div>
@@ -418,11 +421,12 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
         ) : filteredDeals.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 px-1">
             {filteredDeals.map((product) => (
-              <ProductCard 
-                key={product.id} 
-                product={product} 
-                profile={profile} 
-              />
+              <div key={product.id} id={`product-${product.id}`} className={cn(sharedProductId === product.id && "ring-2 ring-primary ring-offset-4 ring-offset-[#05070a] rounded-3xl")}>
+                <ProductCard 
+                  product={product} 
+                  profile={profile} 
+                />
+              </div>
             ))}
           </div>
         ) : (
@@ -441,13 +445,19 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
   );
 }
 
-function StoreCard({ store }: { store: StoreType }) {
+function StoreCard({ store, profile }: { store: StoreType, profile: UserProfile | null }) {
   const navigate = useNavigate();
   return (
     <motion.div 
       whileHover={{ y: -5 }}
       whileTap={{ scale: 0.98 }}
-      onClick={() => navigate(`/store/${store.id}`)}
+      onClick={() => {
+        if (!profile) {
+          navigate('/login');
+          return;
+        }
+        navigate(`/store/${store.id}`);
+      }}
       className="neon-card p-5 space-y-4 cursor-pointer group"
     >
       <div className="flex items-center gap-4">

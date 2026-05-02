@@ -63,12 +63,12 @@ export default function ProductCard({ product, profile, onAction }: { product: P
   };
 
   const handleAction = async (type: 'shop' | 'engage') => {
+    if (!profile) {
+      navigate('/login');
+      return;
+    }
+
     if (type === 'engage') {
-      if (!profile) {
-        navigate('/login');
-        return;
-      }
-      
       setIsEngaging(true);
       await logEngagement('engaged');
       const convoId = [profile.uid, product.ownerId].sort().join('_');
@@ -106,9 +106,7 @@ export default function ProductCard({ product, profile, onAction }: { product: P
       return;
     }
 
-    if (profile) {
-      await logEngagement('interested');
-    }
+    await logEngagement('interested');
 
     if (onAction) {
       onAction(product);
