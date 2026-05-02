@@ -3,6 +3,7 @@ export type Role = 'customer' | 'supplier';
 export interface UserProfile {
   uid: string;
   name: string;
+  email?: string;
   phone: string;
   avatar?: string;
   currentRole: Role;

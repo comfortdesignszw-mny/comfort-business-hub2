@@ -1,9 +1,9 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { Search, MapPin, Filter, Star, Zap, ShoppingBag, Store, ArrowRight, 
   SlidersHorizontal, MessageSquare, Sparkles, X, Phone, Check, Loader2, MapPinned, CreditCard,
-  Megaphone, Calendar, FileText, Building2, ExternalLink
+  Megaphone, Calendar, FileText, Building2, ExternalLink, Share2, Info
 } from 'lucide-react';
 import { UserProfile, Product, Store as StoreType, Message, Spotlight } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
@@ -12,6 +12,7 @@ import { collection, query, limit, getDocs, where, addDoc, serverTimestamp, setD
 import { BUSINESS_CATEGORIES, PRODUCT_CATEGORIES } from '../constants';
 
 export default function Discovery({ profile, setProfile }: { profile: UserProfile | null, setProfile: (p: UserProfile) => void }) {
+  const navigate = useNavigate();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
   const [loading, setLoading] = useState(true);
@@ -22,6 +23,8 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
   const [filteredDeals, setFilteredDeals] = useState<Product[]>([]);
   const [filteredStores, setFilteredStores] = useState<StoreType[]>([]);
   const [activeModal, setActiveModal] = useState<{ type: 'checkout' | 'ecocash' | 'pod', product: Product } | null>(null);
+  const [searchParams] = useSearchParams();
+  const sharedProductId = searchParams.get('productId');
 
   const categories = ['All', ...new Set([...BUSINESS_CATEGORIES, ...PRODUCT_CATEGORIES])];
   const [matchedProducts, setMatchedProducts] = useState<Product[]>([]);
@@ -30,7 +33,12 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
     let pResult = nearbyDeals;
     let sResult = nearbyStores;
 
-    if (searchTerm) {
+    if (sharedProductId) {
+      pResult = nearbyDeals.filter(p => p.id === sharedProductId);
+      if (pResult.length > 0) {
+        // If we found the shared product, we might want to prioritize it or filter just for it
+      }
+    } else if (searchTerm) {
       const term = searchTerm.toLowerCase();
       pResult = pResult.filter(p => 
         p.name.toLowerCase().includes(term) ||
@@ -43,14 +51,14 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
       );
     }
 
-    if (activeCategory !== 'All') {
+    if (activeCategory !== 'All' && !sharedProductId) {
       pResult = pResult.filter(p => p.category === activeCategory);
       sResult = sResult.filter(s => s.category === activeCategory);
     }
 
     setFilteredDeals(pResult);
     setFilteredStores(sResult);
-  }, [searchTerm, activeCategory, nearbyDeals, nearbyStores]);
+  }, [searchTerm, activeCategory, nearbyDeals, nearbyStores, sharedProductId]);
 
   useEffect(() => {
     setLoading(true);
@@ -133,6 +141,49 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
       exit={{ opacity: 0 }}
       className="p-4 space-y-8"
     >
+      {/* Shared Link Header */}
+      {sharedProductId && (
+        <motion.div 
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-4 bg-primary/10 border border-primary/20 rounded-3xl flex items-center justify-between"
+        >
+          <div className="flex items-center gap-3">
+            <Sparkles className="text-primary" size={20} />
+            <div>
+              <p className="text-[10px] font-black text-primary uppercase tracking-widest">Shared Node Uplink</p>
+              <p className="text-[9px] text-gray-400 font-medium">Viewing specific item from secure network link</p>
+            </div>
+          </div>
+          <button 
+            onClick={() => {
+              const newParams = new URLSearchParams(searchParams);
+              newParams.delete('productId');
+              navigate(`/discovery?${newParams.toString()}`);
+            }}
+            className="p-2 hover:bg-white/5 rounded-full transition-colors"
+          >
+            <X size={16} className="text-gray-500" />
+          </button>
+        </motion.div>
+      )}
+
+      {!profile && sharedProductId && (
+        <div className="p-6 neon-card bg-gradient-to-br from-primary/10 to-accent/10 border-primary/30 text-center space-y-4">
+          <Info className="mx-auto text-primary" size={28} />
+          <h3 className="text-lg font-black text-white italic uppercase tracking-tighter">Expand Your Reach</h3>
+          <p className="text-[11px] text-gray-300 leading-relaxed max-w-xs mx-auto">
+            You're viewing this product as a guest. Join the <span className="text-primary font-black">Comfort Business Hub</span> today to unlock a massive variety of local products and directly engage with top suppliers.
+          </p>
+          <button 
+            onClick={() => navigate('/login')}
+            className="btn-neon w-full py-3 text-[10px] uppercase font-black tracking-widest"
+          >
+            Join Comfort Business Hub
+          </button>
+        </div>
+      )}
+
       {/* Search & Location Bar */}
       <section className="space-y-4">
         <div className="relative group">
@@ -400,6 +451,7 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
         {activeModal && activeModal.type === 'ecocash' && (
           <EcoCashModal 
             product={activeModal.product} 
+            profile={profile}
             onClose={() => setActiveModal(null)} 
           />
         )}
@@ -539,7 +591,7 @@ function UnifiedCheckoutModal({ product, profile, onClose, onSwitchModal }: {
   );
 }
 
-function EcoCashModal({ product, onClose }: { product: Product, onClose: () => void }) {
+function EcoCashModal({ product, profile, onClose }: { product: Product, profile: UserProfile | null, onClose: () => void }) {
   const [ussd, setUssd] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
@@ -558,7 +610,21 @@ function EcoCashModal({ product, onClose }: { product: Product, onClose: () => v
       }
     };
     fetchUSSD();
-  }, [product.ownerId]);
+
+    // Log engagement when opening payment modal
+    if (profile && product.ownerId) {
+      const customerName = profile.name || profile.businessName || profile.email?.split('@')[0] || 'Member';
+      addDoc(collection(db, 'engagements'), {
+        productId: product.id,
+        productName: product.name,
+        customerId: profile.uid,
+        customerName: customerName,
+        supplierId: product.ownerId,
+        type: 'interested',
+        createdAt: serverTimestamp()
+      }).catch(console.error);
+    }
+  }, [product.ownerId, product.id, profile]);
 
   const handleDial = () => {
     if (ussd) {
@@ -629,6 +695,18 @@ function PodModal({ product, profile, onClose }: { product: Product, profile: Us
     setSubmitting(true);
 
     try {
+      // Log engagement
+      const customerName = profile.name || profile.businessName || profile.email?.split('@')[0] || 'Member';
+      await addDoc(collection(db, 'engagements'), {
+        productId: product.id,
+        productName: product.name,
+        customerId: profile.uid,
+        customerName: customerName,
+        supplierId: product.ownerId,
+        type: 'interested',
+        createdAt: serverTimestamp()
+      });
+
       if (!product.ownerId || !profile.uid) {
         throw new Error("Invalid session or missing node ID");
       }
@@ -859,17 +937,21 @@ function ProductCard({ product, profile, onAction }: { product: Product, profile
     if (!profile || !product.ownerId) return;
     
     try {
+      // Use a consistent name to satisfy rules size check if missing
+      const customerName = profile.name || profile.businessName || profile.email?.split('@')[0] || 'Member';
+      
       await addDoc(collection(db, 'engagements'), {
         productId: product.id,
         productName: product.name,
         customerId: profile.uid,
-        customerName: profile.name || profile.businessName || 'Anonymous Customer',
+        customerName: customerName,
         supplierId: product.ownerId,
         type,
         createdAt: serverTimestamp()
       });
     } catch (err) {
       console.error("Error logging engagement:", err);
+      // We don't block the UI for logging errors
     }
   };
 
@@ -963,6 +1045,20 @@ function ProductCard({ product, profile, onAction }: { product: Product, profile
 
   const images = product.images && product.images.length > 0 ? product.images : ['https://images.unsplash.com/photo-1555529733-0e670560f7e1?q=80&w=600&auto=format&fit=crop'];
 
+  const handleShare = () => {
+    const shareUrl = `${window.location.origin}/discovery?productId=${product.id}`;
+    if (navigator.share) {
+      navigator.share({
+        title: product.name,
+        text: `Check out ${product.name} on Comfort Business Hub!`,
+        url: shareUrl,
+      }).catch(console.error);
+    } else {
+      navigator.clipboard.writeText(shareUrl);
+      alert('Node Link Copied to Clipboard!');
+    }
+  };
+
   const nextImage = (e: React.MouseEvent) => {
     e.stopPropagation();
     setCurrentImageIndex((prev) => (prev + 1) % images.length);
@@ -997,6 +1093,28 @@ function ProductCard({ product, profile, onAction }: { product: Product, profile
         </AnimatePresence>
         
         <div className="absolute inset-0 bg-gradient-to-t from-[#05070a] via-transparent to-transparent opacity-60 pointer-events-none"></div>
+
+        {/* Share Button Overlay */}
+        <button 
+          onClick={(e) => {
+            e.stopPropagation();
+            const shareUrl = `${window.location.origin}/discovery?productId=${product.id}`;
+            if (navigator.share) {
+              navigator.share({
+                title: product.name,
+                text: `Check out ${product.name} on Comfort Business Hub!`,
+                url: shareUrl,
+              }).catch(console.error);
+            } else {
+              navigator.clipboard.writeText(shareUrl);
+              alert('Node Link Copied to Clipboard!');
+            }
+          }}
+          className="absolute top-4 right-4 p-2 bg-[#05070a]/80 backdrop-blur-md rounded-xl border border-white/10 text-white hover:text-primary transition-colors hover:scale-110 active:scale-95 shadow-xl z-20"
+          title="Share Node"
+        >
+          <Share2 size={14} />
+        </button>
         
         {images.length > 1 && (
           <div className="absolute inset-0 flex items-center justify-between px-4 opacity-0 group-hover:opacity-100 transition-opacity">
