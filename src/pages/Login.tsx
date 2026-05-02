@@ -50,7 +50,7 @@ export default function Login() {
       let message = err.message || "Failed to establish uplink.";
       
       if (err.code === 'auth/internal-error' || err.code === 'auth/network-request-failed') {
-        message = "Network connectivity issues or unauthorized terminal. Ensure your domain is allowlisted in Firebase.";
+        message = "Network connectivity issues or unauthorized terminal. Ensure your domain is allowlisted in Firebase, and try again";
       } else if (err.code === 'auth/popup-blocked') {
         message = "Login interface blocked by browser. Please enable popups for this site and try again.";
       } else if (err.code === 'auth/popup-closed-by-user') {
@@ -108,22 +108,6 @@ export default function Login() {
                       <AlertTriangle size={14} className="shrink-0" />
                       {error}
                     </div>
-                    {(error.includes("allowlisted") || error.includes("unauthorized")) && (
-                      <div className="p-4 bg-white/5 border border-white/10 rounded-xl space-y-2">
-                        <p className="text-[9px] text-gray-400 font-bold uppercase tracking-widest text-primary italic">Required Administrator Action:</p>
-                        <p className="text-[10px] text-gray-500 leading-relaxed">
-                          Add these domains to <strong>Firebase &gt; Auth &gt; Settings &gt; Authorized Domains</strong>:
-                        </p>
-                        <div className="space-y-1">
-                          <code className="block p-2 bg-black/50 rounded text-[9px] text-primary font-mono select-all">
-                            {window.location.hostname}
-                          </code>
-                          <code className="block p-2 bg-black/50 rounded text-[9px] text-primary font-mono select-all">
-                            comfort-business-hub.netlify.app
-                          </code>
-                        </div>
-                      </div>
-                    )}
                   </div>
                 )}
 

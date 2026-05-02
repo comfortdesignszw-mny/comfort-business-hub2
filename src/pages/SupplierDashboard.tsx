@@ -13,7 +13,8 @@ import {
   Check,
   Users,
   DollarSign,
-  Loader2
+  Loader2,
+  Phone
 } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { 
@@ -691,11 +692,13 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
 
                         <div className="space-y-2">
                           <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Buy Logic Gateway</label>
-                          <div className="grid grid-cols-3 gap-2">
+                          <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
                             {[
                               { id: 'checkout', icon: ShoppingBag, label: 'Direct' },
                               { id: 'chat', icon: MessageSquare, label: 'Inbox' },
-                              { id: 'link', icon: LinkIcon, label: 'Gateway' }
+                              { id: 'link', icon: LinkIcon, label: 'Gateway' },
+                              { id: 'ecocash', icon: Phone, label: 'EcoCash' },
+                              { id: 'pod', icon: Package, label: 'POD' }
                             ].map((t) => (
                               <button
                                 key={t.id}

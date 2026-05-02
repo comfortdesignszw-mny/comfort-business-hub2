@@ -21,7 +21,7 @@ export interface UserProfile {
     address?: string;
   };
   gateway?: {
-    provider: 'paypal' | 'stripe' | 'paynow' | 'custom';
+    provider: 'paypal' | 'stripe' | 'paynow' | 'ecocash' | 'pod' | 'custom';
     details: string;
     isActive: boolean;
   };
@@ -45,7 +45,7 @@ export interface Store {
   createdAt: string;
 }
 
-export type BuyButtonType = 'checkout' | 'chat' | 'link';
+export type BuyButtonType = 'checkout' | 'chat' | 'link' | 'ecocash' | 'pod';
 
 export interface Product {
   id: string;

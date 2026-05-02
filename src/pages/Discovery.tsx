@@ -1,10 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { Search, MapPin, Filter, Star, Zap, ShoppingBag, Store, ArrowRight, SlidersHorizontal, MessageSquare, Sparkles } from 'lucide-react';
-import { UserProfile, Product, Store as StoreType } from '../types';
+import { useNavigate } from 'react-router-dom';
+import { 
+  Search, MapPin, Filter, Star, Zap, ShoppingBag, Store, ArrowRight, 
+  SlidersHorizontal, MessageSquare, Sparkles, X, Phone, Check, Loader2, MapPinned, CreditCard
+} from 'lucide-react';
+import { UserProfile, Product, Store as StoreType, Message } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
-import { db } from '../lib/firebase';
-import { collection, query, limit, getDocs, where } from 'firebase/firestore';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { collection, query, limit, getDocs, where, addDoc, serverTimestamp, setDoc, doc, getDoc } from 'firebase/firestore';
 import { BUSINESS_CATEGORIES } from '../constants';
 
 export default function Discovery({ profile, setProfile }: { profile: UserProfile | null, setProfile: (p: UserProfile) => void }) {
@@ -13,6 +17,7 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
   const [loading, setLoading] = useState(true);
   const [nearbyDeals, setNearbyDeals] = useState<Product[]>([]);
   const [filteredDeals, setFilteredDeals] = useState<Product[]>([]);
+  const [activeModal, setActiveModal] = useState<{ type: 'checkout' | 'ecocash' | 'pod', product: Product } | null>(null);
 
   const categories = ['All', ...BUSINESS_CATEGORIES];
   const [matchedProducts, setMatchedProducts] = useState<Product[]>([]);
@@ -203,7 +208,12 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
         ) : filteredDeals.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 px-1">
             {filteredDeals.map((product) => (
-              <ProductCard key={product.id} product={product} profile={profile} />
+              <ProductCard 
+                key={product.id} 
+                product={product} 
+                profile={profile} 
+                onAction={(prod) => setActiveModal({ type: 'checkout', product: prod })}
+              />
             ))}
           </div>
         ) : (
@@ -218,11 +228,385 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
           </div>
         )}
       </section>
+
+      <AnimatePresence>
+        {activeModal && activeModal.type === 'checkout' && (
+          <UnifiedCheckoutModal 
+            product={activeModal.product} 
+            profile={profile}
+            onClose={() => setActiveModal(null)}
+            onSwitchModal={(type) => setActiveModal({ type, product: activeModal.product })}
+          />
+        )}
+        {activeModal && activeModal.type === 'ecocash' && (
+          <EcoCashModal 
+            product={activeModal.product} 
+            onClose={() => setActiveModal(null)} 
+          />
+        )}
+        {activeModal && activeModal.type === 'pod' && (
+          <PodModal 
+            product={activeModal.product} 
+            profile={profile}
+            onClose={() => setActiveModal(null)} 
+          />
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }
 
-function ProductCard({ product, profile }: { product: Product, profile: UserProfile | null, key?: React.Key }) {
+function UnifiedCheckoutModal({ product, profile, onClose, onSwitchModal }: { 
+  product: Product, 
+  profile: UserProfile | null, 
+  onClose: () => void,
+  onSwitchModal: (type: 'ecocash' | 'pod') => void 
+}) {
+  const [supplierProfile, setSupplierProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchSupplier = async () => {
+      try {
+        const docSnap = await getDoc(doc(db, 'users', product.ownerId));
+        if (docSnap.exists()) {
+          setSupplierProfile(docSnap.data() as UserProfile);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchSupplier();
+  }, [product.ownerId]);
+
+  const handleSelection = (method: 'paypal' | 'stripe' | 'ecocash' | 'pod') => {
+    setErrorMessage(null);
+    
+    // Check if supplier has this configured
+    const isConfigured = supplierProfile?.gateway?.provider === method && supplierProfile?.gateway?.isActive;
+    
+    if (method === 'ecocash') {
+      if (isConfigured) {
+        onSwitchModal('ecocash');
+      } else {
+        setErrorMessage("Supplier not configure this payment type, Try another payment type");
+      }
+      return;
+    }
+
+    if (method === 'pod') {
+      onSwitchModal('pod');
+      return;
+    }
+
+    if (!isConfigured) {
+      setErrorMessage("Supplier not configure this payment type, Try another payment type");
+      return;
+    }
+
+    // Handle external gateways
+    if (method === 'paypal' || method === 'stripe') {
+      const details = supplierProfile?.gateway?.details;
+      if (details) window.location.href = details;
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[#05070a]/90 backdrop-blur-md" onClick={onClose} />
+      <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-sm neon-card p-0 overflow-hidden">
+        <div className="p-6 border-b border-white/5 flex justify-between items-center">
+          <div className="space-y-1">
+            <h3 className="text-xl font-black text-white italic uppercase tracking-tighter">Financial Uplink</h3>
+            <p className="text-[9px] text-primary font-black uppercase tracking-widest leading-none">Select Secure Payment Protocol</p>
+          </div>
+          <button onClick={onClose} className="text-gray-500 hover:text-white"><X size={20} /></button>
+        </div>
+
+        <div className="p-6 space-y-6">
+          <div className="flex gap-4 items-center p-4 bg-white/5 rounded-2xl border border-white/5">
+            <div className="w-12 h-12 bg-white/5 rounded-xl overflow-hidden">
+              <img src={product.images[0]} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+            </div>
+            <div>
+              <p className="text-[10px] font-black text-white uppercase italic">{product.name}</p>
+              <p className="text-sm font-black text-primary">{formatCurrency(product.price, product.currency)}</p>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            {[
+              { id: 'paypal', label: 'PayPal', icon: CreditCard },
+              { id: 'stripe', label: 'Stripe', icon: CreditCard },
+              { id: 'ecocash', label: 'EcoCash', icon: Phone },
+              { id: 'pod', label: 'Cash/POD', icon: MapPinned }
+            ].map((m) => (
+              <button 
+                key={m.id}
+                onClick={() => handleSelection(m.id as any)}
+                className="p-4 bg-white/5 border border-white/10 rounded-2xl flex flex-col items-center gap-2 hover:bg-white/10 hover:border-primary/30 transition-all group"
+              >
+                <m.icon size={20} className="text-gray-500 group-hover:text-primary" />
+                <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest group-hover:text-white">{m.label}</span>
+              </button>
+            ))}
+          </div>
+
+          <AnimatePresence>
+            {errorMessage && (
+              <motion.div 
+                initial={{ height: 0, opacity: 0 }}
+                animate={{ height: 'auto', opacity: 1 }}
+                exit={{ height: 0, opacity: 0 }}
+                className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl flex items-center gap-3"
+              >
+                <div className="w-8 h-8 bg-red-500/20 rounded-lg flex items-center justify-center shrink-0">
+                  <X size={14} className="text-red-500" />
+                </div>
+                <p className="text-[10px] font-bold text-red-400 leading-tight">
+                  {errorMessage}
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+
+        <div className="p-4 bg-black/40 text-center">
+          <p className="text-[8px] text-gray-700 font-black uppercase tracking-[0.2em]">Matrix Secured Node {product.ownerId.slice(0,8)}</p>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+function EcoCashModal({ product, onClose }: { product: Product, onClose: () => void }) {
+  const [ussd, setUssd] = useState<string | null>(null);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchUSSD = async () => {
+      try {
+        const userSnap = await getDoc(doc(db, 'users', product.ownerId));
+        if (userSnap.exists()) {
+          const data = userSnap.data();
+          if (data.gateway?.provider === 'ecocash') {
+            setUssd(data.gateway.details);
+          }
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchUSSD();
+  }, [product.ownerId]);
+
+  const handleDial = () => {
+    if (ussd) {
+      // Encode # as %23 for USSD codes in tel: links to ensure compatibility
+      const encodedUssd = ussd.replace(/#/g, '%23');
+      window.location.href = `tel:${encodedUssd}`;
+      onClose();
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <motion.div 
+        initial={{ opacity: 0 }} 
+        animate={{ opacity: 1 }} 
+        exit={{ opacity: 0 }} 
+        className="absolute inset-0 bg-[#05070a]/90 backdrop-blur-md" 
+        onClick={onClose} 
+      />
+      <motion.div 
+        initial={{ scale: 0.9, opacity: 0 }} 
+        animate={{ scale: 1, opacity: 1 }} 
+        exit={{ scale: 0.9, opacity: 0 }} 
+        className="relative w-full max-w-sm neon-card p-8 text-center space-y-6"
+      >
+        <div className="w-20 h-20 bg-primary/20 rounded-3xl flex items-center justify-center mx-auto text-primary">
+          <Phone size={40} className="animate-pulse" />
+        </div>
+        <div className="space-y-2">
+          <h3 className="text-xl font-black text-white italic uppercase tracking-tighter">EcoCash Matrix</h3>
+          <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Execute USSD Uplink to Secure Item</p>
+        </div>
+
+        <button 
+          onClick={handleDial}
+          disabled={loading || !ussd}
+          className="w-full btn-neon py-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50"
+        >
+          {loading ? <Loader2 className="animate-spin" size={14} /> : <Phone size={14} />} 
+          Pay with EcoCash USSD
+        </button>
+      </motion.div>
+    </div>
+  );
+}
+
+function PodModal({ product, profile, onClose }: { product: Product, profile: UserProfile | null, onClose: () => void }) {
+  const [formData, setFormData] = useState({
+    name: '',
+    phone: '',
+    quantity: 1,
+    address: ''
+  });
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!profile) return;
+    setSubmitting(true);
+
+    try {
+      // 1. Ensure/Create Conversation
+      const convoId = [profile.uid, product.ownerId].sort().join('_');
+      await setDoc(doc(db, 'conversations', convoId), {
+        id: convoId,
+        participants: [profile.uid, product.ownerId],
+        updatedAt: serverTimestamp(),
+        lastMessage: `POD ORDER: ${product.name}`
+      }, { merge: true });
+
+      // 2. Send POD details as message
+      const orderMessage = `🚀 PAY ON DELIVERY ORDER INITIATED\n\n` +
+        `• ITEM: ${product.name}\n` +
+        `• QUANTITY: ${formData.quantity}\n` +
+        `• TOTAL: ${formatCurrency(product.price * formData.quantity, product.currency)}\n\n` +
+        `📦 CUSTOMER DETAILS:\n` +
+        `• NAME: ${formData.name}\n` +
+        `• CONTACT: ${formData.phone}\n` +
+        `• ADDRESS: ${formData.address}\n\n` +
+        `Please confirm delivery sequence via this encrypted link.`;
+
+      await addDoc(collection(db, 'conversations', convoId, 'messages'), {
+        conversationId: convoId,
+        senderId: profile.uid,
+        text: orderMessage,
+        type: 'text',
+        payload: {
+          type: 'pod_order',
+          productId: product.id,
+          orderDetails: formData
+        },
+        createdAt: serverTimestamp()
+      });
+
+      onClose();
+      window.location.href = `/chat?id=${convoId}`;
+    } catch (err) {
+      handleFirestoreError(err, OperationType.CREATE, 'pod-order');
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <motion.div 
+        initial={{ opacity: 0 }} 
+        animate={{ opacity: 1 }} 
+        exit={{ opacity: 0 }} 
+        className="absolute inset-0 bg-[#05070a]/90 backdrop-blur-md" 
+        onClick={onClose} 
+      />
+      <motion.div 
+        initial={{ scale: 0.9, opacity: 0 }} 
+        animate={{ scale: 1, opacity: 1 }} 
+        exit={{ scale: 0.9, opacity: 0 }} 
+        className="relative w-full max-w-lg neon-card p-0 flex flex-col max-h-[90vh] overflow-hidden"
+      >
+        <div className="p-6 border-b border-white/5 flex justify-between items-center">
+          <div className="space-y-1">
+            <h3 className="text-xl font-black text-white italic uppercase tracking-tighter">Pay on Delivery</h3>
+            <p className="text-[9px] text-primary/60 font-black uppercase tracking-widest leading-none">Complete your delivery details below</p>
+          </div>
+          <button onClick={onClose} className="text-gray-500 hover:text-white p-2">
+            <X size={24} />
+          </button>
+        </div>
+
+        <form onSubmit={handleSubmit} className="p-8 space-y-6 overflow-y-auto no-scrollbar">
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">Customer Name</label>
+                <input 
+                  required
+                  type="text"
+                  value={formData.name}
+                  onChange={e => setFormData({ ...formData, name: e.target.value })}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary/50 text-xs font-bold"
+                />
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">Phone Number</label>
+                <input 
+                  required
+                  type="tel"
+                  value={formData.phone}
+                  onChange={e => setFormData({ ...formData, phone: e.target.value })}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary/50 font-mono text-xs"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">Product Name</label>
+                <div className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-gray-400 text-[10px] font-black italic">
+                  {product.name}
+                </div>
+              </div>
+              <div className="space-y-1.5">
+                <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">Quantity</label>
+                <input 
+                  required
+                  type="number"
+                  min="1"
+                  value={formData.quantity}
+                  onChange={e => setFormData({ ...formData, quantity: parseInt(e.target.value) })}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary/50 text-xs font-bold"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1.5">
+              <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">Delivery Address</label>
+              <textarea 
+                required
+                value={formData.address}
+                onChange={e => setFormData({ ...formData, address: e.target.value })}
+                rows={3}
+                placeholder="Enter physical address for delivery..."
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-4 text-white outline-none focus:border-primary/50 text-xs font-medium"
+              />
+            </div>
+          </div>
+
+          <div className="p-4 bg-primary/5 rounded-2xl border border-primary/10 flex items-center justify-between">
+            <p className="text-[10px] font-black text-primary uppercase tracking-widest italic">Total Delivery Value</p>
+            <p className="text-xl font-black text-white italic tracking-tighter">
+              {formatCurrency(product.price * formData.quantity, product.currency)}
+            </p>
+          </div>
+
+          <button 
+            type="submit"
+            disabled={submitting}
+            className="w-full btn-neon py-5 text-[10px] font-black uppercase tracking-[0.2em] italic flex items-center justify-center gap-3"
+          >
+            {submitting ? <Loader2 className="animate-spin" size={18} /> : <Check size={18} />} Secure Delivery Sequence
+          </button>
+        </form>
+      </motion.div>
+    </div>
+  );
+}
+
+function ProductCard({ product, profile, onAction }: { product: Product, profile: UserProfile | null, onAction?: (prod: Product) => void, key?: React.Key }) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [storeData, setStoreData] = useState<{ name: string; rating: number; reviewCount: number }>({
     name: 'Verified Node',
@@ -230,6 +614,8 @@ function ProductCard({ product, profile }: { product: Product, profile: UserProf
     reviewCount: 0
   });
   const [isStoreLoading, setIsStoreLoading] = useState(true);
+  const [isEngaging, setIsEngaging] = useState(false);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchStoreData = async () => {
@@ -253,9 +639,53 @@ function ProductCard({ product, profile }: { product: Product, profile: UserProf
     fetchStoreData();
   }, [product.storeId]);
 
-  const handleAction = (type: 'shop' | 'engage') => {
+  const handleAction = async (type: 'shop' | 'engage') => {
     if (type === 'engage') {
-      window.location.href = `/chat?productId=${product.id}&supplierId=${product.ownerId}`;
+      if (!profile) {
+        navigate('/profile');
+        return;
+      }
+      
+      setIsEngaging(true);
+      const convoId = [profile.uid, product.ownerId].sort().join('_');
+      const customerName = profile.name || profile.businessName || 'A Customer';
+      const interestMessage = `Hie, I am ${customerName}. I am interested in this Product/Service: ${product.name}`;
+
+      try {
+        // Ensure conversation exists with metadata
+        await setDoc(doc(db, 'conversations', convoId), {
+          id: convoId,
+          participants: [profile.uid, product.ownerId],
+          updatedAt: serverTimestamp(),
+          lastMessage: interestMessage,
+          initiatorId: profile.uid,
+          initiatorName: customerName
+        }, { merge: true });
+
+        // Add the initial interest message
+        await addDoc(collection(db, 'conversations', convoId, 'messages'), {
+          conversationId: convoId,
+          senderId: profile.uid,
+          text: interestMessage,
+          type: 'text',
+          payload: { 
+            type: 'product_interest',
+            productId: product.id,
+            productName: product.name
+          },
+          createdAt: serverTimestamp()
+        });
+
+        navigate(`/chat?id=${convoId}`);
+      } catch (err) {
+        setIsEngaging(false);
+        handleFirestoreError(err, OperationType.CREATE, 'engage-chat');
+      }
+      return;
+    }
+
+    if (onAction) {
+      onAction(product);
       return;
     }
 
@@ -264,19 +694,30 @@ function ProductCard({ product, profile }: { product: Product, profile: UserProf
         if (product.buyButtonLink) window.open(product.buyButtonLink, '_blank');
         break;
       case 'chat':
-        window.location.href = `/chat?productId=${product.id}&supplierId=${product.ownerId}`;
+        if (profile) {
+          const cid = [profile.uid, product.ownerId].sort().join('_');
+          navigate(`/chat?id=${cid}`);
+        } else {
+          navigate('/profile');
+        }
         break;
       case 'checkout':
         window.location.href = `/deals?productId=${product.id}&action=checkout`;
+        break;
+      case 'ecocash':
+        break;
+      case 'pod':
         break;
     }
   };
 
   const getActionIcon = () => {
     switch (product.buyButtonType) {
-      case 'link': return <ArrowRight size={22} />;
-      case 'chat': return <MessageSquare size={22} />;
-      default: return <Zap size={22} className="fill-current" />;
+      case 'link': return <ArrowRight size={14} />;
+      case 'chat': return <MessageSquare size={14} />;
+      case 'ecocash': return <Phone size={14} />;
+      case 'pod': return <MapPinned size={14} />;
+      default: return <Zap size={14} className="fill-current" />;
     }
   };
 
@@ -409,17 +850,22 @@ function ProductCard({ product, profile }: { product: Product, profile: UserProf
           <div className="grid grid-cols-2 gap-2">
             <button 
               onClick={() => handleAction('engage')}
-              className="flex-1 py-3 px-4 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-white hover:bg-white/10 transition-all group/btn"
+              disabled={isEngaging}
+              className="flex-1 py-3 px-4 bg-white/5 border border-white/10 rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest text-gray-400 hover:text-white hover:bg-white/10 transition-all group/btn disabled:opacity-50"
             >
-              <MessageSquare size={14} className="group-hover/btn:scale-110 transition-transform" />
-              Engage
+              {isEngaging ? (
+                <Loader2 size={14} className="animate-spin text-primary" />
+              ) : (
+                <MessageSquare size={14} className="group-hover/btn:scale-110 transition-transform" />
+              )}
+              {isEngaging ? 'Linking...' : 'Engage'}
             </button>
             <button 
               onClick={() => handleAction('shop')}
               className="flex-1 py-3 px-4 bg-primary rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#05070a] shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all group/btn"
             >
-              <ShoppingBag size={14} className="group-hover/btn:scale-110 transition-transform" />
-              Shop
+              {getActionIcon()}
+              {product.buyButtonType === 'chat' ? 'Enquire' : 'Order Now'}
             </button>
           </div>
         </div>

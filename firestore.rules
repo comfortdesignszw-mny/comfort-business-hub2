@@ -54,7 +54,7 @@ service cloud.firestore {
       return data.ownerId == request.auth.uid
         && data.name is string && data.name.size() >= 2 && data.name.size() <= 100
         && data.price is number && data.price >= 0
-        && data.buyButtonType in ['checkout', 'chat', 'link'];
+        && data.buyButtonType in ['checkout', 'chat', 'link', 'ecocash', 'pod'];
     }
 
     match /products/{productId} {

@@ -404,34 +404,47 @@ function GatewayConfig({ profile, onSave }: { profile: UserProfile, onSave: (g: 
 
       <div className="space-y-6">
         <div className="grid grid-cols-2 gap-3">
-          {['paypal', 'stripe', 'paynow', 'custom'].map((id) => (
+          {['paypal', 'stripe', 'ecocash', 'pod'].map((id) => (
             <button
               key={id}
-              onClick={() => setProvider(id as any)}
+              onClick={() => {
+                setProvider(id as any);
+                if (id === 'pod' && !details) setDetails('Pay on Delivery Enabled');
+              }}
               className={cn(
                 "p-4 rounded-2xl border flex flex-col items-center gap-2 transition-all",
                 provider === id ? "bg-primary/20 border-primary text-primary" : "bg-white/5 border-white/5 text-gray-500"
               )}
             >
-              <CreditCard size={20} />
-              <span className="text-[10px] font-black uppercase tracking-widest">{id}</span>
+              {id === 'ecocash' ? <Phone size={20} /> : <CreditCard size={20} />}
+              <span className="text-[10px] font-black uppercase tracking-widest">
+                {id === 'ecocash' ? 'EcoCash' : id === 'pod' ? 'Cash/POD' : id}
+              </span>
             </button>
           ))}
         </div>
 
-        <div className="space-y-2">
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Gateway Identity/Address</label>
-          <input 
-            type="text"
-            value={details}
-            onChange={e => setDetails(e.target.value)}
-            placeholder={provider === 'paypal' ? 'Paypal Email Address' : 'Account Details / Secret Link'}
-            className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-white outline-none focus:border-primary/50 font-mono text-xs"
-          />
-        </div>
+        {provider !== 'pod' && (
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
+              {provider === 'ecocash' ? 'EcoCash USSD Code / Merchant' : 'Gateway Identity/Address'}
+            </label>
+            <input 
+              type="text"
+              value={details}
+              onChange={e => setDetails(e.target.value)}
+              placeholder={
+                provider === 'paypal' ? 'Paypal Email Address' : 
+                provider === 'ecocash' ? '*151*2*2*...#' :
+                'Account Details / Secret Link'
+              }
+              className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-white outline-none focus:border-primary/50 font-mono text-xs"
+            />
+          </div>
+        )}
 
         <button 
-          onClick={() => onSave({ provider, details, isActive: true })}
+          onClick={() => onSave({ provider, details: provider === 'pod' ? 'Pay on Delivery Enabled' : details, isActive: true })}
           className="w-full btn-neon py-5 text-sm uppercase tracking-[0.2em] italic flex items-center justify-center gap-3"
         >
           <Check size={18} /> Synchronize Gateway
