@@ -158,12 +158,12 @@ export default function SupplierSetup({ profile, onComplete, existingStore }: { 
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Operational Sector</label>
                 <select 
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-white outline-none focus:border-primary/50 transition-all text-xs font-bold appearance-none"
+                  className="w-full bg-[#0d1117] border border-white/10 rounded-2xl px-4 py-4 text-white outline-none focus:border-primary/50 transition-all text-xs font-bold appearance-none cursor-pointer"
                   value={category}
                   onChange={(e) => setCategory(e.target.value)}
                 >
                   {BUSINESS_CATEGORIES.map(cat => (
-                    <option key={cat} value={cat}>{cat}</option>
+                    <option key={cat} value={cat} className="bg-[#0d1117] text-white py-2">{cat}</option>
                   ))}
                 </select>
               </div>

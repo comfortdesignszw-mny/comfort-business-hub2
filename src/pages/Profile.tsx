@@ -14,8 +14,10 @@ import { cn } from '../lib/utils';
 import ImageInput from '../components/ImageInput';
 
 export default function Profile({ profile, setProfile }: { profile: UserProfile | null, setProfile: (p: UserProfile) => void }) {
+  const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [activeModal, setActiveModal] = useState<'profile' | 'gateway' | 'location' | null>(null);
+  const [activeModal, setActiveModal] = useState<'gateway' | 'location' | null>(null);
+  const [editData, setEditData] = useState<Partial<UserProfile>>({});
   const [isPending, startTransition] = useTransition();
   const navigate = useNavigate();
 
@@ -51,10 +53,6 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
   const handleUpdateProfile = async (updates: Partial<UserProfile>) => {
     if (!profile) return;
     
-    // Optimistic UI for immediate feedback
-    const prevProfile = { ...profile };
-    setProfile({ ...profile, ...updates });
-    
     setLoading(true);
     try {
       const data = {
@@ -62,8 +60,31 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
         updatedAt: new Date().toISOString()
       };
       await offlineResilientWrite('users', profile.uid, 'update', data);
+      setProfile({ ...profile, ...updates });
     } catch (e) {
-      setProfile(prevProfile);
+      handleFirestoreError(e, OperationType.UPDATE, `users/${profile.uid}`);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleSaveProfile = async () => {
+    if (!profile || Object.keys(editData).length === 0) {
+      setIsEditing(false);
+      return;
+    }
+    
+    setLoading(true);
+    try {
+      const data = {
+        ...editData,
+        updatedAt: new Date().toISOString()
+      };
+      await offlineResilientWrite('users', profile.uid, 'update', data);
+      setProfile({ ...profile, ...editData });
+      setIsEditing(false);
+      setEditData({});
+    } catch (e) {
       handleFirestoreError(e, OperationType.UPDATE, `users/${profile.uid}`);
     } finally {
       setLoading(false);
@@ -89,36 +110,133 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
     >
       {/* Profile Header */}
       <section className="flex flex-col items-center text-center space-y-6 pt-6">
-        <div className="relative group">
-          <div className="absolute -inset-1 bg-gradient-to-r from-primary to-accent rounded-full blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
-          <div className="relative w-32 h-32 bg-[#0d1117] border-4 border-[#05070a] rounded-full flex items-center justify-center text-white text-4xl font-black shadow-2xl relative overflow-hidden">
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-accent/10"></div>
-            {profile.avatar ? (
-              <img src={profile.avatar} alt={profile.name} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-            ) : profile.name.charAt(0)}
-          </div>
-          <button 
-            onClick={() => setActiveModal('profile')}
-            className="absolute bottom-1 right-1 w-10 h-10 bg-primary text-[#05070a] rounded-xl flex items-center justify-center border-4 border-[#05070a] shadow-lg group-hover:scale-110 transition-transform active:scale-95"
-          >
-            <ImageIcon size={18} />
-          </button>
-        </div>
-        <div className="space-y-1">
-          <h2 className="text-2xl font-black text-white italic tracking-tighter uppercase">{profile.name}</h2>
-          <div className="flex items-center justify-center gap-3">
-            <p className="text-xs text-gray-500 font-black uppercase tracking-widest">{profile.phone}</p>
-            <div className="w-1.5 h-1.5 bg-gray-700 rounded-full"></div>
-            <p className="text-[10px] text-primary font-black uppercase tracking-widest">Node ID: {profile.uid.slice(0, 8)}</p>
-          </div>
-        </div>
-        <div className="flex gap-3">
-          {profile.isVerified && (
-            <div className="glass-pill !text-neon-green !border-neon-green/20 flex items-center gap-1.5 shadow-[0_0_10px_rgba(57,255,20,0.1)]">
-              <Shield size={12} className="fill-neon-green/20" /> Verified Operator
+        <div className="w-full max-w-sm">
+          {isEditing ? (
+            <div className="space-y-6">
+              <div className="flex items-center gap-6 p-4 bg-white/5 rounded-3xl border border-white/10">
+                <div className="relative flex-shrink-0">
+                  <div className="absolute -inset-1 bg-gradient-to-r from-primary to-accent rounded-full blur opacity-25"></div>
+                  <div className="relative w-24 h-24 bg-[#0d1117] border-4 border-[#05070a] rounded-full flex items-center justify-center text-white text-3xl font-black shadow-2xl relative overflow-hidden">
+                    <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-accent/10"></div>
+                    {(editData.avatar ?? profile.avatar) ? (
+                      <img 
+                        src={editData.avatar ?? profile.avatar} 
+                        alt="Preview" 
+                        className="w-full h-full object-cover" 
+                        referrerPolicy="no-referrer" 
+                        onError={(e) => {
+                          const target = e.target as HTMLImageElement;
+                          target.src = "https://images.unsplash.com/photo-1541701494587-cb58502866ab?q=80&w=400&auto=format&fit=crop";
+                        }}
+                      />
+                    ) : (editData.name ?? profile.name).charAt(0)}
+                  </div>
+                </div>
+                
+                <div className="flex-1 text-left space-y-2">
+                  <label className="text-[10px] font-black text-primary uppercase tracking-[0.2em] ml-1">Avatar Uplink</label>
+                  <ImageInput 
+                    value={editData.avatar ?? profile.avatar ?? ''} 
+                    onChange={(val) => setEditData(prev => ({ ...prev, avatar: val }))}
+                    label="Change Photo"
+                    aspectRatio="square"
+                    className="!bg-white/5 border-white/10"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-4 pt-2">
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest text-left block ml-1">Entity Name</label>
+                  <input 
+                    type="text"
+                    value={editData.name ?? profile.name}
+                    onChange={e => setEditData(prev => ({ ...prev, name: e.target.value }))}
+                    placeholder="Enter your name"
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-primary/50 font-bold italic transition-all"
+                  />
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest text-left block ml-1">Comms Link (Phone)</label>
+                  <input 
+                    type="tel"
+                    value={editData.phone ?? profile.phone}
+                    onChange={e => setEditData(prev => ({ ...prev, phone: e.target.value }))}
+                    placeholder="Enter phone number"
+                    className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-primary/50 font-mono transition-all"
+                  />
+                </div>
+                
+                <div className="flex gap-3 pt-2">
+                  <button 
+                    onClick={() => { setIsEditing(false); setEditData({}); }}
+                    className="flex-1 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest bg-white/5 rounded-2xl border border-white/5 hover:bg-white/10 transition-all active:scale-95"
+                  >
+                    Cancel
+                  </button>
+                  <button 
+                    onClick={handleSaveProfile}
+                    disabled={loading}
+                    className="flex-[2] btn-neon py-4 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest shadow-lg shadow-primary/20"
+                  >
+                    {loading ? <Loader2 className="animate-spin" size={14} /> : <Check size={14} />} Commit Changes
+                  </button>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="flex flex-col items-center space-y-6">
+              <div className="relative group">
+                <div className="absolute -inset-1 bg-gradient-to-r from-primary to-accent rounded-full blur opacity-25 group-hover:opacity-50 transition duration-1000"></div>
+                <div className="relative w-32 h-32 bg-[#0d1117] border-4 border-[#05070a] rounded-full flex items-center justify-center text-white text-4xl font-black shadow-2xl relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-accent/10"></div>
+                  {profile.avatar ? (
+                    <img 
+                      src={profile.avatar} 
+                      alt={profile.name} 
+                      className="w-full h-full object-cover" 
+                      referrerPolicy="no-referrer" 
+                      onError={(e) => {
+                        const target = e.target as HTMLImageElement;
+                        target.src = "https://images.unsplash.com/photo-1541701494587-cb58502866ab?q=80&w=400&auto=format&fit=crop";
+                      }}
+                    />
+                  ) : profile.name.charAt(0)}
+                </div>
+                <button 
+                  onClick={() => setIsEditing(true)}
+                  className="absolute bottom-1 right-1 w-10 h-10 bg-primary text-[#05070a] rounded-xl flex items-center justify-center border-4 border-[#05070a] shadow-lg hover:scale-110 transition-transform active:scale-95"
+                >
+                  <ImageIcon size={18} />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <h2 className="text-2xl font-black text-white italic tracking-tighter uppercase">{profile.name}</h2>
+                  <div className="flex items-center justify-center gap-3">
+                    <p className="text-xs text-gray-500 font-black uppercase tracking-widest">{profile.phone}</p>
+                    <div className="w-1.5 h-1.5 bg-gray-700 rounded-full"></div>
+                    <p className="text-[10px] text-primary font-black uppercase tracking-widest">Node ID: {profile.uid.slice(0, 8)}</p>
+                  </div>
+                </div>
+                <div className="flex justify-center gap-3">
+                  {profile.isVerified && (
+                    <div className="glass-pill !text-neon-green !border-neon-green/20 flex items-center gap-1.5 shadow-[0_0_10px_rgba(57,255,20,0.1)]">
+                      <Shield size={12} className="fill-neon-green/20" /> Verified Operator
+                    </div>
+                  )}
+                  <div className="glass-pill">Beta Access</div>
+                </div>
+                <button 
+                  onClick={() => setIsEditing(true)}
+                  className="mx-auto flex items-center gap-2 px-4 py-2 bg-white/5 rounded-xl border border-white/10 text-[9px] font-black text-gray-400 uppercase tracking-widest hover:text-primary transition-all"
+                >
+                  Modify Identity Parameters
+                </button>
+              </div>
             </div>
           )}
-          <div className="glass-pill">Beta Access</div>
         </div>
       </section>
 
@@ -219,7 +337,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
           detail={profile.location?.city ? `${profile.location.city} Operational` : "Manage Operational Areas"} 
           onClick={() => setActiveModal('location')}
         />
-        <MenuButton icon={User} label="Identity Uplink" detail="Modify Profile Details" onClick={() => setActiveModal('profile')} />
+        <MenuButton icon={User} label="Identity Uplink" detail="Modify Profile Details" onClick={() => setIsEditing(true)} />
       </section>
 
       <div className="pt-6 pb-20">
@@ -259,9 +377,6 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
                 <X size={24} />
               </button>
 
-              {activeModal === 'profile' && (
-                <ProfileEditor profile={profile} onSave={(p) => { handleUpdateProfile(p); setActiveModal(null); }} />
-              )}
               {activeModal === 'gateway' && (
                 <GatewayConfig profile={profile} onSave={(g) => { handleUpdateProfile({ gateway: g }); setActiveModal(null); }} />
               )}
@@ -273,60 +388,6 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
         )}
       </AnimatePresence>
     </motion.div>
-  );
-}
-
-function ProfileEditor({ profile, onSave }: { profile: UserProfile, onSave: (p: Partial<UserProfile>) => void }) {
-  const [name, setName] = useState(profile.name);
-  const [phone, setPhone] = useState(profile.phone);
-  const [avatar, setAvatar] = useState(profile.avatar || '');
-
-  return (
-    <div className="space-y-8">
-      <header className="space-y-2">
-        <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter">Identity Editor</h3>
-        <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Modify your node communications data</p>
-      </header>
-
-      <div className="space-y-6">
-         <div className="max-w-[160px] mx-auto w-full">
-            <ImageInput 
-              value={avatar} 
-              onChange={setAvatar} 
-              label="Avatar Identity"
-              aspectRatio="square"
-            />
-         </div>
-
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Entity Name</label>
-            <input 
-              type="text"
-              value={name}
-              onChange={e => setName(e.target.value)}
-              className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-white outline-none focus:border-primary/50 font-bold italic"
-            />
-          </div>
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Comms Link (Phone)</label>
-            <input 
-              type="tel"
-              value={phone}
-              onChange={e => setPhone(e.target.value)}
-              className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-white outline-none focus:border-primary/50 font-mono"
-            />
-          </div>
-        </div>
-
-        <button 
-          onClick={() => onSave({ name, phone, avatar })}
-          className="w-full btn-neon py-5 text-sm uppercase tracking-[0.2em] italic flex items-center justify-center gap-3"
-        >
-          <Save size={18} /> Update Core Data
-        </button>
-      </div>
-    </div>
   );
 }
 

@@ -232,6 +232,10 @@ function DealCard({ deal }: { deal: Deal, key?: React.Key }) {
               alt="Thumbnail" 
               className="w-full h-full object-cover group-hover:scale-125 transition-transform duration-1000 ease-out" 
               referrerPolicy="no-referrer"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.src = "https://images.unsplash.com/photo-1541701494587-cb58502866ab?q=80&w=400&auto=format&fit=crop";
+              }}
             />
           </div>
           <div className="space-y-1">

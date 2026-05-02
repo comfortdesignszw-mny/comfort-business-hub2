@@ -26,7 +26,7 @@ import {
 } from 'firebase/firestore';
 import { UserProfile, Store, Product, BuyButtonType } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
-import { PRODUCT_CATEGORIES } from '../constants';
+import { PRODUCT_CATEGORIES, BUSINESS_CATEGORIES } from '../constants';
 import SupplierSetup from './SupplierSetup';
 import { offlineResilientWrite } from '../lib/sync';
 import ImageInput from '../components/ImageInput';
@@ -63,9 +63,11 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
   const [showProductForm, setShowProductForm] = useState(false);
   const [showStoreSetup, setShowStoreSetup] = useState(false);
   const [isEditingStore, setIsEditingStore] = useState(false);
+  const [storeEditData, setStoreEditData] = useState<Partial<Store>>({});
   const [editingProduct, setEditingProduct] = useState<Product | null>(null);
   const [formData, setFormData] = useState<ProductForm>(initialForm);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isSavingStore, setIsSavingStore] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [customCategory, setCustomCategory] = useState('');
 
@@ -94,6 +96,32 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
       handleFirestoreError(e, OperationType.LIST, 'supplier-data');
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleSaveStore = async () => {
+    if (!activeStore || Object.keys(storeEditData).length === 0) {
+      setIsEditingStore(false);
+      return;
+    }
+    
+    setIsSavingStore(true);
+    try {
+      const data = {
+        ...storeEditData,
+        updatedAt: new Date().toISOString()
+      };
+      await offlineResilientWrite('stores', activeStore.id, 'update', data);
+      
+      const updatedStore = { ...activeStore, ...storeEditData };
+      setActiveStore(updatedStore);
+      setStores(prev => prev.map(s => s.id === activeStore.id ? updatedStore : s));
+      setIsEditingStore(false);
+      setStoreEditData({});
+    } catch (e) {
+      handleFirestoreError(e, OperationType.UPDATE, `stores/${activeStore.id}`);
+    } finally {
+      setIsSavingStore(false);
     }
   };
 
@@ -268,35 +296,108 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
       {/* Store Header */}
       <section className="neon-card p-6 relative overflow-hidden group">
         <div className="absolute top-0 right-0 w-48 h-48 bg-primary/5 blur-3xl -mr-24 -mt-24 pointer-events-none group-hover:bg-primary/10 transition-colors"></div>
-        <div className="flex items-center gap-6 relative z-10">
-          <div className="w-20 h-20 bg-white/5 rounded-2xl border border-white/10 flex items-center justify-center text-3xl font-black text-primary italic overflow-hidden shadow-2xl">
-            {activeStore.logo ? <img src={activeStore.logo} className="w-full h-full object-cover" referrerPolicy="no-referrer" /> : activeStore.name.charAt(0)}
-          </div>
-          <div className="space-y-1 flex-1">
-            <div className="flex items-center justify-between">
-              <h1 className="text-2xl font-black text-white italic uppercase tracking-tighter leading-none">{activeStore.name}</h1>
+        {isEditingStore ? (
+          <div className="relative z-10 space-y-6">
+            <div className="flex flex-col md:flex-row gap-6">
+              <div className="w-24 h-24 flex-shrink-0">
+                <ImageInput 
+                  value={storeEditData.logo ?? activeStore.logo ?? ''} 
+                  onChange={(val) => setStoreEditData(prev => ({ ...prev, logo: val }))}
+                  aspectRatio="square"
+                  className="w-full h-full border-primary/20"
+                />
+              </div>
+              <div className="flex-1 space-y-4">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">Node Identifier</label>
+                    <input 
+                      type="text"
+                      value={storeEditData.name ?? activeStore.name}
+                      onChange={e => setStoreEditData(prev => ({ ...prev, name: e.target.value }))}
+                      className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary/50 font-bold italic"
+                    />
+                  </div>
+                  <div className="space-y-1">
+                    <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">Operational Sector</label>
+                    <select 
+                      className="w-full bg-[#0d1117] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary/50 text-xs font-bold appearance-none cursor-pointer"
+                      value={storeEditData.category ?? activeStore.category}
+                      onChange={e => setStoreEditData(prev => ({ ...prev, category: e.target.value }))}
+                    >
+                      {BUSINESS_CATEGORIES.map(cat => (
+                        <option key={cat} value={cat} className="bg-[#0d1117] text-white py-2">{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">Operational Description</label>
+                  <textarea 
+                    value={storeEditData.description ?? activeStore.description}
+                    onChange={e => setStoreEditData(prev => ({ ...prev, description: e.target.value }))}
+                    rows={2}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary/50 text-xs font-medium"
+                  />
+                </div>
+              </div>
+            </div>
+            <div className="flex gap-3 justify-end pt-2">
               <button 
-                onClick={() => {
-                  console.log("Edit store clicked");
-                  setIsEditingStore(true);
-                  setShowStoreSetup(true);
-                }}
-                className="p-3 bg-white/5 border border-white/10 rounded-xl text-gray-500 hover:text-primary hover:border-primary/50 transition-all hover:scale-110 active:scale-95 shadow-xl relative z-20"
-                title="Edit Store Profile"
+                onClick={() => { setIsEditingStore(false); setStoreEditData({}); }}
+                className="px-6 py-3 text-[10px] font-black text-gray-400 uppercase tracking-widest bg-white/5 rounded-xl border border-white/5 hover:bg-white/10 transition-all"
               >
-                <Edit3 size={18} />
+                Cancel
+              </button>
+              <button 
+                onClick={handleSaveStore}
+                disabled={isSavingStore}
+                className="px-8 py-3 btn-neon text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-primary/20"
+              >
+                {isSavingStore ? <Loader2 className="animate-spin" size={14} /> : <Check size={14} />} Commit Node Changes
               </button>
             </div>
-            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">{activeStore.category} Operations Unit</p>
-            <div className="flex items-center gap-3 pt-2">
-               <div className="flex items-center gap-1.5">
-                <div className="w-1.5 h-1.5 bg-neon-green rounded-full shadow-[0_0_5px_#39FF14]"></div>
-                <span className="text-[8px] font-black uppercase text-white tracking-widest">Node Verified</span>
+          </div>
+        ) : (
+          <div className="flex items-center gap-6 relative z-10">
+            <div className="w-20 h-20 bg-white/5 rounded-2xl border border-white/10 flex items-center justify-center text-3xl font-black text-primary italic overflow-hidden shadow-2xl">
+              {activeStore.logo ? (
+                <img 
+                  src={activeStore.logo} 
+                  className="w-full h-full object-cover" 
+                  referrerPolicy="no-referrer" 
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.src = "https://images.unsplash.com/photo-1541701494587-cb58502866ab?q=80&w=400&auto=format&fit=crop";
+                  }}
+                />
+              ) : activeStore.name.charAt(0)}
+            </div>
+            <div className="space-y-1 flex-1">
+              <div className="flex items-center justify-between">
+                <h1 className="text-2xl font-black text-white italic uppercase tracking-tighter leading-none">{activeStore.name}</h1>
+                <button 
+                  onClick={() => {
+                    setIsEditingStore(true);
+                    setStoreEditData({});
+                  }}
+                  className="p-3 bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-primary hover:border-primary/50 transition-all hover:scale-110 active:scale-95 shadow-xl"
+                  title="Edit Store Profile"
+                >
+                  <Edit3 size={18} />
+                </button>
               </div>
-              <p className="text-[8px] text-gray-600 font-bold uppercase tracking-[0.2em]">{activeStore.email}</p>
+              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">{activeStore.category} Operations Unit</p>
+              <div className="flex items-center gap-3 pt-2">
+                <div className="flex items-center gap-1.5">
+                  <div className="w-1.5 h-1.5 bg-neon-green rounded-full shadow-[0_0_5px_#39FF14]"></div>
+                  <span className="text-[8px] font-black uppercase text-white tracking-widest">Node Verified</span>
+                </div>
+                <p className="text-[8px] text-gray-600 font-bold uppercase tracking-[0.2em]">{activeStore.email}</p>
+              </div>
             </div>
           </div>
-        </div>
+        )}
       </section>
 
       {/* Analytics Brief */}
@@ -345,7 +446,16 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
               className="neon-card p-4 flex gap-4 items-center group"
             >
               <div className="w-16 h-16 bg-white/5 rounded-xl overflow-hidden border border-white/5">
-                <img src={product.images[0]} className="w-full h-full object-cover" alt={product.name} referrerPolicy="no-referrer" />
+                <img 
+                  src={product.images[0]} 
+                  className="w-full h-full object-cover" 
+                  alt={product.name} 
+                  referrerPolicy="no-referrer" 
+                  onError={(e) => {
+                    const target = e.target as HTMLImageElement;
+                    target.src = "https://images.unsplash.com/photo-1541701494587-cb58502866ab?q=80&w=400&auto=format&fit=crop";
+                  }}
+                />
               </div>
               <div className="flex-1 space-y-1">
                 <h4 className="font-black text-white italic uppercase tracking-wider text-xs">{product.name}</h4>
@@ -541,12 +651,12 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
                           <div className="space-y-2">
                             <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Currency</label>
                             <select 
-                              className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-white outline-none focus:border-primary/50 text-xs font-bold appearance-none cursor-pointer shadow-xl"
+                              className="w-full bg-[#0d1117] border border-white/10 rounded-2xl px-4 py-4 text-white outline-none focus:border-primary/50 text-xs font-bold appearance-none cursor-pointer shadow-xl"
                               value={formData.currency}
                               onChange={e => setFormData({ ...formData, currency: e.target.value })}
                             >
-                              <option value="USD">USD (US Dollar)</option>
-                              <option value="ZiG">ZiG (Zimbabwe Gold)</option>
+                              <option value="USD" className="bg-[#0d1117] text-white py-2">USD (US Dollar)</option>
+                              <option value="ZiG" className="bg-[#0d1117] text-white py-2">ZiG (Zimbabwe Gold)</option>
                             </select>
                           </div>
                         </div>
@@ -554,14 +664,14 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
                         <div className="space-y-2">
                           <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Category Alignment</label>
                           <select 
-                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-white outline-none focus:border-primary/50 text-xs font-bold appearance-none cursor-pointer shadow-xl"
+                            className="w-full bg-[#0d1117] border border-white/10 rounded-2xl px-4 py-4 text-white outline-none focus:border-primary/50 text-xs font-bold appearance-none cursor-pointer shadow-xl"
                             value={formData.category}
                             onChange={e => setFormData({ ...formData, category: e.target.value })}
                           >
                             {PRODUCT_CATEGORIES.map(cat => (
-                              <option key={cat} value={cat}>{cat}</option>
+                              <option key={cat} value={cat} className="bg-[#0d1117] text-white py-2">{cat}</option>
                             ))}
-                            <option value="Other">Custom Category...</option>
+                            <option value="Other" className="bg-[#0d1117] text-white py-2">Custom Category...</option>
                           </select>
                         </div>
 

@@ -10,13 +10,6 @@ export interface CompressionOptions {
 }
 
 /**
- * Generates a fast local preview URL for immediate UI feedback
- */
-export function getLocalPreview(file: File): string {
-  return URL.createObjectURL(file);
-}
-
-/**
  * Compresses an image file client-side using high-speed Canvas API
  */
 export async function compressImage(file: File, options: CompressionOptions = {}): Promise<Blob> {
@@ -29,7 +22,6 @@ export async function compressImage(file: File, options: CompressionOptions = {}
 
   try {
     // 1. Create ImageBitmap (async and off-thread)
-    // This is the fastest way to get image data into a canvas
     const img = await createImageBitmap(file);
     
     // 2. Calculate dimensions keeping aspect ratio
@@ -39,7 +31,7 @@ export async function compressImage(file: File, options: CompressionOptions = {}
     width = Math.floor(width * ratio);
     height = Math.floor(height * ratio);
 
-    // 3. Use OffscreenCanvas if available for better performance (doesn't block UI)
+    // 3. Use OffscreenCanvas if available
     let canvas: HTMLCanvasElement | OffscreenCanvas;
     let ctx: CanvasRenderingContext2D | OffscreenCanvasRenderingContext2D | null;
 
@@ -55,12 +47,11 @@ export async function compressImage(file: File, options: CompressionOptions = {}
     
     if (!ctx) throw new Error('Failed to get context');
 
-    // Use medium quality for speed/visual balance
     ctx.imageSmoothingEnabled = true;
     ctx.imageSmoothingQuality = 'medium';
     ctx.drawImage(img, 0, 0, width, height);
 
-    // 4. Release bitmap memory immediately
+    // 4. Release bitmap memory
     img.close();
 
     // 5. Fast conversion to Blob
