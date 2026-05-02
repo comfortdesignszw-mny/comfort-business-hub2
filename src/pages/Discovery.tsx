@@ -8,7 +8,7 @@ import { Search, MapPin, Filter, Star, Zap, ShoppingBag, Store, ArrowRight,
 import { UserProfile, Product, Store as StoreType, Message, Spotlight } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
-import { collection, query, limit, getDocs, where, addDoc, serverTimestamp, setDoc, doc, getDoc, orderBy, onSnapshot } from 'firebase/firestore';
+import { collection, query, limit, getDocs, where, addDoc, serverTimestamp, setDoc, doc, getDoc, orderBy, onSnapshot, getCountFromServer } from 'firebase/firestore';
 import { BUSINESS_CATEGORIES, PRODUCT_CATEGORIES } from '../constants';
 import ProductCard from '../components/ProductCard';
 
@@ -19,6 +19,7 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
   const [loading, setLoading] = useState(true);
   const [nearbyDeals, setNearbyDeals] = useState<Product[]>([]);
   const [nearbyStores, setNearbyStores] = useState<StoreType[]>([]);
+  const [userCount, setUserCount] = useState<number | null>(null);
   const [spotlights, setSpotlights] = useState<Spotlight[]>([]);
   const [activeSpotlightIndex, setActiveSpotlightIndex] = useState(0);
   const [filteredDeals, setFilteredDeals] = useState<Product[]>([]);
@@ -119,6 +120,16 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
       handleFirestoreError(error, OperationType.GET, 'spotlights-feed');
     });
 
+    const fetchUserCount = async () => {
+      try {
+        const snapshot = await getCountFromServer(collection(db, 'users'));
+        setUserCount(snapshot.data().count);
+      } catch (err) {
+        console.error("Error fetching user count:", err);
+      }
+    };
+    fetchUserCount();
+
     return () => {
       unsubscribeProducts();
       unsubscribeStores();
@@ -185,6 +196,24 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
             Join Comfort Business Hub
           </button>
         </div>
+      )}
+
+      {/* User Count Notification */}
+      {userCount !== null && (
+        <motion.div 
+          initial={{ opacity: 0, y: 10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="flex items-center justify-center gap-2 py-1"
+        >
+          <div className="flex -space-x-1">
+             {[1, 2, 3].map(i => (
+              <div key={i} className="w-5 h-5 rounded-full border border-[#05070a] bg-gray-800 bg-cover bg-center" style={{ backgroundImage: `url(https://i.pravatar.cc/100?img=${i+40})` }} />
+            ))}
+          </div>
+          <p className="text-[9px] font-black text-primary uppercase tracking-[0.15em]">
+            <span className="text-white">{userCount}</span> members synchronized with the Hub
+          </p>
+        </motion.div>
       )}
 
       {/* Search & Location Bar */}
