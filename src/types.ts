@@ -101,6 +101,20 @@ export interface Spotlight {
   createdAt: any;
 }
 
+export type EngagementType = 'engaged' | 'interested';
+
+export interface Engagement {
+  id: string;
+  productId: string;
+  productName: string;
+  customerId: string;
+  customerName: string;
+  supplierId: string;
+  type: EngagementType;
+  details?: string;
+  createdAt: any;
+}
+
 export interface Conversation {
   id: string;
   participants: string[];

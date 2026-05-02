@@ -148,6 +148,22 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "authorId", "type", "title", "content"]
+    },
+    "Engagement": {
+      "title": "Node Engagement Signal",
+      "description": "Records of customers engaging with or showing interest in products.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "productId": { "type": "string" },
+        "productName": { "type": "string" },
+        "customerId": { "type": "string" },
+        "customerName": { "type": "string" },
+        "supplierId": { "type": "string" },
+        "type": { "type": "string", "enum": ["engaged", "interested"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["productId", "customerId", "supplierId", "type"]
     }
   },
   "firestore": {
@@ -178,6 +194,10 @@
     "spotlights": {
       "schema": "Spotlight",
       "description": "Market news and events"
+    },
+    "engagements": {
+      "schema": "Engagement",
+      "description": "Product interaction logs"
     }
   }
 }

@@ -40,16 +40,18 @@ export default function Chat({ profile }: { profile: UserProfile | null }) {
     const unsubscribe = onSnapshot(q, async (snapshot) => {
       const convos = await Promise.all(snapshot.docs.map(async (d) => {
         const data = d.data();
-        const otherId = data.participants.find((p: string) => p !== profile.uid);
+        const otherId = data.participants?.find((p: string) => p !== profile.uid);
         
         let otherName = 'Secure Node';
-        try {
-          const userSnap = await getDoc(doc(db, 'users', otherId));
-          if (userSnap.exists()) {
-            otherName = userSnap.data().name || userSnap.data().businessName || 'Secure Node';
+        if (otherId) {
+          try {
+            const userSnap = await getDoc(doc(db, 'users', otherId));
+            if (userSnap.exists()) {
+              otherName = userSnap.data().name || userSnap.data().businessName || 'Secure Node';
+            }
+          } catch (e) {
+            console.error("Error fetching participant:", e);
           }
-        } catch (e) {
-          console.error("Error fetching participant:", e);
         }
 
         return {
@@ -168,12 +170,14 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
       try {
         const convoDoc = await getDoc(doc(db, 'conversations', convo.id));
         if (convoDoc.exists()) {
-          const participants = convoDoc.data().participants;
-          const otherId = participants.find((p: string) => p !== profile?.uid);
-          if (otherId) {
-            const userSnap = await getDoc(doc(db, 'users', otherId));
-            if (userSnap.exists()) {
-              setParticipantInfo({ name: userSnap.data().name || userSnap.data().businessName || 'Secure Node' });
+          const participants = convoDoc.data()?.participants;
+          if (participants && Array.isArray(participants)) {
+            const otherId = participants.find((p: string) => p !== profile?.uid);
+            if (otherId) {
+              const userSnap = await getDoc(doc(db, 'users', otherId));
+              if (userSnap.exists()) {
+                setParticipantInfo({ name: userSnap.data().name || userSnap.data().businessName || 'Secure Node' });
+              }
             }
           }
         }

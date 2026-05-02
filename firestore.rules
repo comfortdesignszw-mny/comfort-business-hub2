@@ -100,5 +100,19 @@ service cloud.firestore {
         && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'content', 'image', 'location', 'date', 'isActive', 'type']);
       allow delete: if isSignedIn() && isOwner(existing().authorId);
     }
+
+    // Engagements
+    function isValidEngagement(data) {
+      return data.customerId == request.auth.uid
+        && data.productId is string
+        && data.supplierId is string
+        && data.type in ['engaged', 'interested']
+        && data.customerName is string && data.customerName.size() <= 100;
+    }
+
+    match /engagements/{id} {
+      allow read: if isSignedIn() && (resource.data.supplierId == request.auth.uid || resource.data.customerId == request.auth.uid);
+      allow create: if isSignedIn() && isValidEngagement(incoming());
+    }
   }
 }

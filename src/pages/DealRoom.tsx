@@ -1,45 +1,62 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Zap, Clock, CheckCircle2, ChevronRight, DollarSign, MessageCircle, AlertCircle, ShoppingCart, Loader2 } from 'lucide-react';
-import { UserProfile, Deal, DealStatus, Product } from '../types';
+import { Zap, Clock, CheckCircle2, ChevronRight, DollarSign, MessageCircle, AlertCircle, ShoppingCart, Loader2, Sparkles, MessageSquare, ShoppingBag } from 'lucide-react';
+import { UserProfile, Deal, DealStatus, Product, Engagement } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
-import { db } from '../lib/firebase';
-import { collection, query, where, getDocs, addDoc, serverTimestamp, doc, getDoc, orderBy } from 'firebase/firestore';
+import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { collection, query, where, getDocs, addDoc, serverTimestamp, doc, getDoc, orderBy, onSnapshot } from 'firebase/firestore';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { offlineResilientWrite } from '../lib/sync';
 
 export default function DealRoom({ profile }: { profile: UserProfile | null }) {
-  const [activeTab, setActiveTab] = useState<'buying' | 'selling'>('buying');
+  const [activeTab, setActiveTab] = useState<'buying' | 'selling' | 'notifications'>('buying');
   const [deals, setDeals] = useState<Deal[]>([]);
+  const [engagements, setEngagements] = useState<Engagement[]>([]);
   const [loading, setLoading] = useState(true);
   const location = useLocation();
   const navigate = useNavigate();
 
   useEffect(() => {
     if (!profile) return;
+    setLoading(true);
 
-    const fetchDeals = async () => {
-      setLoading(true);
-      try {
-        const q = query(
-          collection(db, 'deals'),
-          where(activeTab === 'buying' ? 'customerId' : 'supplierId', '==', profile.uid),
-          orderBy('updatedAt', 'desc')
-        );
-        const querySnapshot = await getDocs(q);
-        const fetchedDeals = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        } as Deal));
-        setDeals(fetchedDeals);
-      } catch (error) {
-        console.error("Error fetching deals:", error);
-      } finally {
+    let unsubscribeDeals = () => {};
+    let unsubscribeEngagements = () => {};
+
+    if (activeTab === 'notifications') {
+      const q = query(
+        collection(db, 'engagements'),
+        where('supplierId', '==', profile.uid),
+        orderBy('createdAt', 'desc')
+      );
+      unsubscribeEngagements = onSnapshot(q, (snapshot) => {
+        setEngagements(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Engagement)));
+        setDeals([]);
         setLoading(false);
-      }
-    };
+      }, (err) => {
+        handleFirestoreError(err, OperationType.GET, 'engagements-stream');
+        setLoading(false);
+      });
+    } else {
+      const q = query(
+        collection(db, 'deals'),
+        where(activeTab === 'buying' ? 'customerId' : 'supplierId', '==', profile.uid),
+        orderBy('updatedAt', 'desc')
+      );
+      unsubscribeDeals = onSnapshot(q, (snapshot) => {
+        setDeals(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Deal)));
+        setEngagements([]);
+        setLoading(false);
+      }, (err) => {
+        handleFirestoreError(err, OperationType.GET, 'deals-stream');
+        setLoading(false);
+      });
+    }
 
-    fetchDeals();
+    return () => {
+      unsubscribeDeals();
+      unsubscribeEngagements();
+    };
   }, [profile, activeTab]);
 
   useEffect(() => {
@@ -114,7 +131,7 @@ export default function DealRoom({ profile }: { profile: UserProfile | null }) {
           )}
         >
           <ShoppingCart size={14} />
-          Incoming Assets
+          Incoming
         </button>
         <button 
           onClick={() => setActiveTab('selling')}
@@ -124,8 +141,23 @@ export default function DealRoom({ profile }: { profile: UserProfile | null }) {
           )}
         >
           <Zap size={14} />
-          Outbound Supply
+          Outbound
         </button>
+        {profile?.currentRole === 'supplier' && (
+          <button 
+            onClick={() => setActiveTab('notifications')}
+            className={cn(
+              "flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all duration-300 flex items-center justify-center gap-2 relative",
+              activeTab === 'notifications' ? "bg-accent text-white shadow-[0_0_15px_rgba(240,147,251,0.3)]" : "text-gray-500 hover:text-gray-300"
+            )}
+          >
+            <Sparkles size={14} />
+            Network Feed
+            {engagements.length > 0 && activeTab !== 'notifications' && (
+              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full animate-ping"></span>
+            )}
+          </button>
+        )}
       </div>
 
       <div className="space-y-6">
@@ -134,6 +166,20 @@ export default function DealRoom({ profile }: { profile: UserProfile | null }) {
             <Loader2 className="animate-spin text-primary" size={32} />
             <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest animate-pulse">Syncing Blockchain...</p>
           </div>
+        ) : activeTab === 'notifications' ? (
+          engagements.length > 0 ? (
+            engagements.map((eng) => (
+              <EngagementCard key={eng.id} engagement={eng} />
+            ))
+          ) : (
+            <div className="py-20 flex flex-col items-center text-center space-y-4">
+              <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center text-gray-700">
+                <Sparkles size={32} />
+              </div>
+              <p className="text-white font-black uppercase tracking-widest text-xs">No active engagement signals</p>
+              <p className="text-[10px] text-gray-500">Your supply nodes are currently waiting for uplink.</p>
+            </div>
+          )
         ) : deals.length > 0 ? (
           deals.map((deal) => (
             <DealCard key={deal.id} deal={deal} />
@@ -173,6 +219,53 @@ export default function DealRoom({ profile }: { profile: UserProfile | null }) {
           </p>
         </div>
       </motion.div>
+    </motion.div>
+  );
+}
+
+function EngagementCard({ engagement, key }: { engagement: Engagement, key?: React.Key }) {
+  const navigate = useNavigate();
+  const isEngaged = engagement.type === 'engaged';
+  
+  return (
+    <motion.div 
+      whileHover={{ y: -2 }}
+      className={cn(
+        "neon-card p-5 border-l-4 flex flex-col md:flex-row md:items-center justify-between gap-4 cursor-pointer group transition-all",
+        isEngaged ? "border-l-primary bg-primary/5" : "border-l-accent bg-accent/5"
+      )}
+      onClick={() => navigate(`/chat?id=${[engagement.customerId, engagement.supplierId].sort().join('_')}`)}
+    >
+      <div className="flex items-center gap-4">
+        <div className={cn(
+          "w-12 h-12 rounded-xl flex items-center justify-center shrink-0",
+          isEngaged ? "bg-primary/20 text-primary shadow-[0_0_15px_rgba(0,242,254,0.2)]" : "bg-accent/20 text-accent shadow-[0_0_15px_rgba(240,147,251,0.2)]"
+        )}>
+          {isEngaged ? <MessageSquare size={20} /> : <ShoppingBag size={20} />}
+        </div>
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <span className={cn(
+              "text-[8px] font-black uppercase tracking-[0.2em] px-2 py-0.5 rounded border shadow-sm",
+              isEngaged ? "bg-primary/10 border-primary/20 text-primary" : "bg-accent/10 border-accent/20 text-accent"
+            )}>
+              {isEngaged ? 'Engaged' : 'Interested to Buy'}
+            </span>
+            <span className="text-[7px] text-gray-600 font-bold uppercase tracking-widest">
+              {engagement.createdAt?.seconds ? new Date(engagement.createdAt.seconds * 1000).toLocaleTimeString() : 'RECENT'}
+            </span>
+          </div>
+          <h4 className="text-xs font-black text-white uppercase tracking-wider group-hover:text-primary transition-colors">
+            <span className="text-primary italic">{engagement.customerName}</span> 
+            {isEngaged ? ' engaged you on ' : ' interested to buy '}
+            <span className="text-white italic">{engagement.productName}</span>
+          </h4>
+          <p className="text-[9px] text-gray-500 font-medium">Node Interaction detected in real-time matrix feed.</p>
+        </div>
+      </div>
+      <button className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-[9px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2 group-hover:bg-primary group-hover:text-[#05070a] group-hover:border-primary transition-all">
+        Open Signal <ChevronRight size={10} />
+      </button>
     </motion.div>
   );
 }

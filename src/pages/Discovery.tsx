@@ -592,20 +592,29 @@ function EcoCashModal({ product, onClose }: { product: Product, onClose: () => v
           <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Execute USSD Uplink to Secure Item</p>
         </div>
 
-        <button 
-          onClick={handleDial}
-          disabled={loading || !ussd}
-          className="w-full btn-neon py-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50"
-        >
-          {loading ? <Loader2 className="animate-spin" size={14} /> : <Phone size={14} />} 
-          Pay with EcoCash USSD
-        </button>
+        <div className="space-y-4">
+          <div className="p-4 bg-primary/5 border border-primary/10 rounded-2xl">
+            <p className="text-[10px] font-bold text-gray-300 leading-relaxed">
+              <span className="text-primary font-black">NOTE:</span> You are being redirected to pay your products with your EcoCash wallet. Make sure you have sufficient funds in your wallet to process the payment.
+            </p>
+          </div>
+
+          <button 
+            onClick={handleDial}
+            disabled={loading || !ussd}
+            className="w-full btn-neon py-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 disabled:opacity-50"
+          >
+            {loading ? <Loader2 className="animate-spin" size={14} /> : <Phone size={14} />} 
+            Dial Payment Command
+          </button>
+        </div>
       </motion.div>
     </div>
   );
 }
 
 function PodModal({ product, profile, onClose }: { product: Product, profile: UserProfile | null, onClose: () => void }) {
+  const navigate = useNavigate();
   const [formData, setFormData] = useState({
     name: '',
     phone: '',
@@ -620,6 +629,9 @@ function PodModal({ product, profile, onClose }: { product: Product, profile: Us
     setSubmitting(true);
 
     try {
+      if (!product.ownerId || !profile.uid) {
+        throw new Error("Invalid session or missing node ID");
+      }
       // 1. Ensure/Create Conversation
       const convoId = [profile.uid, product.ownerId].sort().join('_');
       await setDoc(doc(db, 'conversations', convoId), {
@@ -654,7 +666,7 @@ function PodModal({ product, profile, onClose }: { product: Product, profile: Us
       });
 
       onClose();
-      window.location.href = `/chat?id=${convoId}`;
+      navigate(`/chat?id=${convoId}`);
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, 'pod-order');
     } finally {
@@ -843,6 +855,24 @@ function ProductCard({ product, profile, onAction }: { product: Product, profile
     fetchStoreData();
   }, [product.storeId]);
 
+  const logEngagement = async (type: 'engaged' | 'interested') => {
+    if (!profile || !product.ownerId) return;
+    
+    try {
+      await addDoc(collection(db, 'engagements'), {
+        productId: product.id,
+        productName: product.name,
+        customerId: profile.uid,
+        customerName: profile.name || profile.businessName || 'Anonymous Customer',
+        supplierId: product.ownerId,
+        type,
+        createdAt: serverTimestamp()
+      });
+    } catch (err) {
+      console.error("Error logging engagement:", err);
+    }
+  };
+
   const handleAction = async (type: 'shop' | 'engage') => {
     if (type === 'engage') {
       if (!profile) {
@@ -851,6 +881,7 @@ function ProductCard({ product, profile, onAction }: { product: Product, profile
       }
       
       setIsEngaging(true);
+      await logEngagement('engaged');
       const convoId = [profile.uid, product.ownerId].sort().join('_');
       const customerName = profile.name || profile.businessName || 'A Customer';
       const interestMessage = `Hie, I am ${customerName}. I am interested in this Product/Service: ${product.name}`;
@@ -886,6 +917,11 @@ function ProductCard({ product, profile, onAction }: { product: Product, profile
         handleFirestoreError(err, OperationType.CREATE, 'engage-chat');
       }
       return;
+    }
+
+    // Purchase path
+    if (profile) {
+      await logEngagement('interested');
     }
 
     if (onAction) {
@@ -1069,7 +1105,7 @@ function ProductCard({ product, profile, onAction }: { product: Product, profile
               className="flex-1 py-3 px-4 bg-primary rounded-xl flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-widest text-[#05070a] shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all group/btn"
             >
               {getActionIcon()}
-              {product.buyButtonType === 'chat' ? 'Enquire' : 'Order Now'}
+              {product.buyButtonType === 'chat' ? 'Buy Now' : 'Pay Now'}
             </button>
           </div>
         </div>

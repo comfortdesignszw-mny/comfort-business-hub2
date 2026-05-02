@@ -72,9 +72,28 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [customCategory, setCustomCategory] = useState('');
 
+  const [engagementStats, setEngagementStats] = useState({ engaged: 0, interested: 0 });
+
   useEffect(() => {
     fetchData();
+    fetchEngagementStats();
   }, [profile.uid]);
+
+  const fetchEngagementStats = async () => {
+    try {
+      const q = query(collection(db, 'engagements'), where('supplierId', '==', profile.uid));
+      const snap = await getDocs(q);
+      const stats = { engaged: 0, interested: 0 };
+      snap.docs.forEach(d => {
+        const data = d.data();
+        if (data.type === 'engaged') stats.engaged++;
+        if (data.type === 'interested') stats.interested++;
+      });
+      setEngagementStats(stats);
+    } catch (e) {
+      console.error("Error fetching engagement stats:", e);
+    }
+  };
 
   const fetchData = async () => {
     setLoading(true);
@@ -402,7 +421,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
       </section>
 
       {/* Analytics Brief */}
-      <section className="grid grid-cols-2 gap-4">
+      <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
         <div className="neon-card p-4 space-y-2">
           <div className="flex items-center justify-between">
             <DollarSign size={16} className="text-primary" />
@@ -413,11 +432,27 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
         </div>
         <div className="neon-card p-4 space-y-2">
           <div className="flex items-center justify-between">
-            <Users size={16} className="text-primary" />
-            <span className="text-[8px] font-black text-neon-green uppercase tracking-widest">+4 NEW</span>
+            <Package size={16} className="text-primary" />
+            <span className="text-[8px] font-black text-neon-green uppercase tracking-widest">LIVE</span>
           </div>
-          <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Client Requests</p>
-          <p className="text-xl font-black text-white italic tracking-tighter">{products.length * 8}</p>
+          <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Items Active</p>
+          <p className="text-xl font-black text-white italic tracking-tighter">{products.length}</p>
+        </div>
+        <div className="neon-card p-4 space-y-2 border-primary/20 bg-primary/5">
+          <div className="flex items-center justify-between">
+            <MessageSquare size={16} className="text-primary" />
+            <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse shadow-[0_0_8px_rgba(0,242,254,0.5)]"></div>
+          </div>
+          <p className="text-[9px] font-black text-primary uppercase tracking-widest">Product Engaged</p>
+          <p className="text-xl font-black text-white italic tracking-tighter">{engagementStats.engaged}</p>
+        </div>
+        <div className="neon-card p-4 space-y-2 border-accent/20 bg-accent/5">
+          <div className="flex items-center justify-between">
+            <ShoppingBag size={16} className="text-accent" />
+            <div className="w-1.5 h-1.5 bg-accent rounded-full animate-pulse shadow-[0_0_8px_rgba(240,147,251,0.5)]"></div>
+          </div>
+          <p className="text-[9px] font-black text-accent uppercase tracking-widest">Interested to Buy</p>
+          <p className="text-xl font-black text-white italic tracking-tighter">{engagementStats.interested}</p>
         </div>
       </section>
 
