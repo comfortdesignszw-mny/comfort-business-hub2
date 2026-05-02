@@ -223,7 +223,7 @@ export default function DealRoom({ profile }: { profile: UserProfile | null }) {
   );
 }
 
-function EngagementCard({ engagement, key }: { engagement: Engagement, key?: React.Key }) {
+function EngagementCard({ engagement }: { engagement: Engagement, key?: React.Key }) {
   const navigate = useNavigate();
   const isEngaged = engagement.type === 'engaged';
   
