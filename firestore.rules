@@ -26,7 +26,7 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow create: if isOwner(userId) && isValidUser(incoming());
       allow update: if isOwner(userId) && isValidUser(incoming()) 
         && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'phone', 'avatar', 'currentRole', 'geohash', 'lat', 'lng', 'businessName', 'businessCategory', 'whatsappUrl', 'requiredProducts', 'location', 'gateway', 'isVerified', 'updatedAt']);
@@ -83,6 +83,22 @@ service cloud.firestore {
       allow read: if isSignedIn() && (existing().customerId == request.auth.uid || existing().supplierId == request.auth.uid);
       allow create: if isSignedIn() && (incoming().customerId == request.auth.uid || incoming().supplierId == request.auth.uid);
       allow update: if isSignedIn() && (existing().customerId == request.auth.uid || existing().supplierId == request.auth.uid);
+    }
+
+    // Spotlights
+    function isValidSpotlight(data) {
+      return data.authorId == request.auth.uid
+        && data.title is string && data.title.size() <= 200
+        && data.type in ['news', 'event', 'update', 'spotlight']
+        && data.content is string && data.content.size() <= 2000;
+    }
+
+    match /spotlights/{spotlightId} {
+      allow read: if true;
+      allow create: if isSignedIn() && isValidSpotlight(incoming());
+      allow update: if isSignedIn() && isOwner(existing().authorId) && isValidSpotlight(incoming())
+        && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'content', 'image', 'location', 'date', 'isActive', 'type']);
+      allow delete: if isSignedIn() && isOwner(existing().authorId);
     }
   }
 }

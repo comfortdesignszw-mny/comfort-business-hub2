@@ -87,6 +87,20 @@ export interface Message {
   createdAt: string;
 }
 
+export interface Spotlight {
+  id: string;
+  authorId: string;
+  authorName: string;
+  type: 'news' | 'event' | 'update' | 'spotlight';
+  title: string;
+  content: string;
+  image?: string;
+  location?: string;
+  date?: string;
+  isActive: boolean;
+  createdAt: any;
+}
+
 export interface Conversation {
   id: string;
   participants: string[];

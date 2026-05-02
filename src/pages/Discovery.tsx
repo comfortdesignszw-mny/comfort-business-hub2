@@ -3,12 +3,13 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Search, MapPin, Filter, Star, Zap, ShoppingBag, Store, ArrowRight, 
-  SlidersHorizontal, MessageSquare, Sparkles, X, Phone, Check, Loader2, MapPinned, CreditCard
+  SlidersHorizontal, MessageSquare, Sparkles, X, Phone, Check, Loader2, MapPinned, CreditCard,
+  Megaphone, Calendar, FileText
 } from 'lucide-react';
-import { UserProfile, Product, Store as StoreType, Message } from '../types';
+import { UserProfile, Product, Store as StoreType, Message, Spotlight } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
-import { collection, query, limit, getDocs, where, addDoc, serverTimestamp, setDoc, doc, getDoc } from 'firebase/firestore';
+import { collection, query, limit, getDocs, where, addDoc, serverTimestamp, setDoc, doc, getDoc, orderBy } from 'firebase/firestore';
 import { BUSINESS_CATEGORIES } from '../constants';
 
 export default function Discovery({ profile, setProfile }: { profile: UserProfile | null, setProfile: (p: UserProfile) => void }) {
@@ -16,6 +17,8 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
   const [activeCategory, setActiveCategory] = useState('All');
   const [loading, setLoading] = useState(true);
   const [nearbyDeals, setNearbyDeals] = useState<Product[]>([]);
+  const [spotlights, setSpotlights] = useState<Spotlight[]>([]);
+  const [activeSpotlightIndex, setActiveSpotlightIndex] = useState(0);
   const [filteredDeals, setFilteredDeals] = useState<Product[]>([]);
   const [activeModal, setActiveModal] = useState<{ type: 'checkout' | 'ecocash' | 'pod', product: Product } | null>(null);
 
@@ -67,8 +70,18 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
         }
 
         setNearbyDeals(allProducts);
+
+        // Fetch Spotlights
+        const sq = query(
+          collection(db, 'spotlights'),
+          where('isActive', '==', true),
+          orderBy('createdAt', 'desc'),
+          limit(5)
+        );
+        const sSnap = await getDocs(sq);
+        setSpotlights(sSnap.docs.map(d => ({ id: d.id, ...d.data() } as Spotlight)));
       } catch (error) {
-        console.error("Error fetching products:", error);
+        handleFirestoreError(error, OperationType.GET, 'discovery-data');
       } finally {
         setLoading(false);
       }
@@ -76,6 +89,14 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
 
     fetchDiscoveryData();
   }, [profile]);
+
+  useEffect(() => {
+    if (spotlights.length <= 1) return;
+    const interval = setInterval(() => {
+      setActiveSpotlightIndex(prev => (prev + 1) % spotlights.length);
+    }, 8000);
+    return () => clearInterval(interval);
+  }, [spotlights.length]);
 
   return (
     <motion.div 
@@ -164,29 +185,111 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
         ))}
       </section>
 
-      {/* Featured Promo */}
-      <section className="neon-card relative h-48 flex flex-col justify-end p-6 group cursor-pointer">
-        <div className="absolute inset-0 z-0">
-          <img 
-            src="https://images.unsplash.com/photo-1540350394557-8d14678e7f91?w=800&q=80" 
-            className="w-full h-full object-cover opacity-40 group-hover:scale-110 transition-transform duration-1000" 
-            alt="Featured" 
-            referrerPolicy="no-referrer" 
-            onError={(e) => {
-              const target = e.target as HTMLImageElement;
-              target.src = "https://images.unsplash.com/photo-1541701494587-cb58502866ab?q=80&w=400&auto=format&fit=crop";
-            }}
-          />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#05070a] via-[#05070a]/40 to-transparent"></div>
-        </div>
-        <div className="relative z-10 space-y-1">
-          <div className="glass-pill inline-block mb-2 !text-primary !border-primary/20">Market Spotlight</div>
-          <h3 className="text-2xl font-black text-white italic leading-tight">SUMMER<br/>AGRI-TECH EXPO</h3>
-          <p className="text-xs text-gray-400 font-medium">Harare Showgrounds • May 15-20</p>
-        </div>
-        <div className="absolute top-6 right-6 flex flex-col items-end">
-          <Zap size={32} className="text-primary animate-pulse" />
-        </div>
+      {/* Featured Promo / Spotlight */}
+      <section className="relative overflow-hidden rounded-[2.5rem]">
+        <AnimatePresence mode="wait">
+          {spotlights.length > 0 ? (
+            <motion.div 
+              key={spotlights[activeSpotlightIndex].id}
+              initial={{ opacity: 0, x: 20 }}
+              animate={{ opacity: 1, x: 0 }}
+              exit={{ opacity: 0, x: -20 }}
+              className="neon-card relative h-56 flex flex-col justify-end p-8 group cursor-pointer overflow-hidden"
+            >
+              <div className="absolute inset-0 z-0">
+                <img 
+                  src={spotlights[activeSpotlightIndex].image || "https://images.unsplash.com/photo-1540350394557-8d14678e7f91?w=800&q=80"} 
+                  className="w-full h-full object-cover opacity-40 group-hover:scale-110 transition-transform duration-1000" 
+                  alt="Spotlight" 
+                  referrerPolicy="no-referrer" 
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#05070a] via-[#05070a]/60 to-transparent"></div>
+              </div>
+              
+              <div className="relative z-10 space-y-2">
+                <div className="flex items-center gap-2 mb-2">
+                  <div className="glass-pill !text-primary !border-primary/20 flex items-center gap-1.5 shadow-[0_0_15px_rgba(0,242,254,0.15)]">
+                    <Megaphone size={10} className="animate-pulse" />
+                    Market Spotlight
+                  </div>
+                  <div className="glass-pill !text-neon-green/80 !border-white/5 uppercase tracking-[0.2em] text-[8px]">
+                    {spotlights[activeSpotlightIndex].type}
+                  </div>
+                </div>
+                
+                <h3 className="text-2xl font-black text-white italic leading-none tracking-tighter uppercase break-words line-clamp-2">
+                  {spotlights[activeSpotlightIndex].title}
+                </h3>
+
+                {spotlights[activeSpotlightIndex].content && (
+                  <p className="text-[11px] text-gray-300 font-medium leading-relaxed line-clamp-2 mt-1">
+                    {spotlights[activeSpotlightIndex].content}
+                  </p>
+                )}
+                
+                <div className="flex flex-wrap gap-4 pt-2">
+                  {spotlights[activeSpotlightIndex].authorName && (
+                    <div className="flex items-center gap-1.5 text-[9px] text-primary font-black tracking-widest bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
+                      <Store size={10} /> {spotlights[activeSpotlightIndex].authorName}
+                    </div>
+                  )}
+                  {spotlights[activeSpotlightIndex].location && (
+                    <div className="flex items-center gap-1.5 text-[9px] text-gray-400 font-bold tracking-widest">
+                      <MapPin size={10} className="text-primary" /> {spotlights[activeSpotlightIndex].location}
+                    </div>
+                  )}
+                  {spotlights[activeSpotlightIndex].date && (
+                    <div className="flex items-center gap-1.5 text-[9px] text-gray-400 font-bold tracking-widest">
+                      <Calendar size={10} className="text-primary" /> {spotlights[activeSpotlightIndex].date}
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              <div className="absolute top-8 right-8 flex flex-col items-end">
+                <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center border border-primary/20 text-primary animate-pulse">
+                  <Zap size={24} />
+                </div>
+              </div>
+
+              {/* Slider Dots */}
+              {spotlights.length > 1 && (
+                <div className="absolute bottom-6 right-8 flex gap-1.5">
+                  {spotlights.map((_, idx) => (
+                    <div 
+                      key={idx} 
+                      className={cn(
+                        "h-1 rounded-full transition-all duration-500",
+                        idx === activeSpotlightIndex ? "w-6 bg-primary" : "w-2 bg-white/20"
+                      )}
+                    />
+                  ))}
+                </div>
+              )}
+            </motion.div>
+          ) : (
+            <motion.section 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              className="neon-card relative h-48 flex flex-col justify-end p-6 group cursor-pointer"
+            >
+              <div className="absolute inset-0 z-0">
+                <img 
+                  src="https://images.unsplash.com/photo-1540350394557-8d14678e7f91?w=800&q=80" 
+                  className="w-full h-full object-cover opacity-40 group-hover:scale-110 transition-transform duration-1000" 
+                  alt="Featured" 
+                  referrerPolicy="no-referrer" 
+                />
+                <div className="absolute inset-0 bg-gradient-to-t from-[#05070a] via-[#05070a]/40 to-transparent"></div>
+              </div>
+              <div className="relative z-10 space-y-1">
+                <div className="glass-pill inline-block mb-2 !text-primary !border-primary/20">Market Spotlight</div>
+                <h3 className="text-2xl font-black text-white italic leading-tight uppercase">Global Network<br/>Active Status</h3>
+                <p className="text-xs text-gray-400 font-medium uppercase tracking-widest">Scanning local news feeds...</p>
+              </div>
+            </motion.section>
+          )}
+        </AnimatePresence>
       </section>
 
       {/* Discovery Feed */}
@@ -620,7 +723,6 @@ function ProductCard({ product, profile, onAction }: { product: Product, profile
   useEffect(() => {
     const fetchStoreData = async () => {
       try {
-        const { getDoc, doc } = await import('firebase/firestore');
         const storeSnap = await getDoc(doc(db, 'stores', product.storeId));
         if (storeSnap.exists()) {
           const data = storeSnap.data();

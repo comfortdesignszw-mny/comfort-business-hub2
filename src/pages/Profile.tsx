@@ -1,22 +1,22 @@
-import React, { useState, useTransition } from 'react';
+import React, { useState, useTransition, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   User, Store, Phone, MapPin, Shield, LogOut, ChevronRight, Wallet, 
   Bell, Zap, Image as ImageIcon, X, Check, CreditCard, 
-  Navigation, Crosshair, Save, Loader2 
+  Navigation, Crosshair, Save, Loader2, Megaphone, Trash2, Calendar, FileText, Plus
 } from 'lucide-react';
-import { UserProfile, Role } from '../types';
+import { UserProfile, Role, Spotlight } from '../types';
 import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { offlineResilientWrite } from '../lib/sync';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, collection, addDoc, query, where, getDocs, deleteDoc, orderBy, serverTimestamp } from 'firebase/firestore';
 import { cn } from '../lib/utils';
 import ImageInput from '../components/ImageInput';
 
 export default function Profile({ profile, setProfile }: { profile: UserProfile | null, setProfile: (p: UserProfile) => void }) {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [activeModal, setActiveModal] = useState<'gateway' | 'location' | null>(null);
+  const [activeModal, setActiveModal] = useState<'gateway' | 'location' | 'spotlights' | null>(null);
   const [editData, setEditData] = useState<Partial<UserProfile>>({});
   const [isPending, startTransition] = useTransition();
   const navigate = useNavigate();
@@ -337,6 +337,14 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
           detail={profile.location?.city ? `${profile.location.city} Operational` : "Manage Operational Areas"} 
           onClick={() => setActiveModal('location')}
         />
+        {profile.currentRole === 'supplier' && (
+          <MenuButton 
+            icon={Megaphone} 
+            label="Market Spotlight" 
+            detail="Post news, events & updates" 
+            onClick={() => setActiveModal('spotlights')}
+          />
+        )}
         <MenuButton icon={User} label="Identity Uplink" detail="Modify Profile Details" onClick={() => setIsEditing(true)} />
       </section>
 
@@ -356,19 +364,19 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
       {/* Modals */}
       <AnimatePresence>
         {activeModal && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-12 md:pt-20 overflow-y-auto">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
               exit={{ opacity: 0 }}
-              className="absolute inset-0 bg-[#05070a]/95 backdrop-blur-xl"
+              className="fixed inset-0 bg-[#05070a]/95 backdrop-blur-xl"
               onClick={() => setActiveModal(null)}
             />
             <motion.div 
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}
-              className="relative w-full max-w-lg neon-card !bg-[#0d1117] p-8 max-h-[90vh] overflow-y-auto no-scrollbar"
+              className="relative w-full max-w-lg neon-card !bg-[#11161d] p-8 mb-24 border-primary/20 shadow-[0_0_50px_rgba(0,0,0,0.8)]"
             >
               <button 
                 onClick={() => setActiveModal(null)}
@@ -383,11 +391,271 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
               {activeModal === 'location' && (
                 <LocationConfig profile={profile} onSave={(l) => { handleUpdateProfile({ location: l }); setActiveModal(null); }} />
               )}
+              {activeModal === 'spotlights' && (
+                <SpotlightManager profile={profile} />
+              )}
             </motion.div>
           </div>
         )}
       </AnimatePresence>
     </motion.div>
+  );
+}
+
+function SpotlightManager({ profile }: { profile: UserProfile }) {
+  const [spotlights, setSpotlights] = useState<Spotlight[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [isAdding, setIsAdding] = useState(false);
+  const [success, setSuccess] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  const [newSpotlight, setNewSpotlight] = useState<Partial<Spotlight>>({
+    type: 'news',
+    title: '',
+    content: '',
+    date: '',
+    location: '',
+    image: '',
+    isActive: true,
+  });
+
+  const fetchSpotlights = async () => {
+    setLoading(true);
+    try {
+      const q = query(
+        collection(db, 'spotlights'),
+        where('authorId', '==', profile.uid),
+        orderBy('createdAt', 'desc')
+      );
+      const snap = await getDocs(q);
+      setSpotlights(snap.docs.map(d => ({ id: d.id, ...d.data() } as Spotlight)));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchSpotlights();
+  }, [profile.uid]);
+
+  useEffect(() => {
+    if (isAdding && formRef.current) {
+      formRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
+    }
+  }, [isAdding]);
+
+  const handleAdd = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setLoading(true);
+    try {
+      const data = {
+        ...newSpotlight,
+        authorId: profile.uid,
+        authorName: profile.businessName || profile.name,
+        createdAt: serverTimestamp(),
+      };
+      await addDoc(collection(db, 'spotlights'), data);
+      setSuccess(true);
+      setTimeout(() => {
+        setIsAdding(false);
+        setSuccess(false);
+        setNewSpotlight({ type: 'news', title: '', content: '', date: '', location: '', image: '', isActive: true });
+        fetchSpotlights();
+      }, 1500);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.CREATE, 'spotlights');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleDelete = async (id: string) => {
+    if (!confirm('Are you sure you want to delete this update?')) return;
+    try {
+      await deleteDoc(doc(db, 'spotlights', id));
+      fetchSpotlights();
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `spotlights/${id}`);
+    }
+  };
+
+  return (
+    <div className="space-y-8">
+      <header className="flex justify-between items-center">
+        <div className="space-y-1">
+          <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter">Market Spotlight</h3>
+          <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Manage your broadcasts & news feeds</p>
+        </div>
+        {!isAdding && (
+          <button 
+            onClick={() => setIsAdding(true)}
+            className="w-10 h-10 bg-primary/20 text-primary rounded-xl flex items-center justify-center border border-primary/20 hover:bg-primary hover:text-[#05070a] transition-all"
+          >
+            <Plus size={20} />
+          </button>
+        )}
+      </header>
+
+      {isAdding ? (
+        <form 
+          ref={formRef}
+          onSubmit={handleAdd} 
+          className="space-y-6 bg-white/5 p-6 rounded-3xl border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)]"
+        >
+          <div className="flex justify-between items-center mb-2">
+            <label className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">New Broadcast Feed</label>
+            <div className="h-1 w-12 bg-primary/20 rounded-full"></div>
+          </div>
+          <div className="space-y-4">
+            <div className="grid grid-cols-2 gap-3">
+              {(['news', 'event', 'update', 'spotlight'] as const).map((t) => (
+                <button
+                  key={t}
+                  type="button"
+                  onClick={() => setNewSpotlight(prev => ({ ...prev, type: t }))}
+                  className={cn(
+                    "px-3 py-3 rounded-xl border text-[9px] font-black uppercase tracking-widest transition-all text-center",
+                    newSpotlight.type === t ? "bg-primary/20 border-primary text-primary" : "bg-white/5 border-white/5 text-gray-500"
+                  )}
+                >
+                  {t}
+                </button>
+              ))}
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">Headline</label>
+              <input 
+                required
+                type="text"
+                value={newSpotlight.title}
+                onChange={e => setNewSpotlight(prev => ({ ...prev, title: e.target.value }))}
+                placeholder="Ex: New Stock Arrived! or Weekend Sales Event"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary/50 text-xs font-bold"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">Content / News Feed</label>
+              <textarea 
+                required
+                value={newSpotlight.content}
+                onChange={e => setNewSpotlight(prev => ({ ...prev, content: e.target.value }))}
+                rows={4}
+                placeholder="Share more details about this update..."
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary/50 text-xs font-medium"
+              />
+            </div>
+
+            <div className="grid grid-cols-2 gap-4">
+              <div className="space-y-1">
+                <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">Event Date (Optional)</label>
+                <input 
+                  type="text"
+                  value={newSpotlight.date}
+                  onChange={e => setNewSpotlight(prev => ({ ...prev, date: e.target.value }))}
+                  placeholder="e.g. May 15-20"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary/50 text-xs font-bold"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">Location (Optional)</label>
+                <input 
+                  type="text"
+                  value={newSpotlight.location}
+                  onChange={e => setNewSpotlight(prev => ({ ...prev, location: e.target.value }))}
+                  placeholder="e.g. Store Front or Online"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary/50 text-xs font-bold"
+                />
+              </div>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">Cover Image URL</label>
+              <ImageInput 
+                value={newSpotlight.image || ''}
+                onChange={(val) => setNewSpotlight(prev => ({ ...prev, image: val }))}
+                label="Select Background Image"
+              />
+            </div>
+          </div>
+
+          <div className="flex gap-3">
+            <button 
+              type="button"
+              onClick={() => setIsAdding(false)}
+              className="flex-1 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest bg-white/5 rounded-2xl border border-white/5"
+            >
+              Cancel
+            </button>
+            <button 
+              type="submit"
+              disabled={loading || success}
+              className={cn(
+                "flex-[2] py-5 flex items-center justify-center gap-3 text-[11px] font-black uppercase tracking-[0.2em] transition-all",
+                success 
+                  ? "bg-neon-green text-[#05070a] shadow-[0_0_30px_#39FF14] scale-105" 
+                  : "bg-primary text-[#05070a] shadow-[0_0_30px_rgba(0,242,254,0.4)] hover:scale-[1.02] active:scale-95"
+              )}
+            >
+              {loading ? (
+                <Loader2 className="animate-spin" size={16} />
+              ) : success ? (
+                <>
+                  <Check size={18} /> Broadcast Live
+                </>
+              ) : (
+                <>
+                  <Megaphone size={18} /> Post Spotlight
+                </>
+              )}
+            </button>
+          </div>
+        </form>
+      ) : (
+        <div className="space-y-4">
+          {loading ? (
+            <div className="space-y-4">
+              {[1, 2].map(i => (
+                <div key={i} className="h-24 bg-white/5 animate-pulse rounded-2xl" />
+              ))}
+            </div>
+          ) : spotlights.length > 0 ? (
+            spotlights.map((s) => (
+              <div key={s.id} className="p-4 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-between group">
+                <div className="flex gap-4 items-center">
+                  <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
+                    {s.type === 'event' ? <Calendar size={20} /> : s.type === 'news' ? <FileText size={20} /> : <Zap size={20} />}
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-black text-white uppercase tracking-tight">{s.title}</h4>
+                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">{s.type}</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => handleDelete(s.id)}
+                  className="p-3 text-gray-700 hover:text-red-500 transition-colors"
+                >
+                  <Trash2 size={16} />
+                </button>
+              </div>
+            ))
+          ) : (
+            <div className="text-center py-12 bg-white/5 rounded-3xl border border-white/5">
+              <Megaphone size={32} className="mx-auto text-gray-700 mb-4" />
+              <p className="text-xs font-black text-gray-500 uppercase tracking-widest">No Active Broadcasts</p>
+              <button 
+                onClick={() => setIsAdding(true)}
+                className="mt-4 text-[10px] font-black text-primary uppercase tracking-widest hover:underline"
+              >
+                Create your first update
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 }
 
