@@ -1,93 +1,121 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
-import { 
-  Search, MapPin, Filter, Star, Zap, ShoppingBag, Store, ArrowRight, 
+import { Search, MapPin, Filter, Star, Zap, ShoppingBag, Store, ArrowRight, 
   SlidersHorizontal, MessageSquare, Sparkles, X, Phone, Check, Loader2, MapPinned, CreditCard,
-  Megaphone, Calendar, FileText
+  Megaphone, Calendar, FileText, Building2, ExternalLink
 } from 'lucide-react';
 import { UserProfile, Product, Store as StoreType, Message, Spotlight } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
-import { collection, query, limit, getDocs, where, addDoc, serverTimestamp, setDoc, doc, getDoc, orderBy } from 'firebase/firestore';
-import { BUSINESS_CATEGORIES } from '../constants';
+import { collection, query, limit, getDocs, where, addDoc, serverTimestamp, setDoc, doc, getDoc, orderBy, onSnapshot } from 'firebase/firestore';
+import { BUSINESS_CATEGORIES, PRODUCT_CATEGORIES } from '../constants';
 
 export default function Discovery({ profile, setProfile }: { profile: UserProfile | null, setProfile: (p: UserProfile) => void }) {
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
   const [loading, setLoading] = useState(true);
   const [nearbyDeals, setNearbyDeals] = useState<Product[]>([]);
+  const [nearbyStores, setNearbyStores] = useState<StoreType[]>([]);
   const [spotlights, setSpotlights] = useState<Spotlight[]>([]);
   const [activeSpotlightIndex, setActiveSpotlightIndex] = useState(0);
   const [filteredDeals, setFilteredDeals] = useState<Product[]>([]);
+  const [filteredStores, setFilteredStores] = useState<StoreType[]>([]);
   const [activeModal, setActiveModal] = useState<{ type: 'checkout' | 'ecocash' | 'pod', product: Product } | null>(null);
 
-  const categories = ['All', ...BUSINESS_CATEGORIES];
+  const categories = ['All', ...new Set([...BUSINESS_CATEGORIES, ...PRODUCT_CATEGORIES])];
   const [matchedProducts, setMatchedProducts] = useState<Product[]>([]);
 
   useEffect(() => {
-    let result = nearbyDeals;
+    let pResult = nearbyDeals;
+    let sResult = nearbyStores;
 
     if (searchTerm) {
-      result = result.filter(p => 
-        p.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-        p.description.toLowerCase().includes(searchTerm.toLowerCase())
+      const term = searchTerm.toLowerCase();
+      pResult = pResult.filter(p => 
+        p.name.toLowerCase().includes(term) ||
+        p.description.toLowerCase().includes(term)
+      );
+      sResult = sResult.filter(s => 
+        s.name.toLowerCase().includes(term) ||
+        s.description.toLowerCase().includes(term) ||
+        s.category.toLowerCase().includes(term)
       );
     }
 
     if (activeCategory !== 'All') {
-      result = result.filter(p => p.category === activeCategory);
+      pResult = pResult.filter(p => p.category === activeCategory);
+      sResult = sResult.filter(s => s.category === activeCategory);
     }
 
-    setFilteredDeals(result);
-  }, [searchTerm, activeCategory, nearbyDeals]);
+    setFilteredDeals(pResult);
+    setFilteredStores(sResult);
+  }, [searchTerm, activeCategory, nearbyDeals, nearbyStores]);
 
   useEffect(() => {
-    const fetchDiscoveryData = async () => {
-      setLoading(true);
-      try {
-        const q = query(
-          collection(db, 'products'),
-          where('isActive', '==', true),
-          limit(50)
+    setLoading(true);
+    
+    // Real-time listener for products
+    const pq = query(
+      collection(db, 'products'),
+      where('isActive', '==', true),
+      limit(50)
+    );
+    
+    const unsubscribeProducts = onSnapshot(pq, (snapshot) => {
+      const allProducts = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as Product));
+      
+      setNearbyDeals(allProducts);
+
+      // Matching logic
+      if (profile?.currentRole === 'customer' && profile.requiredProducts) {
+        const matched = allProducts.filter(p => 
+          profile.requiredProducts?.some(need => 
+            p.name.toLowerCase().includes(need.toLowerCase()) || 
+            p.description.toLowerCase().includes(need.toLowerCase()) ||
+            p.category.toLowerCase().includes(need.toLowerCase())
+          )
         );
-        const querySnapshot = await getDocs(q);
-        const allProducts = querySnapshot.docs.map(doc => ({
-          id: doc.id,
-          ...doc.data()
-        } as Product));
-
-        // Matching logic
-        if (profile?.currentRole === 'customer' && profile.requiredProducts) {
-          const matched = allProducts.filter(p => 
-            profile.requiredProducts?.some(need => 
-              p.name.toLowerCase().includes(need.toLowerCase()) || 
-              p.description.toLowerCase().includes(need.toLowerCase()) ||
-              p.category.toLowerCase().includes(need.toLowerCase())
-            )
-          );
-          setMatchedProducts(matched);
-        }
-
-        setNearbyDeals(allProducts);
-
-        // Fetch Spotlights
-        const sq = query(
-          collection(db, 'spotlights'),
-          where('isActive', '==', true),
-          orderBy('createdAt', 'desc'),
-          limit(5)
-        );
-        const sSnap = await getDocs(sq);
-        setSpotlights(sSnap.docs.map(d => ({ id: d.id, ...d.data() } as Spotlight)));
-      } catch (error) {
-        handleFirestoreError(error, OperationType.GET, 'discovery-data');
-      } finally {
-        setLoading(false);
+        setMatchedProducts(matched);
       }
-    };
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'products-feed');
+    });
 
-    fetchDiscoveryData();
+    // Real-time listener for stores
+    const sq = query(collection(db, 'stores'), limit(20));
+    const unsubscribeStores = onSnapshot(sq, (snapshot) => {
+      const allStores = snapshot.docs.map(doc => ({
+        id: doc.id,
+        ...doc.data()
+      } as StoreType));
+      setNearbyStores(allStores);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'stores-feed');
+    });
+
+    // Fetch Spotlights
+    const spq = query(
+      collection(db, 'spotlights'),
+      where('isActive', '==', true),
+      orderBy('createdAt', 'desc'),
+      limit(5)
+    );
+    const unsubscribeSpotlights = onSnapshot(spq, (snapshot) => {
+      setSpotlights(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Spotlight)));
+      setLoading(false);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, 'spotlights-feed');
+    });
+
+    return () => {
+      unsubscribeProducts();
+      unsubscribeStores();
+      unsubscribeSpotlights();
+    };
   }, [profile]);
 
   useEffect(() => {
@@ -295,6 +323,34 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
       {/* Discovery Feed */}
       <section className="space-y-6">
         <div className="flex items-center justify-between px-1">
+          <div className="flex items-center gap-2">
+            <h2 className="font-black text-white uppercase tracking-tighter text-lg">Active Supply Nodes</h2>
+            <div className="px-1.5 py-0.5 bg-primary/10 text-primary text-[8px] font-black rounded border border-primary/20 uppercase tracking-widest">Network</div>
+          </div>
+        </div>
+
+        {loading ? (
+          <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4 shadow-inner">
+            {[1, 2, 3].map(i => (
+              <div key={i} className="min-w-[200px] h-40 bg-white/5 rounded-3xl animate-pulse" />
+            ))}
+          </div>
+        ) : filteredStores.length > 0 ? (
+          <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4 snap-x px-1">
+            {filteredStores.map((store) => (
+              <div key={store.id} className="min-w-[240px] snap-center">
+                <StoreCard store={store} />
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="bg-white/5 border border-white/5 rounded-3xl p-8 text-center">
+            <Building2 className="mx-auto text-gray-700 mb-2" size={24} />
+            <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">No active nodes in this category</p>
+          </div>
+        )}
+
+        <div className="flex items-center justify-between px-1 pt-4">
           <div className="flex items-center gap-2">
             <h2 className="font-black text-white uppercase tracking-tighter text-lg">Local Inventory</h2>
             <div className="px-1.5 py-0.5 bg-neon-green/10 text-neon-green text-[8px] font-black rounded border border-neon-green/20 uppercase tracking-widest">Live</div>
@@ -706,6 +762,52 @@ function PodModal({ product, profile, onClose }: { product: Product, profile: Us
         </form>
       </motion.div>
     </div>
+  );
+}
+
+function StoreCard({ store }: { store: StoreType }) {
+  const navigate = useNavigate();
+  return (
+    <motion.div 
+      whileHover={{ y: -5 }}
+      whileTap={{ scale: 0.98 }}
+      onClick={() => navigate(`/store/${store.id}`)}
+      className="neon-card p-5 space-y-4 cursor-pointer group"
+    >
+      <div className="flex items-center gap-4">
+        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 border border-white/10 flex items-center justify-center text-primary font-black text-xl shadow-[0_0_15px_rgba(0,242,254,0.1)] group-hover:scale-110 transition-transform">
+          {store.logo ? (
+            <img src={store.logo} className="w-full h-full object-cover rounded-2xl" referrerPolicy="no-referrer" />
+          ) : (
+            store.name.charAt(0)
+          )}
+        </div>
+        <div className="space-y-1">
+          <div className="flex items-center gap-2">
+            <h3 className="text-sm font-black text-white uppercase tracking-tight group-hover:text-primary transition-colors">{store.name}</h3>
+            <Check size={12} className="text-neon-green" />
+          </div>
+          <div className="flex items-center gap-1.5 text-[8px] text-gray-500 font-black uppercase tracking-widest bg-white/5 px-1.5 py-0.5 rounded border border-white/5 w-fit">
+            <Building2 size={8} className="text-primary" /> {store.category}
+          </div>
+        </div>
+      </div>
+
+      <p className="text-[10px] text-gray-400 font-medium line-clamp-2 leading-relaxed h-7">
+        {store.description}
+      </p>
+
+      <div className="flex items-center justify-between pt-2 border-t border-white/5">
+        <div className="flex items-center gap-1">
+          <Star size={10} className="fill-primary text-primary" />
+          <span className="text-[10px] font-black text-white">{store.rating.toFixed(1)}</span>
+          <span className="text-[8px] text-gray-600 font-black ml-1">({store.reviewCount})</span>
+        </div>
+        <div className="flex items-center gap-1 text-[8px] text-primary font-black uppercase tracking-widest group-hover:translate-x-1 transition-transform">
+          Enter Node <ArrowRight size={10} />
+        </div>
+      </div>
+    </motion.div>
   );
 }
 
