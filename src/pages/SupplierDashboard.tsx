@@ -14,7 +14,8 @@ import {
   Users,
   DollarSign,
   Loader2,
-  Phone
+  Phone,
+  Share2
 } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { 
@@ -239,6 +240,21 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
     }
   };
 
+  const handleShareStore = () => {
+    if (!activeStore) return;
+    const shareUrl = `${window.location.origin}/store/${activeStore.id}`;
+    if (navigator.share) {
+      navigator.share({
+        title: activeStore.name,
+        text: `Visit our store ${activeStore.name} on Comfort Business Hub!`,
+        url: shareUrl,
+      }).catch(console.error);
+    } else {
+      navigator.clipboard.writeText(shareUrl);
+      alert('Store Link Copied to Clipboard!');
+    }
+  };
+
   if (loading) {
     return (
       <div className="flex flex-col items-center justify-center h-64 space-y-4">
@@ -396,16 +412,25 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
             <div className="space-y-1 flex-1">
               <div className="flex items-center justify-between">
                 <h1 className="text-2xl font-black text-white italic uppercase tracking-tighter leading-none">{activeStore.name}</h1>
-                <button 
-                  onClick={() => {
-                    setIsEditingStore(true);
-                    setStoreEditData({});
-                  }}
-                  className="p-3 bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-primary hover:border-primary/50 transition-all hover:scale-110 active:scale-95 shadow-xl"
-                  title="Edit Store Profile"
-                >
-                  <Edit3 size={18} />
-                </button>
+                <div className="flex items-center gap-2">
+                  <button 
+                    onClick={handleShareStore}
+                    className="p-3 bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-primary hover:border-primary/50 transition-all hover:scale-110 active:scale-95 shadow-xl"
+                    title="Share Store Link"
+                  >
+                    <Share2 size={18} />
+                  </button>
+                  <button 
+                    onClick={() => {
+                      setIsEditingStore(true);
+                      setStoreEditData({});
+                    }}
+                    className="p-3 bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-primary hover:border-primary/50 transition-all hover:scale-110 active:scale-95 shadow-xl"
+                    title="Edit Store Profile"
+                  >
+                    <Edit3 size={18} />
+                  </button>
+                </div>
               </div>
               <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">{activeStore.category} Operations Unit</p>
               <div className="flex items-center gap-3 pt-2">

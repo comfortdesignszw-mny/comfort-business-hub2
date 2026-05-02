@@ -22,6 +22,7 @@ import Login from './pages/Login';
 import SupplierSetup from './pages/SupplierSetup';
 import SupplierDashboard from './pages/SupplierDashboard';
 import CustomerSetup from './pages/CustomerSetup';
+import StoreDetail from './pages/StoreDetail';
 import { MessagingProvider } from './components/MessagingProvider';
 
 export default function App() {
@@ -110,6 +111,7 @@ export default function App() {
                         <Route path="/" element={<Discovery profile={profile} setProfile={setProfile} />} />
                         <Route path="/deals" element={<DealRoom profile={profile} />} />
                         <Route path="/chat" element={<Chat profile={profile} />} />
+                        <Route path="/store/:id" element={<StoreDetail profile={profile} />} />
                         {profile?.currentRole === 'supplier' && !hasStore ? (
                           <Route path="/store" element={<SupplierSetup profile={profile!} />} />
                         ) : profile?.currentRole === 'supplier' ? (

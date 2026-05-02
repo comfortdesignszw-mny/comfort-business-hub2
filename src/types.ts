@@ -60,6 +60,7 @@ export interface Product {
   images: string[];
   buyButtonType: BuyButtonType;
   buyButtonLink?: string;
+  buyButtonText?: string;
   isActive: boolean;
   createdAt: string;
 }
