@@ -1,12 +1,16 @@
 import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
-import { Store as StoreIcon, MapPin, Star, MessageSquare, ArrowLeft, Share2, Info, Loader2, Building2, Zap, ShoppingBag } from 'lucide-react';
+import { 
+  Store as StoreIcon, MapPin, Star, MessageSquare, ArrowLeft, Share2, 
+  Info, Loader2, Building2, Zap, ShoppingBag, Heart, UserPlus 
+} from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { doc, getDoc, collection, query, where, getDocs, onSnapshot, limit } from 'firebase/firestore';
 import { UserProfile, Product, Store as StoreType } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
 import ProductCard from '../components/ProductCard';
+import { interactionService } from '../services/interactionService';
 
 export default function StoreDetail({ profile }: { profile: UserProfile | null }) {
   const { id } = useParams<{ id: string }>();
@@ -19,35 +23,38 @@ export default function StoreDetail({ profile }: { profile: UserProfile | null }
   useEffect(() => {
     if (!id) return;
 
-    const fetchStoreAndProducts = async () => {
-      setLoading(true);
-      try {
-        const storeSnap = await getDoc(doc(db, 'stores', id));
-        if (!storeSnap.exists()) {
-          setError("Node not found in local subspace");
-          setLoading(false);
-          return;
-        }
-        setStore({ id: storeSnap.id, ...storeSnap.data() } as StoreType);
-
-        const pq = query(
-          collection(db, 'products'),
-          where('storeId', '==', id),
-          where('isActive', '==', true),
-          limit(50)
-        );
-        
-        const productsSnap = await getDocs(pq);
-        setProducts(productsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Product)));
-      } catch (err) {
-        handleFirestoreError(err, OperationType.GET, `store-detail-${id}`);
-        setError("Error synchronizing with store node");
-      } finally {
-        setLoading(false);
+    setLoading(true);
+    
+    // Real-time Store Listener
+    const storeUnsub = onSnapshot(doc(db, 'stores', id), (snap) => {
+      if (snap.exists()) {
+        setStore({ id: snap.id, ...snap.data() } as StoreType);
+      } else {
+        setError("Node not found in local subspace");
       }
-    };
+      setLoading(false);
+    }, (err) => {
+      handleFirestoreError(err, OperationType.GET, `store-realtime-${id}`);
+      setError("Error synchronizing with store node");
+      setLoading(false);
+    });
 
-    fetchStoreAndProducts();
+    // Fetch Products (can be real-time too if needed, but let's keep it simple or real-time)
+    const pq = query(
+      collection(db, 'products'),
+      where('storeId', '==', id),
+      where('isActive', '==', true),
+      limit(50)
+    );
+    
+    const productsUnsub = onSnapshot(pq, (snap) => {
+      setProducts(snap.docs.map(d => ({ id: d.id, ...d.data() } as Product)));
+    });
+
+    return () => {
+      storeUnsub();
+      productsUnsub();
+    };
   }, [id]);
 
   const handleShare = () => {
@@ -89,7 +96,7 @@ export default function StoreDetail({ profile }: { profile: UserProfile | null }
       animate={{ opacity: 1 }}
       className="p-4 space-y-8"
     >
-      <header className="relative py-12 rounded-[2.5rem] overflow-hidden neon-card">
+      <header className="relative py-4 sm:py-12 rounded-[2.5rem] overflow-hidden neon-card">
          <div className="absolute inset-0 z-0">
           <img 
             src={store.banner || "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&q=80"} 
@@ -100,34 +107,46 @@ export default function StoreDetail({ profile }: { profile: UserProfile | null }
           <div className="absolute inset-0 bg-gradient-to-t from-[#05070a] via-[#05070a]/60 to-transparent"></div>
         </div>
 
-        <div className="relative z-10 flex flex-col items-center text-center space-y-4 px-6">
-          <div className="w-24 h-24 rounded-3xl bg-[#0d1117] border-4 border-[#05070a] shadow-2xl overflow-hidden flex items-center justify-center text-primary font-black text-4xl">
+        <div className="relative z-10 flex flex-col items-center text-center space-y-1.5 sm:space-y-4 px-4 sm:px-6">
+          <div className="w-10 h-10 sm:w-24 sm:h-24 rounded-xl sm:rounded-3xl bg-[#0d1117] border border-primary/30 sm:border-4 border-[#05070a] shadow-2xl overflow-hidden flex items-center justify-center text-primary font-black text-base sm:text-4xl">
             {store.logo ? (
               <img src={store.logo} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
             ) : store.name.charAt(0)}
           </div>
           
-          <div className="space-y-1">
-            <h2 className="text-3xl font-black text-white italic uppercase tracking-tighter">{store.name}</h2>
-            <div className="flex items-center justify-center gap-2">
-              <MapPin size={12} className="text-primary" />
-              <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">{store.category} • {store.location || 'Local Hub'}</p>
+          <div className="space-y-0.5 sm:space-y-1">
+            <h2 className="text-sm sm:text-3xl font-black text-white italic uppercase tracking-tighter leading-tight">{store.name}</h2>
+            <div className="flex items-center justify-center gap-1 sm:gap-2">
+              <MapPin size={8} className="text-primary" />
+              <p className="text-[7px] sm:text-[10px] text-gray-400 font-bold uppercase tracking-widest">{store.category} • {store.location || 'Local Hub'}</p>
             </div>
           </div>
 
-          <div className="flex gap-2">
-            <div className="glass-pill !text-neon-green flex items-center gap-1.5">
-              <Star size={12} className="fill-neon-green" /> {store.rating.toFixed(1)} ({store.reviewCount})
+          <div className="flex flex-wrap justify-center gap-2">
+            <div className="glass-pill !text-neon-green flex items-center gap-1.5 text-[9px] sm:text-xs">
+              <Star size={10} className="fill-neon-green sm:w-3 sm:h-3" /> {store.rating.toFixed(1)} ({store.reviewCount})
             </div>
             <button 
-              onClick={handleShare}
-              className="glass-pill hover:bg-white/10 flex items-center gap-1.5"
+              onClick={() => profile && interactionService.followStore(store.id, store.ownerId, profile)}
+              className="glass-pill hover:bg-white/10 flex items-center gap-1.5 text-[9px] sm:text-xs text-primary bg-primary/5"
             >
-              <Share2 size={12} /> Share Node
+              <UserPlus size={10} className="sm:w-3 sm:h-3" /> {store.followerCount || 0} Followers
+            </button>
+            <button 
+              onClick={() => profile && interactionService.likeStore(store.id, store.ownerId, profile)}
+              className="glass-pill hover:bg-white/10 flex items-center gap-1.5 text-[9px] sm:text-xs text-neon-pink bg-neon-pink/5"
+            >
+              <Heart size={10} className="fill-neon-pink sm:w-3 sm:h-3" /> {store.likeCount || 0} Likes
+            </button>
+            <button 
+              onClick={handleShare}
+              className="glass-pill hover:bg-white/10 flex items-center gap-1.5 text-[9px] sm:text-xs"
+            >
+              <Share2 size={10} className="sm:w-3 sm:h-3" /> Share Node
             </button>
           </div>
 
-          <p className="text-xs text-gray-400 max-w-md mx-auto leading-relaxed">
+          <p className="text-[10px] sm:text-xs text-gray-400 max-w-md mx-auto leading-relaxed">
             {store.description}
           </p>
         </div>

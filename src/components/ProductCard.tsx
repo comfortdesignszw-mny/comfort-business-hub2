@@ -8,6 +8,7 @@ import { UserProfile, Product } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { collection, addDoc, serverTimestamp, setDoc, doc, getDoc } from 'firebase/firestore';
+import { interactionService } from '../services/interactionService';
 
 export default function ProductCard({ product, profile, onAction }: { product: Product, profile: UserProfile | null, onAction?: (prod: Product) => void, key?: React.Key }) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -98,6 +99,13 @@ export default function ProductCard({ product, profile, onAction }: { product: P
           createdAt: serverTimestamp()
         });
 
+        await interactionService.sendNotification(
+          product.ownerId,
+          'engage',
+          profile,
+          product.id
+        );
+
         navigate(`/chat?id=${convoId}`);
       } catch (err) {
         setIsEngaging(false);
@@ -130,7 +138,7 @@ export default function ProductCard({ product, profile, onAction }: { product: P
 
   const handleShare = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const shareUrl = `${window.location.origin}/discovery?productId=${product.id}`;
+    const shareUrl = `${window.location.origin}/product/${product.id}`;
     if (navigator.share) {
       navigator.share({
         title: product.name,
@@ -147,7 +155,8 @@ export default function ProductCard({ product, profile, onAction }: { product: P
     <>
       <motion.div 
         whileTap={{ scale: 0.98 }}
-        className="neon-card group relative overflow-hidden"
+        onClick={() => navigate(`/product/${product.id}`)}
+        className="neon-card group relative overflow-hidden cursor-pointer"
       >
         <div className="aspect-[16/10] relative overflow-hidden">
           <AnimatePresence mode="wait">
@@ -168,6 +177,15 @@ export default function ProductCard({ product, profile, onAction }: { product: P
           </AnimatePresence>
           
           <div className="absolute inset-0 bg-gradient-to-t from-[#05070a] via-transparent to-transparent opacity-60 pointer-events-none"></div>
+
+          <div className="absolute top-4 left-4 flex gap-2 z-20">
+            {product.rating && product.rating > 0 && (
+              <div className="px-2 py-1 bg-[#05070a]/80 backdrop-blur-md rounded-lg border border-primary/20 text-[9px] font-black text-primary flex items-center gap-1">
+                <Star size={10} className="fill-primary" />
+                {product.rating.toFixed(1)}
+              </div>
+            )}
+          </div>
 
           <button 
             onClick={handleShare}
@@ -207,7 +225,7 @@ export default function ProductCard({ product, profile, onAction }: { product: P
               </div>
             </div>
 
-            <div className="flex gap-2">
+            <div className="flex gap-2" onClick={(e) => e.stopPropagation()}>
               <button 
                 onClick={() => handleAction('engage')}
                 disabled={isEngaging}
@@ -297,7 +315,15 @@ function UnifiedCheckoutModal({ product, profile, onClose, onSwitchModal }: any)
     }
     if (method === 'paypal' || method === 'stripe') {
       const details = supplierProfile?.gateway?.details;
-      if (details) window.location.href = details;
+      if (details) {
+        interactionService.sendNotification(
+          product.ownerId,
+          'buy',
+          profile,
+          product.id
+        );
+        window.location.href = details;
+      }
     }
   };
 
@@ -371,7 +397,13 @@ function EcoCashModal({ product, profile, onClose }: any) {
   }, [product.ownerId]);
 
   const handleDial = () => {
-    if (ussd) {
+    if (ussd && profile) {
+      interactionService.sendNotification(
+        product.ownerId,
+        'buy',
+        profile,
+        product.id
+      );
       const encodedUssd = ussd.replace(/#/g, '%23');
       window.location.href = `tel:${encodedUssd}`;
       onClose();
@@ -428,6 +460,14 @@ function PodModal({ product, profile, onClose }: any) {
         type: 'text',
         createdAt: serverTimestamp()
       });
+
+      await interactionService.sendNotification(
+        product.ownerId,
+        'buy',
+        profile,
+        product.id
+      );
+
       onClose();
       navigate(`/chat?id=${convoId}`);
     } catch (err) {

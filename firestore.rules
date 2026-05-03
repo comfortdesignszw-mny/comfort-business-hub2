@@ -44,8 +44,10 @@ service cloud.firestore {
     match /stores/{storeId} {
       allow read: if true;
       allow create: if isSignedIn() && isValidStore(incoming());
-      allow update: if isSignedIn() && isOwner(existing().ownerId) && isValidStore(incoming())
-        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'contactNumbers', 'email', 'category', 'logo', 'geohash', 'lat', 'lng', 'updatedAt']);
+      allow update: if isSignedIn() && (
+        (isOwner(existing().ownerId) && isValidStore(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'contactNumbers', 'email', 'category', 'logo', 'geohash', 'lat', 'lng', 'updatedAt', 'followerCount', 'likeCount']))
+        || (incoming().diff(existing()).affectedKeys().hasOnly(['followerCount', 'likeCount']) && (!('followerCount' in incoming()) || incoming().followerCount is number) && (!('likeCount' in incoming()) || incoming().likeCount is number))
+      );
       allow delete: if isSignedIn() && isOwner(existing().ownerId);
     }
 
@@ -61,9 +63,27 @@ service cloud.firestore {
       allow read: if true;
       allow create: if isSignedIn() && isValidProduct(incoming())
         && get(/databases/$(database)/documents/stores/$(incoming().storeId)).data.ownerId == request.auth.uid;
-      allow update: if isSignedIn() && isOwner(existing().ownerId) && isValidProduct(incoming())
-        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'price', 'currency', 'category', 'images', 'buyButtonType', 'buyButtonLink', 'isActive', 'updatedAt']);
+      allow update: if isSignedIn() && (
+        (isOwner(existing().ownerId) && isValidProduct(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'price', 'currency', 'category', 'images', 'buyButtonType', 'buyButtonLink', 'isActive', 'rating', 'reviewCount', 'likeCount', 'updatedAt']))
+        || (incoming().diff(existing()).affectedKeys().hasOnly(['rating', 'reviewCount', 'likeCount']) && (!('rating' in incoming()) || incoming().rating is number) && (!('reviewCount' in incoming()) || incoming().reviewCount is number) && (!('likeCount' in incoming()) || incoming().likeCount is number))
+      );
       allow delete: if isSignedIn() && isOwner(existing().ownerId);
+    }
+
+    // Reviews
+    function isValidReview(data) {
+      return data.userId == request.auth.uid
+        && data.productId is string
+        && data.rating is number && data.rating >= 1 && data.rating <= 5
+        && (!('comment' in data) || (data.comment is string && data.comment.size() <= 1000));
+    }
+
+    match /reviews/{reviewId} {
+      allow read: if true;
+      allow create: if isSignedIn() && isValidReview(incoming());
+      allow update: if isSignedIn() && isOwner(existing().userId) && isValidReview(incoming())
+        && incoming().diff(existing()).affectedKeys().hasOnly(['rating', 'comment', 'updatedAt']);
+      allow delete: if isSignedIn() && isOwner(existing().userId);
     }
 
     // Conversations & Messages
@@ -113,6 +133,32 @@ service cloud.firestore {
     match /engagements/{id} {
       allow read: if isSignedIn() && (resource.data.supplierId == request.auth.uid || resource.data.customerId == request.auth.uid);
       allow create: if isSignedIn() && isValidEngagement(incoming());
+    }
+
+    // Interactions
+    match /notifications/{id} {
+      allow read: if isSignedIn() && existing().userId == request.auth.uid;
+      allow create: if isSignedIn();
+      allow update: if isSignedIn() && existing().userId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['read', 'updatedAt']);
+      allow delete: if isSignedIn() && existing().userId == request.auth.uid;
+    }
+
+    match /follows/{id} {
+      allow read: if true;
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid;
+      allow delete: if isSignedIn() && existing().userId == request.auth.uid;
+    }
+
+    match /storeLikes/{id} {
+      allow read: if true;
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid;
+      allow delete: if isSignedIn() && existing().userId == request.auth.uid;
+    }
+
+    match /productLikes/{id} {
+      allow read: if true;
+      allow create: if isSignedIn() && incoming().userId == request.auth.uid;
+      allow delete: if isSignedIn() && existing().userId == request.auth.uid;
     }
   }
 }

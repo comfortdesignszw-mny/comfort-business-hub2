@@ -487,22 +487,22 @@ function StoreCard({ store, profile }: { store: StoreType, profile: UserProfile 
         }
         navigate(`/store/${store.id}`);
       }}
-      className="neon-card p-5 space-y-4 cursor-pointer group"
+      className="neon-card p-3.5 sm:p-5 space-y-3 sm:space-y-4 cursor-pointer group"
     >
-      <div className="flex items-center gap-4">
-        <div className="w-14 h-14 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 border border-white/10 flex items-center justify-center text-primary font-black text-xl shadow-[0_0_15px_rgba(0,242,254,0.1)] group-hover:scale-110 transition-transform">
+      <div className="flex items-center gap-3 sm:gap-4">
+        <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-lg sm:rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 border border-white/10 flex items-center justify-center text-primary font-black text-base sm:text-xl shadow-[0_0_15px_rgba(0,242,254,0.1)] group-hover:scale-110 transition-transform flex-shrink-0">
           {store.logo ? (
-            <img src={store.logo} className="w-full h-full object-cover rounded-2xl" referrerPolicy="no-referrer" />
+            <img src={store.logo} className="w-full h-full object-cover rounded-lg sm:rounded-2xl" referrerPolicy="no-referrer" />
           ) : (
             store.name.charAt(0)
           )}
         </div>
-        <div className="space-y-1">
-          <div className="flex items-center gap-2">
-            <h3 className="text-sm font-black text-white uppercase tracking-tight group-hover:text-primary transition-colors">{store.name}</h3>
-            <Check size={12} className="text-neon-green" />
+        <div className="space-y-0.5 sm:space-y-1 min-w-0">
+          <div className="flex items-center gap-1 sm:gap-2">
+            <h3 className="text-[10px] sm:text-sm font-black text-white uppercase tracking-tight group-hover:text-primary transition-colors truncate">{store.name}</h3>
+            <Check size={8} className="text-neon-green flex-shrink-0" />
           </div>
-          <div className="flex items-center gap-1.5 text-[8px] text-gray-500 font-black uppercase tracking-widest bg-white/5 px-1.5 py-0.5 rounded border border-white/5 w-fit">
+          <div className="flex items-center gap-1.5 text-[6px] sm:text-[8px] text-gray-500 font-black uppercase tracking-widest bg-white/5 px-1 sm:px-1.5 py-0.5 rounded border border-white/5 w-fit">
             <Building2 size={8} className="text-primary" /> {store.category}
           </div>
         </div>

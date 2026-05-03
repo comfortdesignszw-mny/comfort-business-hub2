@@ -64,6 +64,8 @@
         "logo": { "type": "string" },
         "rating": { "type": "number" },
         "reviewCount": { "type": "number" },
+        "followerCount": { "type": "number" },
+        "likeCount": { "type": "number" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "ownerId", "name", "geohash", "email", "contactNumbers"]
@@ -84,10 +86,29 @@
         "images": { "type": "array", "items": { "type": "string" } },
         "buyButtonType": { "type": "string", "enum": ["checkout", "chat", "link"] },
         "buyButtonLink": { "type": "string" },
+        "rating": { "type": "number" },
+        "reviewCount": { "type": "number" },
+        "likeCount": { "type": "number" },
         "isActive": { "type": "boolean" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "storeId", "ownerId", "name", "price", "buyButtonType"]
+    },
+    "Review": {
+      "title": "Product Review",
+      "description": "User ratings and feedback for specific products.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "productId": { "type": "string" },
+        "userId": { "type": "string" },
+        "userName": { "type": "string" },
+        "userAvatar": { "type": "string" },
+        "rating": { "type": "number" },
+        "comment": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["productId", "userId", "rating", "createdAt"]
     },
     "Deal": {
       "title": "Marketplace Deal (Negotiation)",
@@ -164,6 +185,60 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["productId", "customerId", "supplierId", "type"]
+    },
+    "Follow": {
+      "title": "Store Follow",
+      "description": "Relationship between a user and a store they follow.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "storeId": { "type": "string" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["storeId", "userId", "createdAt"]
+    },
+    "StoreLike": {
+      "title": "Store Like",
+      "description": "User liking a store.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "storeId": { "type": "string" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["storeId", "userId", "createdAt"]
+    },
+    "ProductLike": {
+      "title": "Product Like",
+      "description": "User liking a product.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "productId": { "type": "string" },
+        "userId": { "type": "string" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["productId", "userId", "createdAt"]
+    },
+    "Notification": {
+      "title": "User Notification",
+      "description": "Alerts for user interactions.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "userId": { "type": "string" },
+        "type": { "type": "string", "enum": ["engage", "buy", "rate", "follow", "like_store", "like_product"] },
+        "fromUserId": { "type": "string" },
+        "fromUserName": { "type": "string" },
+        "targetId": { "type": "string" },
+        "title": { "type": "string" },
+        "message": { "type": "string" },
+        "read": { "type": "boolean" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["userId", "type", "fromUserId", "createdAt"]
     }
   },
   "firestore": {
@@ -198,6 +273,26 @@
     "engagements": {
       "schema": "Engagement",
       "description": "Product interaction logs"
+    },
+    "reviews": {
+      "schema": "Review",
+      "description": "Product feedback and ratings"
+    },
+    "follows": {
+      "schema": "Follow",
+      "description": "Store follows"
+    },
+    "storeLikes": {
+      "schema": "StoreLike",
+      "description": "Store likes"
+    },
+    "productLikes": {
+      "schema": "ProductLike",
+      "description": "Product likes"
+    },
+    "notifications": {
+      "schema": "Notification",
+      "description": "User notification alerts"
     }
   }
 }

@@ -43,6 +43,8 @@ export interface Store {
   logo?: string;
   rating: number;
   reviewCount: number;
+  followerCount?: number;
+  likeCount?: number;
   createdAt: string;
 }
 
@@ -61,8 +63,36 @@ export interface Product {
   buyButtonType: BuyButtonType;
   buyButtonLink?: string;
   buyButtonText?: string;
+  rating?: number;
+  reviewCount?: number;
+  followerCount?: number;
+  likeCount?: number;
   isActive: boolean;
   createdAt: string;
+}
+
+export interface Notification {
+  id: string;
+  userId: string;
+  type: 'engage' | 'buy' | 'rate' | 'follow' | 'like_store' | 'like_product';
+  fromUserId: string;
+  fromUserName: string;
+  targetId?: string;
+  title: string;
+  message: string;
+  read: boolean;
+  createdAt: any;
+}
+
+export interface Review {
+  id: string;
+  productId: string;
+  userId: string;
+  userName: string;
+  userAvatar?: string;
+  rating: number;
+  comment?: string;
+  createdAt: any;
 }
 
 export type DealStatus = 'pending' | 'quoted' | 'accepted' | 'delivered' | 'cancelled';

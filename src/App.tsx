@@ -8,9 +8,12 @@ import { BrowserRouter as Router, Routes, Route, Navigate, Link, useLocation, us
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth, db, handleFirestoreError, OperationType } from './lib/firebase';
 import { doc, getDoc, setDoc } from 'firebase/firestore';
-import { Search, ShoppingBag, MessageSquare, User as UserIcon, Store, LayoutGrid, Zap, Menu, Bell, ArrowLeft } from 'lucide-react';
+import { 
+  Search, ShoppingBag, MessageSquare, User as UserIcon, Store, LayoutGrid, 
+  Zap, Menu, Bell, ArrowLeft, X, Heart, Star, UserPlus 
+} from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { UserProfile, Role } from './types';
+import { UserProfile, Role, Notification } from './types';
 import { cn } from './lib/utils';
 
 // Pages (to be implemented)
@@ -23,7 +26,9 @@ import SupplierSetup from './pages/SupplierSetup';
 import SupplierDashboard from './pages/SupplierDashboard';
 import CustomerSetup from './pages/CustomerSetup';
 import StoreDetail from './pages/StoreDetail';
+import ProductDetail from './pages/ProductDetail';
 import { MessagingProvider } from './components/MessagingProvider';
+import { NotificationProvider, useNotifications } from './components/NotificationProvider';
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -98,35 +103,38 @@ export default function App() {
             <Route path="*" element={<Navigate to="/login" replace />} />
           </Routes>
         ) : (
-          <MessagingProvider profile={profile}>
-            <Header profile={profile} />
-            <main className="flex-1 overflow-y-auto no-scrollbar pb-24">
-              <div className="max-w-7xl mx-auto w-full">
-                <AnimatePresence mode="wait">
-                  <Routes>
-                    {isProfileIncomplete ? (
-                      <Route path="*" element={<CustomerSetup profile={profile!} />} />
-                    ) : (
-                      <>
-                        <Route path="/" element={<Discovery profile={profile} setProfile={setProfile} />} />
-                        <Route path="/deals" element={<DealRoom profile={profile} />} />
-                        <Route path="/chat" element={<Chat profile={profile} />} />
-                        <Route path="/store/:id" element={<StoreDetail profile={profile} />} />
-                        {profile?.currentRole === 'supplier' && !hasStore ? (
-                          <Route path="/store" element={<SupplierSetup profile={profile!} />} />
-                        ) : profile?.currentRole === 'supplier' ? (
-                          <Route path="/store" element={<SupplierDashboard profile={profile!} />} />
-                        ) : null}
-                        <Route path="/profile" element={<Profile profile={profile} setProfile={setProfile} />} />
-                        <Route path="*" element={<Navigate to="/" replace />} />
-                      </>
-                    )}
-                  </Routes>
-                </AnimatePresence>
-              </div>
-            </main>
-            <Navigation profile={profile} />
-          </MessagingProvider>
+          <NotificationProvider profile={profile}>
+            <MessagingProvider profile={profile}>
+              <Header profile={profile} />
+              <main className="flex-1 overflow-y-auto no-scrollbar pb-24">
+                <div className="max-w-7xl mx-auto w-full">
+                  <AnimatePresence mode="wait">
+                    <Routes>
+                      {isProfileIncomplete ? (
+                        <Route path="*" element={<CustomerSetup profile={profile!} />} />
+                      ) : (
+                        <>
+                          <Route path="/" element={<Discovery profile={profile} setProfile={setProfile} />} />
+                          <Route path="/deals" element={<DealRoom profile={profile} />} />
+                          <Route path="/chat" element={<Chat profile={profile} />} />
+                          <Route path="/store/:id" element={<StoreDetail profile={profile} />} />
+                          <Route path="/product/:id" element={<ProductDetail profile={profile} />} />
+                          {profile?.currentRole === 'supplier' && !hasStore ? (
+                            <Route path="/store" element={<SupplierSetup profile={profile!} />} />
+                          ) : profile?.currentRole === 'supplier' ? (
+                            <Route path="/store" element={<SupplierDashboard profile={profile!} />} />
+                          ) : null}
+                          <Route path="/profile" element={<Profile profile={profile} setProfile={setProfile} />} />
+                          <Route path="*" element={<Navigate to="/" replace />} />
+                        </>
+                      )}
+                    </Routes>
+                  </AnimatePresence>
+                </div>
+              </main>
+              <Navigation profile={profile} />
+            </MessagingProvider>
+          </NotificationProvider>
         )}
       </div>
     </Router>
@@ -137,11 +145,13 @@ function Header({ profile }: { profile: UserProfile | null }) {
   const location = useLocation();
   const navigate = useNavigate();
   const isHome = location.pathname === '/' || location.pathname === '';
+  const { unreadCount } = useNotifications();
+  const [showNotifications, setShowNotifications] = useState(false);
 
   return (
     <header className="bg-white/5 backdrop-blur-xl border-b border-white/5 p-4 sticky top-0 z-20">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
-        <div className="flex items-center gap-3">
+        <div className="flex items-center gap-4">
           {!isHome ? (
             <button 
               onClick={() => navigate(-1)}
@@ -170,10 +180,22 @@ function Header({ profile }: { profile: UserProfile | null }) {
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center text-gray-400 hover:text-primary transition-all relative group">
+          <button 
+            onClick={() => setShowNotifications(true)}
+            className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center text-gray-400 hover:text-primary transition-all relative group"
+          >
             <Bell size={20} className="group-hover:scale-110" />
-            <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-accent rounded-full border-2 border-[#05070a] shadow-[0_0_10px_rgba(240,147,251,0.5)]"></span>
+            {unreadCount > 0 && (
+              <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-accent rounded-full border-2 border-[#05070a] shadow-[0_0_10px_rgba(240,147,251,0.5)]"></span>
+            )}
           </button>
+          
+          <AnimatePresence>
+            {showNotifications && (
+              <NotificationsModal onClose={() => setShowNotifications(false)} />
+            )}
+          </AnimatePresence>
+
           <Link to="/profile" className="w-10 h-10 rounded-xl overflow-hidden border border-white/10 hover:border-primary/50 transition-colors text-primary font-bold">
             <div className="w-full h-full bg-primary/20 flex items-center justify-center overflow-hidden">
               {profile?.name?.charAt(0).toUpperCase() || <UserIcon size={18} />}
@@ -183,6 +205,107 @@ function Header({ profile }: { profile: UserProfile | null }) {
       </div>
     </header>
   );
+}
+
+function NotificationsModal({ onClose }: { onClose: () => void }) {
+  const { notifications, markAsRead, markAllAsRead } = useNotifications();
+  const navigate = useNavigate();
+
+  return (
+    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+      <motion.div 
+        initial={{ opacity: 0 }} 
+        animate={{ opacity: 1 }} 
+        exit={{ opacity: 0 }} 
+        className="absolute inset-0 bg-[#05070a]/90 backdrop-blur-md" 
+        onClick={onClose} 
+      />
+      <motion.div 
+        initial={{ scale: 0.9, opacity: 0, y: 20 }} 
+        animate={{ scale: 1, opacity: 1, y: 0 }} 
+        exit={{ scale: 0.9, opacity: 0, y: 20 }} 
+        className="relative w-full max-w-sm bg-[#0d1117] border border-white/10 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
+      >
+        <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/5">
+          <div>
+            <h3 className="text-lg font-black text-white italic uppercase tracking-tighter">Event Streams</h3>
+            <p className="text-[9px] text-gray-500 font-black uppercase tracking-widest leading-none">System Alerts & Interlocks</p>
+          </div>
+          <button onClick={onClose} className="text-gray-500 hover:text-white"><X size={20} /></button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar">
+          {notifications.length > 0 ? (
+            notifications.map((n) => (
+              <div 
+                key={n.id}
+                onClick={() => {
+                  markAsRead(n.id);
+                  if (n.type === 'engage' || n.type === 'buy') navigate('/chat');
+                  if (n.type === 'like_product' || n.type === 'rate') navigate(`/product/${n.targetId}`);
+                  if (n.type === 'follow' || n.type === 'like_store') navigate(`/store/${n.targetId}`);
+                  onClose();
+                }}
+                className={cn(
+                  "p-4 rounded-2xl border transition-all cursor-pointer group",
+                  n.read 
+                    ? "bg-transparent border-white/5 opacity-60" 
+                    : "bg-white/5 border-primary/20 shadow-[0_0_15px_rgba(0,242,254,0.1)]"
+                )}
+              >
+                <div className="flex gap-4">
+                  <div className={cn(
+                    "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110",
+                    !n.read ? "bg-primary/20 text-primary" : "bg-white/5 text-gray-500"
+                  )}>
+                    {getNotificationIcon(n.type)}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex justify-between items-start">
+                      <h4 className="text-[10px] font-black text-white uppercase tracking-tight truncate">{n.title}</h4>
+                      <span className="text-[8px] font-black text-gray-600 uppercase ml-2 whitespace-nowrap">
+                        {n.createdAt?.toDate ? n.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}
+                      </span>
+                    </div>
+                    <p className="text-[10px] text-gray-400 mt-1 leading-relaxed line-clamp-2">{n.message}</p>
+                  </div>
+                </div>
+              </div>
+            ))
+          ) : (
+            <div className="py-20 text-center space-y-4">
+              <Zap size={32} className="mx-auto text-gray-800" />
+              <p className="text-[10px] font-black text-gray-600 uppercase tracking-widest italic">All systems clear - No events queued</p>
+            </div>
+          )}
+        </div>
+
+        <div className="p-4 bg-white/5 border-t border-white/5">
+          <button 
+            onClick={() => {
+              markAllAsRead();
+              onClose();
+            }}
+            className="w-full py-3 bg-white/5 hover:bg-white/10 rounded-xl text-[9px] font-black text-gray-400 hover:text-white uppercase tracking-widest transition-all"
+          >
+            Mark all read
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
+function getNotificationIcon(type: Notification['type']) {
+  switch (type) {
+    case 'engage': return <Zap size={18} />;
+    case 'buy': return <ShoppingBag size={18} />;
+    case 'rate': return <Star size={18} />;
+    case 'follow': return <UserPlus size={18} />;
+    case 'like_store':
+    case 'like_product': return <Heart size={18} />;
+    default: return <Bell size={18} />;
+  }
 }
 
 function Navigation({ profile }: { profile: UserProfile | null }) {
