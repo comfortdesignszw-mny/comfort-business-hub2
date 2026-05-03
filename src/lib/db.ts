@@ -23,17 +23,28 @@ export interface CachedDoc {
   updatedAt: number;
 }
 
+export interface QueuedMessage {
+  id?: number;
+  convoId: string;
+  senderId: string;
+  text: string;
+  createdAt: number;
+  status: 'pending' | 'failed';
+}
+
 export class ComfortOfflineDB extends Dexie {
   users!: Table<LocalUser>;
   outbox!: Table<OutboxItem>;
   cache!: Table<CachedDoc>;
+  queuedMessages!: Table<QueuedMessage>;
 
   constructor() {
     super('ComfortBusinessHubDB');
-    this.version(1).stores({
+    this.version(2).stores({
       users: 'id',
       outbox: '++id, collection, action, createdAt',
-      cache: 'id, collection, docId, updatedAt'
+      cache: 'id, collection, docId, updatedAt',
+      queuedMessages: '++id, convoId, senderId, createdAt'
     });
   }
 }

@@ -7,7 +7,7 @@ import { useState, useEffect } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Link, useLocation, useNavigate } from 'react-router-dom';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth, db, handleFirestoreError, OperationType } from './lib/firebase';
-import { doc, getDoc, setDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { 
   Search, ShoppingBag, MessageSquare, User as UserIcon, Store, LayoutGrid, 
   Zap, Menu, Bell, ArrowLeft, X, Heart, Star, UserPlus 
@@ -48,6 +48,15 @@ export default function App() {
           const docSnap = await getDoc(doc(db, 'users', firebaseUser.uid));
           if (docSnap.exists()) {
             const profileData = docSnap.data() as UserProfile;
+            
+            // Sync verification status with Firebase Auth
+            if (profileData.isVerified !== firebaseUser.emailVerified) {
+              await updateDoc(doc(db, 'users', firebaseUser.uid), {
+                isVerified: firebaseUser.emailVerified
+              });
+              profileData.isVerified = firebaseUser.emailVerified;
+            }
+
             setProfile(profileData);
 
             if (profileData.currentRole === 'supplier') {

@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Store as StoreIcon, MapPin, Star, MessageSquare, ArrowLeft, Share2, 
-  Info, Loader2, Building2, Zap, ShoppingBag, Heart, UserPlus 
+  Info, Loader2, Building2, Zap, ShoppingBag, Heart, UserPlus, Navigation 
 } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { doc, getDoc, collection, query, where, getDocs, onSnapshot, limit } from 'firebase/firestore';
@@ -11,6 +11,19 @@ import { UserProfile, Product, Store as StoreType } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
 import ProductCard from '../components/ProductCard';
 import { interactionService } from '../services/interactionService';
+
+import { MapContainer, TileLayer, Marker } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+
+// Fix for default marker icon in Leaflet
+const DefaultIcon = L.icon({
+    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41]
+});
+L.Marker.prototype.options.icon = DefaultIcon;
 
 export default function StoreDetail({ profile }: { profile: UserProfile | null }) {
   const { id } = useParams<{ id: string }>();
@@ -170,6 +183,49 @@ export default function StoreDetail({ profile }: { profile: UserProfile | null }
           </div>
         </section>
       )}
+      
+      {/* Store Location Node */}
+      <section className="space-y-4">
+        <div className="flex items-center gap-2 px-2">
+          <MapPin size={20} className="text-primary" />
+          <h3 className="font-black text-white uppercase tracking-tighter text-xl italic uppercase">Geographic Hub Node</h3>
+        </div>
+        <div className="neon-card p-4 space-y-4 overflow-hidden">
+          <div className="h-48 sm:h-64 rounded-2xl overflow-hidden border border-white/5 shadow-inner">
+            {(store.lat && store.lng) ? (
+              <MapContainer 
+                center={[store.lat, store.lng]} 
+                zoom={14} 
+                style={{ height: '100%', width: '100%' }}
+                zoomControl={false}
+                dragging={false}
+                touchZoom={false}
+                scrollWheelZoom={false}
+              >
+                <TileLayer
+                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                />
+                <Marker position={[store.lat, store.lng]} />
+              </MapContainer>
+            ) : (
+              <div className="w-full h-full bg-white/5 flex flex-col items-center justify-center gap-2">
+                <Navigation size={24} className="text-gray-700" />
+                <p className="text-[10px] text-gray-700 font-black uppercase tracking-widest">Coordinates not synchronized</p>
+              </div>
+            )}
+          </div>
+          <div className="flex items-start gap-3 px-2 py-1">
+            <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0 text-primary">
+              <Building2 size={16} />
+            </div>
+            <div className="space-y-0.5">
+              <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest">Physical Manifestation</p>
+              <p className="text-sm font-bold text-white italic">{(store as any).address || store.location || 'Distributed Network Node'}</p>
+            </div>
+          </div>
+        </div>
+      </section>
 
       <section className="space-y-6">
         <div className="flex items-center justify-between px-2">
@@ -183,7 +239,12 @@ export default function StoreDetail({ profile }: { profile: UserProfile | null }
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
           {products.length > 0 ? (
             products.map((p) => (
-              <ProductCard key={p.id} product={p} profile={profile} />
+              <ProductCard 
+                key={p.id} 
+                product={p} 
+                profile={profile} 
+                store={store}
+              />
             ))
           ) : (
             <div className="col-span-full py-20 text-center space-y-4 bg-white/5 rounded-3xl border border-white/5">

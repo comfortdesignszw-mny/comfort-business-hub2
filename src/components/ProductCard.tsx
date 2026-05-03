@@ -4,25 +4,49 @@ import { useNavigate } from 'react-router-dom';
 import { 
   Zap, ShoppingBag, ArrowRight, MessageSquare, Phone, Check, Loader2, MapPinned, CreditCard, Share2, X, Info, Star, Store as StoreIcon
 } from 'lucide-react';
-import { UserProfile, Product } from '../types';
+import { UserProfile, Product, Store } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { collection, addDoc, serverTimestamp, setDoc, doc, getDoc } from 'firebase/firestore';
 import { interactionService } from '../services/interactionService';
 
-export default function ProductCard({ product, profile, onAction }: { product: Product, profile: UserProfile | null, onAction?: (prod: Product) => void, key?: React.Key }) {
+import { useMessaging } from '../components/MessagingProvider';
+
+export default function ProductCard({ 
+  product, 
+  profile, 
+  store: initialStore,
+  onAction 
+}: { 
+  product: Product, 
+  profile: UserProfile | null, 
+  store?: Store,
+  onAction?: (prod: Product) => void, 
+  key?: React.Key 
+}) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const { startConversation } = useMessaging();
   const [storeData, setStoreData] = useState<{ name: string; rating: number; reviewCount: number }>({
-    name: 'Verified Node',
-    rating: 5.0,
-    reviewCount: 0
+    name: initialStore?.name || 'Verified Node',
+    rating: initialStore?.rating || 5.0,
+    reviewCount: initialStore?.reviewCount || 0
   });
-  const [isStoreLoading, setIsStoreLoading] = useState(true);
+  const [isStoreLoading, setIsStoreLoading] = useState(!initialStore);
   const [isEngaging, setIsEngaging] = useState(false);
   const [activeModal, setActiveModal] = useState<'checkout' | 'ecocash' | 'pod' | null>(null);
   const navigate = useNavigate();
 
   useEffect(() => {
+    if (initialStore) {
+      setStoreData({
+        name: initialStore.name,
+        rating: initialStore.rating,
+        reviewCount: initialStore.reviewCount
+      });
+      setIsStoreLoading(false);
+      return;
+    }
+
     const fetchStoreData = async () => {
       try {
         const storeSnap = await getDoc(doc(db, 'stores', product.storeId));
@@ -41,7 +65,7 @@ export default function ProductCard({ product, profile, onAction }: { product: P
       }
     };
     fetchStoreData();
-  }, [product.storeId]);
+  }, [product.storeId, initialStore]);
 
   const logEngagement = async (type: 'engaged' | 'interested') => {
     if (!profile || !product.ownerId) return;
@@ -72,40 +96,11 @@ export default function ProductCard({ product, profile, onAction }: { product: P
     if (type === 'engage') {
       setIsEngaging(true);
       await logEngagement('engaged');
-      const convoId = [profile.uid, product.ownerId].sort().join('_');
       const customerName = profile.name || profile.businessName || 'A Customer';
       const interestMessage = `Hie, I am ${customerName}. I am interested in this Product/Service: ${product.name}`;
 
       try {
-        await setDoc(doc(db, 'conversations', convoId), {
-          id: convoId,
-          participants: [profile.uid, product.ownerId],
-          updatedAt: serverTimestamp(),
-          lastMessage: interestMessage,
-          initiatorId: profile.uid,
-          initiatorName: customerName
-        }, { merge: true });
-
-        await addDoc(collection(db, 'conversations', convoId, 'messages'), {
-          conversationId: convoId,
-          senderId: profile.uid,
-          text: interestMessage,
-          type: 'text',
-          payload: { 
-            type: 'product_interest',
-            productId: product.id,
-            productName: product.name
-          },
-          createdAt: serverTimestamp()
-        });
-
-        await interactionService.sendNotification(
-          product.ownerId,
-          'engage',
-          profile,
-          product.id
-        );
-
+        const convoId = await startConversation(product.ownerId, interestMessage);
         navigate(`/chat?id=${convoId}`);
       } catch (err) {
         setIsEngaging(false);
@@ -155,7 +150,17 @@ export default function ProductCard({ product, profile, onAction }: { product: P
     <>
       <motion.div 
         whileTap={{ scale: 0.98 }}
-        onClick={() => navigate(`/product/${product.id}`)}
+        onClick={() => navigate(`/product/${product.id}`, { 
+          state: { 
+            product, 
+            store: initialStore || { 
+              id: product.storeId, 
+              name: storeData.name, 
+              rating: storeData.rating, 
+              reviewCount: storeData.reviewCount 
+            } 
+          } 
+        })}
         className="neon-card group relative overflow-hidden cursor-pointer"
       >
         <div className="aspect-[16/10] relative overflow-hidden">
@@ -203,9 +208,18 @@ export default function ProductCard({ product, profile, onAction }: { product: P
             </div>
             <div className="text-right">
               <p className="text-xl font-black text-primary italic tracking-tighter leading-none">{formatCurrency(product.price, product.currency)}</p>
-              <p className="text-[8px] text-neon-green font-black uppercase tracking-widest mt-1">Ready to Sync</p>
+              <div className="flex items-center justify-end gap-1 mt-1">
+                <div className="w-1.5 h-1.5 bg-neon-green rounded-full animate-pulse shadow-[0_0_5px_#39FF14]"></div>
+                <p className="text-[8px] text-neon-green font-black uppercase tracking-widest">Active Node</p>
+              </div>
             </div>
           </div>
+
+          {product.description && (
+            <p className="text-[10px] text-gray-400 font-medium line-clamp-2 leading-relaxed h-7">
+              {product.description}
+            </p>
+          )}
 
           <div className="space-y-3">
              <div className="flex items-center gap-3">
@@ -428,6 +442,7 @@ function EcoCashModal({ product, profile, onClose }: any) {
 
 function PodModal({ product, profile, onClose }: any) {
   const navigate = useNavigate();
+  const { startConversation } = useMessaging();
   const [formData, setFormData] = useState({ name: '', phone: '', quantity: 1, address: '' });
   const [submitting, setSubmitting] = useState(false);
 
@@ -436,14 +451,6 @@ function PodModal({ product, profile, onClose }: any) {
     if (!profile) return;
     setSubmitting(true);
     try {
-      const convoId = [profile.uid, product.ownerId].sort().join('_');
-      await setDoc(doc(db, 'conversations', convoId), {
-        id: convoId,
-        participants: [profile.uid, product.ownerId],
-        updatedAt: serverTimestamp(),
-        lastMessage: `POD ORDER: ${product.name}`
-      }, { merge: true });
-
       const orderMessage = `🚀 PAY ON DELIVERY ORDER INITIATED\n\n` +
         `• ITEM: ${product.name}\n` +
         `• QUANTITY: ${formData.quantity}\n` +
@@ -453,20 +460,7 @@ function PodModal({ product, profile, onClose }: any) {
         `• CONTACT: ${formData.phone}\n` +
         `• ADDRESS: ${formData.address}`;
 
-      await addDoc(collection(db, 'conversations', convoId, 'messages'), {
-        conversationId: convoId,
-        senderId: profile.uid,
-        text: orderMessage,
-        type: 'text',
-        createdAt: serverTimestamp()
-      });
-
-      await interactionService.sendNotification(
-        product.ownerId,
-        'buy',
-        profile,
-        product.id
-      );
+      const convoId = await startConversation(product.ownerId, orderMessage);
 
       onClose();
       navigate(`/chat?id=${convoId}`);

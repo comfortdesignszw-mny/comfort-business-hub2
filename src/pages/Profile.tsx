@@ -9,9 +9,11 @@ import {
 import { UserProfile, Role, Spotlight } from '../types';
 import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { offlineResilientWrite } from '../lib/sync';
+import { geohashForLocation } from 'geofire-common';
 import { doc, updateDoc, collection, addDoc, query, where, getDocs, deleteDoc, orderBy, serverTimestamp } from 'firebase/firestore';
 import { cn } from '../lib/utils';
 import ImageInput from '../components/ImageInput';
+import LocationPicker from '../components/LocationPicker';
 
 export default function Profile({ profile, setProfile }: { profile: UserProfile | null, setProfile: (p: UserProfile) => void }) {
   const [isEditing, setIsEditing] = useState(false);
@@ -832,16 +834,21 @@ function GatewayConfig({ profile, onSave }: { profile: UserProfile, onSave: (g: 
 function LocationConfig({ profile, onSave }: { profile: UserProfile, onSave: (l: any) => void }) {
   const [city, setCity] = useState(profile.location?.city || '');
   const [address, setAddress] = useState(profile.location?.address || '');
-  const [lat, setLat] = useState(profile.location?.coordinates?.lat || -17.8252);
-  const [lng, setLng] = useState(profile.location?.coordinates?.lng || 31.0335);
+  const [coordinates, setCoordinates] = useState({
+    lat: profile.location?.coordinates?.lat || profile.lat || -17.8252,
+    lng: profile.location?.coordinates?.lng || profile.lng || 31.0335
+  });
 
-  const getGPS = () => {
-    if (navigator.geolocation) {
-      navigator.geolocation.getCurrentPosition((pos) => {
-        setLat(pos.coords.latitude);
-        setLng(pos.coords.longitude);
-      });
-    }
+  const handleSave = () => {
+    const hash = geohashForLocation([coordinates.lat, coordinates.lng]);
+    onSave({ 
+      city, 
+      address, 
+      coordinates, 
+      lat: coordinates.lat, 
+      lng: coordinates.lng, 
+      geohash: hash 
+    });
   };
 
   return (
@@ -852,54 +859,33 @@ function LocationConfig({ profile, onSave }: { profile: UserProfile, onSave: (l:
       </header>
 
       <div className="space-y-6">
-        <div className="space-y-4">
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Base City</label>
-            <input 
-              type="text"
-              value={city}
-              onChange={e => setCity(e.target.value)}
-              placeholder="e.g. Harare, Mutare, Bulawayo..."
-              className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-white outline-none focus:border-primary/50 font-bold italic"
+        <div className="space-y-2">
+          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Base Operation Node (City)</label>
+          <input 
+            type="text"
+            value={city}
+            onChange={e => setCity(e.target.value)}
+            placeholder="e.g. Harare, Mutare, Bulawayo..."
+            className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-white outline-none focus:border-primary/50 font-bold italic transition-all"
+          />
+        </div>
+
+        <div className="pt-2">
+            <LocationPicker 
+              initialLat={coordinates.lat}
+              initialLng={coordinates.lng}
+              onLocationSelect={(lat, lng, addr) => {
+                setCoordinates({ lat, lng });
+                if (addr && !address) setAddress(addr);
+              }}
             />
-          </div>
-          
-          <div className="grid grid-cols-2 gap-4">
-             <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Latitude</label>
-                <input 
-                  type="number"
-                  step="0.000001"
-                  value={lat}
-                  onChange={e => setLat(parseFloat(e.target.value))}
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-white outline-none focus:border-primary/50 font-mono text-xs"
-                />
-              </div>
-              <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Longitude</label>
-                <input 
-                  type="number"
-                  step="0.000001"
-                  value={lng}
-                  onChange={e => setLng(parseFloat(e.target.value))}
-                  className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-white outline-none focus:border-primary/50 font-mono text-xs"
-                />
-              </div>
-          </div>
         </div>
 
         <button 
-          onClick={getGPS}
-          className="w-full py-4 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center gap-2 text-[10px] font-black uppercase text-primary tracking-widest hover:bg-primary/5 transition-colors"
-        >
-          <Crosshair size={14} /> Scan Internal GPS Node
-        </button>
-
-        <button 
-          onClick={() => onSave({ city, address, coordinates: { lat, lng } })}
+          onClick={handleSave}
           className="w-full btn-neon py-5 text-sm uppercase tracking-[0.2em] italic flex items-center justify-center gap-3"
         >
-          <Navigation size={18} /> Transmit Coordinates
+          <Navigation size={18} /> Transmit Location Data
         </button>
       </div>
     </div>

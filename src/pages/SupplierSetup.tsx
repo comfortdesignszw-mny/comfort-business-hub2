@@ -1,12 +1,14 @@
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Store, Plus, Mail, Phone, Loader2, Sparkles } from 'lucide-react';
+import { Store, Plus, Mail, Phone, Loader2, Sparkles, Store as StoreIcon } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { collection, addDoc, doc, updateDoc } from 'firebase/firestore';
 import { UserProfile, Store as StoreType } from '../types';
 import { BUSINESS_CATEGORIES } from '../constants';
 import ImageInput from '../components/ImageInput';
+import LocationPicker from '../components/LocationPicker';
 import { offlineResilientWrite } from '../lib/sync';
+import { geohashForLocation } from 'geofire-common';
 
 export default function SupplierSetup({ profile, onComplete, existingStore }: { profile: UserProfile, onComplete?: () => void, existingStore?: StoreType }) {
   const [loading, setLoading] = useState(false);
@@ -17,6 +19,11 @@ export default function SupplierSetup({ profile, onComplete, existingStore }: { 
   const [category, setCategory] = useState(existingStore?.category || BUSINESS_CATEGORIES[0]);
   const [specificBusinessType, setSpecificBusinessType] = useState(existingStore?.specificBusinessType || '');
   const [logo, setLogo] = useState(existingStore?.logo || '');
+  const [location, setLocation] = useState({
+    lat: existingStore?.lat || profile.lat || -17.8252,
+    lng: existingStore?.lng || profile.lng || 31.0335,
+    address: profile.location?.address || ''
+  });
 
   useEffect(() => {
     if (existingStore) {
@@ -43,6 +50,7 @@ export default function SupplierSetup({ profile, onComplete, existingStore }: { 
     setLoading(true);
 
     try {
+        const hash = geohashForLocation([location.lat, location.lng]);
         const storeData = {
           ownerId: profile.uid,
           name,
@@ -52,6 +60,10 @@ export default function SupplierSetup({ profile, onComplete, existingStore }: { 
           category,
           specificBusinessType,
           logo: logo || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}`,
+          lat: location.lat,
+          lng: location.lng,
+          geohash: hash,
+          address: location.address,
           updatedAt: new Date().toISOString()
       };
 
@@ -59,14 +71,15 @@ export default function SupplierSetup({ profile, onComplete, existingStore }: { 
         await offlineResilientWrite('stores', existingStore.id, 'update', storeData);
       } else {
         const newStoreId = `store_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+        const hash = geohashForLocation([location.lat, location.lng]);
         const newStoreData = {
           ...storeData,
           id: newStoreId,
           rating: 5,
           reviewCount: 0,
-          geohash: profile.geohash || 'demo-hash',
-          lat: profile.lat || -17.8252,
-          lng: profile.lng || 31.0335,
+          lat: location.lat,
+          lng: location.lng,
+          geohash: hash,
           createdAt: new Date().toISOString()
         };
         await offlineResilientWrite('stores', newStoreId, 'create', newStoreData);
@@ -203,6 +216,17 @@ export default function SupplierSetup({ profile, onComplete, existingStore }: { 
               >
                 <Plus size={14} /> Add Additional Link
               </button>
+            </div>
+
+            <div className="pt-4 border-t border-white/5 space-y-4">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1 flex items-center gap-2">
+                <StoreIcon size={12} className="text-primary" /> Regional Deployment Coordinates
+              </label>
+              <LocationPicker 
+                initialLat={location.lat}
+                initialLng={location.lng}
+                onLocationSelect={(lat, lng, address) => setLocation({ lat, lng, address })}
+              />
             </div>
           </div>
         </div>

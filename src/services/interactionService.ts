@@ -156,5 +156,72 @@ export const interactionService = {
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, 'like-product');
     }
+  },
+
+  async submitReview(productId: string, storeId: string, profile: UserProfile, rating: number, comment: string, productOwnerId: string) {
+    try {
+      await runTransaction(db, async (transaction) => {
+        const productRef = doc(db, 'products', productId);
+        const storeRef = doc(db, 'stores', storeId);
+        
+        const [pSnap, sSnap] = await Promise.all([
+          transaction.get(productRef),
+          transaction.get(storeRef)
+        ]);
+
+        if (!pSnap.exists()) throw new Error("Product mismatch");
+
+        // Update Product stats
+        const pData = pSnap.data();
+        const pCount = pData.reviewCount || 0;
+        const pRating = pData.rating || 0;
+        const pNewCount = pCount + 1;
+        const pNewAvg = ((pRating * pCount) + rating) / pNewCount;
+
+        transaction.update(productRef, {
+          rating: pNewAvg,
+          reviewCount: pNewCount
+        });
+
+        // Update Store stats (optional but recommended for industry standards)
+        if (sSnap.exists()) {
+          const sData = sSnap.data();
+          const sCount = sData.reviewCount || 0;
+          const sRating = sData.rating || 0;
+          const sNewCount = sCount + 1;
+          const sNewAvg = ((sRating * sCount) + rating) / sNewCount;
+          
+          transaction.update(storeRef, {
+            rating: sNewAvg,
+            reviewCount: sNewCount
+          });
+        }
+
+        // Create Review doc - use a specific ID to prevent multiple submissions if needed, but addDoc is fine for reviews
+        const reviewRef = doc(collection(db, 'reviews'));
+        transaction.set(reviewRef, {
+          productId,
+          userId: profile.uid,
+          userName: profile.name || 'Anonymous',
+          userAvatar: profile.avatar || '',
+          rating,
+          comment,
+          createdAt: serverTimestamp()
+        });
+      });
+
+      // Notification
+      await this.sendNotification(productOwnerId, 'rate', profile, productId, "New Neural Feedback", `${profile.name || 'Citizen'} submitted a ${rating}-star rating.`);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, 'submit-review');
+    }
+  },
+
+  async markNotificationRead(id: string) {
+    try {
+      await deleteDoc(doc(db, 'notifications', id)); // Or update to read: true
+    } catch (err) {
+      console.error('Notification fail', err);
+    }
   }
 };

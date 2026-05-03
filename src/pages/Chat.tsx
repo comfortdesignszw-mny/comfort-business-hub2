@@ -14,10 +14,13 @@ import {
   limit
 } from 'firebase/firestore';
 
+import { useMessaging } from '../components/MessagingProvider';
+
 export default function Chat({ profile }: { profile: UserProfile | null }) {
   const [selectedConvo, setSelectedConvo] = useState<string | null>(null);
   const [conversations, setConversations] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const { isOnline, queuedMessages } = useMessaging();
 
   useEffect(() => {
     const params = new URLSearchParams(window.location.search);
@@ -158,10 +161,13 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
   const [text, setText] = useState('');
   const [messages, setMessages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
+  const { sendMessage, queuedMessages } = useMessaging();
   const [participantInfo, setParticipantInfo] = useState<{ name: string } | null>(
     convo.participantName ? { name: convo.participantName } : null
   );
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const currentQueuedMessages = queuedMessages.filter(m => m.convoId === convo.id);
 
   useEffect(() => {
     if (participantInfo || !convo.id) return;
@@ -214,24 +220,21 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
 
     const messageText = text;
     setText('');
-
-    try {
-      await addDoc(collection(db, 'conversations', convo.id, 'messages'), {
-        conversationId: convo.id,
-        senderId: profile.uid,
-        text: messageText,
-        type: 'text',
-        createdAt: serverTimestamp()
-      });
-
-      await updateDoc(doc(db, 'conversations', convo.id), {
-        lastMessage: messageText,
-        updatedAt: serverTimestamp()
-      });
-    } catch (e) {
-      handleFirestoreError(e, OperationType.CREATE, 'message');
-    }
+    await sendMessage(convo.id, messageText);
+    
+    // Smooth scroll for local feedback
+    setTimeout(() => {
+      scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+    }, 100);
   };
+
+  const allMessages = [...messages, ...currentQueuedMessages.map(m => ({
+    id: `queued-${m.id}`,
+    senderId: m.senderId,
+    text: m.text,
+    createdAt: { seconds: Math.floor(m.createdAt / 1000) },
+    isQueued: true
+  }))];
 
   return (
     <motion.div 
@@ -282,7 +285,7 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
             <Loader2 className="animate-spin text-primary/40" size={24} />
           </div>
         ) : (
-          messages.map((msg) => {
+          allMessages.map((msg) => {
             const isMe = msg.senderId === profile?.uid;
             return (
               <div 
@@ -294,17 +297,18 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
               >
                 <div 
                   className={cn(
-                    "px-4 py-3 rounded-2xl text-sm font-medium shadow-lg backdrop-blur-md relative overflow-hidden group whitespace-pre-wrap",
+                    "px-4 py-3 rounded-2xl text-sm font-medium shadow-lg backdrop-blur-md relative overflow-hidden group whitespace-pre-wrap transition-all",
                     isMe 
                       ? "bg-primary/20 text-white border border-primary/30 rounded-tr-none text-right" 
-                      : "bg-white/5 text-gray-200 border border-white/10 rounded-tl-none text-left"
+                      : "bg-white/5 text-gray-200 border border-white/10 rounded-tl-none text-left",
+                    msg.isQueued && "opacity-60 border-dashed border-gray-500"
                   )}
                 >
                   {isMe && <div className="absolute top-0 right-0 w-12 h-12 bg-primary/10 blur-xl group-hover:bg-primary/20 transition-colors"></div>}
                   <p className="relative z-10 leading-relaxed font-medium tracking-tight">{msg.text}</p>
                 </div>
-                <p className="text-[7px] text-gray-600 font-black uppercase tracking-widest">
-                  {msg.createdAt?.seconds ? new Date(msg.createdAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Sending...'} • {isMe ? 'PROCESSED' : 'DECODED'}
+                <p className="text-[7px] text-gray-600 font-black uppercase tracking-widest flex items-center gap-1">
+                  {msg.createdAt?.seconds ? new Date(msg.createdAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Sending...'} • {msg.isQueued ? <span className="text-gray-500 italic">PENDING SYNC</span> : (isMe ? 'PROCESSED' : 'DECODED')}
                 </p>
               </div>
             );

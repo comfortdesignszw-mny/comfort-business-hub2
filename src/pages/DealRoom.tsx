@@ -273,6 +273,7 @@ function EngagementCard({ engagement }: { engagement: Engagement, key?: React.Ke
 function DealCard({ deal }: { deal: Deal, key?: React.Key }) {
   const [product, setProduct] = useState<Product | null>(null);
   const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
 
   useEffect(() => {
     const fetchProduct = async () => {
@@ -312,6 +313,7 @@ function DealCard({ deal }: { deal: Deal, key?: React.Key }) {
         borderColor: config.border,
         boxShadow: config.shadow
       }}
+      onClick={() => product && navigate(`/product/${product.id}`, { state: { product } })}
       transition={{ duration: 0.3, ease: "easeOut" }}
       className="neon-card p-5 space-y-6 cursor-pointer relative group overflow-hidden border border-white/5"
     >

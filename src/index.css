@@ -101,3 +101,29 @@ body {
   scrollbar-width: none;
 }
 
+/* Map Theming */
+.leaflet-container {
+  background: #05070a !important;
+  font-family: inherit;
+}
+
+.leaflet-tile-pane {
+  filter: invert(100%) hue-rotate(180deg) brightness(95%) contrast(90%);
+}
+
+.leaflet-bar {
+  border: none !important;
+  box-shadow: 0 4px 12px rgba(0,0,0,0.5) !important;
+}
+
+.leaflet-bar a {
+  background-color: #0d1117 !important;
+  color: white !important;
+  border-bottom: 1px solid rgba(255,255,255,0.05) !important;
+}
+
+.leaflet-bar a:hover {
+  background-color: #161b22 !important;
+  color: var(--color-primary) !important;
+}
+

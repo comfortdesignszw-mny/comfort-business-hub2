@@ -17,6 +17,9 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
   const [loading, setLoading] = useState(true);
+  const [productsLoading, setProductsLoading] = useState(true);
+  const [storesLoading, setStoresLoading] = useState(true);
+  const [spotlightsLoading, setSpotlightsLoading] = useState(true);
   const [nearbyDeals, setNearbyDeals] = useState<Product[]>([]);
   const [nearbyStores, setNearbyStores] = useState<StoreType[]>([]);
   const [userCount, setUserCount] = useState<number | null>(null);
@@ -78,6 +81,7 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
       } as Product));
       
       setNearbyDeals(allProducts);
+      setProductsLoading(false);
 
       // Matching logic
       if (profile?.currentRole === 'customer' && profile.requiredProducts) {
@@ -102,8 +106,10 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
         ...doc.data()
       } as StoreType));
       setNearbyStores(allStores);
+      setStoresLoading(false);
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, 'stores-feed');
+      setStoresLoading(false);
     });
 
     // Fetch Spotlights
@@ -115,9 +121,12 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
     );
     const unsubscribeSpotlights = onSnapshot(spq, (snapshot) => {
       setSpotlights(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Spotlight)));
+      setSpotlightsLoading(false);
       setLoading(false);
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, 'spotlights-feed');
+      setSpotlightsLoading(false);
+      setLoading(false);
     });
 
     const fetchUserCount = async () => {
@@ -138,6 +147,13 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
   }, [profile]);
 
   const sharedProductRef = React.useRef<HTMLDivElement>(null);
+
+  const storesMap = useMemo(() => {
+    return nearbyStores.reduce((acc, s) => {
+      acc[s.id] = s;
+      return acc;
+    }, {} as Record<string, StoreType>);
+  }, [nearbyStores]);
 
   useEffect(() => {
     if (sharedProductId && !loading && filteredDeals.length > 0) {
@@ -271,7 +287,11 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
           <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4 snap-x px-1">
             {matchedProducts.map((product) => (
               <div key={product.id} className="min-w-[300px] snap-center">
-                <ProductCard product={product} profile={profile} />
+                <ProductCard 
+                  product={product} 
+                  profile={profile} 
+                  store={storesMap[product.storeId]}
+                />
               </div>
             ))}
           </div>
@@ -412,10 +432,10 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
           </div>
         </div>
 
-        {loading ? (
-          <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4 shadow-inner">
+        {storesLoading ? (
+          <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4">
             {[1, 2, 3].map(i => (
-              <div key={i} className="min-w-[200px] h-40 bg-white/5 rounded-3xl animate-pulse" />
+              <div key={i} className="min-w-[240px] h-40 bg-white/5 rounded-3xl animate-pulse border border-white/5" />
             ))}
           </div>
         ) : filteredStores.length > 0 ? (
@@ -441,9 +461,9 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
           <button className="text-[10px] font-black text-gray-500 uppercase tracking-widest hover:text-white transition-colors">View All Scan</button>
         </div>
 
-        {loading ? (
-          <div className="grid grid-cols-1 gap-6">
-            {[1, 2].map(i => (
+        {productsLoading ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 px-1">
+            {[1, 2, 3, 4].map(i => (
               <div key={i} className="neon-card h-72 animate-pulse" />
             ))}
           </div>
@@ -454,6 +474,7 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
                 <ProductCard 
                   product={product} 
                   profile={profile} 
+                  store={storesMap[product.storeId]}
                 />
               </div>
             ))}

@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { useParams, useNavigate, Link } from 'react-router-dom';
+import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Star, MessageSquare, ArrowLeft, Share2, Info, Loader2, Sparkles, ShoppingBag, 
@@ -18,10 +18,16 @@ import { useMessaging } from '../components/MessagingProvider';
 export default function ProductDetail({ profile }: { profile: UserProfile | null }) {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [product, setProduct] = useState<Product | null>(null);
-  const [store, setStore] = useState<Store | null>(null);
+  const location = useLocation();
+  
+  // Try to get pre-loaded data from navigation state
+  const preloadedProduct = location.state?.product as Product | undefined;
+  const preloadedStore = location.state?.store as Store | undefined;
+
+  const [product, setProduct] = useState<Product | null>(preloadedProduct || null);
+  const [store, setStore] = useState<Store | null>(preloadedStore || null);
   const [reviews, setReviews] = useState<Review[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(!preloadedProduct);
   const [error, setError] = useState<string | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
@@ -36,8 +42,9 @@ export default function ProductDetail({ profile }: { profile: UserProfile | null
       if (snap.exists()) {
         const productData = { id: snap.id, ...snap.data() } as Product;
         setProduct(productData);
+        setLoading(false);
 
-        // Fetch/Listen to Store if not yet done
+        // Fetch/Listen to Store if not yet done or different
         if (!store || store.id !== productData.storeId) {
           const storeUnsub = onSnapshot(doc(db, 'stores', productData.storeId), (sSnap) => {
             if (sSnap.exists()) {
@@ -47,9 +54,9 @@ export default function ProductDetail({ profile }: { profile: UserProfile | null
           return () => storeUnsub();
         }
       } else {
-        setError("Product not found in local inventory");
+        if (!product) setError("Product not found in local inventory");
+        setLoading(false);
       }
-      setLoading(false);
     }, (err) => {
       handleFirestoreError(err, OperationType.GET, `product-realtime-${id}`);
       setError("Error syncing inventory stream");
@@ -78,27 +85,30 @@ export default function ProductDetail({ profile }: { profile: UserProfile | null
     
     // Create engagement
     try {
-      await addDoc(collection(db, 'engagements'), {
-        productId: id,
-        productName: product.name,
-        customerId: profile.uid,
-        customerName: profile.name || 'User',
-        supplierId: product.ownerId,
-        type: 'interested',
-        createdAt: serverTimestamp()
-      });
+      if (navigator.onLine) {
+        await addDoc(collection(db, 'engagements'), {
+          productId: id,
+          productName: product.name,
+          customerId: profile.uid,
+          customerName: profile.name || 'User',
+          supplierId: product.ownerId,
+          type: 'interested',
+          createdAt: serverTimestamp()
+        });
 
-      // Send notification
-      await interactionService.sendNotification(
-        product.ownerId,
-        'buy',
-        profile,
-        id
-      );
+        // Send notification
+        await interactionService.sendNotification(
+          product.ownerId,
+          'buy',
+          profile,
+          id
+        );
+      }
 
-      // Open chat
-      await startConversation(product.ownerId);
-      navigate('/chat');
+      // Open chat with initial message
+      const initialMsg = `Hie, I am interested in purchasing ${product.name}. Let's discuss delivery/payment.`;
+      const convoId = await startConversation(product.ownerId, initialMsg);
+      navigate(`/chat?id=${convoId}`);
     } catch (err) {
       console.error('Purchase init failed:', err);
     }
@@ -106,71 +116,19 @@ export default function ProductDetail({ profile }: { profile: UserProfile | null
 
   const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!profile || !id || !product) return;
+    if (!profile || !id || !product || !store) return;
 
     setIsSubmittingReview(true);
     try {
-      const reviewData = {
-        productId: id,
-        userId: profile.uid,
-        userName: profile.name || profile.businessName || 'Anonymous User',
-        userAvatar: profile.avatar || '',
-        rating: newReview.rating,
-        comment: newReview.comment,
-        createdAt: serverTimestamp()
-      };
-
-      // Atomic transaction to add review and update product average
-      await runTransaction(db, async (transaction) => {
-        const productRef = doc(db, 'products', id);
-        const pSnap = await transaction.get(productRef);
-        
-        if (!pSnap.exists()) throw new Error("Product missing during review sync");
-
-        const currentData = pSnap.data();
-        const currentCount = currentData.reviewCount || 0;
-        const currentRating = currentData.rating || 0;
-        
-        const newCount = currentCount + 1;
-        const newAverage = ((currentRating * currentCount) + newReview.rating) / newCount;
-
-        // Add review
-        const newReviewRef = doc(collection(db, 'reviews'));
-        transaction.set(newReviewRef, reviewData);
-        
-        // Update product
-        transaction.update(productRef, {
-          rating: newAverage,
-          reviewCount: newCount
-        });
-      });
-
-      // Refresh reviews list
-      const updatedReviewsSnap = await getDocs(query(
-        collection(db, 'reviews'),
-        where('productId', '==', id),
-        orderBy('createdAt', 'desc'),
-        limit(20)
-      ));
-      setReviews(updatedReviewsSnap.docs.map(d => ({ id: d.id, ...d.data() } as Review)));
-      
-      // Update local product state
-      setProduct(prev => prev ? ({
-        ...prev,
-        rating: ((prev.rating || 0) * (prev.reviewCount || 0) + newReview.rating) / ((prev.reviewCount || 0) + 1),
-        reviewCount: (prev.reviewCount || 0) + 1
-      }) : null);
-
-      // Send Notification
-      await interactionService.sendNotification(
-        product.ownerId,
-        'rate',
-        profile,
+      await interactionService.submitReview(
         id,
-        "New Product Rating",
-        `${profile.name || 'A user'} gave ${newReview.rating} stars to ${product.name}`
+        store.id,
+        profile,
+        newReview.rating,
+        newReview.comment,
+        product.ownerId
       );
-
+      
       setNewReview({ rating: 5, comment: '' });
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, 'submit-review');
@@ -212,7 +170,7 @@ export default function ProductDetail({ profile }: { profile: UserProfile | null
     );
   }
 
-  const images = product.images.length > 0 ? product.images : ["https://images.unsplash.com/photo-1555529733-0e670560f7e1?q=80&w=800&auto=format&fit=crop"];
+  const images = (product.images && product.images.length > 0) ? product.images : ["https://images.unsplash.com/photo-1555529733-0e670560f7e1?q=80&w=800&auto=format&fit=crop"];
 
   return (
     <motion.div 

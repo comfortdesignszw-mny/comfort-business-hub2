@@ -15,7 +15,8 @@ import {
   DollarSign,
   Loader2,
   Phone,
-  Share2
+  Share2,
+  Shield
 } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { 
@@ -299,6 +300,28 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
 
   return (
     <div className="p-6 space-y-8 pb-32">
+      {/* Identity Verification Warning */}
+      {!profile.isVerified && (
+        <section className="bg-red-500/10 border border-red-500/20 rounded-[2rem] p-6 flex flex-col md:flex-row items-center gap-6 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 blur-3xl -mr-16 -mt-16 pointer-events-none group-hover:bg-red-500/10 transition-colors"></div>
+          <div className="w-14 h-14 bg-red-500/20 rounded-2xl flex items-center justify-center text-red-500 flex-shrink-0 animate-pulse shadow-[0_0_20px_rgba(239,68,68,0.2)]">
+            <Shield size={28} />
+          </div>
+          <div className="flex-1 text-center md:text-left space-y-1">
+            <h3 className="text-xs font-black text-white uppercase tracking-widest italic">Identity Verification Required</h3>
+            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-relaxed">
+              Your supply chain node is in <span className="text-red-500">Read-Only mode</span>. Verify your email in the Matrix console to unlock production-grade inventory writes and trading protocols.
+            </p>
+          </div>
+          <button 
+            onClick={() => window.open('https://mail.google.com', '_blank')}
+            className="px-6 py-3 bg-red-500 hover:bg-red-400 text-white text-[9px] font-black uppercase tracking-[0.2em] rounded-xl transition-all active:scale-95 shadow-lg shadow-red-500/20"
+          >
+            Check Signals
+          </button>
+        </section>
+      )}
+
       {/* Store Selection & Multiple Stores Support */}
       <section className="flex flex-col gap-4">
         <div className="flex items-center justify-between">

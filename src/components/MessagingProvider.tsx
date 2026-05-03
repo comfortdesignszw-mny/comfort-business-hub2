@@ -1,23 +1,160 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { messaging, db } from '../lib/firebase';
 import { getToken, onMessage } from 'firebase/messaging';
-import { doc, updateDoc } from 'firebase/firestore';
+import { doc, updateDoc, addDoc, collection, serverTimestamp, setDoc } from 'firebase/firestore';
 import { UserProfile } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
-import { Bell, X } from 'lucide-react';
+import { Bell, X, WifiOff, Wifi } from 'lucide-react';
+import { localDB, QueuedMessage } from '../lib/db';
+import { useLiveQuery } from 'dexie-react-hooks';
 
 interface MessagingContextType {
   token: string | null;
   notification: any | null;
+  isOnline: boolean;
+  queuedMessages: QueuedMessage[];
+  sendMessage: (convoId: string, text: string) => Promise<void>;
+  startConversation: (targetUid: string, initialMessage?: string) => Promise<string>;
 }
 
-const MessagingContext = createContext<MessagingContextType>({ token: null, notification: null });
+const MessagingContext = createContext<MessagingContextType>({ 
+  token: null, 
+  notification: null, 
+  isOnline: true, 
+  queuedMessages: [],
+  sendMessage: async () => {},
+  startConversation: async () => ''
+});
 
 export const useMessaging = () => useContext(MessagingContext);
 
 export const MessagingProvider: React.FC<{ children: React.ReactNode, profile: UserProfile | null }> = ({ children, profile }) => {
   const [token, setToken] = useState<string | null>(null);
   const [notification, setNotification] = useState<any>(null);
+  const [isOnline, setIsOnline] = useState(navigator.onLine);
+  
+  const queuedMessages = useLiveQuery(
+    () => localDB.queuedMessages.toArray(),
+    []
+  ) || [];
+
+  useEffect(() => {
+    const handleOnline = () => setIsOnline(true);
+    const handleOffline = () => setIsOnline(false);
+
+    window.addEventListener('online', handleOnline);
+    window.addEventListener('offline', handleOffline);
+
+    return () => {
+      window.removeEventListener('online', handleOnline);
+      window.removeEventListener('offline', handleOffline);
+    };
+  }, []);
+
+  // Sync logic
+  useEffect(() => {
+    if (isOnline && queuedMessages.length > 0 && profile) {
+      const syncMessages = async () => {
+        for (const msg of queuedMessages) {
+          try {
+            // Check if conversation exists, if not, we might have a problem if it was a startConversation offline
+            // But for simplicity, we assume the conversation was created or will be created
+            await addDoc(collection(db, 'conversations', msg.convoId, 'messages'), {
+              conversationId: msg.convoId,
+              senderId: msg.senderId,
+              text: msg.text,
+              type: 'text',
+              createdAt: serverTimestamp()
+            });
+
+            await updateDoc(doc(db, 'conversations', msg.convoId), {
+              lastMessage: msg.text,
+              updatedAt: serverTimestamp()
+            });
+
+            await localDB.queuedMessages.delete(msg.id!);
+          } catch (err) {
+            console.error("Failed to sync message:", err);
+            await localDB.queuedMessages.update(msg.id!, { status: 'failed' });
+          }
+        }
+      };
+      syncMessages();
+    }
+  }, [isOnline, queuedMessages.length, profile?.uid]);
+
+  const sendMessage = async (convoId: string, text: string) => {
+    if (!profile) return;
+
+    if (!isOnline) {
+      await localDB.queuedMessages.add({
+        convoId,
+        senderId: profile.uid,
+        text,
+        createdAt: Date.now(),
+        status: 'pending'
+      });
+      return;
+    }
+
+    try {
+      await addDoc(collection(db, 'conversations', convoId, 'messages'), {
+        conversationId: convoId,
+        senderId: profile.uid,
+        text,
+        type: 'text',
+        createdAt: serverTimestamp()
+      });
+
+      await updateDoc(doc(db, 'conversations', convoId), {
+        lastMessage: text,
+        updatedAt: serverTimestamp()
+      });
+    } catch (err) {
+      await localDB.queuedMessages.add({
+        convoId,
+        senderId: profile.uid,
+        text,
+        createdAt: Date.now(),
+        status: 'pending'
+      });
+    }
+  };
+
+  const startConversation = async (targetUid: string, initialMessage?: string) => {
+    if (!profile) throw new Error("Auth required");
+    
+    const convoId = [profile.uid, targetUid].sort().join('_');
+    
+    // In industry apps, we'd queue the conversation creation too if offline
+    // For now, if offline, we still redirect to chat, and sendMessage will queue the message
+    if (!isOnline) {
+      if (initialMessage) {
+        await sendMessage(convoId, initialMessage);
+      }
+      return convoId;
+    }
+
+    try {
+      await setDoc(doc(db, 'conversations', convoId), {
+        id: convoId,
+        participants: [profile.uid, targetUid],
+        updatedAt: serverTimestamp(),
+        lastMessage: initialMessage || 'Link initiated',
+        initiatorId: profile.uid
+      }, { merge: true });
+
+      if (initialMessage) {
+        await sendMessage(convoId, initialMessage);
+      }
+      return convoId;
+    } catch (err) {
+      if (initialMessage) {
+        await sendMessage(convoId, initialMessage);
+      }
+      return convoId;
+    }
+  };
 
   useEffect(() => {
     if (!profile || !messaging) return;
@@ -79,9 +216,22 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode, profile: U
   }, [profile]);
 
   return (
-    <MessagingContext.Provider value={{ token, notification }}>
+    <MessagingContext.Provider value={{ token, notification, isOnline, queuedMessages, sendMessage, startConversation }}>
       {children}
       <AnimatePresence>
+        {/* Connection Status Toast */}
+        {!isOnline && (
+          <motion.div
+            initial={{ opacity: 0, y: -20 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, scale: 0.9 }}
+            className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] bg-red-500/10 border border-red-500/20 backdrop-blur-md px-4 py-2 rounded-full flex items-center gap-2"
+          >
+            <WifiOff size={12} className="text-red-500 animate-pulse" />
+            <span className="text-[9px] font-black text-red-500 uppercase tracking-widest">Connection Severed • Local Cache Active</span>
+          </motion.div>
+        )}
+        
         {notification && (
           <motion.div
             initial={{ opacity: 0, y: -50 }}
