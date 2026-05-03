@@ -24,25 +24,36 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode, profile: U
 
     const requestPermission = async () => {
       try {
+        if (!('Notification' in window)) {
+          console.log('This browser does not support desktop notifications');
+          return;
+        }
+
         const permission = await Notification.requestPermission();
         if (permission === 'granted') {
           // Get the FCM token
           // Note: In production you'd need a VAPID key: 
           // const currentToken = await getToken(messaging, { vapidKey: 'YOUR_VAPID_KEY' });
-          const currentToken = await getToken(messaging);
-          
-          if (currentToken) {
-            setToken(currentToken);
-            // Store token in Firestore if it changed
-            if (profile.fcmToken !== currentToken) {
-              await updateDoc(doc(db, 'users', profile.uid), {
-                fcmToken: currentToken
-              });
+          // If this fails with permission error, it's usually a missing project config or VAPID key
+          try {
+            const currentToken = await getToken(messaging);
+            
+            if (currentToken) {
+              setToken(currentToken);
+              // Store token in Firestore if it changed
+              if (profile.fcmToken !== currentToken) {
+                await updateDoc(doc(db, 'users', profile.uid), {
+                  fcmToken: currentToken
+                });
+              }
             }
+          } catch (tokenErr) {
+            // Silently fail token retrieval as we have Firestore fallbacks
+            console.warn('FCM Token sync skipped. This is expected if FCM is not fully configured in Firebase Console.', tokenErr);
           }
         }
       } catch (err) {
-        console.error('An error occurred while retrieving token. ', err);
+        console.warn('Notification permission request failed or was denied.', err);
       }
     };
 

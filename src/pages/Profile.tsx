@@ -16,7 +16,8 @@ import ImageInput from '../components/ImageInput';
 export default function Profile({ profile, setProfile }: { profile: UserProfile | null, setProfile: (p: UserProfile) => void }) {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [activeModal, setActiveModal] = useState<'gateway' | 'location' | 'spotlights' | null>(null);
+  const [activeModal, setActiveModal] = useState<'gateway' | 'location' | 'spotlights' | 'delete' | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
   const [editData, setEditData] = useState<Partial<UserProfile>>({});
   const [isPending, startTransition] = useTransition();
   const navigate = useNavigate();
@@ -48,6 +49,61 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
   const handleLogout = () => {
     auth.signOut();
     navigate('/login');
+  };
+
+  const handleDeleteAccount = async () => {
+    if (!profile || !auth.currentUser) return;
+    
+    setIsDeleting(true);
+    try {
+      const uid = profile.uid;
+      
+      // 1. Wipe root collections associated with user
+      const collectionsToWipe = [
+        { name: 'stores', field: 'ownerId' },
+        { name: 'products', field: 'ownerId' },
+        { name: 'reviews', field: 'userId' },
+        { name: 'notifications', field: 'userId' },
+        { name: 'engagements', field: 'customerId' },
+        { name: 'engagements', field: 'supplierId' },
+        { name: 'deals', field: 'customerId' },
+        { name: 'deals', field: 'supplierId' },
+        { name: 'spotlights', field: 'authorId' }
+      ];
+
+      for (const coll of collectionsToWipe) {
+        const q = query(collection(db, coll.name), where(coll.field, '==', uid));
+        const snap = await getDocs(q);
+        const deletePromises = snap.docs.map(d => deleteDoc(doc(db, coll.name, d.id)));
+        await Promise.all(deletePromises);
+      }
+
+      // 2. Wipe Conversations (Special participant check)
+      const convQuery = query(collection(db, 'conversations'), where('participants', 'array-contains', uid));
+      const convSnap = await getDocs(convQuery);
+      const convDeletes = convSnap.docs.map(d => deleteDoc(doc(db, 'conversations', d.id)));
+      await Promise.all(convDeletes);
+
+      // 3. Wipe User Profile
+      await deleteDoc(doc(db, 'users', uid));
+
+      // 4. Final Auth Operation & Logout
+      // Note: Full auth account deletion might require recent login
+      try {
+        await auth.currentUser.delete();
+      } catch (authErr) {
+        console.warn("Auth deletion deferred (re-auth required), signing out instead.");
+      }
+      
+      auth.signOut();
+      navigate('/login');
+    } catch (e) {
+      handleFirestoreError(e, OperationType.DELETE, `account-wipe-${profile.uid}`);
+      alert("Critical failure during identity purge. Please contact system admin.");
+    } finally {
+      setIsDeleting(false);
+      setActiveModal(null);
+    }
   };
 
   const handleUpdateProfile = async (updates: Partial<UserProfile>) => {
@@ -348,14 +404,34 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
         <MenuButton icon={User} label="Identity Uplink" detail="Modify Profile Details" onClick={() => setIsEditing(true)} />
       </section>
 
-      <div className="pt-6 pb-20">
+      <div className="pt-6 pb-20 space-y-8">
         <button 
           onClick={handleLogout}
           className="w-full flex items-center justify-center gap-3 py-5 text-gray-500 font-black uppercase tracking-widest text-[10px] bg-white/5 rounded-2xl border border-white/5 hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/20 transition-all active:scale-95 group"
         >
           <LogOut size={16} className="group-hover:translate-x-1 transition-transform" /> Sign Out from Node
         </button>
-        <div className="flex flex-col items-center mt-8 space-y-2">
+
+        {/* Danger Zone */}
+        <div className="pt-4 border-t border-red-500/10">
+          <div className="bg-red-500/5 border border-red-500/20 rounded-[2rem] p-6 space-y-4">
+            <div className="flex items-center gap-3 text-red-500">
+              <Shield size={18} className="animate-pulse" />
+              <h4 className="text-xs font-black uppercase tracking-widest italic">Identity Danger Zone</h4>
+            </div>
+            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest leading-relaxed">
+              Initiating an account wipe will permanently purge your identity and all associated inventory nodes from the Hub matrix. This cannot be reversed.
+            </p>
+            <button 
+              onClick={() => setActiveModal('delete')}
+              className="w-full py-4 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-2xl text-[10px] font-black uppercase tracking-widest border border-red-500/20 transition-all active:scale-95 shadow-lg shadow-red-500/5 font-black"
+            >
+              Initialize Deletion Protocol
+            </button>
+          </div>
+        </div>
+
+        <div className="flex flex-col items-center mt-4 space-y-2">
           <Zap size={24} className="text-primary/20" />
           <p className="text-[9px] text-gray-700 font-black uppercase tracking-[0.3em]">Comfort Business Hub • v1.0.42</p>
         </div>
@@ -393,6 +469,37 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
               )}
               {activeModal === 'spotlights' && (
                 <SpotlightManager profile={profile} />
+              )}
+              {activeModal === 'delete' && (
+                <div className="space-y-8 text-center py-4">
+                  <div className="w-20 h-20 bg-red-500/20 rounded-3xl flex items-center justify-center text-red-500 mx-auto shadow-[0_0_30px_rgba(239,68,68,0.2)]">
+                    <Trash2 size={40} />
+                  </div>
+                  <div className="space-y-4">
+                    <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter">Terminate Identity?</h3>
+                    <p className="text-sm text-gray-400 font-medium leading-relaxed">
+                      Are you sure you want to delete your account? <br/>
+                      <span className="text-red-500 font-black uppercase text-xs">This action will wipe out all your user data and is not reversible.</span>
+                    </p>
+                  </div>
+                  <div className="space-y-3 pt-4">
+                    <button 
+                      onClick={handleDeleteAccount}
+                      disabled={isDeleting}
+                      className="w-full py-5 bg-red-600 hover:bg-red-500 text-white rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-[0_10px_30px_rgba(220,38,38,0.3)] transition-all active:scale-95 flex items-center justify-center gap-3"
+                    >
+                      {isDeleting ? <Loader2 className="animate-spin" size={18} /> : <Shield size={18} />}
+                      Execute Purge Protocol
+                    </button>
+                    <button 
+                      onClick={() => setActiveModal(null)}
+                      disabled={isDeleting}
+                      className="w-full py-4 text-[10px] font-black text-gray-500 uppercase tracking-widest hover:text-white transition-colors"
+                    >
+                      Abort Mission
+                    </button>
+                  </div>
+                </div>
               )}
             </motion.div>
           </div>

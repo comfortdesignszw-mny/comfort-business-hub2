@@ -29,7 +29,7 @@ service cloud.firestore {
       allow read: if true;
       allow create: if isOwner(userId) && isValidUser(incoming());
       allow update: if isOwner(userId) && isValidUser(incoming()) 
-        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'phone', 'avatar', 'currentRole', 'geohash', 'lat', 'lng', 'businessName', 'businessCategory', 'whatsappUrl', 'requiredProducts', 'location', 'gateway', 'isVerified', 'updatedAt']);
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'phone', 'avatar', 'currentRole', 'geohash', 'lat', 'lng', 'businessName', 'businessCategory', 'whatsappUrl', 'requiredProducts', 'location', 'gateway', 'isVerified', 'fcmToken', 'updatedAt']);
     }
 
     // Stores
