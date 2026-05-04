@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Store as StoreIcon, MapPin, Star, MessageSquare, ArrowLeft, Share2, 
-  Info, Loader2, Building2, Zap, ShoppingBag, Heart, UserPlus, Navigation, Camera, Check, X
+  Info, Loader2, Building2, Zap, ShoppingBag, Heart, UserPlus, Navigation, Camera, Check, X, Edit3, Plus
 } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { doc, getDoc, collection, query, where, getDocs, onSnapshot, limit, updateDoc } from 'firebase/firestore';
@@ -29,25 +29,41 @@ L.Marker.prototype.options.icon = DefaultIcon;
 export function StoreDetailContent({ store, profile, showMap = true, allowEdit = true }: { store: StoreType, profile: UserProfile | null, showMap?: boolean, allowEdit?: boolean }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  
+  // Store Edit State
   const [isEditingCover, setIsEditingCover] = useState(false);
-  const [newCover, setNewCover] = useState('');
-  const [isSavingCover, setIsSavingCover] = useState(false);
-  const navigate = useNavigate();
+  const [isEditingInfo, setIsEditingInfo] = useState(false);
+  const [editData, setEditData] = useState<Partial<StoreType>>({});
+  const [isSaving, setIsSaving] = useState(false);
+  const [localCover, setLocalCover] = useState<string | null>(null);
 
+  const navigate = useNavigate();
   const isOwner = allowEdit && profile?.uid === store.ownerId;
 
-  const handleUpdateCover = async () => {
-    if (!store.id || !newCover) return;
-    setIsSavingCover(true);
+  // Sync local cover with store prop
+  useEffect(() => {
+    if (!isEditingCover) {
+      setLocalCover(store.coverPhoto || null);
+    }
+  }, [store.coverPhoto, isEditingCover]);
+
+  const handleUpdateStore = async (updates: Partial<StoreType>) => {
+    if (!store.id) return;
+    setIsSaving(true);
     try {
       await updateDoc(doc(db, 'stores', store.id), {
-        coverPhoto: newCover
+        ...updates,
+        updatedAt: new Date().toISOString()
       });
+      if (updates.coverPhoto !== undefined) {
+        setLocalCover(updates.coverPhoto || null);
+      }
       setIsEditingCover(false);
+      setIsEditingInfo(false);
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `stores/${store.id}`);
     } finally {
-      setIsSavingCover(false);
+      setIsSaving(false);
     }
   };
 
@@ -85,27 +101,31 @@ export function StoreDetailContent({ store, profile, showMap = true, allowEdit =
 
   return (
     <div className="space-y-8 pb-12">
-      <header className="relative py-4 sm:py-12 rounded-[2.5rem] overflow-hidden neon-card">
-         <div className="absolute inset-0 z-0">
+       <header className="relative py-4 sm:py-12 rounded-[2.5rem] overflow-hidden neon-card border-none bg-[#0d1117] shadow-2xl">
+         <div className="absolute inset-0 z-0 h-full w-full">
           <img 
-            src={store.coverPhoto || "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&q=80"} 
-            className="w-full h-full object-cover opacity-30" 
+            src={(isEditingCover && editData.coverPhoto) ? editData.coverPhoto : (localCover || "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&q=80")} 
+            className="w-full h-full object-cover opacity-60 brightness-90 saturate-[1.2] scale-105 transition-all duration-700" 
             alt="Banner" 
             referrerPolicy="no-referrer" 
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.src = "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&q=80";
+            }}
           />
-          <div className="absolute inset-0 bg-gradient-to-t from-[#05070a] via-[#05070a]/60 to-transparent"></div>
+          <div className="absolute inset-0 bg-gradient-to-t from-[#05070a] via-[#05070a]/20 to-transparent"></div>
         </div>
 
         {isOwner && (
-          <div className="absolute top-6 right-6 z-20">
+          <div className="absolute top-6 right-6 z-20 flex gap-2">
             {isEditingCover ? (
               <div className="flex gap-2">
                 <button 
-                  onClick={handleUpdateCover}
-                  disabled={isSavingCover}
+                  onClick={() => handleUpdateStore({ coverPhoto: editData.coverPhoto })}
+                  disabled={isSaving}
                   className="w-10 h-10 bg-neon-green/20 backdrop-blur-md rounded-xl flex items-center justify-center text-neon-green border border-neon-green/30 hover:bg-neon-green hover:text-black transition-all"
                 >
-                  {isSavingCover ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
+                  {isSaving ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
                 </button>
                 <button 
                   onClick={() => setIsEditingCover(false)}
@@ -115,15 +135,46 @@ export function StoreDetailContent({ store, profile, showMap = true, allowEdit =
                 </button>
               </div>
             ) : (
-              <button 
-                onClick={() => {
-                  setNewCover(store.coverPhoto || '');
-                  setIsEditingCover(true);
-                }}
-                className="flex items-center gap-2 bg-black/40 backdrop-blur-md px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-white border border-white/10 hover:bg-primary hover:text-black transition-all"
-              >
-                <Camera size={14} /> Adjust Matrix Cover
-              </button>
+              <>
+                <button 
+                  onClick={() => {
+                    if (isEditingInfo) {
+                       handleUpdateStore({ name: editData.name, address: editData.address });
+                    } else {
+                       setIsEditingInfo(true);
+                       setEditData({ name: store.name, address: store.address });
+                    }
+                  }}
+                  className={cn(
+                    "flex items-center gap-2 backdrop-blur-md px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest border transition-all",
+                    isEditingInfo 
+                      ? "bg-neon-green text-black border-neon-green shadow-[0_0_15px_rgba(57,255,20,0.3)]" 
+                      : "bg-black/40 text-white border-white/10 hover:bg-white/10"
+                  )}
+                >
+                  {isEditingInfo ? (isSaving ? <Loader2 size={14} className="animate-spin" /> : <Check size={14} />) : <Edit3 size={14} />} 
+                  {isEditingInfo ? 'Commit Changes' : 'Manage Profile'}
+                </button>
+                {isEditingInfo && (
+                  <button 
+                    onClick={() => setIsEditingInfo(false)}
+                    className="w-10 h-10 bg-white/5 backdrop-blur-md rounded-xl flex items-center justify-center text-white border border-white/10 hover:bg-white/10 transition-all"
+                  >
+                    <X size={18} />
+                  </button>
+                )}
+                {!isEditingInfo && (
+                  <button 
+                    onClick={() => {
+                      setEditData({ coverPhoto: store.coverPhoto || '' });
+                      setIsEditingCover(true);
+                    }}
+                    className="flex items-center gap-2 bg-black/40 backdrop-blur-md px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-white border border-white/10 hover:bg-primary hover:text-black transition-all"
+                  >
+                    <Camera size={14} /> Adjust Matrix Cover
+                  </button>
+                )}
+              </>
             )}
           </div>
         )}
@@ -132,8 +183,8 @@ export function StoreDetailContent({ store, profile, showMap = true, allowEdit =
           {isEditingCover && isOwner ? (
             <div className="w-full max-w-lg mb-8">
                <ImageInput 
-                value={newCover} 
-                onChange={setNewCover}
+                value={editData.coverPhoto || ''} 
+                onChange={(val) => setEditData(prev => ({ ...prev, coverPhoto: val }))}
                 label="Store Cover Photo (Recommended: Landscape)"
                 aspectRatio="video"
               />
@@ -146,12 +197,39 @@ export function StoreDetailContent({ store, profile, showMap = true, allowEdit =
             </div>
           )}
           
-          <div className="space-y-0.5 sm:space-y-1">
-            <h2 className="text-sm sm:text-3xl font-black text-white italic uppercase tracking-tighter leading-tight">{store.name}</h2>
-            <div className="flex items-center justify-center gap-1 sm:gap-2">
-              <MapPin size={8} className="text-primary" />
-              <p className="text-[7px] sm:text-[10px] text-gray-400 font-bold uppercase tracking-widest">{store.category} • {store.address || 'Local Hub'}</p>
-            </div>
+          <div className="space-y-0.5 sm:space-y-1 w-full max-w-lg">
+            {isEditingInfo && isOwner ? (
+              <div className="space-y-3 pt-4">
+                <div className="space-y-1">
+                   <label className="text-[8px] font-black text-primary uppercase tracking-[0.2em] block mb-1">Entity Name</label>
+                   <input 
+                    type="text"
+                    placeholder="Node Identifier"
+                    value={editData.name ?? store.name}
+                    onChange={e => setEditData(prev => ({ ...prev, name: e.target.value }))}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-center font-black italic uppercase tracking-tighter outline-none focus:border-primary/40"
+                  />
+                </div>
+                <div className="space-y-1">
+                   <label className="text-[8px] font-black text-primary uppercase tracking-[0.2em] block mb-1">Geographic Manifestation</label>
+                   <input 
+                    type="text"
+                    placeholder="Physical Hub Address"
+                    value={editData.address ?? store.address}
+                    onChange={e => setEditData(prev => ({ ...prev, address: e.target.value }))}
+                    className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-[10px] text-center font-bold outline-none focus:border-primary/40"
+                  />
+                </div>
+              </div>
+            ) : (
+              <>
+                <h2 className="text-sm sm:text-3xl font-black text-white italic uppercase tracking-tighter leading-tight">{store.name}</h2>
+                <div className="flex items-center justify-center gap-1 sm:gap-2">
+                  <MapPin size={8} className="text-primary" />
+                  <p className="text-[7px] sm:text-[10px] text-gray-400 font-bold uppercase tracking-widest">{store.category} • {store.address || 'Local Hub'}</p>
+                </div>
+              </>
+            )}
           </div>
 
           <div className="flex flex-wrap justify-center gap-2">
@@ -254,7 +332,18 @@ export function StoreDetailContent({ store, profile, showMap = true, allowEdit =
             <ShoppingBag size={20} className="text-primary" />
             Inventory Node
           </h3>
-          <span className="text-[9px] font-black text-neon-green uppercase tracking-widest">{products.length} Items Live</span>
+          <div className="flex items-center gap-4">
+            <span className="text-[9px] font-black text-neon-green uppercase tracking-widest">{products.length} Items Live</span>
+            {isOwner && (
+              <button 
+                onClick={() => navigate('/stores', { state: { activeTab: 'manage', showProductForm: true, activeStore: store } })}
+                className="w-8 h-8 bg-primary/20 rounded-lg border border-primary/20 flex items-center justify-center text-primary hover:bg-primary hover:text-black transition-all"
+                title="Add New Entry"
+              >
+                <Plus size={18} />
+              </button>
+            )}
+          </div>
         </div>
 
         {loading ? (
@@ -270,6 +359,9 @@ export function StoreDetailContent({ store, profile, showMap = true, allowEdit =
                   product={p} 
                   profile={profile} 
                   store={store}
+                  isOwner={isOwner}
+                  onEdit={(prod) => navigate('/stores', { state: { activeTab: 'manage', editProduct: prod, activeStore: store } })}
+                  onDelete={() => navigate('/stores', { state: { activeTab: 'manage', activeStore: store } })}
                 />
               ))
             ) : (

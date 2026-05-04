@@ -29,8 +29,13 @@ service cloud.firestore {
 
     function isValidStore(data) {
       return data.ownerId == request.auth.uid
-        && data.name is string && data.name.size() >= 2 && data.name.size() <= 100
-        && data.geohash is string && data.geohash.size() <= 32;
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 500
+        && (!('geohash' in data) || data.geohash == null || (data.geohash is string && data.geohash.size() <= 128))
+        && (!('category' in data) || data.category == null || (data.category is string && data.category.size() <= 200))
+        && (!('description' in data) || data.description == null || (data.description is string && data.description.size() <= 10000))
+        && (!('logo' in data) || data.logo == null || (data.logo is string && data.logo.size() <= 1000000))
+        && (!('coverPhoto' in data) || data.coverPhoto == null || (data.coverPhoto is string && data.coverPhoto.size() <= 1000000))
+        && (!('address' in data) || data.address == null || (data.address is string && data.address.size() <= 1000));
     }
 
     function isValidProduct(data) {
@@ -51,15 +56,17 @@ service cloud.firestore {
       allow read: if isSignedIn();
       allow create: if isOwner(userId) && isValidUser(incoming());
       allow update: if isOwner(userId) && isValidUser(incoming())
-        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'phone', 'avatar', 'currentRole', 'geohash', 'lat', 'lng', 'businessName', 'businessCategory', 'whatsappUrl', 'requiredProducts', 'location', 'gateway', 'isVerified', 'fcmToken', 'updatedAt']);
+        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'phone', 'avatar', 'currentRole', 'geohash', 'lat', 'lng', 'businessName', 'businessCategory', 'whatsappUrl', 'requiredProducts', 'location', 'gateway', 'isVerified', 'fcmToken', 'updatedAt', '_syncedAt', 'uid']);
     }
 
     match /stores/{storeId} {
       allow read: if true;
       allow create: if isVerified() && isValidStore(incoming()) && isValidId(storeId);
       allow update: if isSignedIn() && (
-        (isOwner(existing().ownerId) && isValidStore(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'contactNumbers', 'email', 'category', 'logo', 'geohash', 'lat', 'lng', 'updatedAt', 'followerCount', 'likeCount']))
-        || (incoming().diff(existing()).affectedKeys().hasOnly(['followerCount', 'likeCount']))
+        (isOwner(existing().ownerId) && isValidStore(incoming()) 
+          && incoming().ownerId == existing().ownerId
+          && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'contactNumbers', 'email', 'category', 'logo', 'coverPhoto', 'address', 'specificBusinessType', 'geohash', 'lat', 'lng', 'updatedAt', 'followerCount', 'likeCount', 'ownerId', '_syncedAt']))
+        || (incoming().diff(existing()).affectedKeys().hasOnly(['followerCount', 'likeCount']) && incoming().ownerId == existing().ownerId)
       );
       allow delete: if isOwner(existing().ownerId);
     }
@@ -69,7 +76,10 @@ service cloud.firestore {
       allow create: if isVerified() && isValidProduct(incoming()) && isValidId(productId)
         && get(/databases/$(database)/documents/stores/$(incoming().storeId)).data.ownerId == request.auth.uid;
       allow update: if isSignedIn() && (
-        (isOwner(existing().ownerId) && isValidProduct(incoming()) && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'price', 'currency', 'category', 'images', 'buyButtonType', 'buyButtonLink', 'isActive', 'rating', 'reviewCount', 'likeCount', 'updatedAt']))
+        (isOwner(existing().ownerId) && isValidProduct(incoming()) 
+          && incoming().ownerId == existing().ownerId
+          && incoming().storeId == existing().storeId
+          && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'price', 'currency', 'category', 'images', 'buyButtonType', 'buyButtonLink', 'isActive', 'rating', 'reviewCount', 'likeCount', 'updatedAt', 'ownerId', 'storeId', '_syncedAt']))
         || (incoming().diff(existing()).affectedKeys().hasOnly(['rating', 'reviewCount', 'likeCount']))
       );
       allow delete: if isOwner(existing().ownerId);
@@ -79,7 +89,7 @@ service cloud.firestore {
       allow read: if isOwner(existing().userId);
       allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
       allow create: if isSignedIn() && isValidNotification(incoming());
-      allow update: if isOwner(existing().userId) && incoming().diff(existing()).affectedKeys().hasOnly(['read', 'updatedAt']);
+      allow update: if isOwner(existing().userId) && incoming().diff(existing()).affectedKeys().hasOnly(['read', 'updatedAt', '_syncedAt']);
       allow delete: if isOwner(existing().userId);
     }
 
@@ -132,7 +142,7 @@ service cloud.firestore {
     match /spotlights/{id} {
       allow read: if true;
       allow create: if isVerified() && incoming().authorId == request.auth.uid;
-      allow update, delete: if isOwner(existing().authorId);
+      allow update, delete: if isOwner(existing().authorId) && (request.method == 'delete' || incoming().diff(existing()).affectedKeys().hasOnly(['title', 'content', 'type', 'date', 'location', 'image', 'isActive', 'updatedAt', '_syncedAt', 'authorId']));
     }
   }
 }

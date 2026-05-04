@@ -26,6 +26,15 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
   const [userCount, setUserCount] = useState<number | null>(null);
   const [spotlights, setSpotlights] = useState<Spotlight[]>([]);
   const [activeSpotlightIndex, setActiveSpotlightIndex] = useState(0);
+
+  // Auto-rotate spotlights
+  useEffect(() => {
+    if (spotlights.length <= 1) return;
+    const interval = setInterval(() => {
+      setActiveSpotlightIndex(prev => (prev + 1) % spotlights.length);
+    }, 6000);
+    return () => clearInterval(interval);
+  }, [spotlights.length]);
   const [filteredDeals, setFilteredDeals] = useState<Product[]>([]);
   const [filteredStores, setFilteredStores] = useState<StoreType[]>([]);
   const [searchParams] = useSearchParams();
@@ -100,7 +109,7 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
     });
 
     // Real-time listener for stores
-    const sq = query(collection(db, 'stores'), limit(20));
+    const sq = query(collection(db, 'stores'), limit(100));
     const unsubscribeStores = onSnapshot(sq, (snapshot) => {
       const allStores = snapshot.docs.map(doc => ({
         id: doc.id,

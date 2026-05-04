@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Zap, ShoppingBag, ArrowRight, MessageSquare, Phone, Check, Loader2, MapPinned, CreditCard, Share2, X, Info, Star, Store as StoreIcon
+  Zap, ShoppingBag, ArrowRight, MessageSquare, Phone, Check, Loader2, MapPinned, CreditCard, Share2, X, Info, Star, Store as StoreIcon, Edit3, Trash2
 } from 'lucide-react';
 import { UserProfile, Product, Store } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
@@ -16,12 +16,18 @@ export default function ProductCard({
   product, 
   profile, 
   store: initialStore,
-  onAction 
+  onAction,
+  isOwner = false,
+  onEdit,
+  onDelete
 }: { 
   product: Product, 
   profile: UserProfile | null, 
   store?: Store,
   onAction?: (prod: Product) => void, 
+  isOwner?: boolean,
+  onEdit?: (prod: Product) => void,
+  onDelete?: (prod: Product) => void,
   key?: React.Key 
 }) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -198,6 +204,23 @@ export default function ProductCard({
           >
             <Share2 size={14} />
           </button>
+
+          {isOwner && (
+            <div className="absolute top-4 right-14 flex gap-2 z-20">
+              <button 
+                onClick={(e) => { e.stopPropagation(); onEdit?.(product); }}
+                className="p-2 bg-primary/20 backdrop-blur-md rounded-xl border border-primary/30 text-primary hover:bg-primary hover:text-black transition-all shadow-xl"
+              >
+                <Edit3 size={14} />
+              </button>
+              <button 
+                onClick={(e) => { e.stopPropagation(); onDelete?.(product); }}
+                className="p-2 bg-red-500/20 backdrop-blur-md rounded-xl border border-red-500/30 text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-xl"
+              >
+                <Trash2 size={14} />
+              </button>
+            </div>
+          )}
         </div>
 
         <div className="p-5 space-y-4 relative">

@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { 
   Store as StoreIcon, Search, MapPin, Star, ArrowRight, Building2, 
-  MapPinned, SlidersHorizontal, ArrowLeft, Check, Sparkles
+  MapPinned, SlidersHorizontal, ArrowLeft, Check, Sparkles, Package
 } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { collection, query, limit, onSnapshot, where } from 'firebase/firestore';
@@ -22,7 +22,7 @@ export default function StoresHub({ profile }: { profile: UserProfile | null }) 
 
   useEffect(() => {
     setLoading(true);
-    const sq = query(collection(db, 'stores'), limit(50));
+    const sq = query(collection(db, 'stores'), limit(100));
     const unsubscribe = onSnapshot(sq, (snapshot) => {
       setStores(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StoreType)));
       setLoading(false);
@@ -46,82 +46,118 @@ export default function StoresHub({ profile }: { profile: UserProfile | null }) 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="p-4 space-y-8 pb-32"
+      className="p-4 sm:p-8 space-y-12 pb-32 max-w-7xl mx-auto"
     >
-      {profile?.currentRole === 'supplier' && (
-        <div className="flex p-1 bg-white/5 border border-white/5 rounded-2xl w-fit mx-auto lg:mx-0">
-          <button
-            onClick={() => setActiveTab('browse')}
-            className={cn(
-              "px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-              activeTab === 'browse' ? "bg-primary text-[#05070a] shadow-lg" : "text-gray-500 hover:text-white"
-            )}
-          >
-            Directory
-          </button>
-          <button
-            onClick={() => setActiveTab('manage')}
-            className={cn(
-              "px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all",
-              activeTab === 'manage' ? "bg-primary text-[#05070a] shadow-lg" : "text-gray-500 hover:text-white"
-            )}
-          >
-            Management
-          </button>
+      <header className="flex flex-col lg:flex-row lg:items-end justify-between gap-8">
+        <div className="space-y-4">
+          <div className="flex items-center gap-3">
+             <div className="h-px w-8 bg-primary/50"></div>
+             <p className="text-[10px] text-primary font-black uppercase tracking-[0.3em]">Business Directory</p>
+          </div>
+          <h1 className="text-4xl sm:text-6xl font-black text-white italic uppercase tracking-tighter leading-none">
+            Stores <span className="text-outline-white">Hub</span>
+          </h1>
+          <p className="text-gray-500 text-xs sm:text-sm font-medium max-w-md">
+            Verified local supply nodes integrated within the Comfort Enterprise Matrix.
+          </p>
         </div>
-      )}
+
+        <div className="flex flex-col sm:flex-row gap-4 items-center">
+          {profile?.currentRole === 'supplier' && (
+            <div className="flex p-1 bg-white/5 border border-white/5 rounded-2xl w-full sm:w-fit">
+              <button
+                onClick={() => setActiveTab('browse')}
+                className={cn(
+                  "px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all w-1/2 sm:w-auto",
+                  activeTab === 'browse' ? "bg-primary text-[#05070a] shadow-[0_10px_20px_rgba(0,242,254,0.2)]" : "text-gray-500 hover:text-white"
+                )}
+              >
+                Browse
+              </button>
+              <button
+                onClick={() => setActiveTab('manage')}
+                className={cn(
+                  "px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all w-1/2 sm:w-auto",
+                  activeTab === 'manage' ? "bg-primary text-[#05070a] shadow-[0_10px_20px_rgba(0,242,254,0.2)]" : "text-gray-500 hover:text-white"
+                )}
+              >
+                Manage
+              </button>
+            </div>
+          )}
+        </div>
+      </header>
 
       {activeTab === 'manage' && profile?.currentRole === 'supplier' ? (
         <SupplierDashboard profile={profile} />
       ) : (
-        <>
-          <header className="space-y-4">
-            <div className="flex items-center gap-4">
-              <div className="w-12 h-12 bg-primary/20 rounded-2xl flex items-center justify-center text-primary shadow-[0_0_15px_rgba(0,242,254,0.2)]">
-                <StoreIcon size={24} />
+        <div className="space-y-12">
+          {/* Featured Nodes */}
+          {!loading && stores.length > 0 && (
+            <section className="space-y-6">
+              <div className="flex items-center justify-between px-1">
+                <div className="flex items-center gap-2">
+                  <Sparkles size={18} className="text-primary" />
+                  <h2 className="text-sm font-black text-white uppercase tracking-widest italic">Vanguard Nodes</h2>
+                </div>
               </div>
-              <div>
-                <h1 className="text-2xl font-black text-white italic uppercase tracking-tighter leading-none">Stores Hub</h1>
-                <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest mt-1">Matrix Verified Supply Nodes</p>
+              <div className="flex gap-6 overflow-x-auto no-scrollbar pb-4 -mx-1 px-1">
+                {stores.slice(0, 3).map(store => (
+                   <motion.div 
+                    key={`featured-${store.id}`}
+                    whileHover={{ scale: 1.02 }}
+                    className="flex-shrink-0 w-[240px] h-[140px] rounded-[1.5rem] bg-[#0d1117] border border-white/5 overflow-hidden relative group cursor-pointer"
+                    onClick={() => navigate(`/store/${store.id}`)}
+                   >
+                     <img 
+                      src={store.coverPhoto || "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&q=80"} 
+                      className="w-full h-full object-cover opacity-40 group-hover:opacity-60 transition-opacity"
+                      alt={store.name}
+                     />
+                     <div className="absolute inset-0 bg-gradient-to-t from-[#0d1117] via-transparent to-transparent"></div>
+                     <div className="absolute bottom-4 left-4 right-4">
+                       <p className="text-[10px] font-black text-white uppercase tracking-tighter italic truncate">{store.name}</p>
+                       <p className="text-[8px] text-primary font-bold uppercase tracking-widest">{store.category}</p>
+                     </div>
+                   </motion.div>
+                ))}
               </div>
-            </div>
+            </section>
+          )}
 
-            <div className="relative group">
-              <div className="absolute -inset-0.5 bg-gradient-to-r from-primary to-accent rounded-2xl blur opacity-20 group-focus-within:opacity-40 transition duration-1000"></div>
-              <div className="relative flex items-center bg-[#0d1117] border border-white/5 rounded-2xl overflow-hidden shadow-2xl">
-                <Search className="ml-4 text-gray-500 group-focus-within:text-primary transition-colors" size={20} />
-                <input 
-                  type="text" 
-                  placeholder="Search business nodes..."
-                  className="w-full pl-3 pr-12 py-5 bg-transparent text-white placeholder-gray-600 outline-none font-medium"
-                  value={searchTerm}
-                  onChange={(e) => setSearchTerm(e.target.value)}
-                />
-              </div>
+          <div className="grid grid-cols-1 lg:grid-cols-12 gap-8 items-center">
+            <div className="lg:col-span-8 relative group">
+              <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-primary transition-colors" size={20} />
+              <input 
+                type="text" 
+                placeholder="Search nodes by name, identifier or sector..."
+                className="w-full pl-16 pr-6 py-6 bg-white/[0.02] border border-white/5 rounded-[2rem] text-white placeholder-gray-600 outline-none focus:border-primary/30 transition-all font-medium text-lg"
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+              />
             </div>
-
-            <div className="flex gap-2 overflow-x-auto no-scrollbar pb-2">
+            <div className="lg:col-span-4 flex gap-2 overflow-x-auto no-scrollbar py-2">
               {['All', ...BUSINESS_CATEGORIES].map(cat => (
                 <button
                   key={cat}
                   onClick={() => setActiveCategory(cat)}
                   className={cn(
-                    "px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all",
+                    "px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border",
                     activeCategory === cat 
-                      ? "bg-primary text-[#05070a] shadow-[0_0_15px_rgba(0,242,254,0.3)]" 
-                      : "bg-white/5 text-gray-500 border border-white/5 hover:border-white/10"
+                      ? "bg-primary border-primary text-[#05070a] shadow-[0_10px_20px_rgba(0,242,254,0.1)]" 
+                      : "bg-white/5 text-gray-500 border-white/5 hover:border-white/20"
                   )}
                 >
                   {cat}
                 </button>
               ))}
             </div>
-          </header>
+          </div>
 
-          <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
             {loading ? (
               Array.from({ length: 6 }).map((_, i) => (
-                <div key={i} className="neon-card h-48 animate-pulse" />
+                <div key={i} className="h-64 bg-white/5 rounded-[2.5rem] animate-pulse" />
               ))
             ) : filteredStores.map(store => (
               <React.Fragment key={store.id}>
@@ -130,18 +166,20 @@ export default function StoresHub({ profile }: { profile: UserProfile | null }) 
             ))}
 
             {!loading && filteredStores.length === 0 && (
-              <div className="col-span-full py-20 text-center space-y-4">
-                 <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto text-gray-800">
+              <div className="col-span-full py-32 text-center space-y-6">
+                 <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto text-gray-800 border border-white/5">
                   <StoreIcon size={32} />
                 </div>
-                <p className="text-[10px] font-black text-gray-600 uppercase tracking-widest italic leading-relaxed">
-                  No active nodes detected within <br/> 
-                  <span className="text-primary">{activeCategory}</span> sector matching "{searchTerm}"
-                </p>
+                <div className="space-y-2">
+                  <p className="text-xl font-bold text-white italic uppercase tracking-tight">No match detected</p>
+                  <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest italic leading-relaxed">
+                    Zero active nodes in <span className="text-primary">{activeCategory}</span> sector matching "{searchTerm}"
+                  </p>
+                </div>
               </div>
             )}
           </section>
-        </>
+        </div>
       )}
     </motion.div>
   );
@@ -156,8 +194,7 @@ function StoreCard({ store, profile }: StoreCardProps) {
   const navigate = useNavigate();
   return (
     <motion.div 
-      whileHover={{ y: -5 }}
-      whileTap={{ scale: 0.98 }}
+      whileHover={{ y: -8 }}
       onClick={() => {
         if (!profile) {
           navigate('/login');
@@ -165,43 +202,81 @@ function StoreCard({ store, profile }: StoreCardProps) {
         }
         navigate(`/store/${store.id}`);
       }}
-      className="neon-card p-5 space-y-4 cursor-pointer group"
+      className="group relative bg-[#0d1117] border border-white/5 rounded-[2.5rem] overflow-hidden cursor-pointer hover:border-primary/40 transition-all duration-500 shadow-2xl flex flex-col h-full"
     >
-      <div className="flex items-center gap-4">
-        <div className="w-16 h-16 rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 border border-white/10 flex items-center justify-center text-primary font-black text-xl shadow-[0_0_15px_rgba(0,242,254,0.1)] group-hover:scale-110 transition-transform overflow-hidden">
-          {store.logo ? (
-            <img src={store.logo} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-          ) : (
-            store.name.charAt(0)
-          )}
+      {/* Visual Identity Block */}
+      <div className="aspect-[16/10] relative overflow-hidden bg-[#05070a]">
+        <img 
+          src={store.coverPhoto || "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&q=80"} 
+          className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 opacity-40 group-hover:opacity-70"
+          alt={store.name}
+          referrerPolicy="no-referrer"
+        />
+        <div className="absolute inset-0 bg-gradient-to-t from-[#0d1117] via-[#0d1117]/20 to-transparent"></div>
+        
+        {/* Verification Status */}
+        <div className="absolute top-4 left-4 flex items-center gap-2 px-3 py-1 bg-black/60 backdrop-blur-md rounded-full border border-white/10">
+          <div className="w-1.5 h-1.5 rounded-full bg-neon-green shadow-[0_0_8px_#39FF14]"></div>
+          <span className="text-[8px] font-black text-white uppercase tracking-widest">Active Node</span>
         </div>
-        <div className="flex-1 space-y-1">
-          <div className="flex items-center gap-2">
-            <h3 className="text-sm font-black text-white uppercase tracking-tight group-hover:text-primary transition-colors italic">{store.name}</h3>
-            <div className="w-2.5 h-2.5 bg-neon-green rounded-full shadow-[0_0_5px_#39FF14]"></div>
-          </div>
-          <div className="flex items-center gap-1.5 text-[8px] text-gray-500 font-black uppercase tracking-widest bg-white/5 px-2 py-1 rounded border border-white/5 w-fit">
-            <Building2 size={10} className="text-primary" /> {store.category}
-          </div>
+
+        {/* Rating Floating Badge */}
+        <div className="absolute top-4 right-4 bg-primary/20 backdrop-blur-md px-3 py-1.5 rounded-full border border-primary/20 flex items-center gap-1.5">
+          <Star size={10} className="fill-primary text-primary" />
+          <span className="text-[10px] font-black text-white">{store.rating.toFixed(1)}</span>
         </div>
       </div>
 
-      <p className="text-[10px] text-gray-400 font-medium line-clamp-2 leading-relaxed min-h-[30px]">
-        {store.description}
-      </p>
-
-      <div className="flex items-center justify-between pt-4 border-t border-white/5">
-        <div className="flex items-center gap-3">
-          <div className="flex items-center gap-1">
-            <Star size={12} className="fill-primary text-primary" />
-            <span className="text-xs font-black text-white">{store.rating.toFixed(1)}</span>
-            <span className="text-[10px] text-gray-600 font-black ml-1">({store.reviewCount})</span>
+      {/* Content Block */}
+      <div className="p-6 flex-1 flex flex-col justify-between">
+        <div className="space-y-4">
+          <div className="flex items-start justify-between gap-4">
+            <div className="space-y-1.5">
+              <h3 className="text-xl font-black text-white uppercase tracking-tighter italic group-hover:text-primary transition-colors leading-tight">
+                {store.name}
+              </h3>
+              <div className="flex items-center gap-2 flex-wrap">
+                 <span className="text-[9px] text-primary font-black uppercase tracking-widest bg-primary/10 px-2 py-0.5 rounded border border-primary/10">
+                   {store.category}
+                 </span>
+                 <span className="text-[8px] text-gray-500 font-bold uppercase tracking-wider flex items-center gap-1">
+                   <MapPin size={8} /> {store.address || 'Local Matrix'}
+                 </span>
+              </div>
+            </div>
+            
+            <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center p-2.5 group-hover:border-primary/40 group-hover:bg-primary/5 transition-all duration-500 flex-shrink-0">
+              {store.logo ? (
+                <img src={store.logo} className="w-full h-full object-contain filter group-hover:brightness-110 transition-all" referrerPolicy="no-referrer" />
+              ) : (
+                <StoreIcon size={24} className="text-gray-500 group-hover:text-primary" />
+              )}
+            </div>
           </div>
+
+          <p className="text-[11px] text-gray-500 font-medium line-clamp-2 leading-relaxed opacity-80 group-hover:opacity-100 transition-opacity">
+            {store.description}
+          </p>
         </div>
-        <div className="flex items-center gap-2 text-[10px] text-primary font-black uppercase tracking-widest group-hover:translate-x-1 transition-transform">
-          Connect <ArrowRight size={14} />
+
+        <div className="pt-6 mt-6 border-t border-white/5 flex items-center justify-between">
+           <div className="flex items-center gap-4 text-gray-600">
+             <div className="flex items-center gap-1.5">
+               <Package size={12} className="text-primary/60" />
+               <span className="text-[9px] font-black uppercase tracking-widest">Inventory Live</span>
+             </div>
+           </div>
+           <motion.div 
+             className="flex items-center gap-2 text-[10px] text-primary font-black uppercase tracking-widest"
+             whileHover={{ x: 4 }}
+           >
+             Open Interface <ArrowRight size={14} />
+           </motion.div>
         </div>
       </div>
+      
+      {/* Decorative Accent */}
+      <div className="absolute bottom-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-primary/0 to-transparent group-hover:via-primary transition-all duration-700"></div>
     </motion.div>
   );
 }

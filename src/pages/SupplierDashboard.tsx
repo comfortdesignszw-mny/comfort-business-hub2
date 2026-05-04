@@ -28,6 +28,7 @@ import {
   getDocs, 
   updateDoc, 
   doc,
+  onSnapshot
 } from 'firebase/firestore';
 import { UserProfile, Store, Product, BuyButtonType } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
@@ -40,6 +41,8 @@ import { geohashForLocation } from 'geofire-common';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
+
+import { useLocation } from 'react-router-dom';
 
 // Fix for default marker icon in Leaflet
 const DefaultIcon = L.icon({
@@ -75,6 +78,7 @@ const initialForm: ProductForm = {
 };
 
 export default function SupplierDashboard({ profile }: { profile: UserProfile }) {
+  const location = useLocation();
   const [stores, setStores] = useState<Store[]>([]);
   const [activeStore, setActiveStore] = useState<Store | null>(null);
   const [products, setProducts] = useState<Product[]>([]);
@@ -94,9 +98,61 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
   const [engagementStats, setEngagementStats] = useState({ engaged: 0, interested: 0 });
 
   useEffect(() => {
-    fetchData();
+    setLoading(true);
+    // Real-time Stores Listener
+    const storesQuery = query(collection(db, 'stores'), where('ownerId', '==', profile.uid));
+    const storesUnsub = onSnapshot(storesQuery, (snap) => {
+      const fetchedStores = snap.docs.map(d => ({ id: d.id, ...d.data() } as Store));
+      setStores(fetchedStores);
+      
+      if (fetchedStores.length > 0) {
+        // Set active store if not set or if current active store was updated
+        setActiveStore(prev => {
+          if (!prev) {
+            // Check location state for preferred store
+            const state = location.state as any;
+            if (state?.activeStore) {
+              return fetchedStores.find(s => s.id === state.activeStore.id) || fetchedStores[0];
+            }
+            return fetchedStores[0];
+          }
+          return fetchedStores.find(s => s.id === prev.id) || fetchedStores[0];
+        });
+      }
+      setLoading(false);
+    }, (err) => {
+      handleFirestoreError(err, OperationType.GET, 'supplier-stores');
+      setLoading(false);
+    });
+
     fetchEngagementStats();
-  }, [profile.uid]);
+    
+    // Handle navigation triggers from location state
+    const state = location.state as any;
+    if (state) {
+      if (state.editProduct) {
+        handleOpenForm(state.editProduct);
+      } else if (state.showProductForm) {
+        handleOpenForm();
+      }
+    }
+
+    return () => storesUnsub();
+  }, [profile.uid, location.key]);
+
+  // Real-time Products Listener for Active Store
+  useEffect(() => {
+    if (!activeStore?.id) return;
+    
+    const productsQuery = query(collection(db, 'products'), where('storeId', '==', activeStore.id));
+    const productsUnsub = onSnapshot(productsQuery, (snap) => {
+      setProducts(snap.docs.map(d => ({ id: d.id, ...d.data() } as Product)));
+    }, (err) => {
+      handleFirestoreError(err, OperationType.GET, `supplier-products-${activeStore.id}`);
+    });
+
+    return () => productsUnsub();
+  }, [activeStore?.id]);
 
   const fetchEngagementStats = async () => {
     try {
@@ -111,30 +167,6 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
       setEngagementStats(stats);
     } catch (e) {
       console.error("Error fetching engagement stats:", e);
-    }
-  };
-
-  const fetchData = async () => {
-    setLoading(true);
-    try {
-      // Get Stores
-      const storesRes = await getDocs(query(collection(db, 'stores'), where('ownerId', '==', profile.uid)));
-      const fetchedStores = storesRes.docs.map(d => ({ id: d.id, ...d.data() } as Store));
-      setStores(fetchedStores);
-      
-      if (fetchedStores.length > 0) {
-        // Default to first store or keep existing selection if it still exists
-        const storeToSet = activeStore ? fetchedStores.find(s => s.id === activeStore.id) || fetchedStores[0] : fetchedStores[0];
-        setActiveStore(storeToSet);
-        
-        // Get Products for the active store
-        const productsRes = await getDocs(query(collection(db, 'products'), where('storeId', '==', storeToSet.id)));
-        setProducts(productsRes.docs.map(d => ({ id: d.id, ...d.data() } as Product)));
-      }
-    } catch (e) {
-      handleFirestoreError(e, OperationType.LIST, 'supplier-data');
-    } finally {
-      setLoading(false);
     }
   };
 
@@ -156,10 +188,6 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
       }
 
       await offlineResilientWrite('stores', activeStore.id, 'update', data);
-      
-      const updatedStore = { ...activeStore, ...storeEditData };
-      setActiveStore(updatedStore);
-      setStores(prev => prev.map(s => s.id === activeStore.id ? updatedStore : s));
       setIsEditingStore(false);
       setStoreEditData({});
     } catch (e) {
@@ -169,17 +197,8 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
     }
   };
 
-  const switchStore = async (store: Store) => {
+  const switchStore = (store: Store) => {
     setActiveStore(store);
-    setLoading(true);
-    try {
-      const productsRes = await getDocs(query(collection(db, 'products'), where('storeId', '==', store.id)));
-      setProducts(productsRes.docs.map(d => ({ id: d.id, ...d.data() } as Product)));
-    } catch (e) {
-      handleFirestoreError(e, OperationType.LIST, 'products');
-    } finally {
-      setLoading(false);
-    }
   };
 
   const handleOpenForm = (product?: Product) => {
@@ -245,7 +264,6 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
       }
       
       setShowProductForm(false);
-      fetchData();
     } catch (e) {
       handleFirestoreError(e, editingProduct ? OperationType.UPDATE : OperationType.CREATE, 'products');
     } finally {
@@ -257,7 +275,6 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
     try {
       await offlineResilientWrite('products', id, 'delete');
       setProductToDelete(null);
-      fetchData();
     } catch (e) {
       handleFirestoreError(e, OperationType.DELETE, `products/${id}`);
     }
@@ -375,10 +392,24 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
       </section>
 
       {/* Store Header */}
-      <section className="neon-card p-6 relative overflow-hidden group">
-        <div className="absolute top-0 right-0 w-48 h-48 bg-primary/5 blur-3xl -mr-24 -mt-24 pointer-events-none group-hover:bg-primary/10 transition-colors"></div>
+      <section className="neon-card p-0 relative overflow-hidden group min-h-[300px] flex flex-col">
+        {/* Background Cover */}
+        <div className="absolute inset-0 z-0">
+          <img 
+            src={(isEditingStore && storeEditData.coverPhoto) ? storeEditData.coverPhoto : (activeStore.coverPhoto || "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&q=80")} 
+            className="w-full h-full object-cover opacity-30 group-hover:opacity-40 transition-opacity duration-700 brightness-75 saturate-[1.2]" 
+            alt="Cover" 
+            referrerPolicy="no-referrer"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.src = "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&q=80";
+            }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#0d1117] via-[#0d1117]/60 to-transparent"></div>
+        </div>
+
         {isEditingStore ? (
-          <div className="relative z-10 space-y-6">
+          <div className="relative z-10 p-6 sm:p-8 space-y-6 bg-black/40 backdrop-blur-md flex-1">
             <div className="flex flex-col md:flex-row gap-6">
               <div className="w-24 h-24 flex-shrink-0">
                 <ImageInput 
@@ -386,6 +417,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
                   onChange={(val) => setStoreEditData(prev => ({ ...prev, logo: val }))}
                   aspectRatio="square"
                   className="w-full h-full border-primary/20"
+                  label="Node Logo"
                 />
               </div>
               <div className="flex-1 w-full">
@@ -393,7 +425,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
                   value={storeEditData.coverPhoto ?? activeStore.coverPhoto ?? ''} 
                   onChange={(val) => setStoreEditData(prev => ({ ...prev, coverPhoto: val }))}
                   aspectRatio="video"
-                  label="Store Cover Photo"
+                  label="Matrix Cover Area"
                   className="w-full border-primary/20"
                 />
               </div>
@@ -480,104 +512,66 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
             </div>
           </div>
         ) : (
-          <>
-            <div className="flex items-center gap-6 relative z-10">
-            <div className="w-20 h-20 bg-white/5 rounded-2xl border border-white/10 flex items-center justify-center text-3xl font-black text-primary italic overflow-hidden shadow-2xl">
-              {activeStore.logo ? (
-                <img 
-                  src={activeStore.logo} 
-                  className="w-full h-full object-cover" 
-                  referrerPolicy="no-referrer" 
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.src = "https://images.unsplash.com/photo-1541701494587-cb58502866ab?q=80&w=400&auto=format&fit=crop";
-                  }}
-                />
-              ) : activeStore.name.charAt(0)}
-            </div>
-            <div className="space-y-1 flex-1">
-              <div className="flex items-center justify-between">
-                <h1 className="text-2xl font-black text-white italic uppercase tracking-tighter leading-none">{activeStore.name}</h1>
-                <div className="flex items-center gap-2">
-                  <button 
-                    onClick={handleShareStore}
-                    className="p-3 bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-primary hover:border-primary/50 transition-all hover:scale-110 active:scale-95 shadow-xl"
-                    title="Share Store Link"
-                  >
-                    <Share2 size={18} />
-                  </button>
-                  <button 
-                    onClick={() => {
-                      setIsEditingStore(true);
-                      setStoreEditData({});
+          <div className="p-6 sm:p-8 relative z-10 flex flex-col justify-end flex-1">
+            <div className="flex items-center gap-6">
+              <div className="w-20 h-20 sm:w-28 sm:h-28 bg-[#05070a]/80 backdrop-blur-xl rounded-3xl border border-primary/30 flex items-center justify-center text-3xl font-black text-primary italic overflow-hidden shadow-2xl">
+                {activeStore.logo ? (
+                  <img 
+                    src={activeStore.logo} 
+                    className="w-full h-full object-cover" 
+                    referrerPolicy="no-referrer" 
+                    onError={(e) => {
+                      const target = e.target as HTMLImageElement;
+                      target.src = "https://api.dicebear.com/7.x/initials/svg?seed=" + activeStore.name;
                     }}
-                    className="p-3 bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-primary hover:border-primary/50 transition-all hover:scale-110 active:scale-95 shadow-xl"
-                    title="Edit Store Profile"
-                  >
-                    <Edit3 size={18} />
-                  </button>
+                  />
+                ) : activeStore.name.charAt(0)}
+              </div>
+              <div className="space-y-1.5 flex-1">
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h1 className="text-2xl sm:text-4xl font-black text-white italic uppercase tracking-tighter leading-none shadow-black drop-shadow-lg">{activeStore.name}</h1>
+                    <p className="text-[10px] text-primary font-black uppercase tracking-widest mt-2 bg-primary/10 w-fit px-2 py-0.5 rounded border border-primary/20">{activeStore.category} Sector Hub</p>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={handleShareStore}
+                      className="p-3 bg-black/40 backdrop-blur-md border border-white/10 rounded-xl text-white hover:text-primary hover:border-primary/50 transition-all hover:scale-110 active:scale-95 shadow-xl"
+                      title="Share Store Link"
+                    >
+                      <Share2 size={18} />
+                    </button>
+                    <button 
+                      onClick={() => {
+                        setIsEditingStore(true);
+                        setStoreEditData({});
+                      }}
+                      className="p-3 bg-black/40 backdrop-blur-md border border-white/10 rounded-xl text-white hover:text-primary hover:border-primary/50 transition-all hover:scale-110 active:scale-95 shadow-xl"
+                      title="Edit Store Profile"
+                    >
+                      <Edit3 size={18} />
+                    </button>
+                  </div>
+                </div>
+                
+                <div className="flex items-center gap-4 pt-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-2 h-2 bg-neon-green rounded-full shadow-[0_0_10px_#39FF14] animate-pulse"></div>
+                    <span className="text-[9px] font-black uppercase text-white tracking-widest">Active Status</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[9px] text-gray-300 font-bold uppercase tracking-widest bg-black/20 px-2.5 py-1 rounded-lg border border-white/5">
+                    <MapPin size={10} className="text-primary" /> {activeStore.address || 'Matrix Location'}
+                  </div>
                 </div>
               </div>
-              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">{activeStore.category} Operations Unit</p>
-              <div className="flex items-center gap-3 pt-2">
-                <div className="flex items-center gap-1.5">
-                  <div className="w-1.5 h-1.5 bg-neon-green rounded-full shadow-[0_0_5px_#39FF14]"></div>
-                  <span className="text-[8px] font-black uppercase text-white tracking-widest">Node Verified</span>
-                </div>
-                <p className="text-[8px] text-gray-600 font-bold uppercase tracking-[0.2em]">{activeStore.email}</p>
-              </div>
+            </div>
+            
+            <div className="mt-8 border-t border-white/10 pt-6">
+               <p className="text-xs text-gray-300 font-medium max-w-2xl leading-relaxed drop-shadow-lg">
+                 {activeStore.description}
+               </p>
             </div>
           </div>
-          
-          <div className="mt-8 border-t border-white/5 pt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <Package size={16} className="text-primary" />
-                 <h3 className="text-[10px] font-black text-white uppercase tracking-widest italic">Visual Context</h3>
-              </div>
-              <div className="aspect-video rounded-3xl overflow-hidden border border-white/10 group-hover:border-primary/30 transition-colors bg-white/5 shadow-2xl">
-                {activeStore.coverPhoto ? (
-                  <img src={activeStore.coverPhoto} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" alt="Store Cover" referrerPolicy="no-referrer" />
-                ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center opacity-20">
-                    <ShoppingBag size={48} />
-                    <p className="text-[10px] font-black uppercase mt-2">No Cover Transmitted</p>
-                  </div>
-                )}
-              </div>
-            </div>
-            <div className="space-y-4">
-              <div className="flex items-center gap-2">
-                <MapPin size={16} className="text-primary" />
-                 <h3 className="text-[10px] font-black text-white uppercase tracking-widest italic">Geolocation Node</h3>
-              </div>
-              <div className="aspect-video rounded-3xl overflow-hidden border border-white/10 group-hover:border-primary/30 transition-colors bg-[#05070a] shadow-2xl">
-                {activeStore.lat && activeStore.lng ? (
-                  <MapContainer 
-                    center={[activeStore.lat, activeStore.lng]} 
-                    zoom={14} 
-                    style={{ height: '100%', width: '100%' }}
-                    zoomControl={false}
-                    dragging={false}
-                    touchZoom={false}
-                    scrollWheelZoom={false}
-                  >
-                    <TileLayer
-                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                    />
-                    <Marker position={[activeStore.lat, activeStore.lng]} />
-                  </MapContainer>
-                ) : (
-                  <div className="w-full h-full flex flex-col items-center justify-center opacity-20">
-                    <Building2 size={48} />
-                    <p className="text-[10px] font-black uppercase mt-2">Coordinates Offline</p>
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </>
         )}
       </section>
 
@@ -706,7 +700,6 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
                 onClick={() => {
                   setShowStoreSetup(false);
                   setIsEditingStore(false);
-                  fetchData();
                 }}
                 className="absolute top-6 right-6 z-[110] p-2 text-gray-500 hover:text-white bg-white/5 rounded-full border border-white/10 hover:border-primary/50 transition-all"
               >
@@ -718,7 +711,6 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
                 onComplete={() => {
                   setShowStoreSetup(false);
                   setIsEditingStore(false);
-                  fetchData();
                 }} 
               />
             </div>
