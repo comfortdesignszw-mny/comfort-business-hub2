@@ -320,19 +320,19 @@ function NotificationsModal({ onClose }: { onClose: () => void }) {
   const navigate = useNavigate();
 
   return (
-    <div className="fixed inset-0 z-[100] flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-[100] flex items-start justify-center p-4 sm:p-6 md:p-8 pt-20 sm:pt-24 pointer-events-none">
       <motion.div 
         initial={{ opacity: 0 }} 
         animate={{ opacity: 1 }} 
         exit={{ opacity: 0 }} 
-        className="absolute inset-0 bg-[#05070a]/90 backdrop-blur-md" 
+        className="absolute inset-0 bg-[#05070a]/90 backdrop-blur-md pointer-events-auto" 
         onClick={onClose} 
       />
       <motion.div 
-        initial={{ scale: 0.9, opacity: 0, y: 20 }} 
+        initial={{ scale: 0.95, opacity: 0, y: -20 }} 
         animate={{ scale: 1, opacity: 1, y: 0 }} 
-        exit={{ scale: 0.9, opacity: 0, y: 20 }} 
-        className="relative w-full max-w-sm bg-[#0d1117] border border-white/10 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[80vh]"
+        exit={{ scale: 0.95, opacity: 0, y: -20 }} 
+        className="relative w-full max-w-sm bg-[#0d1117] border border-white/10 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[75vh] pointer-events-auto"
       >
         <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/5">
           <div>
@@ -417,12 +417,15 @@ function NotificationItem({ n, markAsRead, onClose, navigate }: { n: Notificatio
         onClose();
       }}
       className={cn(
-        "p-4 rounded-2xl border transition-all cursor-pointer group",
+        "p-4 rounded-2xl border transition-all cursor-pointer group relative overflow-hidden",
         n.read 
           ? "bg-transparent border-white/5 opacity-60" 
-          : "bg-white/5 border-primary/20 shadow-[0_0_15px_rgba(0,242,254,0.1)]"
+          : "bg-primary/[0.03] border-primary/30 shadow-[0_0_20px_rgba(0,242,254,0.15)]"
       )}
     >
+      {!n.read && (
+        <div className="absolute top-0 left-0 w-1 h-full bg-primary shadow-[0_0_10px_rgba(0,242,254,0.5)]" />
+      )}
       <div className="flex gap-4">
         <div className={cn(
           "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110",
