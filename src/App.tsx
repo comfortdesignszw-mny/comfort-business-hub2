@@ -37,6 +37,8 @@ export default function App() {
   const [hasStore, setHasStore] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
 
+  const [showSidebar, setShowSidebar] = useState(false);
+
   // Profile completion check
   const isProfileIncomplete = profile?.currentRole === 'customer' && (!profile.requiredProducts || profile.requiredProducts.length === 0);
 
@@ -115,7 +117,15 @@ export default function App() {
         ) : (
           <NotificationProvider profile={profile}>
             <MessagingProvider profile={profile}>
-              <Header profile={profile} />
+              <Header profile={profile} onMenuClick={() => setShowSidebar(true)} />
+              <AnimatePresence>
+                {showSidebar && (
+                  <Sidebar 
+                    profile={profile} 
+                    onClose={() => setShowSidebar(false)} 
+                  />
+                )}
+              </AnimatePresence>
               <main className="flex-1 overflow-y-auto no-scrollbar pb-24">
                 <div className="max-w-7xl mx-auto w-full">
                   <AnimatePresence mode="wait">
@@ -147,7 +157,7 @@ export default function App() {
   );
 }
 
-function Header({ profile }: { profile: UserProfile | null }) {
+function Header({ profile, onMenuClick }: { profile: UserProfile | null, onMenuClick?: () => void }) {
   const location = useLocation();
   const navigate = useNavigate();
   const isHome = location.pathname === '/' || location.pathname === '';
@@ -166,9 +176,12 @@ function Header({ profile }: { profile: UserProfile | null }) {
               <ArrowLeft size={20} />
             </button>
           ) : (
-            <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center text-gray-400 hover:text-white transition-colors border border-white/5">
+            <button 
+              onClick={onMenuClick}
+              className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center text-gray-400 hover:text-white transition-colors border border-white/5"
+            >
               <Menu size={20} />
-            </div>
+            </button>
           )}
           <div className="flex items-center gap-2">
             <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary-dark rounded-xl flex items-center justify-center text-[#05070a] shadow-[0_0_15px_rgba(0,242,254,0.4)]">
@@ -210,6 +223,95 @@ function Header({ profile }: { profile: UserProfile | null }) {
         </div>
       </div>
     </header>
+  );
+}
+
+function Sidebar({ profile, onClose }: { profile: UserProfile | null, onClose: () => void }) {
+  const location = useLocation();
+  const navItems = [
+    { path: '/', icon: Search, label: 'Explore' },
+    { path: '/stores', icon: Store, label: 'Stores' },
+    { path: '/deals', icon: Zap, label: 'Markets' },
+    { path: '/chat', icon: MessageSquare, label: 'Comms' },
+    { path: '/profile', icon: UserIcon, label: 'Hub' },
+  ];
+
+  return (
+    <div className="fixed inset-0 z-50 overflow-hidden lg:hidden">
+      <motion.div
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        className="absolute inset-0 bg-[#05070a]/80 backdrop-blur-sm"
+        onClick={onClose}
+      />
+      <motion.aside
+        initial={{ x: '-100%' }}
+        animate={{ x: 0 }}
+        exit={{ x: '-100%' }}
+        transition={{ type: 'spring', damping: 25, stiffness: 200 }}
+        className="absolute inset-y-0 left-0 w-72 bg-[#0d1117] border-r border-white/10 shadow-2xl flex flex-col"
+      >
+        <div className="p-6 border-b border-white/5 flex items-center justify-between">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary-dark rounded-xl flex items-center justify-center text-[#05070a]">
+              <Zap size={24} className="fill-current" />
+            </div>
+            <h2 className="text-sm font-black text-white uppercase italic">Comfort Hub</h2>
+          </div>
+          <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors">
+            <X size={20} />
+          </button>
+        </div>
+
+        <div className="flex-1 overflow-y-auto py-6 px-4 space-y-2">
+          {navItems.map((item) => {
+            const isActive = location.pathname === item.path || (item.path === '/' && location.pathname === '');
+            return (
+              <Link
+                key={item.path}
+                to={item.path}
+                onClick={onClose}
+                className={cn(
+                  "flex items-center gap-4 px-4 py-3 rounded-xl transition-all group",
+                  isActive 
+                    ? "bg-primary/10 text-primary border border-primary/20" 
+                    : "text-gray-400 hover:bg-white/5 hover:text-white border border-transparent"
+                )}
+              >
+                <item.icon 
+                  size={20} 
+                  className={cn(
+                    "transition-transform group-hover:scale-110",
+                    isActive ? "drop-shadow-[0_0_8px_rgba(0,242,254,0.5)]" : ""
+                  )} 
+                />
+                <span className="text-[10px] font-black uppercase tracking-widest leading-none">
+                  {item.label}
+                </span>
+                {isActive && (
+                  <div className="ml-auto w-1 h-1 bg-primary rounded-full shadow-[0_0_5px_rgba(0,242,254,0.8)]" />
+                )}
+              </Link>
+            );
+          })}
+        </div>
+
+        <div className="p-6 border-t border-white/5 bg-white/5">
+          <div className="flex items-center gap-3">
+            <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary font-bold overflow-hidden border border-primary/20">
+              {profile?.name?.charAt(0).toUpperCase() || <UserIcon size={18} />}
+            </div>
+            <div className="flex-1 min-w-0">
+              <p className="text-[10px] font-black text-white uppercase truncate">{profile?.name || 'Authorized User'}</p>
+              <p className="text-[8px] text-gray-500 font-bold uppercase tracking-widest">
+                {profile?.currentRole || 'Role Unknown'}
+              </p>
+            </div>
+          </div>
+        </div>
+      </motion.aside>
+    </div>
   );
 }
 
