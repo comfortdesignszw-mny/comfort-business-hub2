@@ -135,7 +135,14 @@ export default function App() {
                       ) : (
                         <>
                           <Route path="/" element={<Discovery profile={profile} setProfile={setProfile} />} />
-                          <Route path="/stores" element={<StoresHub profile={profile} />} />
+                          <Route 
+                            path="/stores" 
+                            element={
+                              profile?.currentRole === 'supplier' 
+                                ? <StoresHub profile={profile} /> 
+                                : <Navigate to="/" replace />
+                            } 
+                          />
                           <Route path="/deals" element={<DealRoom profile={profile} />} />
                           <Route path="/chat" element={<Chat profile={profile} />} />
                           <Route path="/store/:id" element={<StoreDetail profile={profile} />} />
@@ -230,7 +237,7 @@ function Sidebar({ profile, onClose }: { profile: UserProfile | null, onClose: (
   const location = useLocation();
   const navItems = [
     { path: '/', icon: Search, label: 'Explore' },
-    { path: '/stores', icon: Store, label: 'Stores' },
+    ...(profile?.currentRole === 'supplier' ? [{ path: '/stores', icon: Store, label: 'Stores' }] : []),
     { path: '/deals', icon: Zap, label: 'Markets' },
     { path: '/chat', icon: MessageSquare, label: 'Comms' },
     { path: '/profile', icon: UserIcon, label: 'Hub' },
@@ -464,7 +471,7 @@ function Navigation({ profile }: { profile: UserProfile | null }) {
   
   const navItems = [
     { path: '/', icon: Search, label: 'Explore' },
-    { path: '/stores', icon: Store, label: 'Stores' },
+    ...(profile?.currentRole === 'supplier' ? [{ path: '/stores', icon: Store, label: 'Stores' }] : []),
     { path: '/deals', icon: Zap, label: 'Markets' },
     { path: '/chat', icon: MessageSquare, label: 'Comms' },
     { path: '/profile', icon: UserIcon, label: 'Hub' },

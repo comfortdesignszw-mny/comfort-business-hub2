@@ -6,12 +6,12 @@ import {
   Bell, Zap, Image as ImageIcon, X, Check, CreditCard, 
   Navigation, Crosshair, Save, Loader2, Megaphone, Trash2, Calendar, FileText, Plus
 } from 'lucide-react';
-import { UserProfile, Role, Spotlight } from '../types';
+import { UserProfile, Role, Spotlight, Product } from '../types';
 import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { offlineResilientWrite } from '../lib/sync';
 import { geohashForLocation } from 'geofire-common';
-import { doc, updateDoc, collection, addDoc, query, where, getDocs, deleteDoc, orderBy, serverTimestamp } from 'firebase/firestore';
-import { cn } from '../lib/utils';
+import { doc, updateDoc, collection, addDoc, query, where, getDocs, deleteDoc, orderBy, serverTimestamp, limit, onSnapshot } from 'firebase/firestore';
+import { cn, formatCurrency } from '../lib/utils';
 import ImageInput from '../components/ImageInput';
 import LocationPicker from '../components/LocationPicker';
 
@@ -380,6 +380,11 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
           </div>
         </motion.div>
       </section>
+
+      {/* Supplier's Active Inventory Section */}
+      {profile.currentRole === 'supplier' && (
+        <SupplierInventoryPreview profile={profile} />
+      )}
 
       {/* Menu Links */}
       <section className="space-y-4">
@@ -889,6 +894,83 @@ function LocationConfig({ profile, onSave }: { profile: UserProfile, onSave: (l:
         </button>
       </div>
     </div>
+  );
+}
+
+function SupplierInventoryPreview({ profile }: { profile: UserProfile }) {
+  const [products, setProducts] = useState<Product[]>([]);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    const q = query(
+      collection(db, 'products'),
+      where('ownerId', '==', profile.uid),
+      orderBy('createdAt', 'desc'),
+      limit(4)
+    );
+
+    const unsubscribe = onSnapshot(q, (snap) => {
+      setProducts(snap.docs.map(d => ({ id: d.id, ...d.data() } as Product)));
+      setLoading(false);
+    }, (err) => {
+      console.error("Error fetching inventory preview:", err);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
+  }, [profile.uid]);
+
+  if (loading) return (
+    <div className="neon-card p-6 h-32 flex items-center justify-center">
+      <Loader2 className="animate-spin text-primary/20" size={24} />
+    </div>
+  );
+
+  return (
+    <section className="space-y-4">
+      <div className="flex items-center justify-between px-2">
+        <h3 className="text-sm font-black text-white uppercase tracking-widest italic">Live Inventory Node</h3>
+        <button 
+          onClick={() => navigate('/stores?tab=manage')}
+          className="text-[9px] font-black text-primary uppercase tracking-widest hover:underline"
+        >
+          View All Nodes
+        </button>
+      </div>
+
+      <div className="grid grid-cols-2 gap-4">
+        {products.map((p) => (
+          <div 
+            key={p.id}
+            onClick={() => navigate(`/product/${p.id}`)}
+            className="neon-card p-2 group cursor-pointer flex flex-col gap-2"
+          >
+            <div className="aspect-square rounded-xl overflow-hidden bg-[#0d1117] border border-white/5">
+              <img 
+                src={p.images[0]} 
+                className="w-full h-full object-cover opacity-60 group-hover:opacity-100 group-hover:scale-110 transition-all duration-500" 
+                alt={p.name}
+              />
+            </div>
+            <div className="px-1 pb-1">
+              <p className="text-[9px] font-black text-white uppercase tracking-tighter truncate">{p.name}</p>
+              <p className="text-[10px] font-black text-primary italic">{formatCurrency(p.price, p.currency)}</p>
+            </div>
+          </div>
+        ))}
+
+        {products.length === 0 && (
+          <div 
+            onClick={() => navigate('/stores?tab=manage', { state: { showProductForm: true } })}
+            className="col-span-full neon-card p-8 text-center space-y-3 cursor-pointer hover:bg-white/5 transition-all"
+          >
+            <Plus size={24} className="mx-auto text-gray-700" />
+            <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">No Products Synced</p>
+          </div>
+        )}
+      </div>
+    </section>
   );
 }
 

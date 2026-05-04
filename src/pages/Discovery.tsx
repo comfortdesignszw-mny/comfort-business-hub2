@@ -520,32 +520,36 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
 
       {/* Discovery Feed */}
       <section className="space-y-6">
-        <div className="flex items-center justify-between px-1">
-          <div className="flex items-center gap-2">
-            <h2 className="font-black text-white uppercase tracking-tighter text-lg">Active Supply Nodes</h2>
-            <div className="px-1.5 py-0.5 bg-primary/10 text-primary text-[8px] font-black rounded border border-primary/20 uppercase tracking-widest">Network</div>
-          </div>
-        </div>
-
-        {storesLoading ? (
-          <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="min-w-[240px] h-40 bg-white/5 rounded-3xl animate-pulse border border-white/5" />
-            ))}
-          </div>
-        ) : filteredStores.length > 0 ? (
-          <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4 snap-x px-1">
-            {filteredStores.map((store) => (
-              <div key={store.id} className="min-w-[240px] snap-center">
-                <StoreCard store={store} profile={profile} onSelect={setSelectedStoreId} />
+        {profile?.currentRole === 'supplier' && (
+          <section className="space-y-6">
+            <div className="flex items-center justify-between px-1">
+              <div className="flex items-center gap-2">
+                <h2 className="font-black text-white uppercase tracking-tighter text-lg">Active Supply Nodes</h2>
+                <div className="px-1.5 py-0.5 bg-primary/10 text-primary text-[8px] font-black rounded border border-primary/20 uppercase tracking-widest">Network</div>
               </div>
-            ))}
-          </div>
-        ) : (
-          <div className="bg-white/5 border border-white/5 rounded-3xl p-8 text-center">
-            <Building2 className="mx-auto text-gray-700 mb-2" size={24} />
-            <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">No active nodes in this category</p>
-          </div>
+            </div>
+
+            {storesLoading ? (
+              <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4">
+                {[1, 2, 3].map(i => (
+                  <div key={i} className="min-w-[240px] h-40 bg-white/5 rounded-3xl animate-pulse border border-white/5" />
+                ))}
+              </div>
+            ) : filteredStores.length > 0 ? (
+              <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4 snap-x px-1">
+                {filteredStores.map((store) => (
+                  <div key={store.id} className="min-w-[240px] snap-center">
+                    <StoreCard store={store} profile={profile} onSelect={setSelectedStoreId} />
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="bg-white/5 border border-white/5 rounded-3xl p-8 text-center">
+                <Building2 className="mx-auto text-gray-700 mb-2" size={24} />
+                <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">No active nodes in this category</p>
+              </div>
+            )}
+          </section>
         )}
 
         <div className="flex items-center justify-between px-1 pt-4">

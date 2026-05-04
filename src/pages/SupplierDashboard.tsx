@@ -238,7 +238,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activeStore) return;
+    if (!activeStore || !profile) return;
     setIsSubmitting(true);
 
     try {

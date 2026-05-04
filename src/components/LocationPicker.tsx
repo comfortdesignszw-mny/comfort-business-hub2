@@ -124,8 +124,7 @@ export default function LocationPicker({ initialLat = -17.8252, initialLng = 31.
           </button>
         </div>
 
-        <form 
-          onSubmit={handleManualSearch}
+        <div 
           className="absolute bottom-4 left-4 right-4 z-[1000]"
         >
           <div className="relative">
@@ -136,9 +135,15 @@ export default function LocationPicker({ initialLat = -17.8252, initialLng = 31.
               className="w-full bg-[#0d1117]/90 backdrop-blur-md border border-white/10 rounded-xl pl-10 pr-4 py-3 text-xs text-white placeholder-gray-600 outline-none focus:border-primary/50 shadow-2xl"
               value={searchQuery}
               onChange={(e) => setSearchQuery(e.target.value)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter') {
+                  e.preventDefault();
+                  handleManualSearch(e as any);
+                }
+              }}
             />
           </div>
-        </form>
+        </div>
       </div>
 
       <button
