@@ -110,7 +110,7 @@ export default function Chat({ profile }: { profile: UserProfile | null }) {
           <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest italic">Syncing Privacy Channels...</p>
         </div>
       ) : (
-        <div className="space-y-4">
+        <div className="space-y-4 custom-scrollbar">
           {conversations.map((conv) => (
             <motion.button
               key={conv.id}
@@ -273,7 +273,7 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
       </div>
 
       {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-6 no-scrollbar pb-32">
+      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar pb-32">
         <div className="flex flex-col items-center gap-2 py-8">
           <ShieldCheck size={32} className="text-primary/20" />
           <span className="glass-pill !text-[8px] uppercase tracking-[0.3em] font-black !border-primary/10">Privacy Matrix Established</span>

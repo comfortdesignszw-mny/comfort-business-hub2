@@ -3,6 +3,8 @@ import { cn } from '../lib/utils';
 import { ImageIcon } from 'lucide-react';
 
 interface OptimizedImageProps extends React.ImgHTMLAttributes<HTMLImageElement> {
+  src?: string;
+  alt?: string;
   fallbackSrc?: string;
   className?: string;
 }

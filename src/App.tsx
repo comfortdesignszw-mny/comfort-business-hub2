@@ -139,7 +139,7 @@ export default function App() {
                   />
                 )}
               </AnimatePresence>
-              <main className="flex-1 overflow-y-auto no-scrollbar pb-24">
+              <main className="flex-1 overflow-y-auto custom-scrollbar pb-24">
                 <div className="max-w-7xl mx-auto w-full">
                   <AnimatePresence mode="wait">
                     <Suspense fallback={<PageLoader />}>
@@ -364,7 +364,7 @@ function NotificationsModal({ onClose }: { onClose: () => void }) {
           <button onClick={onClose} className="text-gray-500 hover:text-white"><X size={20} /></button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar scroll-smooth">
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar scroll-smooth">
           {notifications.length > 0 ? (
             (() => {
               const unread = notifications.filter(n => !n.read);

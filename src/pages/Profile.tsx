@@ -163,7 +163,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
       animate={{ opacity: 1, y: 0 }}
       exit={{ opacity: 0, y: -10 }}
       transition={{ duration: 0.2, ease: "easeOut" }}
-      className="p-4 space-y-8 no-scrollbar"
+      className="p-4 space-y-8 custom-scrollbar"
       style={{ willChange: 'transform, opacity' }}
     >
       {/* Profile Header */}

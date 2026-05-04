@@ -173,7 +173,6 @@ export default function ProductCard({
         <div className="aspect-[16/10] relative overflow-hidden">
           <AnimatePresence mode="wait">
             <OptimizedImage 
-              key={currentImageIndex}
               src={images[currentImageIndex]} 
               alt={product.name}
               className="w-full h-full object-cover"
@@ -493,13 +492,58 @@ function PodModal({ product, profile, onClose }: any) {
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[#05070a]/90 backdrop-blur-md" onClick={onClose} />
       <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-lg neon-card p-8 flex flex-col max-h-[90vh] overflow-hidden">
         <h3 className="text-xl font-black text-white italic uppercase tracking-tighter mb-4">Pay on Delivery</h3>
-        <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto no-scrollbar">
-          <input required type="text" placeholder="Name" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs" />
-          <input required type="tel" placeholder="Phone" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs" />
-          <textarea required placeholder="Address" value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs" rows={3} />
-          <button type="submit" disabled={submitting} className="w-full btn-neon py-4 text-[10px] font-black uppercase tracking-widest">
-            {submitting ? <Loader2 className="animate-spin" size={18} /> : 'Complete Order'}
-          </button>
+        <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto custom-scrollbar pr-2">
+          <div className="space-y-1">
+            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Customer Name</label>
+            <input required type="text" placeholder="Your Full Name" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs outline-none focus:border-primary/50 transition-all font-bold" />
+          </div>
+          
+          <div className="space-y-1">
+            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Contact Link (Phone)</label>
+            <input required type="tel" placeholder="Phone Number" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs outline-none focus:border-primary/50 transition-all font-mono" />
+          </div>
+
+          <div className="flex gap-4 items-center">
+            <div className="flex-1 space-y-1">
+              <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Quantity</label>
+              <div className="flex items-center bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+                <button 
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, quantity: Math.max(1, prev.quantity - 1) }))}
+                  className="w-12 h-12 flex items-center justify-center text-primary border-r border-white/5 hover:bg-white/5 transition-all"
+                >
+                  -
+                </button>
+                <div className="flex-1 text-center font-black text-white text-sm">
+                  {formData.quantity}
+                </div>
+                <button 
+                  type="button"
+                  onClick={() => setFormData(prev => ({ ...prev, quantity: prev.quantity + 1 }))}
+                  className="w-12 h-12 flex items-center justify-center text-primary border-l border-white/5 hover:bg-white/5 transition-all"
+                >
+                  +
+                </button>
+              </div>
+            </div>
+            <div className="flex-1 space-y-1 text-right">
+              <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-1">Total Valuation</label>
+              <p className="text-xl font-black text-primary italic leading-[3rem]">
+                {formatCurrency(product.price * formData.quantity, product.currency)}
+              </p>
+            </div>
+          </div>
+          
+          <div className="space-y-1">
+            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Delivery Address</label>
+            <textarea required placeholder="Full Delivery Address" value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs outline-none focus:border-primary/50 transition-all font-medium" rows={3} />
+          </div>
+
+          <div className="pt-2">
+            <button type="submit" disabled={submitting} className="w-full btn-neon py-5 text-[10px] font-black uppercase tracking-[0.25em] shadow-xl shadow-primary/20">
+              {submitting ? <Loader2 className="animate-spin" size={18} /> : 'Finalize Delivery Order'}
+            </button>
+          </div>
         </form>
       </motion.div>
     </div>
