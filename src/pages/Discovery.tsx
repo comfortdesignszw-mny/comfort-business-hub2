@@ -66,7 +66,12 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
     }
 
     if (activeCategory !== 'All' && !sharedProductId) {
-      pResult = pResult.filter(p => p.category === activeCategory);
+      pResult = pResult.filter(p => {
+        const matchesProductCategory = p.category === activeCategory;
+        const store = storesMap[p.storeId];
+        const matchesStoreCategory = store?.category === activeCategory;
+        return matchesProductCategory || matchesStoreCategory;
+      });
       sResult = sResult.filter(s => s.category === activeCategory);
     }
 
@@ -81,14 +86,14 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
     const pq = query(
       collection(db, 'products'),
       where('isActive', '==', true),
-      limit(50)
+      limit(250)
     );
     
     const unsubscribeProducts = onSnapshot(pq, (snapshot) => {
       const allProducts = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      } as Product));
+      } as Product)).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       
       setNearbyDeals(allProducts);
       setProductsLoading(false);
@@ -109,12 +114,12 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
     });
 
     // Real-time listener for stores
-    const sq = query(collection(db, 'stores'), limit(100));
+    const sq = query(collection(db, 'stores'), limit(300));
     const unsubscribeStores = onSnapshot(sq, (snapshot) => {
       const allStores = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      } as StoreType));
+      } as StoreType)).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
       setNearbyStores(allStores);
       setStoresLoading(false);
     }, (error) => {
@@ -127,7 +132,7 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
       collection(db, 'spotlights'),
       where('isActive', '==', true),
       orderBy('createdAt', 'desc'),
-      limit(5)
+      limit(10)
     );
     const unsubscribeSpotlights = onSnapshot(spq, (snapshot) => {
       setSpotlights(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Spotlight)));
@@ -139,22 +144,39 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
       setLoading(false);
     });
 
-    const fetchUserCount = async () => {
-      try {
-        const snapshot = await getCountFromServer(collection(db, 'users'));
-        setUserCount(snapshot.data().count);
-      } catch (err) {
-        console.error("Error fetching user count:", err);
-      }
-    };
-    fetchUserCount();
-
     return () => {
       unsubscribeProducts();
       unsubscribeStores();
       unsubscribeSpotlights();
     };
   }, [profile]);
+
+  useEffect(() => {
+    let isMounted = true;
+
+    const fetchUserCount = async () => {
+      try {
+        const snapshot = await getCountFromServer(collection(db, 'users'));
+        if (isMounted) {
+          setUserCount(snapshot.data().count);
+        }
+      } catch (err) {
+        if (isMounted) {
+          console.warn("Signal: User count temporarily unavailable.");
+          setUserCount(null);
+        }
+      }
+    };
+
+    const timer = setTimeout(() => {
+      fetchUserCount();
+    }, 1000);
+
+    return () => {
+      isMounted = false;
+      clearTimeout(timer);
+    };
+  }, []);
 
   const sharedProductRef = React.useRef<HTMLDivElement>(null);
 
@@ -340,6 +362,31 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
                   profile={profile} 
                   store={storesMap[product.storeId]}
                 />
+              </div>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* Supplier's Own Nodes Section */}
+      {profile?.currentRole === 'supplier' && nearbyStores.some(s => s.ownerId === profile.uid) && (
+        <section className="space-y-4">
+          <div className="flex items-center justify-between px-2">
+            <div className="flex items-center gap-2">
+              <div className="w-2 h-2 bg-neon-green rounded-full shadow-[0_0_8px_#39FF14] animate-pulse"></div>
+              <h2 className="font-black text-white uppercase tracking-tighter text-lg italic">Your Active Matrix Nodes</h2>
+            </div>
+            <button 
+              onClick={() => navigate('/stores?tab=manage')}
+              className="text-[9px] font-black text-primary uppercase tracking-widest hover:underline"
+            >
+              Manage Dashboard
+            </button>
+          </div>
+          <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4 snap-x px-1">
+            {nearbyStores.filter(s => s.ownerId === profile.uid).map((store) => (
+              <div key={`own-${store.id}`} className="min-w-[280px] snap-center">
+                <StoreCard store={store} profile={profile} onSelect={setSelectedStoreId} />
               </div>
             ))}
           </div>

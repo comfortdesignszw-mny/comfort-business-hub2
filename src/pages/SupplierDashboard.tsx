@@ -18,7 +18,8 @@ import {
   Share2,
   Shield,
   MapPin,
-  Building2
+  Building2,
+  Sparkles
 } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { 
@@ -554,10 +555,13 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
                   </div>
                 </div>
                 
-                <div className="flex items-center gap-4 pt-3">
+                <div className="flex items-center gap-4 pt-3 flex-wrap">
                   <div className="flex items-center gap-2">
                     <div className="w-2 h-2 bg-neon-green rounded-full shadow-[0_0_10px_#39FF14] animate-pulse"></div>
                     <span className="text-[9px] font-black uppercase text-white tracking-widest">Active Status</span>
+                  </div>
+                  <div className="flex items-center gap-2 px-2 py-0.5 bg-primary/10 border border-primary/20 rounded text-[8px] font-black text-primary uppercase tracking-widest animate-pulse">
+                    <Sparkles size={10} /> Live on Discovery Explorer
                   </div>
                   <div className="flex items-center gap-2 text-[9px] text-gray-300 font-bold uppercase tracking-widest bg-black/20 px-2.5 py-1 rounded-lg border border-white/5">
                     <MapPin size={10} className="text-primary" /> {activeStore.address || 'Matrix Location'}
@@ -652,12 +656,19 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
                 <h4 className="font-black text-white italic uppercase tracking-wider text-xs">{product.name}</h4>
                 <div className="flex items-center gap-2">
                   <span className="text-primary font-black text-sm tracking-tighter">{formatCurrency(product.price, product.currency)}</span>
-                  <span className={cn(
-                    "px-1.5 py-0.5 text-[7px] font-black rounded uppercase tracking-widest",
-                    product.isActive ? "bg-neon-green/10 text-neon-green" : "bg-red-500/10 text-red-500"
-                  )}>
-                    {product.isActive ? 'Active' : 'Offline'}
-                  </span>
+                  <div className="flex items-center gap-2">
+                    <span className={cn(
+                      "px-1.5 py-0.5 text-[7px] font-black rounded uppercase tracking-widest",
+                      product.isActive ? "bg-neon-green/10 text-neon-green" : "bg-red-500/10 text-red-500"
+                    )}>
+                      {product.isActive ? 'Active' : 'Offline'}
+                    </span>
+                    {product.isActive && (
+                      <span className="px-1.5 py-0.5 text-[7px] font-black rounded bg-primary/10 text-primary uppercase tracking-widest flex items-center gap-1">
+                        <Sparkles size={8} /> Live on Discovery
+                      </span>
+                    )}
+                  </div>
                 </div>
               </div>
               <div className="flex items-center gap-2 opacity-50 group-hover:opacity-100 transition-opacity">

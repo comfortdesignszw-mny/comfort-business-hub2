@@ -53,7 +53,7 @@ service cloud.firestore {
 
     // 3. COLLECTIONS
     match /users/{userId} {
-      allow read: if isSignedIn();
+      allow read: if true;
       allow create: if isOwner(userId) && isValidUser(incoming());
       allow update: if isOwner(userId) && isValidUser(incoming())
         && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'phone', 'avatar', 'currentRole', 'geohash', 'lat', 'lng', 'businessName', 'businessCategory', 'whatsappUrl', 'requiredProducts', 'location', 'gateway', 'isVerified', 'fcmToken', 'updatedAt', '_syncedAt', 'uid']);

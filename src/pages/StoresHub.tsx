@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useSearchParams } from 'react-router-dom';
 import { 
   Store as StoreIcon, Search, MapPin, Star, ArrowRight, Building2, 
   MapPinned, SlidersHorizontal, ArrowLeft, Check, Sparkles, Package
@@ -14,11 +14,21 @@ import SupplierDashboard from './SupplierDashboard';
 
 export default function StoresHub({ profile }: { profile: UserProfile | null }) {
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
   const [stores, setStores] = useState<StoreType[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
   const [activeTab, setActiveTab] = useState<'browse' | 'manage'>('browse');
+
+  useEffect(() => {
+    const tabParam = searchParams.get('tab');
+    if (tabParam === 'manage') {
+      setActiveTab('manage');
+    } else if (tabParam === 'browse') {
+      setActiveTab('browse');
+    }
+  }, [searchParams]);
 
   useEffect(() => {
     setLoading(true);

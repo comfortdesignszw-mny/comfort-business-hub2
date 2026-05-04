@@ -368,7 +368,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
             
             <motion.button
               whileTap={{ scale: 0.97 }}
-              onClick={() => handleNavigate('/store')}
+              onClick={() => handleNavigate('/stores?tab=manage')}
               className={cn(
                 "w-full btn-neon py-4 flex items-center justify-center gap-3 text-[11px] font-black uppercase tracking-widest transition-all",
                 isPending && "brightness-50 grayscale cursor-wait"
