@@ -11,6 +11,7 @@ import { UserProfile, Store as StoreType } from '../types';
 import { BUSINESS_CATEGORIES } from '../constants';
 import { cn } from '../lib/utils';
 import SupplierDashboard from './SupplierDashboard';
+import OptimizedImage from '../components/OptimizedImage';
 
 export default function StoresHub({ profile }: { profile: UserProfile | null }) {
   const navigate = useNavigate();
@@ -32,7 +33,7 @@ export default function StoresHub({ profile }: { profile: UserProfile | null }) 
 
   useEffect(() => {
     setLoading(true);
-    const sq = query(collection(db, 'stores'), limit(100));
+    const sq = query(collection(db, 'stores'), limit(50));
     const unsubscribe = onSnapshot(sq, (snapshot) => {
       setStores(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StoreType)));
       setLoading(false);
@@ -216,11 +217,10 @@ function StoreCard({ store, profile }: StoreCardProps) {
     >
       {/* Visual Identity Block */}
       <div className="aspect-[16/10] relative overflow-hidden bg-[#05070a]">
-        <img 
+        <OptimizedImage 
           src={store.coverPhoto || "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&q=80"} 
           className="w-full h-full object-cover group-hover:scale-110 transition-transform duration-700 opacity-40 group-hover:opacity-70"
           alt={store.name}
-          referrerPolicy="no-referrer"
         />
         <div className="absolute inset-0 bg-gradient-to-t from-[#0d1117] via-[#0d1117]/20 to-transparent"></div>
         
@@ -255,9 +255,9 @@ function StoreCard({ store, profile }: StoreCardProps) {
               </div>
             </div>
             
-            <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center p-2.5 group-hover:border-primary/40 group-hover:bg-primary/5 transition-all duration-500 flex-shrink-0">
+            <div className="w-14 h-14 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center p-2.5 group-hover:border-primary/40 group-hover:bg-primary/5 transition-all duration-500 flex-shrink-0 overflow-hidden">
               {store.logo ? (
-                <img src={store.logo} className="w-full h-full object-contain filter group-hover:brightness-110 transition-all" referrerPolicy="no-referrer" />
+                <OptimizedImage src={store.logo} className="w-full h-full object-contain filter group-hover:brightness-110 transition-all" />
               ) : (
                 <StoreIcon size={24} className="text-gray-500 group-hover:text-primary" />
               )}

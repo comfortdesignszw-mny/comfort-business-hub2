@@ -12,6 +12,7 @@ import { collection, query, limit, getDocs, where, addDoc, serverTimestamp, setD
 import { BUSINESS_CATEGORIES, PRODUCT_CATEGORIES } from '../constants';
 import ProductCard from '../components/ProductCard';
 import { StoreDetailContent } from './StoreDetail';
+import OptimizedImage from '../components/OptimizedImage';
 
 export default function Discovery({ profile, setProfile }: { profile: UserProfile | null, setProfile: (p: UserProfile) => void }) {
   const navigate = useNavigate();
@@ -86,7 +87,7 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
     const pq = query(
       collection(db, 'products'),
       where('isActive', '==', true),
-      limit(250)
+      limit(100)
     );
     
     const unsubscribeProducts = onSnapshot(pq, (snapshot) => {
@@ -114,7 +115,7 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
     });
 
     // Real-time listener for stores
-    const sq = query(collection(db, 'stores'), limit(300));
+    const sq = query(collection(db, 'stores'), limit(150));
     const unsubscribeStores = onSnapshot(sq, (snapshot) => {
       const allStores = snapshot.docs.map(doc => ({
         id: doc.id,
@@ -423,11 +424,10 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
               className="neon-card relative h-56 flex flex-col justify-end p-8 group cursor-pointer overflow-hidden"
             >
               <div className="absolute inset-0 z-0">
-                <img 
+                <OptimizedImage 
                   src={spotlights[activeSpotlightIndex].image || "https://images.unsplash.com/photo-1540350394557-8d14678e7f91?w=800&q=80"} 
                   className="w-full h-full object-cover opacity-40 group-hover:scale-110 transition-transform duration-1000" 
                   alt="Spotlight" 
-                  referrerPolicy="no-referrer" 
                 />
                 <div className="absolute inset-0 bg-gradient-to-t from-[#05070a] via-[#05070a]/60 to-transparent"></div>
               </div>
@@ -604,9 +604,9 @@ function StoreCard({ store, profile, onSelect }: { store: StoreType, profile: Us
       className="neon-card p-3.5 sm:p-5 space-y-3 sm:space-y-4 cursor-pointer group"
     >
       <div className="flex items-center gap-3 sm:gap-4">
-        <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-lg sm:rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 border border-white/10 flex items-center justify-center text-primary font-black text-base sm:text-xl shadow-[0_0_15px_rgba(0,242,254,0.1)] group-hover:scale-110 transition-transform flex-shrink-0">
+        <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-lg sm:rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 border border-white/10 flex items-center justify-center text-primary font-black text-base sm:text-xl shadow-[0_0_15px_rgba(0,242,254,0.1)] group-hover:scale-110 transition-transform flex-shrink-0 overflow-hidden">
           {store.logo ? (
-            <img src={store.logo} className="w-full h-full object-cover rounded-lg sm:rounded-2xl" referrerPolicy="no-referrer" />
+            <OptimizedImage src={store.logo} className="w-full h-full object-cover" />
           ) : (
             store.name.charAt(0)
           )}

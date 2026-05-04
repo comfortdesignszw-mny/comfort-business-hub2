@@ -3,7 +3,7 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Link, useLocation, useNavigate } from 'react-router-dom';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth, db, handleFirestoreError, OperationType } from './lib/firebase';
@@ -15,21 +15,34 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile, Role, Notification } from './types';
 import { cn } from './lib/utils';
-
-// Pages (to be implemented)
-import Discovery from './pages/Discovery';
-import DealRoom from './pages/DealRoom';
-import Chat from './pages/Chat';
-import Profile from './pages/Profile';
-import Login from './pages/Login';
-import SupplierSetup from './pages/SupplierSetup';
-import SupplierDashboard from './pages/SupplierDashboard';
-import CustomerSetup from './pages/CustomerSetup';
-import StoreDetail from './pages/StoreDetail';
-import StoresHub from './pages/StoresHub';
-import ProductDetail from './pages/ProductDetail';
 import { MessagingProvider } from './components/MessagingProvider';
 import { NotificationProvider, useNotifications } from './components/NotificationProvider';
+
+// Lazy loaded pages for performance
+const Discovery = lazy(() => import('./pages/Discovery'));
+const DealRoom = lazy(() => import('./pages/DealRoom'));
+const Chat = lazy(() => import('./pages/Chat'));
+const Profile = lazy(() => import('./pages/Profile'));
+const Login = lazy(() => import('./pages/Login'));
+const SupplierSetup = lazy(() => import('./pages/SupplierSetup'));
+const SupplierDashboard = lazy(() => import('./pages/SupplierDashboard'));
+const CustomerSetup = lazy(() => import('./pages/CustomerSetup'));
+const StoreDetail = lazy(() => import('./pages/StoreDetail'));
+const StoresHub = lazy(() => import('./pages/StoresHub'));
+const ProductDetail = lazy(() => import('./pages/ProductDetail'));
+
+// Loading component for suspense
+const PageLoader = () => (
+  <div className="flex items-center justify-center h-[50vh]">
+    <motion.div 
+      animate={{ rotate: 360 }}
+      transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
+      className="text-primary"
+    >
+      <Zap size={24} />
+    </motion.div>
+  </div>
+);
 
 export default function App() {
   const [user, setUser] = useState<User | null>(null);
@@ -129,29 +142,31 @@ export default function App() {
               <main className="flex-1 overflow-y-auto no-scrollbar pb-24">
                 <div className="max-w-7xl mx-auto w-full">
                   <AnimatePresence mode="wait">
-                    <Routes>
-                      {isProfileIncomplete ? (
-                        <Route path="*" element={<CustomerSetup profile={profile!} />} />
-                      ) : (
-                        <>
-                          <Route path="/" element={<Discovery profile={profile} setProfile={setProfile} />} />
-                          <Route 
-                            path="/stores" 
-                            element={
-                              profile?.currentRole === 'supplier' 
-                                ? <StoresHub profile={profile} /> 
-                                : <Navigate to="/" replace />
-                            } 
-                          />
-                          <Route path="/deals" element={<DealRoom profile={profile} />} />
-                          <Route path="/chat" element={<Chat profile={profile} />} />
-                          <Route path="/store/:id" element={<StoreDetail profile={profile} />} />
-                          <Route path="/product/:id" element={<ProductDetail profile={profile} />} />
-                          <Route path="/profile" element={<Profile profile={profile} setProfile={setProfile} />} />
-                          <Route path="*" element={<Navigate to="/" replace />} />
-                        </>
-                      )}
-                    </Routes>
+                    <Suspense fallback={<PageLoader />}>
+                      <Routes>
+                        {isProfileIncomplete ? (
+                          <Route path="*" element={<CustomerSetup profile={profile!} />} />
+                        ) : (
+                          <>
+                            <Route path="/" element={<Discovery profile={profile} setProfile={setProfile} />} />
+                            <Route 
+                              path="/stores" 
+                              element={
+                                profile?.currentRole === 'supplier' 
+                                  ? <StoresHub profile={profile} /> 
+                                  : <Navigate to="/" replace />
+                              } 
+                            />
+                            <Route path="/deals" element={<DealRoom profile={profile} />} />
+                            <Route path="/chat" element={<Chat profile={profile} />} />
+                            <Route path="/store/:id" element={<StoreDetail profile={profile} />} />
+                            <Route path="/product/:id" element={<ProductDetail profile={profile} />} />
+                            <Route path="/profile" element={<Profile profile={profile} setProfile={setProfile} />} />
+                            <Route path="*" element={<Navigate to="/" replace />} />
+                          </>
+                        )}
+                      </Routes>
+                    </Suspense>
                   </AnimatePresence>
                 </div>
               </main>

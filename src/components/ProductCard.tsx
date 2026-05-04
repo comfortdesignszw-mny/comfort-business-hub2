@@ -9,6 +9,7 @@ import { cn, formatCurrency } from '../lib/utils';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { collection, addDoc, serverTimestamp, setDoc, doc, getDoc } from 'firebase/firestore';
 import { interactionService } from '../services/interactionService';
+import OptimizedImage from './OptimizedImage';
 
 import { useMessaging } from '../components/MessagingProvider';
 
@@ -171,19 +172,12 @@ export default function ProductCard({
       >
         <div className="aspect-[16/10] relative overflow-hidden">
           <AnimatePresence mode="wait">
-            <motion.img 
+            <OptimizedImage 
               key={currentImageIndex}
               src={images[currentImageIndex]} 
               alt={product.name}
-              initial={{ opacity: 0, x: 20 }}
-              animate={{ opacity: 1, x: 0 }}
-              exit={{ opacity: 0, x: -20 }}
               className="w-full h-full object-cover"
-              referrerPolicy="no-referrer"
-              onError={(e) => {
-                const target = e.target as HTMLImageElement;
-                target.src = "https://images.unsplash.com/photo-1541701494587-cb58502866ab?q=80&w=400&auto=format&fit=crop";
-              }}
+              fallbackSrc="https://images.unsplash.com/photo-1541701494587-cb58502866ab?q=80&w=400&auto=format&fit=crop"
             />
           </AnimatePresence>
           

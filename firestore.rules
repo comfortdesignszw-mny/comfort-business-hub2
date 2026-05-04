@@ -21,8 +21,8 @@ service cloud.firestore {
     function isValidUser(data) {
       return data.uid == request.auth.uid
         && data.name is string && data.name.size() <= 100
-        && data.phone is string && data.phone.size() <= 20
         && data.currentRole in ['customer', 'supplier']
+        && (!('phone' in data) || (data.phone is string && data.phone.size() <= 20))
         && (!('email' in data) || (data.email is string && data.email.size() <= 100))
         && (!('fcmToken' in data) || (data.fcmToken is string && data.fcmToken.size() <= 512));
     }
@@ -42,18 +42,24 @@ service cloud.firestore {
       return data.ownerId == request.auth.uid
         && data.name is string && data.name.size() >= 2 && data.name.size() <= 100
         && data.price is number && data.price >= 0
-        && data.buyButtonType in ['checkout', 'chat', 'link', 'ecocash', 'pod'];
+        && data.buyButtonType in ['checkout', 'chat', 'link', 'ecocash', 'pod']
+        && (!('description' in data) || data.description == null || (data.description is string && data.description.size() <= 5000));
     }
 
     function isValidNotification(data) {
       return data.userId is string && data.userId.size() <= 128
         && data.fromUserId == request.auth.uid
-        && data.type in ['engage', 'buy', 'rate', 'follow', 'like_store', 'like_product'];
+        && data.type in ['engage', 'buy', 'rate', 'follow', 'like_store', 'like_product']
+        && data.title is string && data.title.size() <= 100
+        && data.message is string && data.message.size() <= 500;
     }
 
     // 3. COLLECTIONS
     match /users/{userId} {
-      allow read: if true;
+      // General read access for discovery, but restricted for list queries
+      allow get: if isSignedIn();
+      allow list: if isOwner(userId);
+      
       allow create: if isOwner(userId) && isValidUser(incoming());
       allow update: if isOwner(userId) && isValidUser(incoming())
         && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'phone', 'avatar', 'currentRole', 'geohash', 'lat', 'lng', 'businessName', 'businessCategory', 'whatsappUrl', 'requiredProducts', 'location', 'gateway', 'isVerified', 'fcmToken', 'updatedAt', '_syncedAt', 'uid']);
