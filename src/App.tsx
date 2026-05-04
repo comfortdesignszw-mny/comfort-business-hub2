@@ -342,44 +342,46 @@ function NotificationsModal({ onClose }: { onClose: () => void }) {
           <button onClick={onClose} className="text-gray-500 hover:text-white"><X size={20} /></button>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar">
+        <div className="flex-1 overflow-y-auto p-4 space-y-3 no-scrollbar scroll-smooth">
           {notifications.length > 0 ? (
-            notifications.map((n) => (
-              <div 
-                key={n.id}
-                onClick={() => {
-                  markAsRead(n.id);
-                  if (n.type === 'engage' || n.type === 'buy') navigate('/chat');
-                  if (n.type === 'like_product' || n.type === 'rate') navigate(`/product/${n.targetId}`);
-                  if (n.type === 'follow' || n.type === 'like_store') navigate(`/store/${n.targetId}`);
-                  onClose();
-                }}
-                className={cn(
-                  "p-4 rounded-2xl border transition-all cursor-pointer group",
-                  n.read 
-                    ? "bg-transparent border-white/5 opacity-60" 
-                    : "bg-white/5 border-primary/20 shadow-[0_0_15px_rgba(0,242,254,0.1)]"
-                )}
-              >
-                <div className="flex gap-4">
-                  <div className={cn(
-                    "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110",
-                    !n.read ? "bg-primary/20 text-primary" : "bg-white/5 text-gray-500"
-                  )}>
-                    {getNotificationIcon(n.type)}
-                  </div>
-                  <div className="flex-1 min-w-0">
-                    <div className="flex justify-between items-start">
-                      <h4 className="text-[10px] font-black text-white uppercase tracking-tight truncate">{n.title}</h4>
-                      <span className="text-[8px] font-black text-gray-600 uppercase ml-2 whitespace-nowrap">
-                        {n.createdAt?.toDate ? n.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}
-                      </span>
+            (() => {
+              const unread = notifications.filter(n => !n.read);
+              const read = notifications.filter(n => n.read);
+              
+              return (
+                <>
+                  {unread.map((n) => (
+                    <NotificationItem 
+                      key={n.id} 
+                      n={n} 
+                      markAsRead={markAsRead} 
+                      onClose={onClose} 
+                      navigate={navigate} 
+                    />
+                  ))}
+                  
+                  {read.length > 0 && (
+                    <div className="pt-4 pb-2 px-2">
+                      <div className="flex items-center gap-4">
+                        <div className="h-px flex-1 bg-white/5" />
+                        <span className="text-[8px] font-black text-gray-600 uppercase tracking-[0.2em] whitespace-nowrap">Earlier Streams</span>
+                        <div className="h-px flex-1 bg-white/5" />
+                      </div>
                     </div>
-                    <p className="text-[10px] text-gray-400 mt-1 leading-relaxed line-clamp-2">{n.message}</p>
-                  </div>
-                </div>
-              </div>
-            ))
+                  )}
+                  
+                  {read.map((n) => (
+                    <NotificationItem 
+                      key={n.id} 
+                      n={n} 
+                      markAsRead={markAsRead} 
+                      onClose={onClose} 
+                      navigate={navigate} 
+                    />
+                  ))}
+                </>
+              );
+            })()
           ) : (
             <div className="py-20 text-center space-y-4">
               <Zap size={32} className="mx-auto text-gray-800" />
@@ -400,6 +402,44 @@ function NotificationsModal({ onClose }: { onClose: () => void }) {
           </button>
         </div>
       </motion.div>
+    </div>
+  );
+}
+
+function NotificationItem({ n, markAsRead, onClose, navigate }: { n: Notification, markAsRead: (id: string) => Promise<void>, onClose: () => void, navigate: any, key?: string }) {
+  return (
+    <div 
+      onClick={() => {
+        markAsRead(n.id);
+        if (n.type === 'engage' || n.type === 'buy') navigate('/chat');
+        if (n.type === 'like_product' || n.type === 'rate') navigate(`/product/${n.targetId}`);
+        if (n.type === 'follow' || n.type === 'like_store') navigate(`/store/${n.targetId}`);
+        onClose();
+      }}
+      className={cn(
+        "p-4 rounded-2xl border transition-all cursor-pointer group",
+        n.read 
+          ? "bg-transparent border-white/5 opacity-60" 
+          : "bg-white/5 border-primary/20 shadow-[0_0_15px_rgba(0,242,254,0.1)]"
+      )}
+    >
+      <div className="flex gap-4">
+        <div className={cn(
+          "w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 transition-transform group-hover:scale-110",
+          !n.read ? "bg-primary/20 text-primary" : "bg-white/5 text-gray-500"
+        )}>
+          {getNotificationIcon(n.type)}
+        </div>
+        <div className="flex-1 min-w-0">
+          <div className="flex justify-between items-start">
+            <h4 className="text-[10px] font-black text-white uppercase tracking-tight truncate">{n.title}</h4>
+            <span className="text-[8px] font-black text-gray-600 uppercase ml-2 whitespace-nowrap">
+              {n.createdAt?.toDate ? n.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}
+            </span>
+          </div>
+          <p className="text-[10px] text-gray-400 mt-1 leading-relaxed line-clamp-2">{n.message}</p>
+        </div>
+      </div>
     </div>
   );
 }
