@@ -3,13 +3,14 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Store as StoreIcon, MapPin, Star, MessageSquare, ArrowLeft, Share2, 
-  Info, Loader2, Building2, Zap, ShoppingBag, Heart, UserPlus, Navigation 
+  Info, Loader2, Building2, Zap, ShoppingBag, Heart, UserPlus, Navigation, Camera, Check, X
 } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
-import { doc, getDoc, collection, query, where, getDocs, onSnapshot, limit } from 'firebase/firestore';
+import { doc, getDoc, collection, query, where, getDocs, onSnapshot, limit, updateDoc } from 'firebase/firestore';
 import { UserProfile, Product, Store as StoreType } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
 import ProductCard from '../components/ProductCard';
+import ImageInput from '../components/ImageInput';
 import { interactionService } from '../services/interactionService';
 
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
@@ -25,57 +26,55 @@ const DefaultIcon = L.icon({
 });
 L.Marker.prototype.options.icon = DefaultIcon;
 
-export default function StoreDetail({ profile }: { profile: UserProfile | null }) {
-  const { id } = useParams<{ id: string }>();
-  const navigate = useNavigate();
-  const [store, setStore] = useState<StoreType | null>(null);
+export function StoreDetailContent({ store, profile, showMap = true, allowEdit = true }: { store: StoreType, profile: UserProfile | null, showMap?: boolean, allowEdit?: boolean }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
+  const [isEditingCover, setIsEditingCover] = useState(false);
+  const [newCover, setNewCover] = useState('');
+  const [isSavingCover, setIsSavingCover] = useState(false);
+  const navigate = useNavigate();
+
+  const isOwner = allowEdit && profile?.uid === store.ownerId;
+
+  const handleUpdateCover = async () => {
+    if (!store.id || !newCover) return;
+    setIsSavingCover(true);
+    try {
+      await updateDoc(doc(db, 'stores', store.id), {
+        coverPhoto: newCover
+      });
+      setIsEditingCover(false);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `stores/${store.id}`);
+    } finally {
+      setIsSavingCover(false);
+    }
+  };
 
   useEffect(() => {
-    if (!id) return;
-
+    if (!store.id) return;
     setLoading(true);
-    
-    // Real-time Store Listener
-    const storeUnsub = onSnapshot(doc(db, 'stores', id), (snap) => {
-      if (snap.exists()) {
-        setStore({ id: snap.id, ...snap.data() } as StoreType);
-      } else {
-        setError("Node not found in local subspace");
-      }
-      setLoading(false);
-    }, (err) => {
-      handleFirestoreError(err, OperationType.GET, `store-realtime-${id}`);
-      setError("Error synchronizing with store node");
-      setLoading(false);
-    });
-
-    // Fetch Products (can be real-time too if needed, but let's keep it simple or real-time)
     const pq = query(
       collection(db, 'products'),
-      where('storeId', '==', id),
+      where('storeId', '==', store.id),
       where('isActive', '==', true),
       limit(50)
     );
     
     const productsUnsub = onSnapshot(pq, (snap) => {
       setProducts(snap.docs.map(d => ({ id: d.id, ...d.data() } as Product)));
+      setLoading(false);
     });
 
-    return () => {
-      storeUnsub();
-      productsUnsub();
-    };
-  }, [id]);
+    return () => productsUnsub();
+  }, [store.id]);
 
   const handleShare = () => {
-    const shareUrl = `${window.location.origin}/store/${id}`;
+    const shareUrl = `${window.location.origin}/store/${store.id}`;
     if (navigator.share) {
       navigator.share({
-        title: store?.name || 'Comfort Node',
-        text: `Check out ${store?.name} on Comfort Business Hub!`,
+        title: store.name || 'Comfort Node',
+        text: `Check out ${store.name} on Comfort Business Hub!`,
         url: shareUrl,
       }).catch(console.error);
     } else {
@@ -84,35 +83,12 @@ export default function StoreDetail({ profile }: { profile: UserProfile | null }
     }
   };
 
-  if (loading) {
-    return (
-      <div className="flex flex-col items-center justify-center py-20 gap-4">
-        <Loader2 className="animate-spin text-primary" size={32} />
-        <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest animate-pulse">Syncing Store Node...</p>
-      </div>
-    );
-  }
-
-  if (error || !store) {
-    return (
-      <div className="p-8 text-center space-y-4">
-        <Building2 className="mx-auto text-gray-700" size={48} />
-        <h3 className="text-lg font-black text-white italic uppercase">{error || "Node Offline"}</h3>
-        <button onClick={() => navigate('/')} className="btn-neon px-8 py-3 text-[10px] font-black uppercase">Return to Hub</button>
-      </div>
-    );
-  }
-
   return (
-    <motion.div 
-      initial={{ opacity: 0 }}
-      animate={{ opacity: 1 }}
-      className="p-4 space-y-8"
-    >
+    <div className="space-y-8 pb-12">
       <header className="relative py-4 sm:py-12 rounded-[2.5rem] overflow-hidden neon-card">
          <div className="absolute inset-0 z-0">
           <img 
-            src={store.banner || "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&q=80"} 
+            src={store.coverPhoto || "https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&q=80"} 
             className="w-full h-full object-cover opacity-30" 
             alt="Banner" 
             referrerPolicy="no-referrer" 
@@ -120,18 +96,61 @@ export default function StoreDetail({ profile }: { profile: UserProfile | null }
           <div className="absolute inset-0 bg-gradient-to-t from-[#05070a] via-[#05070a]/60 to-transparent"></div>
         </div>
 
-        <div className="relative z-10 flex flex-col items-center text-center space-y-1.5 sm:space-y-4 px-4 sm:px-6">
-          <div className="w-10 h-10 sm:w-24 sm:h-24 rounded-xl sm:rounded-3xl bg-[#0d1117] border border-primary/30 sm:border-4 border-[#05070a] shadow-2xl overflow-hidden flex items-center justify-center text-primary font-black text-base sm:text-4xl">
-            {store.logo ? (
-              <img src={store.logo} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-            ) : store.name.charAt(0)}
+        {isOwner && (
+          <div className="absolute top-6 right-6 z-20">
+            {isEditingCover ? (
+              <div className="flex gap-2">
+                <button 
+                  onClick={handleUpdateCover}
+                  disabled={isSavingCover}
+                  className="w-10 h-10 bg-neon-green/20 backdrop-blur-md rounded-xl flex items-center justify-center text-neon-green border border-neon-green/30 hover:bg-neon-green hover:text-black transition-all"
+                >
+                  {isSavingCover ? <Loader2 size={18} className="animate-spin" /> : <Check size={18} />}
+                </button>
+                <button 
+                  onClick={() => setIsEditingCover(false)}
+                  className="w-10 h-10 bg-white/5 backdrop-blur-md rounded-xl flex items-center justify-center text-white border border-white/10 hover:bg-white/10 transition-all"
+                >
+                  <X size={18} />
+                </button>
+              </div>
+            ) : (
+              <button 
+                onClick={() => {
+                  setNewCover(store.coverPhoto || '');
+                  setIsEditingCover(true);
+                }}
+                className="flex items-center gap-2 bg-black/40 backdrop-blur-md px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-white border border-white/10 hover:bg-primary hover:text-black transition-all"
+              >
+                <Camera size={14} /> Adjust Matrix Cover
+              </button>
+            )}
           </div>
+        )}
+
+        <div className="relative z-10 flex flex-col items-center text-center space-y-1.5 sm:space-y-4 px-4 sm:px-6">
+          {isEditingCover && isOwner ? (
+            <div className="w-full max-w-lg mb-8">
+               <ImageInput 
+                value={newCover} 
+                onChange={setNewCover}
+                label="Store Cover Photo (Recommended: Landscape)"
+                aspectRatio="video"
+              />
+            </div>
+          ) : (
+            <div className="w-10 h-10 sm:w-24 sm:h-24 rounded-xl sm:rounded-3xl bg-[#0d1117] border border-primary/30 sm:border-4 border-[#05070a] shadow-2xl overflow-hidden flex items-center justify-center text-primary font-black text-base sm:text-4xl">
+              {store.logo ? (
+                <img src={store.logo} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+              ) : store.name.charAt(0)}
+            </div>
+          )}
           
           <div className="space-y-0.5 sm:space-y-1">
             <h2 className="text-sm sm:text-3xl font-black text-white italic uppercase tracking-tighter leading-tight">{store.name}</h2>
             <div className="flex items-center justify-center gap-1 sm:gap-2">
               <MapPin size={8} className="text-primary" />
-              <p className="text-[7px] sm:text-[10px] text-gray-400 font-bold uppercase tracking-widest">{store.category} • {store.location || 'Local Hub'}</p>
+              <p className="text-[7px] sm:text-[10px] text-gray-400 font-bold uppercase tracking-widest">{store.category} • {store.address || 'Local Hub'}</p>
             </div>
           </div>
 
@@ -185,47 +204,49 @@ export default function StoreDetail({ profile }: { profile: UserProfile | null }
       )}
       
       {/* Store Location Node */}
-      <section className="space-y-4">
-        <div className="flex items-center gap-2 px-2">
-          <MapPin size={20} className="text-primary" />
-          <h3 className="font-black text-white uppercase tracking-tighter text-xl italic uppercase">Geographic Hub Node</h3>
-        </div>
-        <div className="neon-card p-4 space-y-4 overflow-hidden">
-          <div className="h-48 sm:h-64 rounded-2xl overflow-hidden border border-white/5 shadow-inner">
-            {(store.lat && store.lng) ? (
-              <MapContainer 
-                center={[store.lat, store.lng]} 
-                zoom={14} 
-                style={{ height: '100%', width: '100%' }}
-                zoomControl={false}
-                dragging={false}
-                touchZoom={false}
-                scrollWheelZoom={false}
-              >
-                <TileLayer
-                  attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-                  url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                />
-                <Marker position={[store.lat, store.lng]} />
-              </MapContainer>
-            ) : (
-              <div className="w-full h-full bg-white/5 flex flex-col items-center justify-center gap-2">
-                <Navigation size={24} className="text-gray-700" />
-                <p className="text-[10px] text-gray-700 font-black uppercase tracking-widest">Coordinates not synchronized</p>
+      {showMap && (
+        <section className="space-y-4">
+          <div className="flex items-center gap-2 px-2">
+            <MapPin size={20} className="text-primary" />
+            <h3 className="font-black text-white uppercase tracking-tighter text-xl italic uppercase">Geographic Hub Node</h3>
+          </div>
+          <div className="neon-card p-4 space-y-4 overflow-hidden">
+            <div className="h-48 sm:h-64 rounded-2xl overflow-hidden border border-white/5 shadow-inner">
+              {(store.lat && store.lng) ? (
+                <MapContainer 
+                  center={[store.lat, store.lng]} 
+                  zoom={14} 
+                  style={{ height: '100%', width: '100%' }}
+                  zoomControl={false}
+                  dragging={false}
+                  touchZoom={false}
+                  scrollWheelZoom={false}
+                >
+                  <TileLayer
+                    attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                    url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                  />
+                  <Marker position={[store.lat, store.lng]} />
+                </MapContainer>
+              ) : (
+                <div className="w-full h-full bg-white/5 flex flex-col items-center justify-center gap-2">
+                  <Navigation size={24} className="text-gray-700" />
+                  <p className="text-[10px] text-gray-700 font-black uppercase tracking-widest">Coordinates not synchronized</p>
+                </div>
+              )}
+            </div>
+            <div className="flex items-start gap-3 px-2 py-1">
+              <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0 text-primary">
+                <Building2 size={16} />
               </div>
-            )}
-          </div>
-          <div className="flex items-start gap-3 px-2 py-1">
-            <div className="w-8 h-8 bg-primary/10 rounded-lg flex items-center justify-center flex-shrink-0 text-primary">
-              <Building2 size={16} />
-            </div>
-            <div className="space-y-0.5">
-              <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest">Physical Manifestation</p>
-              <p className="text-sm font-bold text-white italic">{(store as any).address || store.location || 'Distributed Network Node'}</p>
+              <div className="space-y-0.5">
+                <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest">Physical Manifestation</p>
+                <p className="text-sm font-bold text-white italic">{store.address || 'Distributed Network Node'}</p>
+              </div>
             </div>
           </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       <section className="space-y-6">
         <div className="flex items-center justify-between px-2">
@@ -236,24 +257,89 @@ export default function StoreDetail({ profile }: { profile: UserProfile | null }
           <span className="text-[9px] font-black text-neon-green uppercase tracking-widest">{products.length} Items Live</span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {products.length > 0 ? (
-            products.map((p) => (
-              <ProductCard 
-                key={p.id} 
-                product={p} 
-                profile={profile} 
-                store={store}
-              />
-            ))
-          ) : (
-            <div className="col-span-full py-20 text-center space-y-4 bg-white/5 rounded-3xl border border-white/5">
-              <Info size={32} className="mx-auto text-gray-700" />
-              <p className="text-xs font-black text-gray-500 uppercase tracking-widest">No active items found in this node</p>
-            </div>
-          )}
-        </div>
+        {loading ? (
+           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+             {[1, 2, 3, 4].map(i => <div key={i} className="neon-card h-64 animate-pulse" />)}
+           </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+            {products.length > 0 ? (
+              products.map((p) => (
+                <ProductCard 
+                  key={p.id} 
+                  product={p} 
+                  profile={profile} 
+                  store={store}
+                />
+              ))
+            ) : (
+              <div className="col-span-full py-20 text-center space-y-4 bg-white/5 rounded-3xl border border-white/5">
+                <Info size={32} className="mx-auto text-gray-700" />
+                <p className="text-xs font-black text-gray-500 uppercase tracking-widest">No active items found in this node</p>
+              </div>
+            )}
+          </div>
+        )}
       </section>
+    </div>
+  );
+}
+
+export default function StoreDetail({ profile }: { profile: UserProfile | null }) {
+  const { id } = useParams<{ id: string }>();
+  const navigate = useNavigate();
+  const [store, setStore] = useState<StoreType | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!id) return;
+
+    setLoading(true);
+    
+    // Real-time Store Listener
+    const storeUnsub = onSnapshot(doc(db, 'stores', id), (snap) => {
+      if (snap.exists()) {
+        setStore({ id: snap.id, ...snap.data() } as StoreType);
+      } else {
+        setError("Node not found in local subspace");
+      }
+      setLoading(false);
+    }, (error) => {
+      handleFirestoreError(error, OperationType.GET, `store-realtime-${id}`);
+      setError("Error synchronizing with store node");
+      setLoading(false);
+    });
+
+    return () => storeUnsub();
+  }, [id]);
+
+  if (loading) {
+    return (
+      <div className="flex flex-col items-center justify-center py-20 gap-4">
+        <Loader2 className="animate-spin text-primary" size={32} />
+        <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest animate-pulse">Syncing Store Node...</p>
+      </div>
+    );
+  }
+
+  if (error || !store) {
+    return (
+      <div className="p-8 text-center space-y-4">
+        <Building2 className="mx-auto text-gray-700" size={48} />
+        <h3 className="text-lg font-black text-white italic uppercase">{error || "Node Offline"}</h3>
+        <button onClick={() => navigate('/')} className="btn-neon px-8 py-3 text-[10px] font-black uppercase">Return to Hub</button>
+      </div>
+    );
+  }
+
+  return (
+    <motion.div 
+      initial={{ opacity: 0 }}
+      animate={{ opacity: 1 }}
+      className="p-4"
+    >
+      <StoreDetailContent store={store} profile={profile} />
     </motion.div>
   );
 }

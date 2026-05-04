@@ -19,6 +19,7 @@ export default function SupplierSetup({ profile, onComplete, existingStore }: { 
   const [category, setCategory] = useState(existingStore?.category || BUSINESS_CATEGORIES[0]);
   const [specificBusinessType, setSpecificBusinessType] = useState(existingStore?.specificBusinessType || '');
   const [logo, setLogo] = useState(existingStore?.logo || '');
+  const [coverPhoto, setCoverPhoto] = useState(existingStore?.coverPhoto || '');
   const [location, setLocation] = useState({
     lat: existingStore?.lat || profile.lat || -17.8252,
     lng: existingStore?.lng || profile.lng || 31.0335,
@@ -34,6 +35,7 @@ export default function SupplierSetup({ profile, onComplete, existingStore }: { 
       setCategory(existingStore.category);
       setSpecificBusinessType(existingStore.specificBusinessType || '');
       setLogo(existingStore.logo || '');
+      setCoverPhoto(existingStore.coverPhoto || '');
     }
   }, [existingStore]);
 
@@ -60,6 +62,7 @@ export default function SupplierSetup({ profile, onComplete, existingStore }: { 
           category,
           specificBusinessType,
           logo: logo || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}`,
+          coverPhoto: coverPhoto || `https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&q=80`,
           lat: location.lat,
           lng: location.lng,
           geohash: hash,
@@ -119,13 +122,23 @@ export default function SupplierSetup({ profile, onComplete, existingStore }: { 
 
       <form onSubmit={handleSubmit} className="space-y-6">
         <div className="neon-card p-6 space-y-6">
-          <div className="max-w-[200px] mx-auto w-full">
-            <ImageInput 
-              value={logo} 
-              onChange={setLogo} 
-              label="Business Logo Identity"
-              aspectRatio="square"
-            />
+          <div className="flex flex-col md:flex-row gap-6">
+            <div className="flex-1 max-w-[200px] mx-auto md:mx-0 w-full">
+              <ImageInput 
+                value={logo} 
+                onChange={setLogo} 
+                label="Business Logo Identity"
+                aspectRatio="square"
+              />
+            </div>
+            <div className="flex-[2] w-full">
+              <ImageInput 
+                value={coverPhoto} 
+                onChange={setCoverPhoto} 
+                label="Storefront Cover Image"
+                aspectRatio="video"
+              />
+            </div>
           </div>
 
           <div className="space-y-4">

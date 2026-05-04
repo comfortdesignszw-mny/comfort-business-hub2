@@ -41,6 +41,8 @@ export interface Store {
   lat: number;
   lng: number;
   logo?: string;
+  coverPhoto?: string;
+  address?: string;
   rating: number;
   reviewCount: number;
   followerCount?: number;

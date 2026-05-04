@@ -26,6 +26,7 @@ import SupplierSetup from './pages/SupplierSetup';
 import SupplierDashboard from './pages/SupplierDashboard';
 import CustomerSetup from './pages/CustomerSetup';
 import StoreDetail from './pages/StoreDetail';
+import StoresHub from './pages/StoresHub';
 import ProductDetail from './pages/ProductDetail';
 import { MessagingProvider } from './components/MessagingProvider';
 import { NotificationProvider, useNotifications } from './components/NotificationProvider';
@@ -124,15 +125,11 @@ export default function App() {
                       ) : (
                         <>
                           <Route path="/" element={<Discovery profile={profile} setProfile={setProfile} />} />
+                          <Route path="/stores" element={<StoresHub profile={profile} />} />
                           <Route path="/deals" element={<DealRoom profile={profile} />} />
                           <Route path="/chat" element={<Chat profile={profile} />} />
                           <Route path="/store/:id" element={<StoreDetail profile={profile} />} />
                           <Route path="/product/:id" element={<ProductDetail profile={profile} />} />
-                          {profile?.currentRole === 'supplier' && !hasStore ? (
-                            <Route path="/store" element={<SupplierSetup profile={profile!} />} />
-                          ) : profile?.currentRole === 'supplier' ? (
-                            <Route path="/store" element={<SupplierDashboard profile={profile!} />} />
-                          ) : null}
                           <Route path="/profile" element={<Profile profile={profile} setProfile={setProfile} />} />
                           <Route path="*" element={<Navigate to="/" replace />} />
                         </>
@@ -322,7 +319,7 @@ function Navigation({ profile }: { profile: UserProfile | null }) {
   
   const navItems = [
     { path: '/', icon: Search, label: 'Explore' },
-    ...(profile?.currentRole === 'supplier' ? [{ path: '/store', icon: Store, label: 'Store' }] : []),
+    { path: '/stores', icon: Store, label: 'Stores' },
     { path: '/deals', icon: Zap, label: 'Markets' },
     { path: '/chat', icon: MessageSquare, label: 'Comms' },
     { path: '/profile', icon: UserIcon, label: 'Hub' },

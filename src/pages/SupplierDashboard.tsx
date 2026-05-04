@@ -16,7 +16,9 @@ import {
   Loader2,
   Phone,
   Share2,
-  Shield
+  Shield,
+  MapPin,
+  Building2
 } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { 
@@ -33,6 +35,20 @@ import { PRODUCT_CATEGORIES, BUSINESS_CATEGORIES } from '../constants';
 import SupplierSetup from './SupplierSetup';
 import { offlineResilientWrite } from '../lib/sync';
 import ImageInput from '../components/ImageInput';
+import LocationPicker from '../components/LocationPicker';
+import { geohashForLocation } from 'geofire-common';
+import { MapContainer, TileLayer, Marker } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+
+// Fix for default marker icon in Leaflet
+const DefaultIcon = L.icon({
+    iconUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-icon.png',
+    shadowUrl: 'https://unpkg.com/leaflet@1.9.4/dist/images/marker-shadow.png',
+    iconSize: [25, 41],
+    iconAnchor: [12, 41]
+});
+L.Marker.prototype.options.icon = DefaultIcon;
 
 interface ProductForm {
   name: string;
@@ -73,6 +89,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
   const [isSavingStore, setIsSavingStore] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [customCategory, setCustomCategory] = useState('');
+  const [isEditingLocation, setIsEditingLocation] = useState(false);
 
   const [engagementStats, setEngagementStats] = useState({ engaged: 0, interested: 0 });
 
@@ -129,10 +146,15 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
     
     setIsSavingStore(true);
     try {
-      const data = {
+      let data = {
         ...storeEditData,
         updatedAt: new Date().toISOString()
       };
+
+      if (storeEditData.lat && storeEditData.lng) {
+        (data as any).geohash = geohashForLocation([storeEditData.lat, storeEditData.lng]);
+      }
+
       await offlineResilientWrite('stores', activeStore.id, 'update', data);
       
       const updatedStore = { ...activeStore, ...storeEditData };
@@ -366,7 +388,17 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
                   className="w-full h-full border-primary/20"
                 />
               </div>
-              <div className="flex-1 space-y-4">
+              <div className="flex-1 w-full">
+                <ImageInput 
+                  value={storeEditData.coverPhoto ?? activeStore.coverPhoto ?? ''} 
+                  onChange={(val) => setStoreEditData(prev => ({ ...prev, coverPhoto: val }))}
+                  aspectRatio="video"
+                  label="Store Cover Photo"
+                  className="w-full border-primary/20"
+                />
+              </div>
+            </div>
+            <div className="flex-1 space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
                     <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">Node Identifier</label>
@@ -399,8 +431,38 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary/50 text-xs font-medium"
                   />
                 </div>
+
+                <div className="space-y-4 pt-4 border-t border-white/5">
+                   <div className="flex items-center justify-between">
+                     <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">Geographic Coordinates</label>
+                     <button 
+                      type="button"
+                      onClick={() => setIsEditingLocation(!isEditingLocation)}
+                      className="text-[9px] font-black text-primary uppercase tracking-widest flex items-center gap-1.5"
+                     >
+                       {isEditingLocation ? 'Lock Node' : 'Update Node Position'}
+                     </button>
+                   </div>
+                   
+                   {isEditingLocation ? (
+                     <LocationPicker 
+                       initialLat={storeEditData.lat ?? activeStore.lat}
+                       initialLng={storeEditData.lng ?? activeStore.lng}
+                       onLocationSelect={(lat, lng, address) => {
+                         setStoreEditData(prev => ({ ...prev, lat, lng, address }));
+                       }}
+                     />
+                   ) : (
+                     <div className="flex items-center gap-3 p-4 bg-white/5 border border-white/5 rounded-2xl">
+                       <MapPin size={18} className="text-primary" />
+                       <div>
+                         <p className="text-[10px] text-white font-bold italic">{(storeEditData as any).address || activeStore.address || 'Standard Hub Position'}</p>
+                         <p className="text-[8px] text-gray-500 font-mono mt-0.5">LAT: {storeEditData.lat ?? activeStore.lat} | LNG: {storeEditData.lng ?? activeStore.lng}</p>
+                       </div>
+                     </div>
+                   )}
+                </div>
               </div>
-            </div>
             <div className="flex gap-3 justify-end pt-2">
               <button 
                 onClick={() => { setIsEditingStore(false); setStoreEditData({}); }}
@@ -418,7 +480,8 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
             </div>
           </div>
         ) : (
-          <div className="flex items-center gap-6 relative z-10">
+          <>
+            <div className="flex items-center gap-6 relative z-10">
             <div className="w-20 h-20 bg-white/5 rounded-2xl border border-white/10 flex items-center justify-center text-3xl font-black text-primary italic overflow-hidden shadow-2xl">
               {activeStore.logo ? (
                 <img 
@@ -465,6 +528,56 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
               </div>
             </div>
           </div>
+          
+          <div className="mt-8 border-t border-white/5 pt-6 grid grid-cols-1 md:grid-cols-2 gap-6">
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <Package size={16} className="text-primary" />
+                 <h3 className="text-[10px] font-black text-white uppercase tracking-widest italic">Visual Context</h3>
+              </div>
+              <div className="aspect-video rounded-3xl overflow-hidden border border-white/10 group-hover:border-primary/30 transition-colors bg-white/5 shadow-2xl">
+                {activeStore.coverPhoto ? (
+                  <img src={activeStore.coverPhoto} className="w-full h-full object-cover opacity-60 group-hover:opacity-100 transition-opacity" alt="Store Cover" referrerPolicy="no-referrer" />
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center opacity-20">
+                    <ShoppingBag size={48} />
+                    <p className="text-[10px] font-black uppercase mt-2">No Cover Transmitted</p>
+                  </div>
+                )}
+              </div>
+            </div>
+            <div className="space-y-4">
+              <div className="flex items-center gap-2">
+                <MapPin size={16} className="text-primary" />
+                 <h3 className="text-[10px] font-black text-white uppercase tracking-widest italic">Geolocation Node</h3>
+              </div>
+              <div className="aspect-video rounded-3xl overflow-hidden border border-white/10 group-hover:border-primary/30 transition-colors bg-[#05070a] shadow-2xl">
+                {activeStore.lat && activeStore.lng ? (
+                  <MapContainer 
+                    center={[activeStore.lat, activeStore.lng]} 
+                    zoom={14} 
+                    style={{ height: '100%', width: '100%' }}
+                    zoomControl={false}
+                    dragging={false}
+                    touchZoom={false}
+                    scrollWheelZoom={false}
+                  >
+                    <TileLayer
+                      attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+                      url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                    />
+                    <Marker position={[activeStore.lat, activeStore.lng]} />
+                  </MapContainer>
+                ) : (
+                  <div className="w-full h-full flex flex-col items-center justify-center opacity-20">
+                    <Building2 size={48} />
+                    <p className="text-[10px] font-black uppercase mt-2">Coordinates Offline</p>
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </>
         )}
       </section>
 

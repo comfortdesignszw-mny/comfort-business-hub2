@@ -11,6 +11,7 @@ import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { collection, query, limit, getDocs, where, addDoc, serverTimestamp, setDoc, doc, getDoc, orderBy, onSnapshot, getCountFromServer } from 'firebase/firestore';
 import { BUSINESS_CATEGORIES, PRODUCT_CATEGORIES } from '../constants';
 import ProductCard from '../components/ProductCard';
+import { StoreDetailContent } from './StoreDetail';
 
 export default function Discovery({ profile, setProfile }: { profile: UserProfile | null, setProfile: (p: UserProfile) => void }) {
   const navigate = useNavigate();
@@ -164,6 +165,13 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
     }
   }, [sharedProductId, loading, filteredDeals]);
 
+  const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
+
+  const selectedStore = useMemo(() => {
+    if (!selectedStoreId) return null;
+    return nearbyStores.find(s => s.id === selectedStoreId) || null;
+  }, [selectedStoreId, nearbyStores]);
+
   return (
     <motion.div 
       initial={{ opacity: 0 }}
@@ -171,6 +179,37 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
       exit={{ opacity: 0 }}
       className="p-4 space-y-8"
     >
+      <AnimatePresence>
+        {selectedStore && (
+          <div className="fixed inset-0 z-[2000] flex items-end justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              onClick={() => setSelectedStoreId(null)}
+              className="absolute inset-0 bg-[#05070a]/90 backdrop-blur-sm"
+            />
+            <motion.div 
+              initial={{ y: "100%" }}
+              animate={{ y: 0 }}
+              exit={{ y: "100%" }}
+              transition={{ type: "spring", damping: 25, stiffness: 300 }}
+              className="relative w-full max-w-2xl bg-[#0d1117] border border-white/10 rounded-[2.5rem] overflow-hidden shadow-2xl safe-bottom max-h-[90vh] overflow-y-auto no-scrollbar"
+            >
+              <div className="sticky top-0 right-0 p-6 z-50 flex justify-end">
+                <button 
+                  onClick={() => setSelectedStoreId(null)}
+                  className="w-10 h-10 bg-white/5 backdrop-blur-md rounded-full flex items-center justify-center text-white border border-white/10 hover:bg-white/10 transition-colors"
+                >
+                  <X size={20} />
+                </button>
+              </div>
+              <StoreDetailContent store={selectedStore} profile={profile} showMap={false} allowEdit={false} />
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
       {/* Shared Link Header */}
       {sharedProductId && (
         <motion.div 
@@ -442,7 +481,7 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
           <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4 snap-x px-1">
             {filteredStores.map((store) => (
               <div key={store.id} className="min-w-[240px] snap-center">
-                <StoreCard store={store} profile={profile} />
+                <StoreCard store={store} profile={profile} onSelect={setSelectedStoreId} />
               </div>
             ))}
           </div>
@@ -495,18 +534,14 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
   );
 }
 
-function StoreCard({ store, profile }: { store: StoreType, profile: UserProfile | null }) {
+function StoreCard({ store, profile, onSelect }: { store: StoreType, profile: UserProfile | null, onSelect: (id: string) => void }) {
   const navigate = useNavigate();
   return (
     <motion.div 
       whileHover={{ y: -5 }}
       whileTap={{ scale: 0.98 }}
       onClick={() => {
-        if (!profile) {
-          navigate('/login');
-          return;
-        }
-        navigate(`/store/${store.id}`);
+        onSelect(store.id);
       }}
       className="neon-card p-3.5 sm:p-5 space-y-3 sm:space-y-4 cursor-pointer group"
     >
