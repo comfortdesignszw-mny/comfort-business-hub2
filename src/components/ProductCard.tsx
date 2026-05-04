@@ -205,7 +205,7 @@ export default function ProductCard({
             <Share2 size={14} />
           </button>
 
-          {isOwner && (
+          {isOwner && profile?.currentRole === 'supplier' && (
             <div className="absolute top-4 right-14 flex gap-2 z-20">
               <button 
                 onClick={(e) => { e.stopPropagation(); onEdit?.(product); }}

@@ -38,7 +38,7 @@ export function StoreDetailContent({ store, profile, showMap = true, allowEdit =
   const [localCover, setLocalCover] = useState<string | null>(null);
 
   const navigate = useNavigate();
-  const isOwner = allowEdit && profile?.uid === store.ownerId;
+  const isOwner = allowEdit && profile?.currentRole === 'supplier' && profile?.uid === store.ownerId;
 
   // Sync local cover with store prop
   useEffect(() => {
@@ -334,7 +334,7 @@ export function StoreDetailContent({ store, profile, showMap = true, allowEdit =
           </h3>
           <div className="flex items-center gap-4">
             <span className="text-[9px] font-black text-neon-green uppercase tracking-widest">{products.length} Items Live</span>
-            {isOwner && (
+            {isOwner && profile?.currentRole === 'supplier' && (
               <button 
                 onClick={() => navigate('/stores', { state: { activeTab: 'manage', showProductForm: true, activeStore: store } })}
                 className="w-8 h-8 bg-primary/20 rounded-lg border border-primary/20 flex items-center justify-center text-primary hover:bg-primary hover:text-black transition-all"
