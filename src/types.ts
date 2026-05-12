@@ -1,5 +1,17 @@
 export type Role = 'customer' | 'supplier';
 
+export interface PublicProfile {
+  uid: string;
+  name: string;
+  avatar?: string;
+  currentRole: Role;
+  location?: {
+    city?: string;
+  };
+  isVerified: boolean;
+  updatedAt: string;
+}
+
 export interface UserProfile {
   uid: string;
   name: string;

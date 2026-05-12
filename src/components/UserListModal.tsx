@@ -5,7 +5,7 @@ import {
 } from 'lucide-react';
 import { collection, query, limit, getDocs, orderBy, onSnapshot } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
-import { UserProfile } from '../types';
+import { UserProfile, PublicProfile } from '../types';
 import { cn } from '../lib/utils';
 
 interface UserListModalProps {
@@ -15,7 +15,7 @@ interface UserListModalProps {
 }
 
 export default function UserListModal({ isOpen, onClose, onUserClick }: UserListModalProps) {
-  const [users, setUsers] = useState<UserProfile[]>([]);
+  const [users, setUsers] = useState<PublicProfile[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
 
@@ -23,12 +23,12 @@ export default function UserListModal({ isOpen, onClose, onUserClick }: UserList
     if (!isOpen) return;
 
     setLoading(true);
-    const q = query(collection(db, 'users'), orderBy('name', 'asc'), limit(100));
+    const q = query(collection(db, 'public_profiles'), orderBy('name', 'asc'), limit(100));
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      setUsers(snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as UserProfile)));
+      setUsers(snapshot.docs.map(doc => ({ uid: doc.id, ...doc.data() } as PublicProfile)));
       setLoading(false);
     }, (error) => {
-      handleFirestoreError(error, OperationType.GET, 'users-list');
+      handleFirestoreError(error, OperationType.GET, 'public-profiles-list');
       setLoading(false);
     });
 

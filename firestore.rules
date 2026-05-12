@@ -54,14 +54,28 @@ service cloud.firestore {
         && data.conversationId is string && data.conversationId.size() <= 128;
     }
 
+    function isValidPublicProfile(data) {
+      return data.uid == request.auth.uid
+        && data.name is string && data.name.size() <= 100
+        && data.currentRole in ['customer', 'supplier']
+        && data.isVerified is bool;
+    }
+
     // 3. COLLECTIONS
     match /users/{userId} {
-      allow get: if isSignedIn();
-      allow list: if isOwner(userId);
+      allow get: if isOwner(userId);
+      allow list: if false; 
       allow create: if isOwner(userId) && isValidUser(incoming()) && isValidId(userId);
       allow update: if isOwner(userId) && isValidUser(incoming())
         && incoming().uid == existing().uid
         && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'phone', 'avatar', 'currentRole', 'geohash', 'lat', 'lng', 'businessName', 'businessCategory', 'whatsappUrl', 'requiredProducts', 'location', 'gateway', 'isVerified', 'fcmToken', 'updatedAt', '_syncedAt', 'uid']);
+    }
+
+    match /public_profiles/{userId} {
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create, update: if isOwner(userId) && isValidPublicProfile(incoming()) && isValidId(userId);
+      allow delete: if isOwner(userId);
     }
 
     match /stores/{storeId} {

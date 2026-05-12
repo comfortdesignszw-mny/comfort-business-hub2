@@ -1,11 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
-import { Search, MapPin, Filter, Star, Zap, ShoppingBag, Store, ArrowRight, 
+import { 
+  Search, MapPin, Filter, Star, Zap, ShoppingBag, Store, ArrowRight, 
   SlidersHorizontal, MessageSquare, Sparkles, X, Phone, Check, Loader2, MapPinned, CreditCard,
-  Megaphone, Calendar, FileText, Building2, ExternalLink, Share2, Info
+  Megaphone, Calendar, FileText, Building2, ExternalLink, Share2, Info, Users, Shield
 } from 'lucide-react';
-import { UserProfile, Product, Store as StoreType, Message, Spotlight } from '../types';
+import { UserProfile, Product, Store as StoreType, Message, Spotlight, PublicProfile } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { collection, query, limit, getDocs, where, addDoc, serverTimestamp, setDoc, doc, getDoc, orderBy, onSnapshot, getCountFromServer } from 'firebase/firestore';
@@ -17,7 +18,7 @@ import OptimizedImage from '../components/OptimizedImage';
 
 export default function Discovery({ profile, setProfile }: { profile: UserProfile | null, setProfile: (p: UserProfile) => void }) {
   const navigate = useNavigate();
-  const { openUserList } = useModals();
+  const { openUserList, openUserProfile } = useModals();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
   const [loading, setLoading] = useState(true);
@@ -27,6 +28,7 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
   const [nearbyDeals, setNearbyDeals] = useState<Product[]>([]);
   const [nearbyStores, setNearbyStores] = useState<StoreType[]>([]);
   const [userCount, setUserCount] = useState<number | null>(null);
+  const [displayedUsers, setDisplayedUsers] = useState<PublicProfile[]>([]);
   const [spotlights, setSpotlights] = useState<Spotlight[]>([]);
   const [activeSpotlightIndex, setActiveSpotlightIndex] = useState(0);
 
@@ -159,9 +161,15 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
 
     const fetchUserCount = async () => {
       try {
-        const snapshot = await getCountFromServer(collection(db, 'users'));
+        const snapshot = await getCountFromServer(collection(db, 'public_profiles'));
         if (isMounted) {
           setUserCount(snapshot.data().count);
+        }
+
+        // Fetch a few real users for avatars
+        const usersSnap = await getDocs(query(collection(db, 'public_profiles'), limit(10)));
+        if (isMounted) {
+          setDisplayedUsers(usersSnap.docs.map(d => ({ uid: d.id, ...d.data() } as PublicProfile)));
         }
       } catch (err) {
         if (isMounted) {
@@ -297,10 +305,24 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
           onClick={openUserList}
           className="flex items-center justify-center gap-2 py-1 cursor-pointer group"
         >
-          <div className="flex -space-x-1">
-             {[1, 2, 3].map(i => (
-              <div key={i} className="w-5 h-5 rounded-full border border-[#05070a] bg-gray-800 bg-cover bg-center" style={{ backgroundImage: `url(https://i.pravatar.cc/100?img=${i+40})` }} />
+          <div className="flex -space-x-1.5">
+             {displayedUsers.slice(0, 3).map((u, i) => (
+              <div 
+                key={u.uid} 
+                className="w-5 h-5 rounded-full border border-[#05070a] bg-[#0d1117] flex items-center justify-center overflow-hidden ring-1 ring-white/10"
+              >
+                {u.avatar ? (
+                  <img src={u.avatar} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                ) : (
+                  <span className="text-[6px] font-black text-primary">{u.name.charAt(0)}</span>
+                )}
+              </div>
             ))}
+            {userCount && userCount > 3 && (
+              <div className="w-5 h-5 rounded-full border border-[#05070a] bg-primary/20 flex items-center justify-center text-[6px] font-black text-primary ring-1 ring-primary/20">
+                +{userCount - 3}
+              </div>
+            )}
           </div>
           <p className="text-[9px] font-black text-primary uppercase tracking-[0.15em] group-hover:text-white transition-colors">
             <span className="text-white group-hover:text-primary transition-colors">{userCount}</span> members synchronized with the Hub
@@ -340,12 +362,23 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
             </div>
           </div>
           <div className="flex -space-x-2">
-            {[1, 2, 3].map(i => (
-              <div key={i} className="w-8 h-8 rounded-lg border-2 border-[#05070a] bg-gray-800 bg-cover bg-center" style={{ backgroundImage: `url(https://i.pravatar.cc/100?img=${i+10})` }} />
+            {displayedUsers.slice(0, 3).map((u) => (
+              <div 
+                key={`sub-${u.uid}`} 
+                className="w-8 h-8 rounded-lg border-2 border-[#05070a] bg-[#0d1117] flex items-center justify-center overflow-hidden shadow-lg"
+              >
+                {u.avatar ? (
+                  <img src={u.avatar} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                ) : (
+                  <span className="text-[10px] font-black text-primary">{u.name.charAt(0)}</span>
+                )}
+              </div>
             ))}
-            <div className="w-8 h-8 rounded-lg border-2 border-[#05070a] bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary">
-              +12
-            </div>
+            {userCount && userCount > 3 && (
+              <div className="w-8 h-8 rounded-lg border-2 border-[#05070a] bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary">
+                +{userCount - 3}
+              </div>
+            )}
           </div>
         </div>
       </section>
@@ -415,6 +448,79 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
             {cat}
           </button>
         ))}
+      </section>
+
+      {/* Neural Member Matrix Section */}
+      <section className="space-y-6 pt-2">
+        <div className="flex items-center justify-between px-1">
+          <div className="flex items-center gap-3">
+            <div className="w-1.5 h-6 bg-primary rounded-full shadow-[0_0_10px_rgba(0,242,254,0.5)]" />
+            <div className="space-y-0.5">
+              <h2 className="text-xs font-black text-white uppercase tracking-[0.2em] italic">Neural Member Network</h2>
+              <p className="text-[8px] text-gray-500 font-bold uppercase tracking-widest">
+                <span className="text-primary font-black">{userCount || '0'}</span> Active nodes synchronized with the Hub
+              </p>
+            </div>
+          </div>
+          <button 
+            onClick={openUserList}
+            className="text-[9px] font-black text-primary uppercase tracking-widest hover:text-white transition-colors flex items-center gap-2"
+          >
+            Matrix Expansion <ExternalLink size={10} />
+          </button>
+        </div>
+
+        <div className="flex gap-4 overflow-x-auto pb-4 pt-2 -mx-2 px-2 custom-scrollbar snap-x no-scrollbar">
+          {displayedUsers.map((user) => (
+            <motion.div
+              key={`matrix-${user.uid}`}
+              whileHover={{ y: -5, scale: 1.02 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => openUserProfile(user.uid)}
+              className="flex-shrink-0 w-36 bg-white/5 border border-white/5 rounded-[2rem] p-4 flex flex-col items-center text-center space-y-3 cursor-pointer group hover:border-primary/20 transition-all snap-start"
+            >
+              <div className="relative">
+                <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-accent/20 rounded-full blur opacity-0 group-hover:opacity-100 transition-opacity" />
+                <div className="relative w-16 h-16 bg-[#0d1117] rounded-full border-2 border-white/5 flex items-center justify-center text-primary font-black overflow-hidden group-hover:border-primary/30 transition-all">
+                  {user.avatar ? (
+                    <img src={user.avatar} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                  ) : user.name.charAt(0)}
+                </div>
+                {user.isVerified && (
+                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-neon-green rounded-full flex items-center justify-center text-[#05070a] border-2 border-[#05070a] shadow-lg">
+                    <Shield size={10} className="fill-current" />
+                  </div>
+                )}
+              </div>
+              <div className="space-y-1 w-full">
+                <h3 className="text-[10px] font-black text-white uppercase tracking-tight truncate group-hover:text-primary transition-colors">{user.name}</h3>
+                <div className="flex items-center justify-center gap-1.5 pt-1">
+                  <span className={cn(
+                    "text-[7px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full border",
+                    user.currentRole === 'supplier' ? "bg-accent/10 border-accent/20 text-accent" : "bg-primary/10 border-primary/20 text-primary"
+                  )}>
+                    {user.currentRole}
+                  </span>
+                </div>
+              </div>
+            </motion.div>
+          ))}
+          
+          {/* View All Card */}
+          <motion.div
+            whileHover={{ scale: 1.02 }}
+            onClick={openUserList}
+            className="flex-shrink-0 w-36 bg-primary/5 border border-primary/10 rounded-[2rem] p-4 flex flex-col items-center justify-center text-center space-y-3 cursor-pointer group hover:bg-primary/10 transition-all snap-start border-dashed"
+          >
+            <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-primary">
+              <Users size={20} />
+            </div>
+            <div className="space-y-1">
+              <p className="text-[9px] font-black text-primary uppercase tracking-widest">Full Matrix</p>
+              <p className="text-[7px] text-gray-500 font-bold uppercase tracking-widest leading-tight">Connect with {userCount || 'All'} Nodes</p>
+            </div>
+          </motion.div>
+        </div>
       </section>
 
       {/* Featured Promo / Spotlight */}

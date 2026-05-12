@@ -7,7 +7,7 @@ import {
   Navigation, Crosshair, Save, Loader2, Megaphone, Trash2, Calendar, FileText, Plus, Users, MessageSquare
 } from 'lucide-react';
 import { UserProfile, Role, Spotlight, Product, Connection } from '../types';
-import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { auth, db, handleFirestoreError, OperationType, syncPublicProfile } from '../lib/firebase';
 import { offlineResilientWrite } from '../lib/sync';
 import { geohashForLocation } from 'geofire-common';
 import { doc, updateDoc, collection, addDoc, query, where, getDocs, deleteDoc, orderBy, serverTimestamp, limit, onSnapshot } from 'firebase/firestore';
@@ -60,6 +60,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
       await updateDoc(doc(db, 'users', profile.uid), {
         currentRole: newRole
       });
+      await syncPublicProfile({ ...profile, currentRole: newRole });
     } catch (e) {
       // Revert on failure
       setProfile({ ...profile, currentRole: prevRole });
@@ -139,7 +140,9 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
         updatedAt: new Date().toISOString()
       };
       await offlineResilientWrite('users', profile.uid, 'update', data);
-      setProfile({ ...profile, ...updates });
+      const newProfile = { ...profile, ...updates };
+      setProfile(newProfile);
+      await syncPublicProfile(newProfile);
     } catch (e) {
       handleFirestoreError(e, OperationType.UPDATE, `users/${profile.uid}`);
     } finally {
@@ -160,7 +163,9 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
         updatedAt: new Date().toISOString()
       };
       await offlineResilientWrite('users', profile.uid, 'update', data);
-      setProfile({ ...profile, ...editData });
+      const newProfile = { ...profile, ...editData };
+      setProfile(newProfile);
+      await syncPublicProfile(newProfile);
       setIsEditing(false);
       setEditData({});
     } catch (e) {

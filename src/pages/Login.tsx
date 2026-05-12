@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { signInWithPopup, GoogleAuthProvider, browserPopupRedirectResolver } from 'firebase/auth';
-import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { auth, db, handleFirestoreError, OperationType, syncPublicProfile } from '../lib/firebase';
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'motion/react';
 import { Zap, LogIn, Shield, Globe, Cpu, AlertTriangle } from 'lucide-react';
@@ -38,6 +38,7 @@ export default function Login() {
         };
         try {
           await setDoc(doc(db, 'users', user.uid), profile);
+          await syncPublicProfile(profile);
         } catch (e) {
           handleFirestoreError(e, OperationType.WRITE, userPath);
           return;

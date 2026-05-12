@@ -6,7 +6,7 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Link, useLocation, useNavigate } from 'react-router-dom';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { auth, db, handleFirestoreError, OperationType } from './lib/firebase';
+import { auth, db, handleFirestoreError, OperationType, syncPublicProfile } from './lib/firebase';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { 
   Search, ShoppingBag, MessageSquare, User as UserIcon, Store, LayoutGrid, 
@@ -77,6 +77,9 @@ export default function App() {
             }
 
             setProfile(profileData);
+
+            // Proactively sync public profile for matrix visibility
+            syncPublicProfile(profileData);
 
             if (profileData.currentRole === 'supplier') {
               const { collection, query, where, getDocs } = await import('firebase/firestore');

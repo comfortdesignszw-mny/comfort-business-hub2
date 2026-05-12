@@ -31,12 +31,27 @@ export default function UserProfileModal({ userId, isOpen, onClose, currentUserP
     setLoading(true);
     const fetchProfile = async () => {
       try {
-        const docSnap = await getDoc(doc(db, 'users', userId));
-        if (docSnap.exists()) {
-          setProfile({ uid: docSnap.id, ...docSnap.data() } as UserProfile);
+        // First try public_profiles which is open to all signed-in users
+        const publicSnap = await getDoc(doc(db, 'public_profiles', userId));
+        if (publicSnap.exists()) {
+          setProfile({ uid: publicSnap.id, ...publicSnap.data() } as any);
+        }
+
+        // Then attempt to get full profile (includes PII like phone)
+        // This will only work if the user is the owner or a connected member
+        try {
+          const docSnap = await getDoc(doc(db, 'users', userId));
+          if (docSnap.exists()) {
+            setProfile({ uid: docSnap.id, ...docSnap.data() } as UserProfile);
+          }
+        } catch (e: any) {
+          // If it's a permission error, we just stick with the public profile
+          if (!e.message?.includes('permission')) {
+             throw e;
+          }
         }
       } catch (err) {
-        handleFirestoreError(err, OperationType.GET, `users/${userId}`);
+        handleFirestoreError(err, OperationType.GET, `public-node/${userId}`);
       } finally {
         setLoading(false);
       }

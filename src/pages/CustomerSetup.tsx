@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { motion } from 'motion/react';
 import { User, Phone, Mail, Package, Plus, X, Sparkles, Loader2 } from 'lucide-react';
-import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
+import { db, auth, handleFirestoreError, OperationType, syncPublicProfile } from '../lib/firebase';
 import { doc, updateDoc } from 'firebase/firestore';
 import { UserProfile } from '../types';
 
@@ -33,6 +33,12 @@ export default function CustomerSetup({ profile }: { profile: UserProfile }) {
         requiredProducts: needs.filter(n => n.trim() !== ''),
         isVerified: true,
         updatedAt: new Date().toISOString()
+      });
+      
+      await syncPublicProfile({
+        ...profile,
+        name,
+        isVerified: true
       });
       window.location.reload();
     } catch (error) {
