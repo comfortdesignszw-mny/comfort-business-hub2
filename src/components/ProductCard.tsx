@@ -10,6 +10,7 @@ import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { collection, addDoc, serverTimestamp, setDoc, doc, getDoc } from 'firebase/firestore';
 import { interactionService } from '../services/interactionService';
 import OptimizedImage from './OptimizedImage';
+import { useModals } from '../context/ModalContext';
 
 import { useMessaging } from '../components/MessagingProvider';
 
@@ -33,6 +34,7 @@ export default function ProductCard({
 }) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const { startConversation } = useMessaging();
+  const { openUserProfile } = useModals();
   const [storeData, setStoreData] = useState<{ name: string; rating: number; reviewCount: number }>({
     name: initialStore?.name || 'Verified Node',
     rating: initialStore?.rating || 5.0,
@@ -240,8 +242,14 @@ export default function ProductCard({
           )}
 
           <div className="space-y-3">
-             <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg border border-white/10 bg-white/5 flex items-center justify-center shrink-0">
+             <div 
+              className="flex items-center gap-3 cursor-pointer group/store"
+              onClick={(e) => {
+                e.stopPropagation();
+                openUserProfile(product.ownerId);
+              }}
+             >
+              <div className="w-8 h-8 rounded-lg border border-white/10 bg-white/5 flex items-center justify-center shrink-0 group-hover/store:border-primary/50 transition-all">
                 {isStoreLoading ? (
                   <Loader2 size={12} className="text-gray-600 animate-spin" />
                 ) : (
@@ -249,10 +257,10 @@ export default function ProductCard({
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[10px] text-white font-black uppercase tracking-tight truncate">{storeData.name}</p>
+                <p className="text-[10px] text-white font-black uppercase tracking-tight truncate group-hover/store:text-primary transition-colors">{storeData.name}</p>
                 <div className="flex items-center gap-1">
                   <Star size={8} className="fill-primary text-primary" />
-                  <span className="text-[8px] font-bold text-gray-400">{storeData.rating.toFixed(1)} Node Performance</span>
+                  <span className="text-[8px] font-bold text-gray-400 group-hover/store:text-white transition-colors">{storeData.rating.toFixed(1)} Node Hub</span>
                 </div>
               </div>
             </div>

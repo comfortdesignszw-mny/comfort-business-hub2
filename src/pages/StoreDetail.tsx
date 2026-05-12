@@ -11,6 +11,7 @@ import { UserProfile, Product, Store as StoreType, Connection } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
 import ProductCard from '../components/ProductCard';
 import ImageInput from '../components/ImageInput';
+import { useModals } from '../context/ModalContext';
 import { interactionService } from '../services/interactionService';
 
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
@@ -38,6 +39,7 @@ export function StoreDetailContent({ store, profile, showMap = true, allowEdit =
   const [localCover, setLocalCover] = useState<string | null>(null);
 
   const [connection, setConnection] = useState<Connection | null>(null);
+  const { openUserProfile } = useModals();
 
   const navigate = useNavigate();
   const isOwner = allowEdit && profile?.currentRole === 'supplier' && profile?.uid === store.ownerId;
@@ -225,9 +227,12 @@ export function StoreDetailContent({ store, profile, showMap = true, allowEdit =
               />
             </div>
           ) : (
-            <div className="w-10 h-10 sm:w-24 sm:h-24 rounded-xl sm:rounded-3xl bg-[#0d1117] border border-primary/30 sm:border-4 border-[#05070a] shadow-2xl overflow-hidden flex items-center justify-center text-primary font-black text-base sm:text-4xl">
+            <div 
+              onClick={() => openUserProfile(store.ownerId)}
+              className="w-10 h-10 sm:w-24 sm:h-24 rounded-xl sm:rounded-3xl bg-[#0d1117] border border-primary/30 sm:border-4 border-[#05070a] shadow-2xl overflow-hidden flex items-center justify-center text-primary font-black text-base sm:text-4xl cursor-pointer hover:border-primary transition-all group/logo"
+            >
               {store.logo ? (
-                <img src={store.logo} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                <img src={store.logo} className="w-full h-full object-cover group-hover/logo:scale-110 transition-transform" referrerPolicy="no-referrer" />
               ) : store.name.charAt(0)}
             </div>
           )}
@@ -257,13 +262,16 @@ export function StoreDetailContent({ store, profile, showMap = true, allowEdit =
                 </div>
               </div>
             ) : (
-              <>
-                <h2 className="text-sm sm:text-3xl font-black text-white italic uppercase tracking-tighter leading-tight">{store.name}</h2>
+              <div 
+                className="cursor-pointer group/title"
+                onClick={() => openUserProfile(store.ownerId)}
+              >
+                <h2 className="text-sm sm:text-3xl font-black text-white italic uppercase tracking-tighter leading-tight group-hover/title:text-primary transition-colors">{store.name}</h2>
                 <div className="flex items-center justify-center gap-1 sm:gap-2">
-                  <MapPin size={8} className="text-primary" />
-                  <p className="text-[7px] sm:text-[10px] text-gray-400 font-bold uppercase tracking-widest">{store.category} • {store.address || 'Local Hub'}</p>
+                  <MapPin size={8} className="text-primary group-hover/title:scale-110 transition-transform" />
+                  <p className="text-[7px] sm:text-[10px] text-gray-400 font-bold uppercase tracking-widest group-hover/title:text-white transition-colors">{store.category} • {store.address || 'Local Hub'}</p>
                 </div>
-              </>
+              </div>
             )}
           </div>
 

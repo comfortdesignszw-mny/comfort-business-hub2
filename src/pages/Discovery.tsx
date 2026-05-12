@@ -11,11 +11,13 @@ import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { collection, query, limit, getDocs, where, addDoc, serverTimestamp, setDoc, doc, getDoc, orderBy, onSnapshot, getCountFromServer } from 'firebase/firestore';
 import { BUSINESS_CATEGORIES, PRODUCT_CATEGORIES } from '../constants';
 import ProductCard from '../components/ProductCard';
+import { useModals } from '../context/ModalContext';
 import { StoreDetailContent } from './StoreDetail';
 import OptimizedImage from '../components/OptimizedImage';
 
 export default function Discovery({ profile, setProfile }: { profile: UserProfile | null, setProfile: (p: UserProfile) => void }) {
   const navigate = useNavigate();
+  const { openUserList } = useModals();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
   const [loading, setLoading] = useState(true);
@@ -290,15 +292,18 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
         <motion.div 
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
-          className="flex items-center justify-center gap-2 py-1"
+          whileHover={{ scale: 1.02 }}
+          whileTap={{ scale: 0.98 }}
+          onClick={openUserList}
+          className="flex items-center justify-center gap-2 py-1 cursor-pointer group"
         >
           <div className="flex -space-x-1">
              {[1, 2, 3].map(i => (
               <div key={i} className="w-5 h-5 rounded-full border border-[#05070a] bg-gray-800 bg-cover bg-center" style={{ backgroundImage: `url(https://i.pravatar.cc/100?img=${i+40})` }} />
             ))}
           </div>
-          <p className="text-[9px] font-black text-primary uppercase tracking-[0.15em]">
-            <span className="text-white">{userCount}</span> members synchronized with the Hub
+          <p className="text-[9px] font-black text-primary uppercase tracking-[0.15em] group-hover:text-white transition-colors">
+            <span className="text-white group-hover:text-primary transition-colors">{userCount}</span> members synchronized with the Hub
           </p>
         </motion.div>
       )}

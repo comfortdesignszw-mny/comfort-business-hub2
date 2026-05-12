@@ -17,6 +17,7 @@ import { UserProfile, Role, AppNotification } from './types';
 import { cn } from './lib/utils';
 import { MessagingProvider } from './components/MessagingProvider';
 import { NotificationProvider, useNotifications } from './components/NotificationProvider';
+import { ModalProvider } from './context/ModalContext';
 import SyncIndicator from './components/SyncIndicator';
 import { interactionService } from './services/interactionService';
 
@@ -132,47 +133,49 @@ export default function App() {
         ) : (
           <NotificationProvider profile={profile}>
             <MessagingProvider profile={profile}>
-              <Header profile={profile} onMenuClick={() => setShowSidebar(true)} />
-              <AnimatePresence>
-                {showSidebar && (
-                  <Sidebar 
-                    profile={profile} 
-                    onClose={() => setShowSidebar(false)} 
-                  />
-                )}
-              </AnimatePresence>
-              <main className="flex-1 overflow-y-auto custom-scrollbar pb-24">
-                <div className="max-w-7xl mx-auto w-full">
-                  <AnimatePresence mode="wait">
-                    <Suspense fallback={<PageLoader />}>
-                      <Routes>
-                        {isProfileIncomplete ? (
-                          <Route path="*" element={<CustomerSetup profile={profile!} />} />
-                        ) : (
-                          <>
-                            <Route path="/" element={<Discovery profile={profile} setProfile={setProfile} />} />
-                            <Route 
-                              path="/stores" 
-                              element={
-                                profile?.currentRole === 'supplier' 
-                                  ? <StoresHub profile={profile} /> 
-                                  : <Navigate to="/" replace />
-                              } 
-                            />
-                            <Route path="/deals" element={<DealRoom profile={profile} />} />
-                            <Route path="/chat" element={<Chat profile={profile} />} />
-                            <Route path="/store/:id" element={<StoreDetail profile={profile} />} />
-                            <Route path="/product/:id" element={<ProductDetail profile={profile} />} />
-                            <Route path="/profile" element={<Profile profile={profile} setProfile={setProfile} />} />
-                            <Route path="*" element={<Navigate to="/" replace />} />
-                          </>
-                        )}
-                      </Routes>
-                    </Suspense>
-                  </AnimatePresence>
-                </div>
-              </main>
-              <Navigation profile={profile} />
+              <ModalProvider profile={profile}>
+                <Header profile={profile} onMenuClick={() => setShowSidebar(true)} />
+                <AnimatePresence>
+                  {showSidebar && (
+                    <Sidebar 
+                      profile={profile} 
+                      onClose={() => setShowSidebar(false)} 
+                    />
+                  )}
+                </AnimatePresence>
+                <main className="flex-1 overflow-y-auto custom-scrollbar pb-24">
+                  <div className="max-w-7xl mx-auto w-full">
+                    <AnimatePresence mode="wait">
+                      <Suspense fallback={<PageLoader />}>
+                        <Routes>
+                          {isProfileIncomplete ? (
+                            <Route path="*" element={<CustomerSetup profile={profile!} />} />
+                          ) : (
+                            <>
+                              <Route path="/" element={<Discovery profile={profile} setProfile={setProfile} />} />
+                              <Route 
+                                path="/stores" 
+                                element={
+                                  profile?.currentRole === 'supplier' 
+                                    ? <StoresHub profile={profile} /> 
+                                    : <Navigate to="/" replace />
+                                } 
+                              />
+                              <Route path="/deals" element={<DealRoom profile={profile} />} />
+                              <Route path="/chat" element={<Chat profile={profile} />} />
+                              <Route path="/store/:id" element={<StoreDetail profile={profile} />} />
+                              <Route path="/product/:id" element={<ProductDetail profile={profile} />} />
+                              <Route path="/profile" element={<Profile profile={profile} setProfile={setProfile} />} />
+                              <Route path="*" element={<Navigate to="/" replace />} />
+                            </>
+                          )}
+                        </Routes>
+                      </Suspense>
+                    </AnimatePresence>
+                  </div>
+                </main>
+                <Navigation profile={profile} />
+              </ModalProvider>
             </MessagingProvider>
           </NotificationProvider>
         )}
