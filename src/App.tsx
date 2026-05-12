@@ -13,10 +13,11 @@ import {
   Zap, Menu, Bell, ArrowLeft, X, Heart, Star, UserPlus 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { UserProfile, Role, Notification } from './types';
+import { UserProfile, Role, AppNotification } from './types';
 import { cn } from './lib/utils';
 import { MessagingProvider } from './components/MessagingProvider';
 import { NotificationProvider, useNotifications } from './components/NotificationProvider';
+import SyncIndicator from './components/SyncIndicator';
 
 // Lazy loaded pages for performance
 const Discovery = lazy(() => import('./pages/Discovery'));
@@ -211,11 +212,8 @@ function Header({ profile, onMenuClick }: { profile: UserProfile | null, onMenuC
             </div>
             <div>
               <h1 className="text-sm font-black text-white uppercase tracking-tighter leading-none italic">Comfort Hub</h1>
-              <div className="flex items-center gap-1.5 mt-1">
-                <div className="w-1.5 h-1.5 bg-neon-green rounded-full shadow-[0_0_5px_#39FF14]"></div>
-                <p className="text-[9px] text-gray-400 uppercase font-bold tracking-widest">
-                  {profile?.currentRole === 'supplier' ? 'Supplier Node' : 'Customer Node'}
-                </p>
+              <div className="flex items-center gap-2 mt-1">
+                <SyncIndicator />
               </div>
             </div>
           </div>
@@ -227,7 +225,9 @@ function Header({ profile, onMenuClick }: { profile: UserProfile | null, onMenuC
           >
             <Bell size={20} className="group-hover:scale-110" />
             {unreadCount > 0 && (
-              <span className="absolute top-2.5 right-2.5 w-2 h-2 bg-accent rounded-full border-2 border-[#05070a] shadow-[0_0_10px_rgba(240,147,251,0.5)]"></span>
+              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-red-600 rounded-full border-2 border-[#05070a] shadow-[0_0_10px_rgba(255,0,0,0.5)] flex items-center justify-center text-[8px] font-black text-white">
+                {unreadCount > 9 ? '9+' : unreadCount}
+              </span>
             )}
           </button>
           
@@ -428,7 +428,7 @@ function NotificationsModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-function NotificationItem({ n, markAsRead, onClose, navigate }: { n: Notification, markAsRead: (id: string) => Promise<void>, onClose: () => void, navigate: any, key?: string }) {
+function NotificationItem({ n, markAsRead, onClose, navigate }: { n: AppNotification, markAsRead: (id: string) => Promise<void>, onClose: () => void, navigate: any, key?: string }) {
   return (
     <div 
       onClick={() => {
@@ -469,7 +469,7 @@ function NotificationItem({ n, markAsRead, onClose, navigate }: { n: Notificatio
   );
 }
 
-function getNotificationIcon(type: Notification['type']) {
+function getNotificationIcon(type: AppNotification['type']) {
   switch (type) {
     case 'engage': return <Zap size={18} />;
     case 'buy': return <ShoppingBag size={18} />;

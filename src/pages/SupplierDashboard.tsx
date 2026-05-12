@@ -239,6 +239,12 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!activeStore || !profile) return;
+    
+    if (!profile.isVerified) {
+      alert("CRITICAL SECURITY LOCK: Identity verification required for production writes. Please verify your email.");
+      return;
+    }
+    
     setIsSubmitting(true);
 
     try {
@@ -504,9 +510,20 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
                 Cancel
               </button>
               <button 
-                onClick={handleSaveStore}
+                onClick={() => {
+                  if (!profile.isVerified) {
+                    alert("Security Lock: Email verification required to modify Node parameters.");
+                    return;
+                  }
+                  handleSaveStore();
+                }}
                 disabled={isSavingStore}
-                className="px-8 py-3 btn-neon text-[10px] font-black uppercase tracking-widest flex items-center gap-2 shadow-lg shadow-primary/20"
+                className={cn(
+                  "px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all",
+                  profile.isVerified
+                    ? "btn-neon shadow-lg shadow-primary/20"
+                    : "bg-red-500/10 border border-red-500/20 text-red-500 opacity-50 cursor-not-allowed"
+                )}
               >
                 {isSavingStore ? <Loader2 className="animate-spin" size={14} /> : <Check size={14} />} Commit Node Changes
               </button>
@@ -623,8 +640,19 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
             <span className="px-2 py-0.5 bg-primary/10 text-primary text-[8px] font-black rounded border border-primary/20 uppercase tracking-widest">{products.length} Items</span>
           </div>
           <button 
-            onClick={() => handleOpenForm()}
-            className="w-10 h-10 bg-primary/20 rounded-xl border border-primary/20 flex items-center justify-center text-primary hover:bg-primary hover:text-[#05070a] transition-all"
+            onClick={() => {
+              if (!profile.isVerified) {
+                alert("Security Lock Active: Email verification required to add inventory items.");
+                return;
+              }
+              handleOpenForm();
+            }}
+            className={cn(
+              "w-10 h-10 rounded-xl border flex items-center justify-center transition-all",
+              profile.isVerified 
+                ? "bg-primary/20 border-primary/20 text-primary hover:bg-primary hover:text-[#05070a]" 
+                : "bg-red-500/10 border-red-500/20 text-red-500 opacity-50 cursor-not-allowed"
+            )}
           >
             <Plus size={20} />
           </button>
@@ -673,13 +701,25 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
               </div>
               <div className="flex items-center gap-2 opacity-50 group-hover:opacity-100 transition-opacity">
                 <button 
-                  onClick={() => handleOpenForm(product)}
+                  onClick={() => {
+                    if (!profile.isVerified) {
+                      alert("Security Lock: Email verification required for inventory modifications.");
+                      return;
+                    }
+                    handleOpenForm(product);
+                  }}
                   className="p-2 hover:text-primary transition-colors"
                 >
                   <Edit3 size={16} />
                 </button>
                 <button 
-                  onClick={() => setProductToDelete(product)}
+                  onClick={() => {
+                    if (!profile.isVerified) {
+                      alert("Security Lock: Email verification required for inventory deletions.");
+                      return;
+                    }
+                    setProductToDelete(product);
+                  }}
                   className="p-2 hover:text-red-500 transition-colors"
                 >
                   <Trash2 size={16} />

@@ -49,6 +49,12 @@ export default function SupplierSetup({ profile, onComplete, existingStore }: { 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile) return;
+    
+    if (!profile.isVerified) {
+      alert("CRITICAL: Identity verification required to register new supply chain nodes. Please check your email and verify your identity.");
+      return;
+    }
+    
     setLoading(true);
 
     try {
@@ -247,7 +253,12 @@ export default function SupplierSetup({ profile, onComplete, existingStore }: { 
         <button 
           type="submit"
           disabled={loading}
-          className="w-full btn-neon py-5 text-sm uppercase tracking-[0.2em] italic flex items-center justify-center gap-3"
+          className={cn(
+            "w-full py-5 text-sm uppercase tracking-[0.2em] italic flex items-center justify-center gap-3 transition-all",
+            profile.isVerified 
+              ? "btn-neon" 
+              : "bg-red-500/10 border border-red-500/20 text-red-500 opacity-50 cursor-not-allowed"
+          )}
         >
           {loading ? (
             <Loader2 className="animate-spin" size={20} />
@@ -255,6 +266,7 @@ export default function SupplierSetup({ profile, onComplete, existingStore }: { 
             <>
               {existingStore ? <Plus size={20} className="rotate-45" /> : <Sparkles size={20} />}
               {existingStore ? 'Commit Node Updates' : 'Transmit Storefront Data'}
+              {!profile.isVerified && <span className="text-[8px] font-black block ml-2">(Verification Required)</span>}
             </>
           )}
         </button>

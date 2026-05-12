@@ -28,8 +28,10 @@ export const auth = getAuth(app);
 export const storage = getStorage(app);
 export const messaging = typeof window !== 'undefined' ? getMessaging(app) : null;
 
-// Connectivity Test (Mandatory for diagnosis)
+// Connectivity Test (Delayed for reliability)
 async function testConnection() {
+  // Give the browser a moment to settle network connections
+  await new Promise(resolve => setTimeout(resolve, 2000));
   try {
     // Explicitly check connectivity to the server
     await getDocFromServer(doc(db, 'test', 'connection'));
@@ -78,6 +80,13 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
     operationType,
     path
   };
-  console.error('Firestore Error Payload: ', JSON.stringify(errInfo));
+  
+  // High-priority security logging for permission violations
+  if (errInfo.error.includes('Insufficient permissions')) {
+    console.error(' [SECURITY INCIDENT] Unauthorized Access Attempt:', JSON.stringify(errInfo));
+  } else {
+    console.error('Firestore Error Payload: ', JSON.stringify(errInfo));
+  }
+  
   throw new Error(JSON.stringify(errInfo));
 }

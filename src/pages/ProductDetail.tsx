@@ -259,10 +259,10 @@ export default function ProductDetail({ profile }: { profile: UserProfile | null
               </div>
               <button 
                 onClick={() => profile && interactionService.likeProduct(product.id, product.ownerId, profile)}
-                className="glass-pill !text-neon-pink !border-neon-pink/20 flex items-center gap-1.5 hover:bg-neon-pink/5 transition-colors"
+                className="glass-pill !text-cyan-400 !border-cyan-400/30 flex items-center gap-1.5 hover:bg-cyan-400/10 hover:shadow-[0_0_15px_rgba(34,211,238,0.4)] transition-all font-black"
               >
-                <Heart size={10} className={cn("fill-neon-pink", product.likeCount ? "opacity-100" : "opacity-30")} />
-                <span className="text-[10px] font-black">{product.likeCount || 0}</span>
+                <Heart size={10} className={cn("fill-cyan-400", product.likeCount ? "opacity-100" : "opacity-30")} />
+                <span className="text-[10px]">{product.likeCount || 0} Likes</span>
               </button>
             </div>
           </div>

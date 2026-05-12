@@ -73,7 +73,7 @@ export interface Product {
   createdAt: string;
 }
 
-export interface Notification {
+export interface AppNotification {
   id: string;
   userId: string;
   type: 'engage' | 'buy' | 'rate' | 'follow' | 'like_store' | 'like_product';

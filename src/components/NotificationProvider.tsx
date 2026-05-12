@@ -1,12 +1,12 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { collection, query, where, orderBy, onSnapshot, doc, updateDoc } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
-import { UserProfile, Notification } from '../types';
+import { UserProfile, AppNotification } from '../types';
 import { AnimatePresence, motion } from 'motion/react';
 import { Bell, X, Info, Star, ShoppingBag, Zap, Heart, UserPlus } from 'lucide-react';
 
 interface NotificationContextType {
-  notifications: Notification[];
+  notifications: AppNotification[];
   unreadCount: number;
   markAsRead: (id: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
@@ -15,13 +15,20 @@ interface NotificationContextType {
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
 export function NotificationProvider({ children, profile }: { children: React.ReactNode, profile: UserProfile | null }) {
-  const [notifications, setNotifications] = useState<Notification[]>([]);
-  const [showToast, setShowToast] = useState<Notification | null>(null);
+  const [notifications, setNotifications] = useState<AppNotification[]>([]);
+  const [showToast, setShowToast] = useState<AppNotification | null>(null);
 
   useEffect(() => {
     if (!profile) {
       setNotifications([]);
       return;
+    }
+
+    // Request browser notification permission
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      if (Notification.permission === 'default') {
+        Notification.requestPermission();
+      }
     }
 
     const q = query(
@@ -34,14 +41,26 @@ export function NotificationProvider({ children, profile }: { children: React.Re
       const newNotifications = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      })) as Notification[];
+      })) as AppNotification[];
 
-      // Detect new notification for toast
+      // Detect new notification for toast, sound and browser alert
       if (newNotifications.length > notifications.length) {
         const latest = newNotifications[0];
         if (latest && !latest.read) {
+          // 1. Show UI Toast
           setShowToast(latest);
           setTimeout(() => setShowToast(null), 5000);
+
+          // 2. Play Notification Sound
+          playNotificationSound();
+
+          // 3. Browser Native Notification
+          if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+            new Notification(latest.title, {
+              body: latest.message,
+              icon: '/pwa-192x192.png'
+            });
+          }
         }
       }
 
@@ -51,7 +70,29 @@ export function NotificationProvider({ children, profile }: { children: React.Re
     });
 
     return () => unsubscribe();
-  }, [profile?.uid]);
+  }, [profile?.uid, notifications.length]);
+
+  const playNotificationSound = () => {
+    try {
+      const context = new (window.AudioContext || (window as any).webkitAudioContext)();
+      const oscillator = context.createOscillator();
+      const gain = context.createGain();
+
+      oscillator.type = 'sine';
+      oscillator.frequency.setValueAtTime(880, context.currentTime); // A5 note
+      oscillator.connect(gain);
+      gain.connect(context.destination);
+
+      gain.gain.setValueAtTime(0, context.currentTime);
+      gain.gain.linearRampToValueAtTime(0.1, context.currentTime + 0.01);
+      gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.5);
+
+      oscillator.start();
+      oscillator.stop(context.currentTime + 0.5);
+    } catch (e) {
+      console.warn('Audio feedback blocked by browser settings');
+    }
+  };
 
   const markAsRead = async (id: string) => {
     try {
@@ -108,7 +149,7 @@ export function NotificationProvider({ children, profile }: { children: React.Re
   );
 }
 
-function getIcon(type: Notification['type']) {
+function getIcon(type: AppNotification['type']) {
   switch (type) {
     case 'engage': return <Zap size={20} />;
     case 'buy': return <ShoppingBag size={20} />;

@@ -15,58 +15,58 @@ service cloud.firestore {
     function isOwner(uid) { return isSignedIn() && request.auth.uid == uid; }
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
-    function isValidId(id) { return id is string && id.size() <= 64 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
+    function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
 
-    // 2. ENTITY VALIDATORS
+    // 2. ENTITY VALIDATORS (Anti-Shadow Update)
     function isValidUser(data) {
       return data.uid == request.auth.uid
         && data.name is string && data.name.size() <= 100
         && data.currentRole in ['customer', 'supplier']
         && (!('phone' in data) || (data.phone is string && data.phone.size() <= 20))
-        && (!('email' in data) || (data.email is string && data.email.size() <= 100))
-        && (!('fcmToken' in data) || (data.fcmToken is string && data.fcmToken.size() <= 512));
+        && (!('email' in data) || (data.email is string && data.email.size() <= 100));
     }
 
     function isValidStore(data) {
       return data.ownerId == request.auth.uid
         && data.name is string && data.name.size() >= 1 && data.name.size() <= 500
-        && (!('geohash' in data) || data.geohash == null || (data.geohash is string && data.geohash.size() <= 128))
-        && (!('category' in data) || data.category == null || (data.category is string && data.category.size() <= 200))
-        && (!('description' in data) || data.description == null || (data.description is string && data.description.size() <= 10000))
-        && (!('logo' in data) || data.logo == null || (data.logo is string && data.logo.size() <= 1000000))
-        && (!('coverPhoto' in data) || data.coverPhoto == null || (data.coverPhoto is string && data.coverPhoto.size() <= 1000000))
-        && (!('address' in data) || data.address == null || (data.address is string && data.address.size() <= 1000));
+        && (!('geohash' in data) || (data.geohash is string && data.geohash.size() <= 128))
+        && (!('category' in data) || (data.category is string && data.category.size() <= 200))
+        && (!('description' in data) || (data.description is string && data.description.size() <= 10000));
     }
 
     function isValidProduct(data) {
       return data.ownerId == request.auth.uid
         && data.name is string && data.name.size() >= 2 && data.name.size() <= 100
         && data.price is number && data.price >= 0
-        && data.buyButtonType in ['checkout', 'chat', 'link', 'ecocash', 'pod']
-        && (!('description' in data) || data.description == null || (data.description is string && data.description.size() <= 5000));
+        && data.buyButtonType in ['checkout', 'chat', 'link', 'ecocash', 'pod'];
     }
 
-    function isValidNotification(data) {
-      return data.userId is string && data.userId.size() <= 128
-        && data.fromUserId == request.auth.uid
-        && data.type in ['engage', 'buy', 'rate', 'follow', 'like_store', 'like_product']
-        && data.title is string && data.title.size() <= 100
-        && data.message is string && data.message.size() <= 500;
+    function isValidReview(data) {
+      return data.userId == request.auth.uid
+        && data.productId is string && data.productId.size() <= 128
+        && data.rating is number && data.rating >= 1 && data.rating <= 5
+        && (!('comment' in data) || (data.comment is string && data.comment.size() <= 2000));
+    }
+
+    function isValidMessage(data) {
+      return data.senderId == request.auth.uid
+        && data.text is string && data.text.size() <= 5000
+        && data.conversationId is string && data.conversationId.size() <= 128;
     }
 
     // 3. COLLECTIONS
     match /users/{userId} {
-      // General read access for discovery, but restricted for list queries
       allow get: if isSignedIn();
       allow list: if isOwner(userId);
-      
-      allow create: if isOwner(userId) && isValidUser(incoming());
+      allow create: if isOwner(userId) && isValidUser(incoming()) && isValidId(userId);
       allow update: if isOwner(userId) && isValidUser(incoming())
+        && incoming().uid == existing().uid
         && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'phone', 'avatar', 'currentRole', 'geohash', 'lat', 'lng', 'businessName', 'businessCategory', 'whatsappUrl', 'requiredProducts', 'location', 'gateway', 'isVerified', 'fcmToken', 'updatedAt', '_syncedAt', 'uid']);
     }
 
     match /stores/{storeId} {
-      allow read: if true;
+      allow get: if true;
+      allow list: if isSignedIn();
       allow create: if isVerified() && isValidStore(incoming()) && isValidId(storeId);
       allow update: if isSignedIn() && (
         (isOwner(existing().ownerId) && isValidStore(incoming()) 
@@ -78,7 +78,8 @@ service cloud.firestore {
     }
 
     match /products/{productId} {
-      allow read: if true;
+      allow get: if true;
+      allow list: if isSignedIn();
       allow create: if isVerified() && isValidProduct(incoming()) && isValidId(productId)
         && get(/databases/$(database)/documents/stores/$(incoming().storeId)).data.ownerId == request.auth.uid;
       allow update: if isSignedIn() && (
@@ -92,63 +93,71 @@ service cloud.firestore {
     }
 
     match /notifications/{id} {
-      allow read: if isOwner(existing().userId);
+      allow get, delete: if isOwner(existing().userId);
       allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn() && isValidNotification(incoming());
+      allow create: if isSignedIn() && incoming().fromUserId == request.auth.uid;
       allow update: if isOwner(existing().userId) && incoming().diff(existing()).affectedKeys().hasOnly(['read', 'updatedAt', '_syncedAt']);
-      allow delete: if isOwner(existing().userId);
     }
 
     match /conversations/{convoId} {
       allow create: if isSignedIn() && request.auth.uid in incoming().participants;
-      allow read, update: if isSignedIn() && request.auth.uid in existing().participants;
+      allow get, update: if isSignedIn() && request.auth.uid in existing().participants;
+      allow list: if isSignedIn() && request.auth.uid in resource.data.participants;
 
       match /messages/{messageId} {
-        allow read: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/conversations/$(convoId)).data.participants;
-        allow create: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/conversations/$(convoId)).data.participants
-          && incoming().senderId == request.auth.uid
-          && incoming().text.size() <= 5000;
+        allow get: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/conversations/$(convoId)).data.participants;
+        allow list: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/conversations/$(convoId)).data.participants;
+        allow create: if isSignedIn() && isValidId(messageId) && isValidMessage(incoming())
+          && request.auth.uid in get(/databases/$(database)/documents/conversations/$(convoId)).data.participants;
       }
     }
 
     match /reviews/{reviewId} {
-      allow read: if true;
-      allow create: if isVerified() && incoming().userId == request.auth.uid;
+      allow get: if true;
+      allow list: if isSignedIn();
+      allow create: if isVerified() && isValidId(reviewId) && isValidReview(incoming());
       allow delete: if isOwner(existing().userId);
     }
 
     match /follows/{id} {
-      allow read: if true;
-      allow create: if isSignedIn() && incoming().userId == request.auth.uid;
+      allow get: if isSignedIn();
+      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.storeId is string);
+      allow create: if isSignedIn() && isValidId(id) && incoming().userId == request.auth.uid;
       allow delete: if isOwner(existing().userId);
     }
 
     match /storeLikes/{id} {
-      allow read: if true;
-      allow create: if isSignedIn() && incoming().userId == request.auth.uid;
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(id) && incoming().userId == request.auth.uid;
       allow delete: if isOwner(existing().userId);
     }
 
     match /productLikes/{id} {
-      allow read: if true;
-      allow create: if isSignedIn() && incoming().userId == request.auth.uid;
+      allow get: if isSignedIn();
+      allow list: if isSignedIn();
+      allow create: if isSignedIn() && isValidId(id) && incoming().userId == request.auth.uid;
       allow delete: if isOwner(existing().userId);
     }
     
     match /engagements/{id} {
-      allow read: if isSignedIn() && (resource.data.supplierId == request.auth.uid || resource.data.customerId == request.auth.uid);
-      allow create: if isSignedIn() && incoming().customerId == request.auth.uid;
+      allow get: if isSignedIn() && (resource.data.supplierId == request.auth.uid || resource.data.customerId == request.auth.uid);
+      allow list: if isSignedIn() && (resource.data.supplierId == request.auth.uid || resource.data.customerId == request.auth.uid);
+      allow create: if isSignedIn() && isValidId(id) && incoming().customerId == request.auth.uid;
     }
 
     match /deals/{id} {
-      allow read: if isSignedIn() && (resource.data.supplierId == request.auth.uid || resource.data.customerId == request.auth.uid);
-      allow write: if isVerified() && (incoming().supplierId == request.auth.uid || incoming().customerId == request.auth.uid);
+      allow get: if isSignedIn() && (resource.data.supplierId == request.auth.uid || resource.data.customerId == request.auth.uid);
+      allow list: if isSignedIn() && (resource.data.supplierId == request.auth.uid || resource.data.customerId == request.auth.uid);
+      allow create: if isVerified() && isValidId(id) && (incoming().supplierId == request.auth.uid || incoming().customerId == request.auth.uid);
+      allow update: if isVerified() && (existing().supplierId == request.auth.uid || existing().customerId == request.auth.uid);
     }
 
     match /spotlights/{id} {
-      allow read: if true;
-      allow create: if isVerified() && incoming().authorId == request.auth.uid;
-      allow update, delete: if isOwner(existing().authorId) && (request.method == 'delete' || incoming().diff(existing()).affectedKeys().hasOnly(['title', 'content', 'type', 'date', 'location', 'image', 'isActive', 'updatedAt', '_syncedAt', 'authorId']));
+      allow get: if true;
+      allow list: if isSignedIn();
+      allow create: if isVerified() && isValidId(id) && incoming().authorId == request.auth.uid;
+      allow update, delete: if isOwner(existing().authorId) && (request.method == 'delete' || incoming().authorId == existing().authorId);
     }
   }
 }

@@ -34,7 +34,7 @@ export default function Login() {
           name: user.displayName || 'Operator',
           phone: user.phoneNumber || 'Unlinked',
           currentRole: 'customer',
-          isVerified: true
+          isVerified: user.emailVerified
         };
         try {
           await setDoc(doc(db, 'users', user.uid), profile);

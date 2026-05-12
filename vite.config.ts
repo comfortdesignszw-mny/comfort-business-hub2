@@ -14,33 +14,30 @@ export default defineConfig(({mode}) => {
         registerType: 'autoUpdate',
         includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
         manifest: {
-          name: 'Comfort Hub',
+          name: 'Comfort Business Hub',
           short_name: 'ComfortHub',
-          description: 'Network-grade Supply Node & Marketplace',
+          description: 'Fortress-grade Supply Node & Marketplace Matrix',
           theme_color: '#05070a',
           background_color: '#05070a',
           display: 'standalone',
+          orientation: 'portrait',
+          categories: ['business', 'shopping', 'productivity'],
           icons: [
             {
-              src: 'pwa-192x192.png',
+              src: 'https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?w=192&h=192&q=80&fit=crop',
               sizes: '192x192',
               type: 'image/png'
             },
             {
-              src: 'pwa-512x512.png',
+              src: 'https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?w=512&h=512&q=80&fit=crop',
               sizes: '512x512',
               type: 'image/png'
-            },
-            {
-              src: 'pwa-512x512.png',
-              sizes: '512x512',
-              type: 'image/png',
-              purpose: 'any maskable'
             }
           ]
         },
         workbox: {
           globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
+          cleanupOutdatedCaches: true,
           runtimeCaching: [
             {
               urlPattern: /^https:\/\/fonts\.googleapis\.com\/.*/i,
@@ -49,21 +46,29 @@ export default defineConfig(({mode}) => {
                 cacheName: 'google-fonts-cache',
                 expiration: {
                   maxEntries: 10,
-                  maxAgeSeconds: 60 * 60 * 24 * 365 // <== 365 days
-                },
-                cacheableResponse: {
-                  statuses: [0, 200]
+                  maxAgeSeconds: 60 * 60 * 24 * 365
                 }
               }
             },
             {
-              urlPattern: /^https:\/\/api\.dicebear\.com\/.*/i,
-              handler: 'CacheFirst',
+              urlPattern: /^https:\/\/images\.unsplash\.com\/.*/i,
+              handler: 'StaleWhileRevalidate',
               options: {
-                cacheName: 'dicebear-avatars',
+                cacheName: 'product-images',
+                expiration: {
+                  maxEntries: 100,
+                  maxAgeSeconds: 60 * 60 * 24 * 30
+                }
+              }
+            },
+            {
+              urlPattern: ({ request }) => request.destination === 'image',
+              handler: 'StaleWhileRevalidate',
+              options: {
+                cacheName: 'general-images',
                 expiration: {
                   maxEntries: 50,
-                  maxAgeSeconds: 60 * 60 * 24 * 30
+                  maxAgeSeconds: 60 * 60 * 24 * 7
                 }
               }
             }
