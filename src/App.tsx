@@ -3,14 +3,14 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-import { useState, useEffect, lazy, Suspense } from 'react';
+import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Link, useLocation, useNavigate } from 'react-router-dom';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth, db, handleFirestoreError, OperationType } from './lib/firebase';
 import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { 
   Search, ShoppingBag, MessageSquare, User as UserIcon, Store, LayoutGrid, 
-  Zap, Menu, Bell, ArrowLeft, X, Heart, Star, UserPlus 
+  Zap, Menu, Bell, ArrowLeft, X, Heart, Star, UserPlus, Check, Loader2, Users 
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile, Role, AppNotification } from './types';
@@ -18,6 +18,7 @@ import { cn } from './lib/utils';
 import { MessagingProvider } from './components/MessagingProvider';
 import { NotificationProvider, useNotifications } from './components/NotificationProvider';
 import SyncIndicator from './components/SyncIndicator';
+import { interactionService } from './services/interactionService';
 
 // Lazy loaded pages for performance
 const Discovery = lazy(() => import('./pages/Discovery'));
@@ -233,7 +234,7 @@ function Header({ profile, onMenuClick }: { profile: UserProfile | null, onMenuC
           
           <AnimatePresence>
             {showNotifications && (
-              <NotificationsModal onClose={() => setShowNotifications(false)} />
+              <NotificationsModal profile={profile} onClose={() => setShowNotifications(false)} />
             )}
           </AnimatePresence>
 
@@ -337,7 +338,7 @@ function Sidebar({ profile, onClose }: { profile: UserProfile | null, onClose: (
   );
 }
 
-function NotificationsModal({ onClose }: { onClose: () => void }) {
+function NotificationsModal({ profile, onClose }: { profile: UserProfile | null, onClose: () => void }) {
   const { notifications, markAsRead, markAllAsRead } = useNotifications();
   const navigate = useNavigate();
 
@@ -379,6 +380,7 @@ function NotificationsModal({ onClose }: { onClose: () => void }) {
                       markAsRead={markAsRead} 
                       onClose={onClose} 
                       navigate={navigate} 
+                      profile={profile}
                     />
                   ))}
                   
@@ -399,6 +401,7 @@ function NotificationsModal({ onClose }: { onClose: () => void }) {
                       markAsRead={markAsRead} 
                       onClose={onClose} 
                       navigate={navigate} 
+                      profile={profile}
                     />
                   ))}
                 </>
@@ -428,10 +431,36 @@ function NotificationsModal({ onClose }: { onClose: () => void }) {
   );
 }
 
-function NotificationItem({ n, markAsRead, onClose, navigate }: { n: AppNotification, markAsRead: (id: string) => Promise<void>, onClose: () => void, navigate: any, key?: string }) {
+function NotificationItem({ n, markAsRead, onClose, navigate, profile }: { n: AppNotification, markAsRead: (id: string) => Promise<void>, onClose: () => void, navigate: any, profile: UserProfile | null, key?: string }) {
+  const [isProcessing, setIsProcessing] = useState(false);
+
+  const handleConnectionAction = async (e: React.MouseEvent, action: 'accept' | 'decline') => {
+    e.stopPropagation();
+    if (!profile || isProcessing) return;
+    setIsProcessing(true);
+    try {
+      if (action === 'accept') {
+        // We need the connection data. We can fetch it or just use the ID.
+        // For efficiency, we can fetch it once if it's a connect_request.
+        const connSnap = await getDoc(doc(db, 'connections', n.targetId!));
+        if (connSnap.exists()) {
+          await interactionService.acceptConnection(n.targetId!, connSnap.data(), profile);
+        }
+      } else {
+        await interactionService.declineConnection(n.targetId!);
+      }
+      await markAsRead(n.id);
+    } catch (err) {
+      console.error("Connection action failed:", err);
+    } finally {
+      setIsProcessing(false);
+    }
+  };
+
   return (
     <div 
       onClick={() => {
+        if (n.type === 'connect_request') return; // Must use buttons
         markAsRead(n.id);
         if (n.type === 'engage' || n.type === 'buy') navigate('/chat');
         if (n.type === 'like_product' || n.type === 'rate') navigate(`/product/${n.targetId}`);
@@ -439,10 +468,11 @@ function NotificationItem({ n, markAsRead, onClose, navigate }: { n: AppNotifica
         onClose();
       }}
       className={cn(
-        "p-4 rounded-2xl border transition-all cursor-pointer group relative overflow-hidden",
+        "p-4 rounded-2xl border transition-all group relative overflow-hidden",
         n.read 
           ? "bg-transparent border-white/5 opacity-60" 
-          : "bg-primary/[0.03] border-primary/30 shadow-[0_0_20px_rgba(0,242,254,0.15)]"
+          : "bg-primary/[0.03] border-primary/30 shadow-[0_0_20px_rgba(0,242,254,0.15)]",
+        n.type === 'connect_request' && !n.read && "cursor-default"
       )}
     >
       {!n.read && (
@@ -463,6 +493,25 @@ function NotificationItem({ n, markAsRead, onClose, navigate }: { n: AppNotifica
             </span>
           </div>
           <p className="text-[10px] text-gray-400 mt-1 leading-relaxed line-clamp-2">{n.message}</p>
+          
+          {n.type === 'connect_request' && !n.read && (
+            <div className="flex gap-2 mt-4">
+              <button 
+                onClick={(e) => handleConnectionAction(e, 'accept')}
+                disabled={isProcessing}
+                className="flex-1 py-2 bg-primary rounded-lg text-[9px] font-black text-[#05070a] uppercase tracking-widest flex items-center justify-center gap-1 hover:scale-105 transition-all"
+              >
+                {isProcessing ? <Loader2 size={10} className="animate-spin" /> : <Check size={10} />} Accept
+              </button>
+              <button 
+                onClick={(e) => handleConnectionAction(e, 'decline')}
+                disabled={isProcessing}
+                className="flex-1 py-2 bg-white/5 border border-white/10 rounded-lg text-[9px] font-black text-gray-400 uppercase tracking-widest flex items-center justify-center gap-1 hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/30 transition-all"
+              >
+                {isProcessing ? <Loader2 size={10} className="animate-spin" /> : <X size={10} />} Deny
+              </button>
+            </div>
+          )}
         </div>
       </div>
     </div>
@@ -477,6 +526,8 @@ function getNotificationIcon(type: AppNotification['type']) {
     case 'follow': return <UserPlus size={18} />;
     case 'like_store':
     case 'like_product': return <Heart size={18} />;
+    case 'connect_request': return <Users size={18} />;
+    case 'connect_accept': return <Check size={18} className="text-neon-green" />;
     default: return <Bell size={18} />;
   }
 }

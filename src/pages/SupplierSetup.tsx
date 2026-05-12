@@ -5,6 +5,7 @@ import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { collection, addDoc, doc, updateDoc } from 'firebase/firestore';
 import { UserProfile, Store as StoreType } from '../types';
 import { BUSINESS_CATEGORIES } from '../constants';
+import { cn } from '../lib/utils';
 import ImageInput from '../components/ImageInput';
 import LocationPicker from '../components/LocationPicker';
 import { offlineResilientWrite } from '../lib/sync';

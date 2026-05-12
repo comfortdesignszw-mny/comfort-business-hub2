@@ -3,11 +3,11 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Store as StoreIcon, MapPin, Star, MessageSquare, ArrowLeft, Share2, 
-  Info, Loader2, Building2, Zap, ShoppingBag, Heart, UserPlus, Navigation, Camera, Check, X, Edit3, Plus
+  Info, Loader2, Building2, Zap, ShoppingBag, Heart, UserPlus, Navigation, Camera, Check, X, Edit3, Plus, Users
 } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { doc, getDoc, collection, query, where, getDocs, onSnapshot, limit, updateDoc } from 'firebase/firestore';
-import { UserProfile, Product, Store as StoreType } from '../types';
+import { UserProfile, Product, Store as StoreType, Connection } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
 import ProductCard from '../components/ProductCard';
 import ImageInput from '../components/ImageInput';
@@ -37,8 +37,43 @@ export function StoreDetailContent({ store, profile, showMap = true, allowEdit =
   const [isSaving, setIsSaving] = useState(false);
   const [localCover, setLocalCover] = useState<string | null>(null);
 
+  const [connection, setConnection] = useState<Connection | null>(null);
+
   const navigate = useNavigate();
   const isOwner = allowEdit && profile?.currentRole === 'supplier' && profile?.uid === store.ownerId;
+
+  useEffect(() => {
+    if (!profile || !store.ownerId || profile.uid === store.ownerId) return;
+
+    // Check for connection in both directions
+    const q1 = query(collection(db, 'connections'), where('senderId', '==', profile.uid), where('receiverId', '==', store.ownerId));
+    const q2 = query(collection(db, 'connections'), where('senderId', '==', store.ownerId), where('receiverId', '==', profile.uid));
+
+    const unsub1 = onSnapshot(q1, (snap) => {
+      if (!snap.empty) setConnection({ id: snap.docs[0].id, ...snap.docs[0].data() } as Connection);
+    });
+    const unsub2 = onSnapshot(q2, (snap) => {
+      if (!snap.empty) setConnection({ id: snap.docs[0].id, ...snap.docs[0].data() } as Connection);
+    });
+
+    return () => {
+      unsub1();
+      unsub2();
+    };
+  }, [profile?.uid, store.ownerId]);
+
+  const handleConnect = async () => {
+    if (!profile) {
+      navigate('/login');
+      return;
+    }
+    if (connection) return;
+    await interactionService.sendConnectionRequest(profile, { 
+      uid: store.ownerId, 
+      name: store.name, 
+      avatar: store.logo 
+    });
+  };
 
   // Sync local cover with store prop
   useEffect(() => {
@@ -236,6 +271,23 @@ export function StoreDetailContent({ store, profile, showMap = true, allowEdit =
             <div className="glass-pill !text-neon-green flex items-center gap-1.5 text-[9px] sm:text-xs">
               <Star size={10} className="fill-neon-green sm:w-3 sm:h-3" /> {store.rating.toFixed(1)} ({store.reviewCount})
             </div>
+            {!isOwner && (
+              <button 
+                onClick={handleConnect}
+                disabled={!!connection}
+                className={cn(
+                  "glass-pill flex items-center gap-1.5 text-[9px] sm:text-xs transition-all",
+                  connection?.status === 'accepted' 
+                    ? "border-neon-green/30 text-neon-green bg-neon-green/5 shadow-[0_0_15px_rgba(57,255,20,0.2)]" 
+                    : connection?.status === 'pending'
+                    ? "border-gray-500/30 text-gray-400 bg-white/5 opacity-50"
+                    : "border-primary/30 text-primary bg-primary/5 hover:bg-primary/20 hover:shadow-[0_0_15px_rgba(0,242,254,0.3)] animate-pulse"
+                )}
+              >
+                <Users size={10} className="sm:w-3 sm:h-3" /> 
+                {connection?.status === 'accepted' ? 'Trusted Partner' : connection?.status === 'pending' ? 'Request Sent' : 'Connect Node'}
+              </button>
+            )}
             <button 
               onClick={() => profile && interactionService.followStore(store.id, store.ownerId, profile)}
               className="glass-pill border-cyan-400/30 text-cyan-400 bg-cyan-400/5 hover:bg-cyan-400/10 hover:shadow-[0_0_15px_rgba(34,211,238,0.4)] flex items-center gap-1.5 text-[9px] sm:text-xs transition-all animate-pulse"

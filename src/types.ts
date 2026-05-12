@@ -47,6 +47,7 @@ export interface Store {
   reviewCount: number;
   followerCount?: number;
   likeCount?: number;
+  statsResetAt?: string;
   createdAt: string;
 }
 
@@ -76,7 +77,7 @@ export interface Product {
 export interface AppNotification {
   id: string;
   userId: string;
-  type: 'engage' | 'buy' | 'rate' | 'follow' | 'like_store' | 'like_product';
+  type: 'engage' | 'buy' | 'rate' | 'follow' | 'like_store' | 'like_product' | 'connect_request' | 'connect_accept';
   fromUserId: string;
   fromUserName: string;
   targetId?: string;
@@ -135,7 +136,7 @@ export interface Spotlight {
   createdAt: any;
 }
 
-export type EngagementType = 'engaged' | 'interested';
+export type EngagementType = 'engaged' | 'interested' | 'order_now';
 
 export interface Engagement {
   id: string;
@@ -145,6 +146,8 @@ export interface Engagement {
   customerName: string;
   supplierId: string;
   type: EngagementType;
+  price?: number;
+  currency?: string;
   details?: string;
   createdAt: any;
 }
@@ -154,4 +157,20 @@ export interface Conversation {
   participants: string[];
   lastMessage?: string;
   updatedAt: string;
+}
+
+export type ConnectionStatus = 'pending' | 'accepted' | 'declined';
+
+export interface Connection {
+  id: string;
+  senderId: string;
+  senderName: string;
+  senderAvatar?: string;
+  receiverId: string;
+  receiverName: string;
+  receiverAvatar?: string;
+  status: ConnectionStatus;
+  type?: 'partner' | 'supplier' | 'customer';
+  createdAt: any;
+  updatedAt: any;
 }

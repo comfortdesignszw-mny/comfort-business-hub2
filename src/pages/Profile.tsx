@@ -4,9 +4,9 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   User, Store, Phone, MapPin, Shield, LogOut, ChevronRight, Wallet, 
   Bell, Zap, Image as ImageIcon, X, Check, CreditCard, 
-  Navigation, Crosshair, Save, Loader2, Megaphone, Trash2, Calendar, FileText, Plus
+  Navigation, Crosshair, Save, Loader2, Megaphone, Trash2, Calendar, FileText, Plus, Users, MessageSquare
 } from 'lucide-react';
-import { UserProfile, Role, Spotlight, Product } from '../types';
+import { UserProfile, Role, Spotlight, Product, Connection } from '../types';
 import { auth, db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { offlineResilientWrite } from '../lib/sync';
 import { geohashForLocation } from 'geofire-common';
@@ -18,9 +18,30 @@ import LocationPicker from '../components/LocationPicker';
 export default function Profile({ profile, setProfile }: { profile: UserProfile | null, setProfile: (p: UserProfile) => void }) {
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [activeModal, setActiveModal] = useState<'gateway' | 'location' | 'spotlights' | 'delete' | null>(null);
+  const [activeModal, setActiveModal] = useState<'gateway' | 'location' | 'spotlights' | 'delete' | 'connections' | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [editData, setEditData] = useState<Partial<UserProfile>>({});
+  const [engagementStats, setEngagementStats] = useState({ engaged: 0, volume: 0 });
+
+  useEffect(() => {
+    if (!profile || profile.currentRole !== 'supplier') return;
+
+    // Real-time Engagement stats listener for Supplier
+    const q = query(collection(db, 'engagements'), where('supplierId', '==', profile.uid));
+    const unsub = onSnapshot(q, (snap) => {
+      let engaged = 0;
+      let volume = 0;
+      
+      snap.docs.forEach(d => {
+        const data = d.data();
+        if (data.type === 'engaged') engaged++;
+        if (data.type === 'order_now') volume += (data.price || 0);
+      });
+      setEngagementStats({ engaged, volume });
+    });
+
+    return () => unsub();
+  }, [profile?.uid, profile?.currentRole]);
   const [isPending, startTransition] = useTransition();
   const navigate = useNavigate();
 
@@ -356,13 +377,12 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
               <div className="bg-white/5 p-4 rounded-2xl border border-white/5 space-y-2">
                 <p className="text-[8px] text-gray-400 font-black uppercase tracking-widest">Store Volume</p>
                 <div className="flex items-end gap-2">
-                  <p className="text-xl font-black text-white">$12.4K</p>
-                  <p className="text-[8px] text-neon-green font-bold mb-1">+12%</p>
+                  <p className="text-xl font-black text-white">{formatCurrency(engagementStats.volume, 'USD')}</p>
                 </div>
               </div>
               <div className="bg-white/5 p-4 rounded-2xl border border-white/5 space-y-2">
                 <p className="text-[8px] text-gray-400 font-black uppercase tracking-widest">Active Leads</p>
-                <p className="text-xl font-black text-primary">08 Nodes</p>
+                <p className="text-xl font-black text-primary">{engagementStats.engaged} Nodes</p>
               </div>
             </div>
             
@@ -388,6 +408,12 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
 
       {/* Menu Links */}
       <section className="space-y-4">
+        <MenuButton 
+          icon={Users} 
+          label="Trusted Network" 
+          detail="Manage your business connections" 
+          onClick={() => setActiveModal('connections')}
+        />
         <MenuButton 
           icon={Wallet} 
           label="Financial Gateway" 
@@ -476,6 +502,9 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
               )}
               {activeModal === 'spotlights' && (
                 <SpotlightManager profile={profile} />
+              )}
+              {activeModal === 'connections' && (
+                <ConnectionManager profile={profile} />
               )}
               {activeModal === 'delete' && (
                 <div className="space-y-8 text-center py-4">
@@ -971,6 +1000,109 @@ function SupplierInventoryPreview({ profile }: { profile: UserProfile }) {
         )}
       </div>
     </section>
+  );
+}
+
+function ConnectionManager({ profile }: { profile: UserProfile }) {
+  const [connections, setConnections] = useState<Connection[]>([]);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+
+  useEffect(() => {
+    // Fetch connections where user is either sender or receiver and status is accepted
+    const q1 = query(collection(db, 'connections'), where('senderId', '==', profile.uid), where('status', '==', 'accepted'));
+    const q2 = query(collection(db, 'connections'), where('receiverId', '==', profile.uid), where('status', '==', 'accepted'));
+
+    const unsub1 = onSnapshot(q1, (snap) => {
+      const c1 = snap.docs.map(d => ({ id: d.id, ...d.data() } as Connection));
+      setConnections(prev => {
+        const others = prev.filter(p => p.receiverId !== profile.uid); 
+        return [...others, ...c1];
+      });
+      setLoading(false);
+    });
+
+    const unsub2 = onSnapshot(q2, (snap) => {
+      const c2 = snap.docs.map(d => ({ id: d.id, ...d.data() } as Connection));
+      setConnections(prev => {
+        const others = prev.filter(p => p.senderId !== profile.uid); 
+        return [...others, ...c2];
+      });
+      setLoading(false);
+    });
+
+    return () => {
+      unsub1();
+      unsub2();
+    };
+  }, [profile.uid]);
+
+  const getPartnerId = (c: Connection) => c.senderId === profile.uid ? c.receiverId : c.senderId;
+  const getPartnerName = (c: Connection) => c.senderId === profile.uid ? c.receiverName : c.senderName;
+  const getPartnerAvatar = (c: Connection) => c.senderId === profile.uid ? c.receiverAvatar : c.senderAvatar;
+
+  return (
+    <div className="space-y-8">
+      <header className="space-y-2">
+        <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter">Trusted Network</h3>
+        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-relaxed">
+          Connections within the Enterprise Matrix. 
+          {profile.currentRole === 'supplier' ? ' Trusted customers and partner nodes.' : ' Trusted suppliers and partner nodes.'}
+        </p>
+      </header>
+
+      <div className="space-y-4">
+        {loading ? (
+          <div className="space-y-3">
+            {[1, 2, 3].map(i => <div key={i} className="h-20 bg-white/5 animate-pulse rounded-2xl" />)}
+          </div>
+        ) : connections.length > 0 ? (
+          <div className="grid gap-3">
+            {connections.map((c) => (
+              <div 
+                key={c.id}
+                className="p-4 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-between group hover:border-primary/30 transition-all font-sans"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-12 h-12 bg-[#0d1117] rounded-xl overflow-hidden border border-white/5">
+                    {getPartnerAvatar(c) ? (
+                      <img src={getPartnerAvatar(c)} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    ) : (
+                      <div className="w-full h-full flex items-center justify-center text-primary font-black">
+                        {getPartnerName(c).charAt(0)}
+                      </div>
+                    )}
+                  </div>
+                  <div>
+                    <h4 className="text-xs font-black text-white uppercase tracking-tight">{getPartnerName(c)}</h4>
+                    <p className="text-[8px] text-neon-green font-bold uppercase tracking-widest mt-0.5">
+                      {c.type === 'partner' ? 'Trusted Partner' : c.type === 'supplier' ? (c.senderId === profile.uid ? 'Trusted Supplier' : 'Trusted Customer') : 'Trusted Customer'}
+                    </p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => navigate('/chat', { state: { recipientId: getPartnerId(c) } })}
+                  className="p-3 bg-primary/10 text-primary rounded-xl hover:bg-primary hover:text-[#05070a] transition-all"
+                >
+                  <MessageSquare size={16} />
+                </button>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="text-center py-12 bg-white/5 rounded-3xl border border-white/5 space-y-4">
+            <Users size={32} className="mx-auto text-gray-800" />
+            <p className="text-[10px] font-black text-gray-600 uppercase tracking-widest">No active connections in your network</p>
+            <button 
+              onClick={() => navigate('/')} 
+              className="text-[9px] font-black text-primary uppercase tracking-widest hover:underline"
+            >
+              Explore and Connect with Operators
+            </button>
+          </div>
+        )}
+      </div>
+    </div>
   );
 }
 

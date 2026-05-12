@@ -19,7 +19,9 @@ import {
   Shield,
   MapPin,
   Building2,
-  Sparkles
+  Sparkles,
+  Zap,
+  RefreshCw
 } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { 
@@ -96,7 +98,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
   const [customCategory, setCustomCategory] = useState('');
   const [isEditingLocation, setIsEditingLocation] = useState(false);
 
-  const [engagementStats, setEngagementStats] = useState({ engaged: 0, interested: 0 });
+  const [engagementStats, setEngagementStats] = useState({ engaged: 0, interested: 0, volume: 0 });
 
   useEffect(() => {
     setLoading(true);
@@ -126,24 +128,38 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
       setLoading(false);
     });
 
-    fetchEngagementStats();
-    
-    // Handle navigation triggers from location state
-    const state = location.state as any;
-    if (state) {
-      if (state.editProduct) {
-        handleOpenForm(state.editProduct);
-      } else if (state.showProductForm) {
-        handleOpenForm();
-      }
-    }
-
     return () => storesUnsub();
   }, [profile.uid, location.key]);
 
   // Real-time Products Listener for Active Store
   useEffect(() => {
     if (!activeStore?.id) return;
+    
+    // Engagement stats listener
+    const q = query(collection(db, 'engagements'), where('supplierId', '==', profile.uid));
+    const unsubEng = onSnapshot(q, (snap) => {
+      const stats = { engaged: 0, interested: 0, volume: 0 };
+      
+      // Get the last reset timestamp for this store (if any)
+      const resetAt = activeStore.statsResetAt ? new Date(activeStore.statsResetAt) : new Date(0);
+
+      snap.docs.forEach(d => {
+        const data = d.data();
+        const createdAt = data.createdAt?.toDate ? data.createdAt.toDate() : new Date(data.createdAt || 0);
+        
+        if (createdAt >= resetAt) {
+          if (data.type === 'engaged') stats.engaged++;
+          if (data.type === 'interested') stats.interested++;
+          if (data.type === 'order_now') {
+            stats.volume += data.price || 0;
+            // Also count order_now as interested for the "Interested to Buy" stat if needed, 
+            // but the user said "Interested to Buy" should be "interested" type clicks?
+            // Actually they said "Active Leads should be number of clicks on the 'engage' button".
+          }
+        }
+      });
+      setEngagementStats(stats);
+    });
     
     const productsQuery = query(collection(db, 'products'), where('storeId', '==', activeStore.id));
     const productsUnsub = onSnapshot(productsQuery, (snap) => {
@@ -152,22 +168,20 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
       handleFirestoreError(err, OperationType.GET, `supplier-products-${activeStore.id}`);
     });
 
-    return () => productsUnsub();
-  }, [activeStore?.id]);
+    return () => {
+      productsUnsub();
+      unsubEng();
+    };
+  }, [activeStore?.id, activeStore?.statsResetAt]);
 
-  const fetchEngagementStats = async () => {
+  const handleResetStats = async () => {
+    if (!activeStore) return;
     try {
-      const q = query(collection(db, 'engagements'), where('supplierId', '==', profile.uid));
-      const snap = await getDocs(q);
-      const stats = { engaged: 0, interested: 0 };
-      snap.docs.forEach(d => {
-        const data = d.data();
-        if (data.type === 'engaged') stats.engaged++;
-        if (data.type === 'interested') stats.interested++;
+      await updateDoc(doc(db, 'stores', activeStore.id), {
+        statsResetAt: new Date().toISOString()
       });
-      setEngagementStats(stats);
-    } catch (e) {
-      console.error("Error fetching engagement stats:", e);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `stores/${activeStore.id}`);
     }
   };
 
@@ -597,38 +611,49 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
       </section>
 
       {/* Analytics Brief */}
-      <section className="grid grid-cols-2 md:grid-cols-4 gap-4">
-        <div className="neon-card p-4 space-y-2">
-          <div className="flex items-center justify-between">
-            <DollarSign size={16} className="text-primary" />
-            <span className="text-[8px] font-black text-neon-green uppercase tracking-widest">+12%</span>
-          </div>
-          <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Volume (MTD)</p>
-          <p className="text-xl font-black text-white italic tracking-tighter">$12.4K</p>
+      <section className="space-y-4">
+        <div className="flex items-center justify-between px-1">
+          <h2 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">Live Operational Metrics</h2>
+          <button 
+            onClick={handleResetStats}
+            className="text-[10px] font-black text-primary uppercase tracking-widest flex items-center gap-1.5 hover:opacity-80 transition-opacity"
+          >
+            <RefreshCw size={12} /> Reset Counters
+          </button>
         </div>
-        <div className="neon-card p-4 space-y-2">
-          <div className="flex items-center justify-between">
-            <Package size={16} className="text-primary" />
-            <span className="text-[8px] font-black text-neon-green uppercase tracking-widest">LIVE</span>
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="neon-card p-4 space-y-2 group">
+            <div className="flex items-center justify-between">
+              <DollarSign size={16} className="text-primary" />
+              <div className="w-1.5 h-1.5 bg-neon-green rounded-full shadow-[0_0_8px_rgba(57,255,20,0.5)]"></div>
+            </div>
+            <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Store Volume</p>
+            <p className="text-xl font-black text-white italic tracking-tighter">{formatCurrency(engagementStats.volume, 'USD')}</p>
           </div>
-          <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Items Active</p>
-          <p className="text-xl font-black text-white italic tracking-tighter">{products.length}</p>
-        </div>
-        <div className="neon-card p-4 space-y-2 border-primary/20 bg-primary/5">
-          <div className="flex items-center justify-between">
-            <MessageSquare size={16} className="text-primary" />
-            <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse shadow-[0_0_8px_rgba(0,242,254,0.5)]"></div>
+          <div className="neon-card p-4 space-y-2">
+            <div className="flex items-center justify-between">
+              <Package size={16} className="text-primary" />
+              <span className="text-[8px] font-black text-neon-green uppercase tracking-widest">LIVE</span>
+            </div>
+            <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">Active Inventory</p>
+            <p className="text-xl font-black text-white italic tracking-tighter">{products.length}</p>
           </div>
-          <p className="text-[9px] font-black text-primary uppercase tracking-widest">Product Engaged</p>
-          <p className="text-xl font-black text-white italic tracking-tighter">{engagementStats.engaged}</p>
-        </div>
-        <div className="neon-card p-4 space-y-2 border-accent/20 bg-accent/5">
-          <div className="flex items-center justify-between">
-            <ShoppingBag size={16} className="text-accent" />
-            <div className="w-1.5 h-1.5 bg-accent rounded-full animate-pulse shadow-[0_0_8px_rgba(240,147,251,0.5)]"></div>
+          <div className="neon-card p-4 space-y-2 border-primary/20 bg-primary/5">
+            <div className="flex items-center justify-between">
+              <Zap size={16} className="text-primary" />
+              <div className="w-1.5 h-1.5 bg-primary rounded-full animate-pulse shadow-[0_0_8px_rgba(0,242,254,0.5)]"></div>
+            </div>
+            <p className="text-[9px] font-black text-primary uppercase tracking-widest">Active Leads (Engage)</p>
+            <p className="text-xl font-black text-white italic tracking-tighter">{engagementStats.engaged}</p>
           </div>
-          <p className="text-[9px] font-black text-accent uppercase tracking-widest">Interested to Buy</p>
-          <p className="text-xl font-black text-white italic tracking-tighter">{engagementStats.interested}</p>
+          <div className="neon-card p-4 space-y-2 border-accent/20 bg-accent/5">
+            <div className="flex items-center justify-between">
+              <ShoppingBag size={16} className="text-accent" />
+              <div className="w-1.5 h-1.5 bg-accent rounded-full animate-pulse shadow-[0_0_8px_rgba(240,147,251,0.5)]"></div>
+            </div>
+            <p className="text-[9px] font-black text-accent uppercase tracking-widest">Orders Initiated</p>
+            <p className="text-xl font-black text-white italic tracking-tighter">{engagementStats.interested}</p>
+          </div>
         </div>
       </section>
 

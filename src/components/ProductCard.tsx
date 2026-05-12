@@ -4,7 +4,7 @@ import { useNavigate } from 'react-router-dom';
 import { 
   Zap, ShoppingBag, ArrowRight, MessageSquare, Phone, Check, Loader2, MapPinned, CreditCard, Share2, X, Info, Star, Store as StoreIcon, Edit3, Trash2
 } from 'lucide-react';
-import { UserProfile, Product, Store } from '../types';
+import { UserProfile, Product, Store, EngagementType } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { collection, addDoc, serverTimestamp, setDoc, doc, getDoc } from 'firebase/firestore';
@@ -74,7 +74,7 @@ export default function ProductCard({
     fetchStoreData();
   }, [product.storeId, initialStore]);
 
-  const logEngagement = async (type: 'engaged' | 'interested') => {
+  const logEngagement = async (type: EngagementType) => {
     if (!profile || !product.ownerId) return;
     
     try {
@@ -87,6 +87,8 @@ export default function ProductCard({
         customerName: customerName,
         supplierId: product.ownerId,
         type,
+        price: product.price,
+        currency: product.currency,
         createdAt: serverTimestamp()
       });
     } catch (err) {
@@ -116,7 +118,7 @@ export default function ProductCard({
       return;
     }
 
-    await logEngagement('interested');
+    await logEngagement('order_now');
 
     if (onAction) {
       onAction(product);

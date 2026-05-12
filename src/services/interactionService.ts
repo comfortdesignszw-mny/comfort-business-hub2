@@ -8,15 +8,16 @@ import {
   where, 
   serverTimestamp, 
   runTransaction,
-  increment
+  increment,
+  setDoc
 } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
-import { UserProfile, Notification } from '../types';
+import { UserProfile, AppNotification } from '../types';
 
 export const interactionService = {
   async sendNotification(
     recipientId: string, 
-    type: Notification['type'], 
+    type: AppNotification['type'], 
     fromUser: UserProfile, 
     targetId?: string,
     customTitle?: string,
@@ -44,7 +45,7 @@ export const interactionService = {
     }
   },
 
-  getDefaultTitle(type: Notification['type']): string {
+  getDefaultTitle(type: AppNotification['type']): string {
     switch (type) {
       case 'engage': return 'New Engagement Signal';
       case 'buy': return 'Purchase Initialization';
@@ -52,11 +53,13 @@ export const interactionService = {
       case 'follow': return 'New Hub Follower';
       case 'like_store': return 'Store Liked';
       case 'like_product': return 'Product Liked';
+      case 'connect_request': return 'Connection Uplink Request';
+      case 'connect_accept': return 'Connection Protocol Established';
       default: return 'Hub Update';
     }
   },
 
-  getDefaultMessage(type: Notification['type'], name: string): string {
+  getDefaultMessage(type: AppNotification['type'], name: string): string {
     switch (type) {
       case 'engage': return `${name} has engaged with your inventory node.`;
       case 'buy': return `${name} initialized a purchase protocol for your item.`;
@@ -64,7 +67,71 @@ export const interactionService = {
       case 'follow': return `${name} is now following your storefront node.`;
       case 'like_store': return `${name} liked your storefront.`;
       case 'like_product': return `${name} liked one of your inventory items.`;
+      case 'connect_request': return `${name} wants to establish a trusted connection with you.`;
+      case 'connect_accept': return `${name} accepted your connection request. You are now trusted partners.`;
       default: return `New activity detected from ${name}.`;
+    }
+  },
+
+  async sendConnectionRequest(sender: UserProfile, receiver: { uid: string, name: string, avatar?: string }) {
+    try {
+      // Check if already exists
+      const q = query(
+        collection(db, 'connections'),
+        where('senderId', '==', sender.uid),
+        where('receiverId', '==', receiver.uid)
+      );
+      const snap = await getDocs(q);
+      if (!snap.empty) return;
+
+      const connRef = doc(collection(db, 'connections'));
+      await setDoc(connRef, {
+        id: connRef.id,
+        senderId: sender.uid,
+        senderName: sender.name || 'User',
+        senderAvatar: sender.avatar || '',
+        receiverId: receiver.uid,
+        receiverName: receiver.name || 'Store',
+        receiverAvatar: receiver.avatar || '',
+        status: 'pending',
+        createdAt: serverTimestamp(),
+        updatedAt: serverTimestamp()
+      });
+
+      await this.sendNotification(receiver.uid, 'connect_request', sender, connRef.id);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, 'send-connection-request');
+    }
+  },
+
+  async acceptConnection(connectionId: string, connection: any, currentUser: UserProfile) {
+    try {
+      await runTransaction(db, async (transaction) => {
+        const connRef = doc(db, 'connections', connectionId);
+        
+        // Determine connection type
+        // Sender and receiver role comparison
+        // We'll need the other user's role too, but we can assume or fetch it.
+        // For simplicity, let's just mark as accepted first.
+        
+        transaction.update(connRef, {
+          status: 'accepted',
+          updatedAt: serverTimestamp()
+        });
+      });
+
+      // Notify the requester
+      await this.sendNotification(connection.senderId, 'connect_accept', currentUser, connectionId);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, 'accept-connection');
+    }
+  },
+
+  async declineConnection(connectionId: string) {
+    try {
+      await deleteDoc(doc(db, 'connections', connectionId));
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, 'decline-connection');
     }
   },
 

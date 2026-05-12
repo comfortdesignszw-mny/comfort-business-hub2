@@ -71,7 +71,7 @@ service cloud.firestore {
       allow update: if isSignedIn() && (
         (isOwner(existing().ownerId) && isValidStore(incoming()) 
           && incoming().ownerId == existing().ownerId
-          && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'contactNumbers', 'email', 'category', 'logo', 'coverPhoto', 'address', 'specificBusinessType', 'geohash', 'lat', 'lng', 'updatedAt', 'followerCount', 'likeCount', 'ownerId', '_syncedAt']))
+          && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'contactNumbers', 'email', 'category', 'logo', 'coverPhoto', 'address', 'specificBusinessType', 'geohash', 'lat', 'lng', 'updatedAt', 'followerCount', 'likeCount', 'ownerId', '_syncedAt', 'statsResetAt']))
         || (incoming().diff(existing()).affectedKeys().hasOnly(['followerCount', 'likeCount']) && incoming().ownerId == existing().ownerId)
       );
       allow delete: if isOwner(existing().ownerId);
@@ -158,6 +158,17 @@ service cloud.firestore {
       allow list: if isSignedIn();
       allow create: if isVerified() && isValidId(id) && incoming().authorId == request.auth.uid;
       allow update, delete: if isOwner(existing().authorId) && (request.method == 'delete' || incoming().authorId == existing().authorId);
+    }
+
+    match /connections/{id} {
+      allow get: if isSignedIn() && (resource.data.senderId == request.auth.uid || resource.data.receiverId == request.auth.uid);
+      allow list: if isSignedIn() && (resource.data.senderId == request.auth.uid || resource.data.receiverId == request.auth.uid);
+      allow create: if isSignedIn() && isValidId(id) && incoming().senderId == request.auth.uid;
+      allow update: if isSignedIn() && (
+        (existing().receiverId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'type', 'updatedAt', '_syncedAt'])) ||
+        (existing().senderId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt', '_syncedAt']))
+      );
+      allow delete: if isSignedIn() && (existing().senderId == request.auth.uid || existing().receiverId == request.auth.uid);
     }
   }
 }
