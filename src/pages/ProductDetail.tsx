@@ -15,6 +15,8 @@ import { cn, formatCurrency } from '../lib/utils';
 import { interactionService } from '../services/interactionService';
 import { useMessaging } from '../components/MessagingProvider';
 
+import { UnifiedCheckoutModal, EcoCashModal, PodModal } from '../components/CheckoutModals';
+
 export default function ProductDetail({ profile }: { profile: UserProfile | null }) {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
@@ -32,6 +34,8 @@ export default function ProductDetail({ profile }: { profile: UserProfile | null
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [newReview, setNewReview] = useState({ rating: 5, comment: '' });
+  const [activeModal, setActiveModal] = useState<'checkout' | 'ecocash' | 'pod' | null>(null);
+  const [purchaseQuantity, setPurchaseQuantity] = useState(1);
   const { startConversation } = useMessaging();
 
   useEffect(() => {
@@ -81,37 +85,11 @@ export default function ProductDetail({ profile }: { profile: UserProfile | null
   }, [id]);
 
   const handlePurchase = async () => {
-    if (!profile || !product || !store) return;
-    
-    // Create engagement
-    try {
-      if (navigator.onLine) {
-        await addDoc(collection(db, 'engagements'), {
-          productId: id,
-          productName: product.name,
-          customerId: profile.uid,
-          customerName: profile.name || 'User',
-          supplierId: product.ownerId,
-          type: 'interested',
-          createdAt: serverTimestamp()
-        });
-
-        // Send notification
-        await interactionService.sendNotification(
-          product.ownerId,
-          'buy',
-          profile,
-          id
-        );
-      }
-
-      // Open chat with initial message
-      const initialMsg = `Hie, I am interested in purchasing ${product.name}. Let's discuss delivery/payment.`;
-      const convoId = await startConversation(product.ownerId, initialMsg);
-      navigate(`/chat?id=${convoId}`);
-    } catch (err) {
-      console.error('Purchase init failed:', err);
+    if (!profile) {
+      navigate('/login');
+      return;
     }
+    setActiveModal('checkout');
   };
 
   const handleSubmitReview = async (e: React.FormEvent) => {
@@ -179,8 +157,8 @@ export default function ProductDetail({ profile }: { profile: UserProfile | null
       className="pb-24 space-y-8"
     >
       {/* Product Image Slider */}
-      <section className="relative px-4 pt-4">
-        <div className="relative aspect-[16/10] sm:aspect-video rounded-[2.5rem] overflow-hidden neon-card group">
+      <section className="relative px-2 sm:px-4 pt-2 sm:pt-4">
+        <div className="relative aspect-[16/10] sm:aspect-video rounded-[1.5rem] sm:rounded-[2.5rem] overflow-hidden neon-card group max-h-[35vh] sm:max-h-none">
           <AnimatePresence mode="wait">
             <motion.img 
               key={currentImageIndex}
@@ -201,15 +179,15 @@ export default function ProductDetail({ profile }: { profile: UserProfile | null
             <>
               <button 
                 onClick={() => setCurrentImageIndex(prev => (prev - 1 + images.length) % images.length)}
-                className="absolute left-4 top-1/2 -translate-y-1/2 p-2 bg-black/50 backdrop-blur-md rounded-xl text-white hover:text-primary transition-colors opacity-0 group-hover:opacity-100"
+                className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 p-1.5 sm:p-2 bg-black/50 backdrop-blur-md rounded-xl text-white hover:text-primary transition-colors opacity-0 group-hover:opacity-100"
               >
-                <ChevronLeft size={20} />
+                <ChevronLeft size={16} />
               </button>
               <button 
                 onClick={() => setCurrentImageIndex(prev => (prev + 1) % images.length)}
-                className="absolute right-4 top-1/2 -translate-y-1/2 p-2 bg-black/50 backdrop-blur-md rounded-xl text-white hover:text-primary transition-colors opacity-0 group-hover:opacity-100"
+                className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 p-1.5 sm:p-2 bg-black/50 backdrop-blur-md rounded-xl text-white hover:text-primary transition-colors opacity-0 group-hover:opacity-100"
               >
-                <ChevronRight size={20} />
+                <ChevronRight size={16} />
               </button>
             </>
           )}
@@ -217,9 +195,9 @@ export default function ProductDetail({ profile }: { profile: UserProfile | null
           {/* Share Button */}
           <button 
             onClick={handleShare}
-            className="absolute top-6 right-6 p-3 bg-black/50 backdrop-blur-md rounded-2xl border border-white/10 text-white hover:text-primary transition-all hover:scale-110 active:scale-95 shadow-2xl"
+            className="absolute top-3 right-3 sm:top-6 sm:right-6 p-2 sm:p-3 bg-black/50 backdrop-blur-md rounded-xl sm:rounded-2xl border border-white/10 text-white hover:text-primary transition-all hover:scale-110 active:scale-95 shadow-2xl"
           >
-            <Share2 size={18} />
+            <Share2 size={16} />
           </button>
         </div>
 
@@ -241,56 +219,58 @@ export default function ProductDetail({ profile }: { profile: UserProfile | null
       </section>
 
       {/* Main Info */}
-      <section className="px-6 space-y-6">
-        <div className="flex justify-between items-start gap-4">
-          <div className="space-y-1">
-            <h1 className="text-3xl font-black text-white italic uppercase tracking-tighter leading-tight sm:text-4xl">
+      <section className="px-4 sm:px-6 space-y-6">
+        <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
+          <div className="space-y-1 sm:space-y-2 flex-1 w-full">
+            <h2 className="text-xl sm:text-3xl font-black text-white italic uppercase tracking-tighter leading-tight sm:text-4xl">
               {product.name}
-            </h1>
-            <div className="flex items-center gap-3">
-              <div className="glass-pill !text-primary !border-primary/20 flex items-center gap-1">
+            </h2>
+            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
+              <div className="glass-pill !text-primary !border-primary/20 flex items-center gap-1.5 py-1 px-3">
                 <Zap size={10} className="fill-primary" />
-                {product.category}
+                <span className="text-[10px] uppercase font-black">{product.category}</span>
               </div>
-              <div className="flex items-center gap-1.5">
-                <Star size={12} className="fill-primary text-primary" />
-                <span className="text-sm font-black text-white">{product.rating?.toFixed(1) || 'N/A'}</span>
-                <span className="text-[10px] text-gray-500 font-bold uppercase">({product.reviewCount || 0} Synced Reviews)</span>
+              <div className="flex items-center gap-1.5 bg-white/5 py-1 px-2.5 rounded-full border border-white/5">
+                <Star size={10} className="fill-primary text-primary" />
+                <span className="text-[10px] font-black text-white">{product.rating?.toFixed(1) || 'N/A'}</span>
+                <span className="text-[9px] text-gray-500 font-bold uppercase overflow-hidden whitespace-nowrap">({product.reviewCount || 0})</span>
               </div>
               <button 
                 onClick={() => profile && interactionService.likeProduct(product.id, product.ownerId, profile)}
-                className="glass-pill !text-cyan-400 !border-cyan-400/30 flex items-center gap-1.5 hover:bg-cyan-400/10 hover:shadow-[0_0_15px_rgba(34,211,238,0.4)] transition-all font-black"
+                className="glass-pill !text-cyan-400 !border-cyan-400/30 flex items-center gap-1.5 hover:bg-cyan-400/10 transition-all font-black py-1 px-3"
               >
                 <Heart size={10} className={cn("fill-cyan-400", product.likeCount ? "opacity-100" : "opacity-30")} />
-                <span className="text-[10px]">{product.likeCount || 0} Likes</span>
+                <span className="text-[9px]">{product.likeCount || 0}</span>
               </button>
             </div>
           </div>
-          <div className="text-right">
-            <p className="text-3xl font-black text-primary italic tracking-tighter">{formatCurrency(product.price, product.currency)}</p>
-            <div className="flex items-center justify-end gap-1 text-neon-green mt-1">
-               <ShieldCheck size={12} />
-               <p className="text-[9px] font-black uppercase tracking-widest">Verified Hub Price</p>
+          <div className="text-left sm:text-right w-full sm:w-auto pt-3 border-t border-white/5 sm:border-0 flex sm:flex-col justify-between items-center sm:items-end">
+            <div>
+              <p className="text-2xl sm:text-4xl font-black text-primary italic tracking-tighter leading-none">{formatCurrency(product.price, product.currency)}</p>
+              <div className="flex items-center sm:justify-end gap-1 text-neon-green mt-1">
+                 <ShieldCheck size={10} />
+                 <p className="text-[8px] sm:text-[9px] font-black uppercase tracking-widest">Verified Hub Price</p>
+              </div>
             </div>
           </div>
         </div>
 
         {/* Action Bar */}
-        <div className="flex gap-4 p-2 bg-white/5 border border-white/5 rounded-3xl backdrop-blur-xl">
+        <div className="flex flex-col sm:flex-row gap-3 p-2 bg-white/5 border border-white/5 rounded-3xl backdrop-blur-xl">
           <button 
              onClick={() => navigate(`/store/${product.storeId}`)}
-             className="flex-1 flex items-center gap-3 p-3 hover:bg-white/5 rounded-2xl transition-all group"
+             className="flex-1 flex items-center gap-3 p-3 hover:bg-white/5 rounded-2xl transition-all group border border-white/5 sm:border-0"
           >
             <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
               <StoreIcon size={20} />
             </div>
-            <div className="text-left">
+            <div className="text-left overflow-hidden">
               <p className="text-[9px] text-gray-500 font-black uppercase tracking-widest leading-none mb-1">Direct Node</p>
-              <p className="text-xs font-black text-white uppercase tracking-tight group-hover:text-primary transition-colors">{store?.name || 'Local Store'}</p>
+              <p className="text-xs font-black text-white uppercase tracking-tight group-hover:text-primary transition-colors truncate">{store?.name || 'Local Store'}</p>
             </div>
           </button>
           
-          <div className="flex items-center px-4 border-l border-white/5">
+          <div className="hidden sm:flex items-center px-4 border-l border-white/5">
              <div className="flex flex-col items-center">
                 <Clock size={14} className="text-gray-500 mb-1" />
                 <span className="text-[8px] font-bold text-gray-600 uppercase">Ready now</span>
@@ -299,7 +279,7 @@ export default function ProductDetail({ profile }: { profile: UserProfile | null
 
           <button 
             onClick={handlePurchase}
-            className="flex-none px-8 bg-primary rounded-2xl flex items-center justify-center text-[#05070a] font-black uppercase text-[10px] tracking-widest hover:shadow-[0_0_20px_rgba(0,242,254,0.3)] transition-all"
+            className="flex-none w-full sm:w-auto px-8 py-4 sm:py-0 bg-primary rounded-2xl flex items-center justify-center text-[#05070a] font-black uppercase text-[10px] tracking-widest hover:shadow-[0_0_20px_rgba(0,242,254,0.3)] transition-all"
           >
              Initialize Purchase
           </button>
@@ -433,6 +413,35 @@ export default function ProductDetail({ profile }: { profile: UserProfile | null
           </div>
         </div>
       </section>
+
+      <AnimatePresence>
+        {activeModal === 'checkout' && (
+          <UnifiedCheckoutModal 
+            product={product} 
+            profile={profile}
+            quantity={purchaseQuantity}
+            setQuantity={setPurchaseQuantity}
+            onClose={() => { setActiveModal(null); setPurchaseQuantity(1); }}
+            onSwitchModal={(type) => setActiveModal(type)}
+          />
+        )}
+        {activeModal === 'ecocash' && (
+          <EcoCashModal 
+            product={product} 
+            profile={profile}
+            quantity={purchaseQuantity}
+            onClose={() => { setActiveModal(null); setPurchaseQuantity(1); }} 
+          />
+        )}
+        {activeModal === 'pod' && (
+          <PodModal 
+            product={product} 
+            profile={profile}
+            initialQuantity={purchaseQuantity}
+            onClose={() => { setActiveModal(null); setPurchaseQuantity(1); }} 
+          />
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

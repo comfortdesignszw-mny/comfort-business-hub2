@@ -135,46 +135,46 @@ export default function UserProfileModal({ userId, isOpen, onClose, currentUserP
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 pt-12 sm:p-10">
+            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 pt-12 sm:pt-16 sm:p-10">
               {loading ? (
                 <div className="flex flex-col items-center justify-center py-20 space-y-4">
                   <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
                   <p className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">Synchronizing Identity...</p>
                 </div>
               ) : profile ? (
-                <div className="space-y-8">
+                <div className="space-y-6 sm:space-y-8">
                   {/* Profile Info */}
-                  <div className="flex flex-col items-center text-center space-y-6">
+                  <div className="flex flex-col items-center text-center space-y-4 sm:space-y-6">
                     <div className="relative group">
                       <div className="absolute -inset-1 bg-gradient-to-r from-primary to-accent rounded-full blur opacity-25"></div>
-                      <div className="relative w-32 h-32 bg-[#0d1117] border-4 border-[#05070a] rounded-full flex items-center justify-center text-white text-4xl font-black shadow-2xl overflow-hidden">
+                      <div className="relative w-24 h-24 sm:w-32 sm:h-32 bg-[#0d1117] border-4 border-[#05070a] rounded-full flex items-center justify-center text-white text-3xl sm:text-4xl font-black shadow-2xl overflow-hidden">
                         {profile.avatar ? (
                           <img src={profile.avatar} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                         ) : profile.name.charAt(0)}
                       </div>
                     </div>
 
-                    <div className="space-y-3">
+                    <div className="space-y-2 sm:space-y-3">
                       <div className="space-y-1">
-                        <h2 className="text-3xl font-black text-white italic tracking-tighter uppercase">{profile.name}</h2>
-                        <div className="flex items-center justify-center gap-3">
-                          <p className="text-[10px] text-primary font-black uppercase tracking-widest">
+                        <h2 className="text-2xl sm:text-3xl font-black text-white italic tracking-tighter uppercase leading-tight">{profile.name}</h2>
+                        <div className="flex flex-col sm:flex-row items-center justify-center gap-1 sm:gap-3">
+                          <p className="text-[8px] sm:text-[10px] text-primary font-black uppercase tracking-widest">
                             Node ID: {profile.uid.slice(0, 8)}
                           </p>
                           {profile.isVerified && (
-                             <div className="flex items-center gap-1.5 text-[9px] text-neon-green font-black uppercase tracking-widest">
-                              <Shield size={12} className="fill-neon-green/20" /> Verified Hub Member
+                             <div className="flex items-center gap-1.5 text-[8px] sm:text-[9px] text-neon-green font-black uppercase tracking-widest">
+                              <Shield size={10} className="fill-neon-green/20" /> Verified Member
                             </div>
                           )}
                         </div>
                       </div>
 
-                      <div className="flex justify-center flex-wrap gap-2 pt-2">
-                        <div className="glass-pill !text-gray-400 !border-white/5 uppercase tracking-widest text-[9px]">
+                      <div className="flex justify-center flex-wrap gap-2 pt-1 sm:pt-2">
+                        <div className="glass-pill !text-gray-400 !border-white/5 uppercase tracking-widest text-[8px] sm:text-[9px] py-1 px-2.5">
                           {profile.currentRole === 'supplier' ? 'Supplier Matrix' : 'Customer Node'}
                         </div>
                         {profile.location?.city && (
-                          <div className="glass-pill !text-gray-400 !border-white/5 flex items-center gap-1.5 uppercase tracking-widest text-[9px]">
+                          <div className="glass-pill !text-gray-400 !border-white/5 flex items-center gap-1.5 uppercase tracking-widest text-[8px] sm:text-[9px] py-1 px-2.5">
                             <MapPin size={10} /> {profile.location.city}
                           </div>
                         )}

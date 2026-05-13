@@ -331,37 +331,37 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
       )}
 
       {/* Search & Location Bar */}
-      <section className="space-y-4">
+      <section className="space-y-3 sm:space-y-4">
         <div className="relative group">
           <div className="absolute -inset-0.5 bg-gradient-to-r from-primary to-accent rounded-2xl blur opacity-20 group-focus-within:opacity-40 transition duration-1000 group-focus-within:duration-200"></div>
           <div className="relative flex items-center bg-[#0d1117] border border-white/5 rounded-2xl overflow-hidden shadow-2xl">
-            <Search className="ml-4 text-gray-500 group-focus-within:text-primary transition-colors" size={20} />
+            <Search className="ml-3 sm:ml-4 text-gray-500 group-focus-within:text-primary transition-colors" size={18} />
             <input 
               type="text" 
               placeholder="Search local supply chain..."
-              className="w-full pl-3 pr-12 py-5 bg-transparent text-white placeholder-gray-600 outline-none font-medium"
+              className="w-full pl-2 sm:pl-3 pr-12 py-3.5 sm:py-5 bg-transparent text-white placeholder-gray-600 outline-none font-medium text-xs sm:text-base"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
             />
-            <button className="absolute right-3 w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center text-gray-500 hover:text-white transition-colors">
-              <SlidersHorizontal size={18} />
+            <button className="absolute right-2 sm:right-3 w-8 h-8 sm:w-10 sm:h-10 bg-white/5 rounded-xl flex items-center justify-center text-gray-500 hover:text-white transition-colors">
+              <SlidersHorizontal size={16} />
             </button>
           </div>
         </div>
 
         <div className="flex items-center justify-between px-2">
           <div className="flex items-center gap-2 group cursor-pointer">
-            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center">
+            <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
               <MapPin size={14} className="text-primary group-hover:scale-110 transition-transform" />
             </div>
-            <div>
-              <p className="text-[10px] text-gray-500 font-bold uppercase tracking-wider">Active Hub Node</p>
-              <p className="text-sm font-bold text-white group-hover:text-primary transition-colors">
+            <div className="min-w-0">
+              <p className="text-[9px] sm:text-[10px] text-gray-500 font-bold uppercase tracking-wider leading-none">Active Hub Node</p>
+              <p className="text-xs sm:text-sm font-bold text-white group-hover:text-primary transition-colors truncate">
                 {profile?.location?.city ? profile.location.city.toUpperCase() : (profile?.geohash ? `Node: ${profile.geohash}` : 'Harare CBD, ZW')}
               </p>
             </div>
           </div>
-          <div className="flex -space-x-2">
+          <div className="hidden sm:flex -space-x-2">
             {displayedUsers.slice(0, 3).map((u) => (
               <div 
                 key={`sub-${u.uid}`} 
@@ -453,20 +453,20 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
       {/* Neural Member Matrix Section */}
       <section className="space-y-6 pt-2">
         <div className="flex items-center justify-between px-1">
-          <div className="flex items-center gap-3">
-            <div className="w-1.5 h-6 bg-primary rounded-full shadow-[0_0_10px_rgba(0,242,254,0.5)]" />
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="w-1 h-5 sm:w-1.5 sm:h-6 bg-primary rounded-full shadow-[0_0_10px_rgba(0,242,254,0.5)]" />
             <div className="space-y-0.5">
-              <h2 className="text-xs font-black text-white uppercase tracking-[0.2em] italic">Neural Member Network</h2>
-              <p className="text-[8px] text-gray-500 font-bold uppercase tracking-widest">
-                <span className="text-primary font-black">{userCount || '0'}</span> Active nodes synchronized with the Hub
+              <h2 className="text-[10px] sm:text-xs font-black text-white uppercase tracking-[0.15em] sm:tracking-[0.2em] italic">Neural Member Network</h2>
+              <p className="text-[7px] sm:text-[8px] text-gray-500 font-bold uppercase tracking-widest leading-none">
+                <span className="text-primary font-black">{userCount || '0'}</span> nodes synced
               </p>
             </div>
           </div>
           <button 
             onClick={openUserList}
-            className="text-[9px] font-black text-primary uppercase tracking-widest hover:text-white transition-colors flex items-center gap-2"
+            className="text-[8px] sm:text-[9px] font-black text-primary uppercase tracking-widest hover:text-white transition-colors flex items-center gap-1.5 sm:gap-2 bg-primary/5 py-1.5 px-3 rounded-full border border-primary/10"
           >
-            Matrix Expansion <ExternalLink size={10} />
+            Matrix <ExternalLink size={8} className="sm:w-[10px] sm:h-[10px]" />
           </button>
         </div>
 
@@ -477,29 +477,29 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
               whileHover={{ y: -5, scale: 1.02 }}
               whileTap={{ scale: 0.98 }}
               onClick={() => openUserProfile(user.uid)}
-              className="flex-shrink-0 w-36 bg-white/5 border border-white/5 rounded-[2rem] p-4 flex flex-col items-center text-center space-y-3 cursor-pointer group hover:border-primary/20 transition-all snap-start"
+              className="flex-shrink-0 w-32 sm:w-36 bg-white/5 border border-white/5 rounded-[1.5rem] sm:rounded-[2rem] p-3 sm:p-4 flex flex-col items-center text-center space-y-2 sm:space-y-3 cursor-pointer group hover:border-primary/20 transition-all snap-start"
             >
               <div className="relative">
                 <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-accent/20 rounded-full blur opacity-0 group-hover:opacity-100 transition-opacity" />
-                <div className="relative w-16 h-16 bg-[#0d1117] rounded-full border-2 border-white/5 flex items-center justify-center text-primary font-black overflow-hidden group-hover:border-primary/30 transition-all">
+                <div className="relative w-14 h-14 sm:w-16 sm:h-16 bg-[#0d1117] rounded-full border-2 border-white/5 flex items-center justify-center text-primary font-black overflow-hidden group-hover:border-primary/30 transition-all">
                   {user.avatar ? (
                     <img src={user.avatar} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                   ) : user.name.charAt(0)}
                 </div>
                 {user.isVerified && (
-                  <div className="absolute -bottom-1 -right-1 w-6 h-6 bg-neon-green rounded-full flex items-center justify-center text-[#05070a] border-2 border-[#05070a] shadow-lg">
-                    <Shield size={10} className="fill-current" />
+                  <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 sm:w-6 sm:h-6 bg-neon-green rounded-full flex items-center justify-center text-[#05070a] border-2 border-[#05070a] shadow-lg">
+                    <Shield size={8} className="fill-current sm:w-[10px] sm:h-[10px]" />
                   </div>
                 )}
               </div>
               <div className="space-y-1 w-full">
-                <h3 className="text-[10px] font-black text-white uppercase tracking-tight truncate group-hover:text-primary transition-colors">{user.name}</h3>
-                <div className="flex items-center justify-center gap-1.5 pt-1">
+                <h3 className="text-[9px] sm:text-[10px] font-black text-white uppercase tracking-tight truncate group-hover:text-primary transition-colors">{user.name}</h3>
+                <div className="flex items-center justify-center gap-1.5 pt-0.5 sm:pt-1">
                   <span className={cn(
-                    "text-[7px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full border",
+                    "text-[6px] sm:text-[7px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full border",
                     user.currentRole === 'supplier' ? "bg-accent/10 border-accent/20 text-accent" : "bg-primary/10 border-primary/20 text-primary"
                   )}>
-                    {user.currentRole}
+                    {user.currentRole === 'supplier' ? 'Supplier' : 'Partner'}
                   </span>
                 </div>
               </div>
@@ -532,7 +532,7 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
               initial={{ opacity: 0, x: 20 }}
               animate={{ opacity: 1, x: 0 }}
               exit={{ opacity: 0, x: -20 }}
-              className="neon-card relative h-56 flex flex-col justify-end p-8 group cursor-pointer overflow-hidden"
+              className="neon-card relative h-48 sm:h-56 flex flex-col justify-end p-5 sm:p-8 group cursor-pointer overflow-hidden"
             >
               <div className="absolute inset-0 z-0">
                 <OptimizedImage 
@@ -543,49 +543,39 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
                 <div className="absolute inset-0 bg-gradient-to-t from-[#05070a] via-[#05070a]/60 to-transparent"></div>
               </div>
               
-              <div className="relative z-10 space-y-2">
-                <div className="flex items-center gap-2 mb-2">
-                  <div className="glass-pill !text-primary !border-primary/20 flex items-center gap-1.5 shadow-[0_0_15px_rgba(0,242,254,0.15)]">
-                    <Megaphone size={10} className="animate-pulse" />
+              <div className="relative z-10 space-y-1.5 sm:space-y-2">
+                <div className="flex items-center gap-2 mb-1 sm:mb-2">
+                  <div className="glass-pill !text-primary !border-primary/20 flex items-center gap-1 sm:gap-1.5 shadow-[0_0_15px_rgba(0,242,254,0.15)] text-[8px] sm:text-[9px] py-0.5 sm:py-1">
+                    <Megaphone size={8} className="animate-pulse sm:w-[10px] sm:h-[10px]" />
                     Market Spotlight
                   </div>
-                  <div className="glass-pill !text-neon-green/80 !border-white/5 uppercase tracking-[0.2em] text-[8px]">
+                  <div className="glass-pill !text-neon-green/80 !border-white/5 uppercase tracking-[0.2em] text-[7px] sm:text-[8px] py-0.5 sm:py-1">
                     {spotlights[activeSpotlightIndex].type}
                   </div>
                 </div>
                 
-                <h3 className="text-2xl font-black text-white italic leading-none tracking-tighter uppercase break-words line-clamp-2">
+                <h3 className="text-lg sm:text-2xl font-black text-white italic leading-none tracking-tighter uppercase break-words line-clamp-2">
                   {spotlights[activeSpotlightIndex].title}
                 </h3>
 
                 {spotlights[activeSpotlightIndex].content && (
-                  <p className="text-[11px] text-gray-300 font-medium leading-relaxed line-clamp-2 mt-1">
+                  <p className="text-[10px] sm:text-[11px] text-gray-300 font-medium leading-relaxed line-clamp-2 mt-0.5 sm:mt-1">
                     {spotlights[activeSpotlightIndex].content}
                   </p>
                 )}
                 
-                <div className="flex flex-wrap gap-4 pt-2">
+                <div className="flex flex-wrap gap-2 sm:gap-4 pt-1 sm:pt-2">
                   {spotlights[activeSpotlightIndex].authorName && (
-                    <div className="flex items-center gap-1.5 text-[9px] text-primary font-black tracking-widest bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
-                      <Store size={10} /> {spotlights[activeSpotlightIndex].authorName}
-                    </div>
-                  )}
-                  {spotlights[activeSpotlightIndex].location && (
-                    <div className="flex items-center gap-1.5 text-[9px] text-gray-400 font-bold tracking-widest">
-                      <MapPin size={10} className="text-primary" /> {spotlights[activeSpotlightIndex].location}
-                    </div>
-                  )}
-                  {spotlights[activeSpotlightIndex].date && (
-                    <div className="flex items-center gap-1.5 text-[9px] text-gray-400 font-bold tracking-widest">
-                      <Calendar size={10} className="text-primary" /> {spotlights[activeSpotlightIndex].date}
+                    <div className="flex items-center gap-1 text-[8px] sm:text-[9px] text-primary font-black tracking-widest bg-primary/10 px-1.5 sm:px-2 py-0.5 rounded border border-primary/20">
+                      <Store size={8} className="sm:w-[10px] sm:h-[10px]" /> {spotlights[activeSpotlightIndex].authorName}
                     </div>
                   )}
                 </div>
               </div>
 
-              <div className="absolute top-8 right-8 flex flex-col items-end">
-                <div className="w-12 h-12 bg-primary/10 rounded-2xl flex items-center justify-center border border-primary/20 text-primary animate-pulse">
-                  <Zap size={24} />
+              <div className="absolute top-4 right-4 sm:top-8 sm:right-8 flex flex-col items-end">
+                <div className="w-8 h-8 sm:w-12 sm:h-12 bg-primary/10 rounded-xl sm:rounded-2xl flex items-center justify-center border border-primary/20 text-primary animate-pulse">
+                  <Zap size={16} className="sm:w-6 sm:h-6" />
                 </div>
               </div>
 
