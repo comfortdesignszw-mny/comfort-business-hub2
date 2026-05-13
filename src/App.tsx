@@ -20,6 +20,8 @@ import { NotificationProvider, useNotifications } from './components/Notificatio
 import { ModalProvider } from './context/ModalContext';
 import SyncIndicator from './components/SyncIndicator';
 import { interactionService } from './services/interactionService';
+import PWAPrompt from './components/PWAPrompt';
+import { useMobileHeight } from './hooks/useMobileHeight';
 
 // Lazy loaded pages for performance
 const Discovery = lazy(() => import('./pages/Discovery'));
@@ -48,6 +50,7 @@ const PageLoader = () => (
 );
 
 export default function App() {
+  useMobileHeight();
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
   const [hasStore, setHasStore] = useState<boolean>(false);
@@ -103,7 +106,7 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="flex items-center justify-center h-screen bg-[#05070a]">
+      <div className="flex items-center justify-center h-screen-mobile bg-[#05070a]">
         <div className="relative">
           <motion.div 
             animate={{ 
@@ -127,7 +130,7 @@ export default function App() {
 
   return (
     <Router>
-      <div className="flex flex-col h-screen bg-[#05070a] relative shadow-2xl">
+      <div className="flex flex-col h-screen-mobile bg-[#05070a] relative shadow-2xl">
         {!user ? (
           <Routes>
             <Route path="/login" element={<Login />} />
@@ -178,6 +181,7 @@ export default function App() {
                   </div>
                 </main>
                 <Navigation profile={profile} />
+                <PWAPrompt />
               </ModalProvider>
             </MessagingProvider>
           </NotificationProvider>
