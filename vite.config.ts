@@ -31,14 +31,14 @@ export default defineConfig(({mode}) => {
               short_name: 'Explore',
               description: 'Access the global supply network',
               url: '/discovery',
-              icons: [{ src: 'https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?w=96&h=96&q=80&fit=crop', sizes: '96x96' }]
+              icons: [{ src: '/icon.png', sizes: '96x96' }]
             },
             {
               name: 'Orders & Deals',
               short_name: 'Orders',
               description: 'View active deal rooms',
               url: '/chat',
-              icons: [{ src: 'https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?w=96&h=96&q=80&fit=crop', sizes: '96x96' }]
+              icons: [{ src: '/icon.png', sizes: '96x96' }]
             }
           ],
           screenshots: [
@@ -59,13 +59,13 @@ export default defineConfig(({mode}) => {
           ],
           icons: [
             {
-              src: 'https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?w=192&h=192&q=80&fit=crop',
+              src: '/icon.png',
               sizes: '192x192',
               type: 'image/png',
               purpose: 'any'
             },
             {
-              src: 'https://images.unsplash.com/photo-1620641788421-7a1c342ea42e?w=512&h=512&q=80&fit=crop',
+              src: '/icon.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'maskable'

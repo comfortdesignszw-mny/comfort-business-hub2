@@ -117,11 +117,11 @@ export default function App() {
             className="w-24 h-24 bg-primary rounded-3xl blur-2xl absolute -inset-2 opacity-50"
           />
           <motion.div 
-            animate={{ rotate: 360 }}
-            transition={{ repeat: Infinity, duration: 8, ease: "linear" }}
-            className="text-primary font-bold text-4xl flex items-center justify-center relative z-10"
+            className="w-24 h-24 relative z-10 flex items-center justify-center"
           >
-            <Zap size={48} className="fill-current drop-shadow-[0_0_15px_rgba(0,242,254,0.8)]" />
+            <div className="w-20 h-20 bg-primary/20 rounded-3xl p-4 shadow-[0_0_20px_rgba(0,242,254,0.3)] animate-pulse">
+              <img src="/icon.png" alt="Comfort Hub" className="w-full h-full object-contain" />
+            </div>
           </motion.div>
         </div>
       </div>
@@ -218,8 +218,8 @@ function Header({ profile, onMenuClick }: { profile: UserProfile | null, onMenuC
             </button>
           )}
           <div className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary-dark rounded-xl flex items-center justify-center text-[#05070a] shadow-[0_0_15px_rgba(0,242,254,0.4)]">
-              <Zap size={24} className="fill-current" />
+            <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center overflow-hidden border border-white/10 shadow-[0_0_15px_rgba(0,242,254,0.2)]">
+              <img src="/icon.png" alt="Comfort Hub" className="w-full h-full object-cover" />
             </div>
             <div>
               <h1 className="text-sm font-black text-white uppercase tracking-tighter leading-none italic">Comfort Hub</h1>
@@ -287,8 +287,8 @@ function Sidebar({ profile, onClose }: { profile: UserProfile | null, onClose: (
       >
         <div className="p-6 border-b border-white/5 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-gradient-to-br from-primary to-primary-dark rounded-xl flex items-center justify-center text-[#05070a]">
-              <Zap size={24} className="fill-current" />
+            <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center overflow-hidden border border-white/10">
+              <img src="/icon.png" alt="Comfort Hub" className="w-full h-full object-cover" />
             </div>
             <h2 className="text-sm font-black text-white uppercase italic">Comfort Hub</h2>
           </div>

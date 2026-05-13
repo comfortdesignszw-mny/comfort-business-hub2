@@ -72,10 +72,10 @@ export default function Login() {
             initial={{ scale: 0, rotate: -45 }}
             animate={{ scale: 1, rotate: 0 }}
             transition={{ type: "spring", stiffness: 260, damping: 20 }}
-            className="w-24 h-24 bg-gradient-to-br from-primary to-primary-dark rounded-[2rem] flex items-center justify-center text-[#05070a] shadow-[0_0_30px_rgba(0,242,254,0.4)] relative group"
+            className="w-28 h-28 bg-white/5 rounded-[2.5rem] flex items-center justify-center shadow-[0_0_50px_rgba(0,242,254,0.15)] relative group overflow-hidden border border-white/10"
           >
-            <div className="absolute inset-0 bg-primary/20 blur-2xl group-hover:bg-primary/40 transition-all rounded-full"></div>
-            <Zap size={48} className="fill-current relative z-10" />
+            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-accent/5 opacity-50"></div>
+            <img src="/icon.png" alt="Comfort Hub" className="w-16 h-16 object-contain relative z-10 drop-shadow-[0_0_15px_rgba(0,242,254,0.5)]" />
           </motion.div>
           <div className="space-y-2 relative">
             <h1 className="text-4xl font-black text-white italic tracking-tighter uppercase leading-none">
