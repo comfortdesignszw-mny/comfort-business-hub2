@@ -48,9 +48,17 @@ export default function Chat({ profile }: { profile: UserProfile | null }) {
         let otherName = 'Secure Node';
         if (otherId) {
           try {
-            const userSnap = await getDoc(doc(db, 'users', otherId));
+            const userSnap = await getDoc(doc(db, 'public_profiles', otherId));
             if (userSnap.exists()) {
-              otherName = userSnap.data().name || userSnap.data().businessName || 'Secure Node';
+              otherName = userSnap.data().name || 'Secure Node';
+            } else {
+              // Fallback check on full profile (for legacy or if they are the same user)
+              try {
+                const legacySnap = await getDoc(doc(db, 'users', otherId));
+                if (legacySnap.exists()) {
+                  otherName = legacySnap.data().name || legacySnap.data().businessName || 'Secure Node';
+                }
+              } catch (e) {}
             }
           } catch (e) {
             console.error("Error fetching participant:", e);
@@ -180,9 +188,21 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
           if (participants && Array.isArray(participants)) {
             const otherId = participants.find((p: string) => p !== profile?.uid);
             if (otherId) {
-              const userSnap = await getDoc(doc(db, 'users', otherId));
-              if (userSnap.exists()) {
-                setParticipantInfo({ name: userSnap.data().name || userSnap.data().businessName || 'Secure Node' });
+              try {
+                const userSnap = await getDoc(doc(db, 'public_profiles', otherId));
+                if (userSnap.exists()) {
+                  setParticipantInfo({ name: userSnap.data().name || 'Secure Node' });
+                } else {
+                  // Fallback
+                  try {
+                    const legacySnap = await getDoc(doc(db, 'users', otherId));
+                    if (legacySnap.exists()) {
+                      setParticipantInfo({ name: legacySnap.data().name || legacySnap.data().businessName || 'Secure Node' });
+                    }
+                  } catch (e) {}
+                }
+              } catch (e) {
+                console.error("Error fetching participant in view:", e);
               }
             }
           }

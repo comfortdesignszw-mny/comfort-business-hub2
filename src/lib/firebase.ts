@@ -102,6 +102,7 @@ export async function syncPublicProfile(profile: any) {
       currentRole: profile.currentRole,
       location: profile.location ? { city: profile.location.city } : null,
       isVerified: profile.isVerified || false,
+      gateway: profile.gateway || null,
       updatedAt: new Date().toISOString()
     };
     

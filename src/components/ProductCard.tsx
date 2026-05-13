@@ -325,10 +325,12 @@ function UnifiedCheckoutModal({ product, profile, onClose, onSwitchModal }: any)
   useEffect(() => {
     const fetchSupplier = async () => {
       try {
-        const docSnap = await getDoc(doc(db, 'users', product.ownerId));
+        const docSnap = await getDoc(doc(db, 'public_profiles', product.ownerId));
         if (docSnap.exists()) {
-          setSupplierProfile(docSnap.data() as UserProfile);
+          setSupplierProfile(docSnap.data() as any);
         }
+      } catch (e) {
+        console.error("Error fetching supplier public profile:", e);
       } finally {
         setLoading(false);
       }
@@ -424,11 +426,13 @@ function EcoCashModal({ product, profile, onClose }: any) {
   useEffect(() => {
     const fetchUSSD = async () => {
       try {
-        const userSnap = await getDoc(doc(db, 'users', product.ownerId));
+        const userSnap = await getDoc(doc(db, 'public_profiles', product.ownerId));
         if (userSnap.exists()) {
           const data = userSnap.data();
           if (data.gateway?.provider === 'ecocash') setUssd(data.gateway.details);
         }
+      } catch (e) {
+        console.error("Error fetching supplier gateway details:", e);
       } finally {
         setLoading(false);
       }
