@@ -61,6 +61,17 @@ service cloud.firestore {
         && data.isVerified is bool;
     }
 
+    function isValidSpotlight(data) {
+      return data.authorId == request.auth.uid
+        && data.title is string && data.title.size() >= 2 && data.title.size() <= 100
+        && data.content is string && data.content.size() >= 10 && data.content.size() <= 5000
+        && data.type in ['news', 'event', 'update', 'spotlight']
+        && data.isActive is bool
+        && (!('location' in data) || (data.location is string && data.location.size() <= 200))
+        && (!('date' in data) || (data.date is string && data.date.size() <= 100))
+        && (!('image' in data) || (data.image is string && data.image.size() <= 2000));
+    }
+
     // 3. COLLECTIONS
     match /users/{userId} {
       allow get: if isOwner(userId);
@@ -170,8 +181,11 @@ service cloud.firestore {
     match /spotlights/{id} {
       allow get: if true;
       allow list: if isSignedIn();
-      allow create: if isVerified() && isValidId(id) && incoming().authorId == request.auth.uid;
-      allow update, delete: if isOwner(existing().authorId) && (request.method == 'delete' || incoming().authorId == existing().authorId);
+      allow create: if isVerified() && isValidId(id) && isValidSpotlight(incoming());
+      allow update: if isOwner(existing().authorId) && isValidSpotlight(incoming())
+        && incoming().authorId == existing().authorId
+        && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'content', 'type', 'image', 'location', 'date', 'isActive', 'updatedAt', 'authorId', 'authorName', 'createdAt', '_syncedAt']);
+      allow delete: if isOwner(existing().authorId);
     }
 
     match /connections/{id} {

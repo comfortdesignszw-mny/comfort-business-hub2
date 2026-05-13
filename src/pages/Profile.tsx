@@ -554,9 +554,10 @@ function SpotlightManager({ profile }: { profile: UserProfile }) {
   const [spotlights, setSpotlights] = useState<Spotlight[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
+  const [editingSpotlight, setEditingSpotlight] = useState<Spotlight | null>(null);
   const [success, setSuccess] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
-  const [newSpotlight, setNewSpotlight] = useState<Partial<Spotlight>>({
+  const [formData, setFormData] = useState<Partial<Spotlight>>({
     type: 'news',
     title: '',
     content: '',
@@ -566,105 +567,147 @@ function SpotlightManager({ profile }: { profile: UserProfile }) {
     isActive: true,
   });
 
-  const fetchSpotlights = async () => {
-    setLoading(true);
-    try {
-      const q = query(
-        collection(db, 'spotlights'),
-        where('authorId', '==', profile.uid),
-        orderBy('createdAt', 'desc')
-      );
-      const snap = await getDocs(q);
-      setSpotlights(snap.docs.map(d => ({ id: d.id, ...d.data() } as Spotlight)));
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setLoading(false);
-    }
-  };
-
   useEffect(() => {
-    fetchSpotlights();
+    const q = query(
+      collection(db, 'spotlights'),
+      where('authorId', '==', profile.uid),
+      orderBy('createdAt', 'desc')
+    );
+
+    const unsubscribe = onSnapshot(q, (snap) => {
+      setSpotlights(snap.docs.map(d => ({ id: d.id, ...d.data() } as Spotlight)));
+      setLoading(false);
+    }, (err) => {
+      console.error("Spotlight sync failure:", err);
+      setLoading(false);
+    });
+
+    return () => unsubscribe();
   }, [profile.uid]);
 
   useEffect(() => {
-    if (isAdding && formRef.current) {
+    if ((isAdding || editingSpotlight) && formRef.current) {
       formRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
     }
-  }, [isAdding]);
+  }, [isAdding, editingSpotlight]);
 
-  const handleAdd = async (e: React.FormEvent) => {
+  const handleEdit = (s: Spotlight) => {
+    setEditingSpotlight(s);
+    setIsAdding(false);
+    setFormData({
+      type: s.type,
+      title: s.title,
+      content: s.content,
+      date: s.date || '',
+      location: s.location || '',
+      image: s.image || '',
+      isActive: s.isActive,
+    });
+  };
+
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
-      const data = {
-        ...newSpotlight,
-        authorId: profile.uid,
-        authorName: profile.businessName || profile.name,
-        createdAt: serverTimestamp(),
-      };
-      await addDoc(collection(db, 'spotlights'), data);
+      if (editingSpotlight) {
+        const data = {
+          ...formData,
+          updatedAt: serverTimestamp(),
+        };
+        await updateDoc(doc(db, 'spotlights', editingSpotlight.id), data);
+      } else {
+        const data = {
+          ...formData,
+          authorId: profile.uid,
+          authorName: profile.businessName || profile.name,
+          createdAt: serverTimestamp(),
+        };
+        await addDoc(collection(db, 'spotlights'), data);
+      }
+      
       setSuccess(true);
       setTimeout(() => {
         setIsAdding(false);
+        setEditingSpotlight(null);
         setSuccess(false);
-        setNewSpotlight({ type: 'news', title: '', content: '', date: '', location: '', image: '', isActive: true });
-        fetchSpotlights();
-      }, 1500);
+        setFormData({ type: 'news', title: '', content: '', date: '', location: '', image: '', isActive: true });
+      }, 1000);
     } catch (err) {
-      handleFirestoreError(err, OperationType.CREATE, 'spotlights');
+      handleFirestoreError(err, editingSpotlight ? OperationType.UPDATE : OperationType.CREATE, editingSpotlight ? `spotlights/${editingSpotlight.id}` : 'spotlights');
     } finally {
       setLoading(false);
     }
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this update?')) return;
+    if (!confirm('Are you sure you want to purge this broadcast from the matrix?')) return;
     try {
       await deleteDoc(doc(db, 'spotlights', id));
-      fetchSpotlights();
     } catch (err) {
       handleFirestoreError(err, OperationType.DELETE, `spotlights/${id}`);
     }
   };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-8 pb-12">
       <header className="flex justify-between items-center">
-        <div className="space-y-1">
+        <div className="space-y-1 text-left">
           <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter">Market Spotlight</h3>
           <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Manage your broadcasts & news feeds</p>
         </div>
-        {!isAdding && (
+        {(!isAdding && !editingSpotlight) && (
           <button 
-            onClick={() => setIsAdding(true)}
-            className="w-10 h-10 bg-primary/20 text-primary rounded-xl flex items-center justify-center border border-primary/20 hover:bg-primary hover:text-[#05070a] transition-all"
+            onClick={() => {
+              setIsAdding(true);
+              setFormData({ type: 'news', title: '', content: '', date: '', location: '', image: '', isActive: true });
+            }}
+            className="w-10 h-10 bg-primary/20 text-primary rounded-xl flex items-center justify-center border border-primary/20 hover:bg-primary hover:text-[#05070a] transition-all shadow-lg active:scale-95"
           >
             <Plus size={20} />
           </button>
         )}
       </header>
 
-      {isAdding ? (
+      {(isAdding || editingSpotlight) ? (
         <form 
           ref={formRef}
-          onSubmit={handleAdd} 
-          className="space-y-6 bg-white/5 p-6 rounded-3xl border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)]"
+          onSubmit={handleSubmit} 
+          className="space-y-6 bg-white/5 p-6 rounded-3xl border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] relative overflow-hidden"
         >
+          <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-primary to-transparent animate-scan" />
+          
           <div className="flex justify-between items-center mb-2">
-            <label className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">New Broadcast Feed</label>
-            <div className="h-1 w-12 bg-primary/20 rounded-full"></div>
+            <label className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">
+              {editingSpotlight ? 'Modify Broadcast Node' : 'Initialize New Feed'}
+            </label>
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] text-gray-500 font-black uppercase">Active</span>
+              <button
+                type="button"
+                onClick={() => setFormData(prev => ({ ...prev, isActive: !prev.isActive }))}
+                className={cn(
+                  "w-8 h-4 rounded-full transition-colors relative",
+                  formData.isActive ? "bg-neon-green" : "bg-gray-800"
+                )}
+              >
+                <div className={cn(
+                  "absolute top-0.5 w-3 h-3 rounded-full bg-white transition-all",
+                  formData.isActive ? "right-0.5" : "left-0.5"
+                )} />
+              </button>
+            </div>
           </div>
+
           <div className="space-y-4">
             <div className="grid grid-cols-2 gap-3">
               {(['news', 'event', 'update', 'spotlight'] as const).map((t) => (
                 <button
                   key={t}
                   type="button"
-                  onClick={() => setNewSpotlight(prev => ({ ...prev, type: t }))}
+                  onClick={() => setFormData(prev => ({ ...prev, type: t }))}
                   className={cn(
                     "px-3 py-3 rounded-xl border text-[9px] font-black uppercase tracking-widest transition-all text-center",
-                    newSpotlight.type === t ? "bg-primary/20 border-primary text-primary" : "bg-white/5 border-white/5 text-gray-500"
+                    formData.type === t ? "bg-primary/20 border-primary text-primary shadow-[0_0_15px_rgba(0,242,254,0.15)]" : "bg-white/5 border-white/5 text-gray-500"
                   )}
                 >
                   {t}
@@ -677,54 +720,55 @@ function SpotlightManager({ profile }: { profile: UserProfile }) {
               <input 
                 required
                 type="text"
-                value={newSpotlight.title}
-                onChange={e => setNewSpotlight(prev => ({ ...prev, title: e.target.value }))}
-                placeholder="Ex: New Stock Arrived! or Weekend Sales Event"
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary/50 text-xs font-bold"
+                value={formData.title}
+                onChange={e => setFormData(prev => ({ ...prev, title: e.target.value }))}
+                placeholder="Ex: Prime Grade Beef Restocked"
+                className="w-full bg-[#0d1117] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary/50 text-xs font-bold"
               />
             </div>
 
             <div className="space-y-1">
-              <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">Content / News Feed</label>
+              <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">Content Feed</label>
               <textarea 
                 required
-                value={newSpotlight.content}
-                onChange={e => setNewSpotlight(prev => ({ ...prev, content: e.target.value }))}
+                value={formData.content}
+                onChange={e => setFormData(prev => ({ ...prev, content: e.target.value }))}
                 rows={4}
-                placeholder="Share more details about this update..."
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary/50 text-xs font-medium"
+                placeholder="Details of the broadcast..."
+                className="w-full bg-[#0d1117] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary/50 text-xs font-medium resize-none leading-relaxed"
               />
             </div>
 
             <div className="grid grid-cols-2 gap-4">
               <div className="space-y-1">
-                <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">Event Date (Optional)</label>
+                <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">Timeline (Optional)</label>
                 <input 
                   type="text"
-                  value={newSpotlight.date}
-                  onChange={e => setNewSpotlight(prev => ({ ...prev, date: e.target.value }))}
-                  placeholder="e.g. May 15-20"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary/50 text-xs font-bold"
+                  value={formData.date}
+                  onChange={e => setFormData(prev => ({ ...prev, date: e.target.value }))}
+                  placeholder="e.g. Valid thru May 20"
+                  className="w-full bg-[#0d1117] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary/50 text-xs font-bold"
                 />
               </div>
               <div className="space-y-1">
-                <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">Location (Optional)</label>
+                <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">Sector (Optional)</label>
                 <input 
                   type="text"
-                  value={newSpotlight.location}
-                  onChange={e => setNewSpotlight(prev => ({ ...prev, location: e.target.value }))}
-                  placeholder="e.g. Store Front or Online"
-                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary/50 text-xs font-bold"
+                  value={formData.location}
+                  onChange={e => setFormData(prev => ({ ...prev, location: e.target.value }))}
+                  placeholder="e.g. Harare North"
+                  className="w-full bg-[#0d1117] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary/50 text-xs font-bold"
                 />
               </div>
             </div>
 
             <div className="space-y-1">
-              <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">Cover Image URL</label>
+              <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">Cover Uplink</label>
               <ImageInput 
-                value={newSpotlight.image || ''}
-                onChange={(val) => setNewSpotlight(prev => ({ ...prev, image: val }))}
-                label="Select Background Image"
+                value={formData.image || ''}
+                onChange={(val) => setFormData(prev => ({ ...prev, image: val }))}
+                label="Select Background Media"
+                className="!bg-[#0d1117]"
               />
             </div>
           </div>
@@ -732,8 +776,8 @@ function SpotlightManager({ profile }: { profile: UserProfile }) {
           <div className="flex gap-3">
             <button 
               type="button"
-              onClick={() => setIsAdding(false)}
-              className="flex-1 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest bg-white/5 rounded-2xl border border-white/5"
+              onClick={() => { setIsAdding(false); setEditingSpotlight(null); }}
+              className="flex-1 py-4 text-[10px] font-black text-gray-400 uppercase tracking-widest bg-white/5 rounded-2xl border border-white/5 hover:bg-white/10 transition-colors"
             >
               Cancel
             </button>
@@ -751,11 +795,11 @@ function SpotlightManager({ profile }: { profile: UserProfile }) {
                 <Loader2 className="animate-spin" size={16} />
               ) : success ? (
                 <>
-                  <Check size={18} /> Broadcast Live
+                  <Check size={18} /> Signal Broadcast
                 </>
               ) : (
                 <>
-                  <Megaphone size={18} /> Post Spotlight
+                  <Megaphone size={18} /> {editingSpotlight ? 'Update Spotlight' : 'Post Broadcast'}
                 </>
               )}
             </button>
@@ -766,38 +810,82 @@ function SpotlightManager({ profile }: { profile: UserProfile }) {
           {loading ? (
             <div className="space-y-4">
               {[1, 2].map(i => (
-                <div key={i} className="h-24 bg-white/5 animate-pulse rounded-2xl" />
+                <div key={i} className="h-32 bg-white/5 animate-pulse rounded-3xl border border-white/5" />
               ))}
             </div>
           ) : spotlights.length > 0 ? (
-            spotlights.map((s) => (
-              <div key={s.id} className="p-4 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-between group">
-                <div className="flex gap-4 items-center">
-                  <div className="w-12 h-12 bg-primary/10 rounded-xl flex items-center justify-center text-primary">
-                    {s.type === 'event' ? <Calendar size={20} /> : s.type === 'news' ? <FileText size={20} /> : <Zap size={20} />}
-                  </div>
-                  <div>
-                    <h4 className="text-xs font-black text-white uppercase tracking-tight">{s.title}</h4>
-                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">{s.type}</p>
-                  </div>
-                </div>
-                <button 
-                  onClick={() => handleDelete(s.id)}
-                  className="p-3 text-gray-700 hover:text-red-500 transition-colors"
+            <div className="grid gap-4">
+              {spotlights.map((s) => (
+                <motion.div 
+                  key={s.id}
+                  layout
+                  className={cn(
+                    "p-5 bg-white/5 border rounded-[2rem] transition-all group relative overflow-hidden",
+                    s.isActive ? "border-white/10" : "border-white/5 opacity-50 gray-scale"
+                  )}
                 >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            ))
+                  <div className="flex gap-4 items-start relative z-10">
+                    <div className="w-14 h-14 bg-[#0d1117] rounded-2xl border border-white/5 overflow-hidden flex-shrink-0 flex items-center justify-center text-primary">
+                      {s.image ? (
+                        <img src={s.image} className="w-full h-full object-cover opacity-60" />
+                      ) : (
+                        <Megaphone size={24} />
+                      )}
+                    </div>
+                    <div className="flex-1 min-w-0 text-left">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-[7px] font-black text-primary uppercase tracking-widest px-1.5 py-0.5 bg-primary/10 rounded border border-primary/20">
+                          {s.type}
+                        </span>
+                        {!s.isActive && (
+                          <span className="text-[7px] font-black text-gray-500 uppercase tracking-widest px-1.5 py-0.5 bg-white/5 rounded border border-white/5">
+                            Inactive
+                          </span>
+                        )}
+                      </div>
+                      <h4 className="text-xs font-black text-white uppercase tracking-tight truncate">{s.title}</h4>
+                      <p className="text-[10px] text-gray-500 font-medium line-clamp-2 mt-1 leading-relaxed">
+                        {s.content}
+                      </p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center justify-between mt-5 pt-4 border-t border-white/5">
+                    <div className="flex gap-2">
+                       <button 
+                        onClick={() => handleEdit(s)}
+                        className="px-4 py-2 bg-white/5 rounded-xl border border-white/5 text-[9px] font-black text-gray-400 uppercase tracking-widest hover:text-white hover:border-white/20 transition-all active:scale-95 flex items-center gap-2"
+                      >
+                        <Save size={12} /> Edit
+                      </button>
+                      <button 
+                        onClick={() => handleDelete(s.id)}
+                        className="px-4 py-2 bg-red-500/5 rounded-xl border border-red-500/10 text-[9px] font-black text-red-500/60 uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all active:scale-95 flex items-center gap-2"
+                      >
+                        <Trash2 size={12} /> Purge
+                      </button>
+                    </div>
+                    <div className="text-[8px] font-black text-gray-700 uppercase tracking-widest">
+                      {s.createdAt ? new Date(s.createdAt?.toDate?.() || s.createdAt).toLocaleDateString() : 'Syncing...'}
+                    </div>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
           ) : (
-            <div className="text-center py-12 bg-white/5 rounded-3xl border border-white/5">
-              <Megaphone size={32} className="mx-auto text-gray-700 mb-4" />
-              <p className="text-xs font-black text-gray-500 uppercase tracking-widest">No Active Broadcasts</p>
+            <div className="text-center py-20 bg-white/5 rounded-[3rem] border border-white/5 space-y-4">
+              <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto text-gray-800">
+                <Megaphone size={32} />
+              </div>
+              <div>
+                <p className="text-xs font-black text-gray-500 uppercase tracking-widest">No Active Matrix Broadcasts</p>
+                <p className="text-[10px] text-gray-700 mt-1 max-w-[200px] mx-auto font-medium">Post updates, events and spotlight news to the Discovery Matrix.</p>
+              </div>
               <button 
                 onClick={() => setIsAdding(true)}
-                className="mt-4 text-[10px] font-black text-primary uppercase tracking-widest hover:underline"
+                className="mt-6 btn-neon px-8 py-3 text-[9px] font-black uppercase tracking-[0.2em]"
               >
-                Create your first update
+                Establish Uplink
               </button>
             </div>
           )}
