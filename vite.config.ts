@@ -16,13 +16,15 @@ export default defineConfig(({mode}) => {
         manifest: {
           name: 'Comfort Business Hub',
           short_name: 'ComfortHub',
-          description: 'Fortress-grade Supply Node & Marketplace Matrix',
+          description: 'Neural Supply Chain & Marketplace Matrix for the Modern Zimbabwe Economy',
           theme_color: '#05070a',
           background_color: '#05070a',
           display: 'standalone',
           orientation: 'portrait',
           start_url: '/',
+          scope: '/',
           categories: ['business', 'shopping', 'productivity'],
+          prefer_related_applications: false,
           shortcuts: [
             {
               name: 'Explore Matrix',
