@@ -84,7 +84,29 @@ export default function ProductDetail({ profile }: { profile: UserProfile | null
     };
   }, [id]);
 
-  const handlePurchase = async () => {
+  const [isEngaging, setIsEngaging] = useState(false);
+
+  const handleTalk = () => {
+    if (!profile) {
+      navigate('/login');
+      return;
+    }
+    if (!product) return;
+
+    setIsEngaging(true);
+    const customerName = profile.name || profile.businessName || 'A Customer';
+    const interestMessage = `Hie, I am ${customerName}. I am interested in this Product/Service: ${product.name}`;
+    
+    const convoId = [profile.uid, product.ownerId].sort().join('_');
+    
+    // Background conversation start
+    startConversation(product.ownerId, interestMessage).catch(console.error);
+
+    // Instant navigation
+    navigate(`/chat?id=${convoId}`);
+  };
+
+  const handlePurchase = () => {
     if (!profile) {
       navigate('/login');
       return;
@@ -270,19 +292,23 @@ export default function ProductDetail({ profile }: { profile: UserProfile | null
             </div>
           </button>
           
-          <div className="hidden sm:flex items-center px-4 border-l border-white/5">
-             <div className="flex flex-col items-center">
-                <Clock size={14} className="text-gray-500 mb-1" />
-                <span className="text-[8px] font-bold text-gray-600 uppercase">Ready now</span>
-             </div>
+          <div className="flex gap-2 p-1">
+            <button 
+              onClick={handleTalk}
+              disabled={isEngaging}
+              className="flex-1 sm:flex-none px-6 py-4 sm:py-0 bg-white/5 border border-white/10 rounded-2xl text-[#05070a] font-black uppercase text-[10px] tracking-widest text-primary hover:bg-primary hover:text-black transition-all flex items-center justify-center gap-2"
+            >
+              {isEngaging ? <Loader2 size={14} className="animate-spin" /> : <MessageSquare size={16} />}
+              Talk
+            </button>
+            <button 
+              onClick={handlePurchase}
+              className="flex-[2] sm:flex-none px-10 py-4 sm:py-0 bg-primary rounded-2xl flex items-center justify-center text-[#05070a] font-black uppercase text-[10px] tracking-widest hover:shadow-[0_0_20px_rgba(0,242,254,0.3)] transition-all gap-2"
+            >
+               <Zap size={16} className="fill-current" />
+               Initialize Order
+            </button>
           </div>
-
-          <button 
-            onClick={handlePurchase}
-            className="flex-none w-full sm:w-auto px-8 py-4 sm:py-0 bg-primary rounded-2xl flex items-center justify-center text-[#05070a] font-black uppercase text-[10px] tracking-widest hover:shadow-[0_0_20px_rgba(0,242,254,0.3)] transition-all"
-          >
-             Initialize Purchase
-          </button>
         </div>
 
         {/* Description */}

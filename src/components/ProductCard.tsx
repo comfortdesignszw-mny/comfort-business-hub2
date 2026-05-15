@@ -100,7 +100,7 @@ export default function ProductCard({
     }
   };
 
-  const handleAction = async (type: 'shop' | 'engage') => {
+  const handleAction = (type: 'shop' | 'engage') => {
     if (!profile) {
       navigate('/login');
       return;
@@ -108,21 +108,28 @@ export default function ProductCard({
 
     if (type === 'engage') {
       setIsEngaging(true);
-      await logEngagement('engaged');
+      // Fire and forget engagement log
+      logEngagement('engaged');
+      
       const customerName = profile.name || profile.businessName || 'A Customer';
       const interestMessage = `Hie, I am ${customerName}. I am interested in this Product/Service: ${product.name}`;
 
-      try {
-        const convoId = await startConversation(product.ownerId, interestMessage);
-        navigate(`/chat?id=${convoId}`);
-      } catch (err) {
-        setIsEngaging(false);
-        handleFirestoreError(err, OperationType.CREATE, 'engage-chat');
-      }
+      // Calculate convoId synchronously for immediate navigation
+      const targetUid = product.ownerId;
+      const convoId = [profile.uid, targetUid].sort().join('_');
+      
+      // Start conversation in background
+      startConversation(targetUid, interestMessage).catch(err => {
+        console.error("Background conversation start failed:", err);
+      });
+
+      // Immediate navigation
+      navigate(`/chat?id=${convoId}`);
       return;
     }
 
-    await logEngagement('order_now');
+    // Fire and forget engagement log
+    logEngagement('order_now');
 
     if (onAction) {
       onAction(product);

@@ -126,34 +126,34 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode, profile: U
     
     const convoId = [profile.uid, targetUid].sort().join('_');
     
-    // In industry apps, we'd queue the conversation creation too if offline
-    // For now, if offline, we still redirect to chat, and sendMessage will queue the message
-    if (!isOnline) {
-      if (initialMessage) {
-        await sendMessage(convoId, initialMessage);
-      }
-      return convoId;
-    }
+    // Background task to ensure conversation exists
+    const ensureConversation = async () => {
+      try {
+        await setDoc(doc(db, 'conversations', convoId), {
+          id: convoId,
+          participants: [profile.uid, targetUid],
+          updatedAt: serverTimestamp(),
+          lastMessage: initialMessage || 'Link initiated',
+          initiatorId: profile.uid
+        }, { merge: true });
 
-    try {
-      await setDoc(doc(db, 'conversations', convoId), {
-        id: convoId,
-        participants: [profile.uid, targetUid],
-        updatedAt: serverTimestamp(),
-        lastMessage: initialMessage || 'Link initiated',
-        initiatorId: profile.uid
-      }, { merge: true });
+        if (initialMessage) {
+          await sendMessage(convoId, initialMessage);
+        }
+      } catch (err) {
+        console.error("Conversation initialization failed:", err);
+        // If we fail here, sendMessage will handle queuing if it was an error due to offline
+        if (initialMessage) {
+          await sendMessage(convoId, initialMessage);
+        }
+      }
+    };
 
-      if (initialMessage) {
-        await sendMessage(convoId, initialMessage);
-      }
-      return convoId;
-    } catch (err) {
-      if (initialMessage) {
-        await sendMessage(convoId, initialMessage);
-      }
-      return convoId;
-    }
+    // Execute in background
+    ensureConversation();
+
+    // Return ID immediately for navigation
+    return convoId;
   };
 
   useEffect(() => {

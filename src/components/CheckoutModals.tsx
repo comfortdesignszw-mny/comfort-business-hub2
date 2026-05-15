@@ -7,7 +7,7 @@ import {
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { UserProfile, Product } from '../types';
-import { formatCurrency } from '../lib/utils';
+import { cn, formatCurrency } from '../lib/utils';
 import { interactionService } from '../services/interactionService';
 import { useMessaging } from './MessagingProvider';
 
@@ -20,23 +20,29 @@ export function UnifiedCheckoutModal({ product, profile, onClose, onSwitchModal,
   setQuantity: (val: number) => void;
 }) {
   const [supplierProfile, setSupplierProfile] = useState<UserProfile | null>(null);
+  const [loading, setLoading] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
+    let isMounted = true;
     const fetchSupplier = async () => {
       try {
         const docSnap = await getDoc(doc(db, 'public_profiles', product.ownerId));
-        if (docSnap.exists()) {
+        if (isMounted && docSnap.exists()) {
           setSupplierProfile(docSnap.data() as any);
         }
       } catch (e) {
         console.error("Error fetching supplier public profile:", e);
+      } finally {
+        if (isMounted) setLoading(false);
       }
     };
     fetchSupplier();
+    return () => { isMounted = false; };
   }, [product.ownerId]);
 
   const handleSelection = (method: 'paypal' | 'stripe' | 'ecocash' | 'pod') => {
+    if (loading) return;
     setErrorMessage(null);
     const isConfigured = supplierProfile?.gateway?.provider === method && supplierProfile?.gateway?.isActive;
     
@@ -155,18 +161,38 @@ export function UnifiedCheckoutModal({ product, profile, onClose, onSwitchModal,
                 label: 'Cash/POD', 
                 icon: <MapPinned size={20} />
               }
-            ].map((m) => (
-              <button 
-                key={m.id}
-                onClick={() => handleSelection(m.id as any)}
-                className="p-4 bg-white/5 border border-white/10 rounded-2xl flex flex-col items-center gap-2 hover:bg-white/10 hover:border-primary/30 transition-all group"
-              >
-                <span className="text-gray-500 group-hover:text-primary transition-colors">
-                  {m.icon}
-                </span>
-                <span className="text-[9px] font-black text-gray-400 uppercase tracking-widest group-hover:text-white">{m.label}</span>
-              </button>
-            ))}
+            ].map((m) => {
+              const isSelectedMethod = supplierProfile?.gateway?.provider === m.id && supplierProfile?.gateway?.isActive;
+              const canSelect = m.id === 'pod' || (isSelectedMethod);
+              
+              return (
+                <button 
+                  key={m.id}
+                  onClick={() => handleSelection(m.id as any)}
+                  disabled={loading}
+                  className={cn(
+                    "p-4 bg-white/5 border rounded-2xl flex flex-col items-center gap-2 transition-all group relative overflow-hidden",
+                    loading ? "animate-pulse" : (canSelect ? "hover:bg-white/10 hover:border-primary/30 border-white/10" : "opacity-30 border-white/5 cursor-not-allowed")
+                  )}
+                >
+                  {loading && (
+                    <div className="absolute inset-0 bg-primary/5 animate-pulse" />
+                  )}
+                  <span className={cn(
+                    "transition-colors",
+                    canSelect ? "text-gray-500 group-hover:text-primary" : "text-gray-700"
+                  )}>
+                    {m.icon}
+                  </span>
+                  <span className={cn(
+                    "text-[9px] font-black uppercase tracking-widest",
+                    canSelect ? "text-gray-400 group-hover:text-white" : "text-gray-600"
+                  )}>
+                    {m.label}
+                  </span>
+                </button>
+              );
+            })}
           </div>
 
           {errorMessage && (
@@ -249,29 +275,31 @@ export function PodModal({ product, profile, onClose, initialQuantity = 1 }: {
   const [formData, setFormData] = useState({ name: '', phone: '', quantity: initialQuantity, address: '' });
   const [submitting, setSubmitting] = useState(false);
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile) return;
     setSubmitting(true);
-    try {
-      const orderMessage = `🚀 PAY ON DELIVERY ORDER INITIATED\n\n` +
-        `• ITEM: ${product.name}\n` +
-        `• QUANTITY: ${formData.quantity}\n` +
-        `• TOTAL: ${formatCurrency(product.price * formData.quantity, product.currency)}\n\n` +
-        `📦 CUSTOMER DETAILS:\n` +
-        `• NAME: ${formData.name}\n` +
-        `• CONTACT: ${formData.phone}\n` +
-        `• ADDRESS: ${formData.address}`;
+    
+    const orderMessage = `🚀 PAY ON DELIVERY ORDER INITIATED\n\n` +
+      `• ITEM: ${product.name}\n` +
+      `• QUANTITY: ${formData.quantity}\n` +
+      `• TOTAL: ${formatCurrency(product.price * formData.quantity, product.currency)}\n\n` +
+      `📦 CUSTOMER DETAILS:\n` +
+      `• NAME: ${formData.name}\n` +
+      `• CONTACT: ${formData.phone}\n` +
+      `• ADDRESS: ${formData.address}`;
 
-      const convoId = await startConversation(product.ownerId, orderMessage);
+    // Calculate convoId synchronously
+    const convoId = [profile.uid, product.ownerId].sort().join('_');
 
-      onClose();
-      navigate(`/chat?id=${convoId}`);
-    } catch (err) {
-      console.error(err);
-    } finally {
-      setSubmitting(false);
-    }
+    // Run in background
+    startConversation(product.ownerId, orderMessage).catch(err => {
+      console.error("Background POD order failure:", err);
+    });
+
+    // Immediate action
+    onClose();
+    navigate(`/chat?id=${convoId}`);
   };
 
   return (
