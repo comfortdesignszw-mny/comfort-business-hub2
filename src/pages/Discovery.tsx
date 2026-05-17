@@ -199,6 +199,8 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
     
     const unsubscribeUsers = onSnapshot(uq, (snapshot) => {
       setDisplayedUsers(snapshot.docs.map(d => ({ uid: d.id, ...d.data() } as PublicProfile)));
+    }, (err) => {
+      console.warn("Matrix: Connection disrupted.", err);
     });
 
     // 2. Periodic Refresh for Total Count (Cheaper than real-time listener on large collection)
