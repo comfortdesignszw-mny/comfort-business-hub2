@@ -3,7 +3,7 @@ import { useParams, useNavigate } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Store as StoreIcon, MapPin, Star, MessageSquare, ArrowLeft, Share2, 
-  Info, Loader2, Building2, Zap, ShoppingBag, Heart, UserPlus, Navigation, Camera, Check, X, Edit3, Plus, Users
+  Info, Loader2, Building2, Zap, ShoppingBag, Heart, UserPlus, Navigation, Camera, Check, X, Edit3, Plus, Users, ShieldAlert
 } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { doc, getDoc, collection, query, where, getDocs, onSnapshot, limit, updateDoc } from 'firebase/firestore';
@@ -11,6 +11,7 @@ import { UserProfile, Product, Store as StoreType, Connection } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
 import ProductCard from '../components/ProductCard';
 import ImageInput from '../components/ImageInput';
+import ReportModal from '../components/ReportModal';
 import { useModals } from '../context/ModalContext';
 import { interactionService } from '../services/interactionService';
 
@@ -37,6 +38,7 @@ export function StoreDetailContent({ store, profile, showMap = true, allowEdit =
   const [editData, setEditData] = useState<Partial<StoreType>>({});
   const [isSaving, setIsSaving] = useState(false);
   const [localCover, setLocalCover] = useState<string | null>(null);
+  const [showReportModal, setShowReportModal] = useState(false);
 
   const [connection, setConnection] = useState<Connection | null>(null);
   const { openUserProfile } = useModals();
@@ -311,6 +313,14 @@ export function StoreDetailContent({ store, profile, showMap = true, allowEdit =
             >
               <Share2 size={10} className="sm:w-3 sm:h-3" /> Share Node
             </button>
+            {!isOwner && profile && (
+              <button 
+                onClick={() => setShowReportModal(true)}
+                className="glass-pill border-red-500/30 text-red-500 bg-red-500/5 hover:bg-red-500/10 hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] flex items-center gap-1.5 text-[9px] sm:text-xs transition-all"
+              >
+                <ShieldAlert size={10} className="sm:w-3 sm:h-3" /> Report Node
+              </button>
+            )}
           </div>
 
           <div className="w-full max-w-lg pt-4 border-t border-white/10 mt-2 sm:mt-4">
@@ -438,6 +448,19 @@ export function StoreDetailContent({ store, profile, showMap = true, allowEdit =
           </div>
         )}
       </section>
+
+      {profile && (
+        <ReportModal 
+          isOpen={showReportModal}
+          onClose={() => setShowReportModal(false)}
+          targetId={store.id}
+          targetType="store"
+          targetName={store.name}
+          ownerId={store.ownerId}
+          reporterId={profile.uid}
+          reporterName={profile.name || profile.businessName || 'Anonymous User'}
+        />
+      )}
     </div>
   );
 }

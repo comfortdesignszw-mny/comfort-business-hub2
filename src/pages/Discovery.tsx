@@ -4,17 +4,31 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { 
   Search, MapPin, Filter, Star, Zap, ShoppingBag, Store, ArrowRight, 
   SlidersHorizontal, MessageSquare, Sparkles, X, Phone, Check, Loader2, MapPinned, CreditCard,
-  Megaphone, Calendar, FileText, Building2, ExternalLink, Share2, Info, Users, Shield
+  Megaphone, Calendar, FileText, Building2, ExternalLink, Share2, Info, Users, Shield, Map as MapIcon, List
 } from 'lucide-react';
 import { UserProfile, Product, Store as StoreType, Message, Spotlight, PublicProfile } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
-import { collection, query, limit, getDocs, where, addDoc, serverTimestamp, setDoc, doc, getDoc, orderBy, onSnapshot, getCountFromServer } from 'firebase/firestore';
+import { collection, query, limit, getDocs, where, addDoc, serverTimestamp, setDoc, doc, getDoc, orderBy, onSnapshot, getCountFromServer, startAt, endAt } from 'firebase/firestore';
 import { BUSINESS_CATEGORIES, PRODUCT_CATEGORIES } from '../constants';
 import ProductCard from '../components/ProductCard';
 import { useModals } from '../context/ModalContext';
 import { StoreDetailContent } from './StoreDetail';
 import OptimizedImage from '../components/OptimizedImage';
+import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
+import L from 'leaflet';
+import 'leaflet/dist/leaflet.css';
+import { distanceBetween } from 'geofire-common';
+
+function MapController({ center, isFollowing }: { center: [number, number], isFollowing: boolean }) {
+  const map = useMap();
+  useEffect(() => {
+    if (center && isFollowing) {
+      map.setView(center, map.getZoom());
+    }
+  }, [center, isFollowing, map]);
+  return null;
+}
 
 export default function Discovery({ profile, setProfile }: { profile: UserProfile | null, setProfile: (p: UserProfile) => void }) {
   const navigate = useNavigate();
@@ -31,6 +45,12 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
   const [displayedUsers, setDisplayedUsers] = useState<PublicProfile[]>([]);
   const [spotlights, setSpotlights] = useState<Spotlight[]>([]);
   const [activeSpotlightIndex, setActiveSpotlightIndex] = useState(0);
+  const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
+  const [userLocation, setUserLocation] = useState<[number, number] | null>(null);
+  const [mapCenter, setMapCenter] = useState<[number, number]>([-17.8252, 31.0335]); // Harare
+  const [isFollowingUser, setIsFollowingUser] = useState(false);
+  const [nearbyOnly, setNearbyOnly] = useState(false);
+  const radiusKm = 50;
 
   // Auto-rotate spotlights
   useEffect(() => {
@@ -40,6 +60,7 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
     }, 6000);
     return () => clearInterval(interval);
   }, [spotlights.length]);
+
   const [filteredDeals, setFilteredDeals] = useState<Product[]>([]);
   const [filteredStores, setFilteredStores] = useState<StoreType[]>([]);
   const [searchParams] = useSearchParams();
@@ -48,15 +69,19 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
   const categories = ['All', ...new Set([...BUSINESS_CATEGORIES, ...PRODUCT_CATEGORIES])];
   const [matchedProducts, setMatchedProducts] = useState<Product[]>([]);
 
+  const storesMap = useMemo(() => {
+    return nearbyStores.reduce((acc, s) => {
+      acc[s.id] = s;
+      return acc;
+    }, {} as Record<string, StoreType>);
+  }, [nearbyStores]);
+
   useEffect(() => {
     let pResult = nearbyDeals;
     let sResult = nearbyStores;
 
     if (sharedProductId) {
       pResult = nearbyDeals.filter(p => p.id === sharedProductId);
-      if (pResult.length > 0) {
-        // If we found the shared product, we might want to prioritize it or filter just for it
-      }
     } else if (searchTerm) {
       const term = searchTerm.toLowerCase();
       pResult = pResult.filter(p => 
@@ -80,9 +105,19 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
       sResult = sResult.filter(s => s.category === activeCategory);
     }
 
+    if (nearbyOnly && userLocation) {
+        sResult = sResult.filter(s => {
+          if (!s.lat || !s.lng) return false;
+          const dist = distanceBetween([s.lat, s.lng], userLocation);
+          return dist <= radiusKm;
+        });
+        const nearbyStoreIds = new Set(sResult.map(s => s.id));
+        pResult = pResult.filter(p => nearbyStoreIds.has(p.storeId));
+    }
+
     setFilteredDeals(pResult);
     setFilteredStores(sResult);
-  }, [searchTerm, activeCategory, nearbyDeals, nearbyStores, sharedProductId]);
+  }, [searchTerm, activeCategory, nearbyDeals, nearbyStores, sharedProductId, nearbyOnly, userLocation, storesMap]);
 
   useEffect(() => {
     setLoading(true);
@@ -103,7 +138,6 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
       setNearbyDeals(allProducts);
       setProductsLoading(false);
 
-      // Matching logic
       if (profile?.currentRole === 'customer' && profile.requiredProducts) {
         const matched = allProducts.filter(p => 
           profile.requiredProducts?.some(need => 
@@ -118,7 +152,6 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
       handleFirestoreError(error, OperationType.GET, 'products-feed');
     });
 
-    // Real-time listener for stores
     const sq = query(collection(db, 'stores'), limit(150));
     const unsubscribeStores = onSnapshot(sq, (snapshot) => {
       const allStores = snapshot.docs.map(doc => ({
@@ -132,7 +165,6 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
       setStoresLoading(false);
     });
 
-    // Fetch Spotlights
     const spq = query(
       collection(db, 'spotlights'),
       where('isActive', '==', true),
@@ -156,54 +188,61 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
     };
   }, [profile]);
 
+  // Real-time listener for users / members
   useEffect(() => {
-    let isMounted = true;
+    // 1. Real-time matrix of newest members
+    const uq = query(
+      collection(db, 'public_profiles'),
+      orderBy('updatedAt', 'desc'),
+      limit(20)
+    );
+    
+    const unsubscribeUsers = onSnapshot(uq, (snapshot) => {
+      setDisplayedUsers(snapshot.docs.map(d => ({ uid: d.id, ...d.data() } as PublicProfile)));
+    });
 
+    // 2. Periodic Refresh for Total Count (Cheaper than real-time listener on large collection)
     const fetchUserCount = async () => {
       try {
         const snapshot = await getCountFromServer(collection(db, 'public_profiles'));
-        if (isMounted) {
-          setUserCount(snapshot.data().count);
-        }
-
-        // Fetch a few real users for avatars
-        const usersSnap = await getDocs(query(collection(db, 'public_profiles'), limit(10)));
-        if (isMounted) {
-          setDisplayedUsers(usersSnap.docs.map(d => ({ uid: d.id, ...d.data() } as PublicProfile)));
-        }
+        setUserCount(snapshot.data().count);
       } catch (err) {
-        if (isMounted) {
-          console.warn("Signal: User count temporarily unavailable.");
-          setUserCount(null);
-        }
+        console.warn("Signal: User count temporarily unavailable.");
       }
     };
 
-    const timer = setTimeout(() => {
-      fetchUserCount();
-    }, 1000);
+    fetchUserCount();
+    const countInterval = setInterval(fetchUserCount, 30000); // Refresh every 30 seconds
 
     return () => {
-      isMounted = false;
-      clearTimeout(timer);
+      unsubscribeUsers();
+      clearInterval(countInterval);
     };
   }, []);
 
-  const sharedProductRef = React.useRef<HTMLDivElement>(null);
+  useEffect(() => {
+    if (viewMode === 'map' && !userLocation) {
+      handleGetLocation();
+    }
+  }, [viewMode]);
 
-  const storesMap = useMemo(() => {
-    return nearbyStores.reduce((acc, s) => {
-      acc[s.id] = s;
-      return acc;
-    }, {} as Record<string, StoreType>);
-  }, [nearbyStores]);
+  const handleGetLocation = () => {
+    if ("geolocation" in navigator) {
+      navigator.geolocation.getCurrentPosition((position) => {
+        const { latitude, longitude } = position.coords;
+        setUserLocation([latitude, longitude]);
+        setMapCenter([latitude, longitude]);
+        setIsFollowingUser(true);
+      }, (error) => {
+        console.error("Location access denied:", error);
+      });
+    }
+  };
 
   useEffect(() => {
     if (sharedProductId && !loading && filteredDeals.length > 0) {
       const element = document.getElementById(`product-${sharedProductId}`);
-      if (element) {
-        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
-      }
+      if (element) element.scrollIntoView({ behavior: 'smooth', block: 'center' });
     }
   }, [sharedProductId, loading, filteredDeals]);
 
@@ -279,22 +318,6 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
         </motion.div>
       )}
 
-      {!profile && sharedProductId && (
-        <div className="p-6 neon-card bg-gradient-to-br from-primary/10 to-accent/10 border-primary/30 text-center space-y-4">
-          <Info className="mx-auto text-primary" size={28} />
-          <h3 className="text-lg font-black text-white italic uppercase tracking-tighter">Expand Your Reach</h3>
-          <p className="text-[11px] text-gray-300 leading-relaxed max-w-xs mx-auto">
-            You're viewing this product as a guest. Join the <span className="text-primary font-black">Comfort Business Hub</span> today to unlock a massive variety of local products and directly engage with top suppliers.
-          </p>
-          <button 
-            onClick={() => navigate('/login')}
-            className="btn-neon w-full py-3 text-[10px] uppercase font-black tracking-widest"
-          >
-            Join Comfort Business Hub
-          </button>
-        </div>
-      )}
-
       {/* User Count Notification */}
       {userCount !== null && (
         <motion.div 
@@ -350,105 +373,134 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
         </div>
 
         <div className="flex items-center justify-between px-2">
-          <div className="flex items-center gap-2 group cursor-pointer">
+          <div 
+            onClick={handleGetLocation}
+            className="flex items-center gap-2 group cursor-pointer"
+          >
             <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
               <MapPin size={14} className="text-primary group-hover:scale-110 transition-transform" />
             </div>
             <div className="min-w-0">
               <p className="text-[9px] sm:text-[10px] text-gray-500 font-bold uppercase tracking-wider leading-none">Active Hub Node</p>
               <p className="text-xs sm:text-sm font-bold text-white group-hover:text-primary transition-colors truncate">
-                {profile?.location?.city ? profile.location.city.toUpperCase() : (profile?.geohash ? `Node: ${profile.geohash}` : 'Harare CBD, ZW')}
+                {userLocation ? `Detected: ${userLocation[0].toFixed(4)}, ${userLocation[1].toFixed(4)}` : (profile?.location?.city ? profile.location.city.toUpperCase() : (profile?.geohash ? `Node: ${profile.geohash}` : 'Harare CBD, ZW'))}
               </p>
             </div>
           </div>
-          <div className="hidden sm:flex -space-x-2">
-            {displayedUsers.slice(0, 3).map((u) => (
-              <div 
-                key={`sub-${u.uid}`} 
-                className="w-8 h-8 rounded-lg border-2 border-[#05070a] bg-[#0d1117] flex items-center justify-center overflow-hidden shadow-lg"
-              >
-                {u.avatar ? (
-                  <img src={u.avatar} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                ) : (
-                  <span className="text-[10px] font-black text-primary">{u.name.charAt(0)}</span>
+          
+          <div className="flex items-center gap-2">
+            <div className="bg-[#0d1117] border border-white/5 p-1 rounded-xl flex">
+              <button 
+                onClick={() => setViewMode('list')}
+                className={cn(
+                  "p-2 rounded-lg transition-all",
+                  viewMode === 'list' ? "bg-primary text-[#05070a]" : "text-gray-500 hover:text-white"
                 )}
-              </div>
-            ))}
-            {userCount && userCount > 3 && (
-              <div className="w-8 h-8 rounded-lg border-2 border-[#05070a] bg-primary/20 flex items-center justify-center text-[10px] font-bold text-primary">
-                +{userCount - 3}
-              </div>
-            )}
+              >
+                <List size={16} />
+              </button>
+              <button 
+                onClick={() => setViewMode('map')}
+                className={cn(
+                  "p-2 rounded-lg transition-all",
+                  viewMode === 'map' ? "bg-primary text-[#05070a]" : "text-gray-500 hover:text-white"
+                )}
+              >
+                <MapIcon size={16} />
+              </button>
+            </div>
           </div>
         </div>
       </section>
 
-      {/* Suggested Matches Section */}
-      {matchedProducts.length > 0 && (
-        <section className="space-y-4">
-          <div className="flex items-center justify-between px-2">
-             <div className="flex items-center gap-2">
-              <Sparkles className="text-primary animate-pulse" size={18} />
-              <h2 className="font-black text-white uppercase tracking-tighter text-xl italic">Neural Matches</h2>
-            </div>
-            <span className="text-[9px] font-black text-neon-green uppercase tracking-widest">Optimized for You</span>
-          </div>
-          <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4 snap-x px-1">
-            {matchedProducts.map((product) => (
-              <div key={product.id} className="min-w-[300px] snap-center">
-                <ProductCard 
-                  product={product} 
-                  profile={profile} 
-                  store={storesMap[product.storeId]}
-                />
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Supplier's Own Nodes Section */}
-      {profile?.currentRole === 'supplier' && nearbyStores.some(s => s.ownerId === profile.uid) && (
-        <section className="space-y-4">
-          <div className="flex items-center justify-between px-2">
-            <div className="flex items-center gap-2">
-              <div className="w-2 h-2 bg-neon-green rounded-full shadow-[0_0_8px_#39FF14] animate-pulse"></div>
-              <h2 className="font-black text-white uppercase tracking-tighter text-lg italic">Your Active Matrix Nodes</h2>
-            </div>
-            <button 
-              onClick={() => navigate('/stores?tab=manage')}
-              className="text-[9px] font-black text-primary uppercase tracking-widest hover:underline"
-            >
-              Manage Dashboard
-            </button>
-          </div>
-          <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4 snap-x px-1">
-            {nearbyStores.filter(s => s.ownerId === profile.uid).map((store) => (
-              <div key={`own-${store.id}`} className="min-w-[280px] snap-center">
-                <StoreCard store={store} profile={profile} onSelect={setSelectedStoreId} />
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
-      {/* Category Pills */}
-      <section className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
-        {categories.map((cat) => (
-          <button
-            key={cat}
-            onClick={() => setActiveCategory(cat)}
-            className={cn(
-              "px-5 py-2.5 rounded-xl text-xs font-black uppercase tracking-widest whitespace-nowrap transition-all duration-300",
-              activeCategory === cat 
-                ? "bg-primary text-[#05070a] shadow-[0_0_20px_rgba(0,242,254,0.4)] scale-105" 
-                : "bg-white/5 text-gray-500 border border-white/5 hover:border-white/10"
-            )}
+      {/* Map View Integration */}
+      <AnimatePresence mode="wait">
+        {viewMode === 'map' && (
+          <motion.section 
+            initial={{ opacity: 0, height: 0 }}
+            animate={{ opacity: 1, height: '400px' }}
+            exit={{ opacity: 0, height: 0 }}
+            className="relative overflow-hidden rounded-[2.5rem] border border-white/10 shadow-2xl"
           >
-            {cat}
-          </button>
-        ))}
-      </section>
+            <MapContainer 
+              center={mapCenter} 
+              zoom={13} 
+              style={{ height: '100%', width: '100%' }}
+              zoomControl={false}
+              className="z-0"
+            >
+              <TileLayer
+                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              />
+              <MapController center={mapCenter} isFollowing={isFollowingUser} />
+              
+              {nearbyStores.filter(s => s.lat && s.lng).map(store => (
+                <Marker 
+                  key={`marker-${store.id}`} 
+                  position={[store.lat!, store.lng!]}
+                  icon={L.divIcon({
+                    className: 'custom-div-icon',
+                    html: `
+                      <div class="w-8 h-8 rounded-full border-2 border-primary bg-[#05070a] flex items-center justify-center overflow-hidden shadow-[0_0_15px_rgba(0,242,254,0.5)]">
+                        ${store.logo ? `<img src="${store.logo}" style="width:100%; height:100%; object-fit:cover;" />` : `<span style="color:#00f2fe; font-weight:900; font-size:10px;">${store.name.charAt(0)}</span>`}
+                      </div>
+                    `,
+                    iconSize: [32, 32],
+                    iconAnchor: [16, 32]
+                  })}
+                  eventHandlers={{
+                    click: () => setSelectedStoreId(store.id)
+                  }}
+                >
+                  <Popup className="neon-popup">
+                    <div className="p-2 space-y-1">
+                      <h4 className="text-xs font-black text-white uppercase italic">{store.name}</h4>
+                      <p className="text-[10px] text-primary font-bold">{store.category}</p>
+                    </div>
+                  </Popup>
+                </Marker>
+              ))}
+
+              {userLocation && (
+                <Marker 
+                  position={userLocation}
+                  icon={L.divIcon({
+                    className: 'user-marker',
+                    html: `
+                      <div class="relative flex items-center justify-center">
+                        <div class="absolute w-8 h-8 bg-primary/20 rounded-full animate-ping"></div>
+                        <div class="w-4 h-4 bg-primary rounded-full border-2 border-white shadow-lg"></div>
+                      </div>
+                    `
+                  })}
+                />
+              )}
+            </MapContainer>
+            
+            <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2">
+              <button 
+                onClick={handleGetLocation}
+                className="w-10 h-10 bg-[#0d1117]/80 backdrop-blur-md border border-white/10 rounded-xl flex items-center justify-center text-primary hover:bg-primary hover:text-[#05070a] transition-all shadow-xl"
+              >
+                <MapPin size={20} />
+              </button>
+            </div>
+            
+            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000] w-full max-w-xs px-4">
+              <div className="bg-[#0d1117]/90 backdrop-blur-md border border-white/10 p-3 rounded-2xl flex items-center gap-3 shadow-2xl">
+                <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center text-primary shrink-0">
+                  <MapPinned size={20} />
+                </div>
+                <div className="min-w-0">
+                  <p className="text-[9px] text-gray-500 font-black uppercase tracking-widest leading-none">Spatial Search</p>
+                  <p className="text-[10px] text-white font-bold truncate">Showing {nearbyStores.filter(s => s.lat && s.lng).length} active supply nodes on map</p>
+                </div>
+              </div>
+            </div>
+          </motion.section>
+        )}
+      </AnimatePresence>
 
       {/* Neural Member Matrix Section */}
       <section className="space-y-6 pt-2">
@@ -462,12 +514,23 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
               </p>
             </div>
           </div>
-          <button 
-            onClick={openUserList}
-            className="text-[8px] sm:text-[9px] font-black text-primary uppercase tracking-widest hover:text-white transition-colors flex items-center gap-1.5 sm:gap-2 bg-primary/5 py-1.5 px-3 rounded-full border border-primary/10"
-          >
-            Matrix <ExternalLink size={8} className="sm:w-[10px] sm:h-[10px]" />
-          </button>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setNearbyOnly(!nearbyOnly)}
+              className={cn(
+                "text-[8px] sm:text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 sm:gap-2 py-1.5 px-3 rounded-full border transition-all",
+                nearbyOnly ? "bg-primary text-[#05070a] border-primary" : "bg-primary/5 text-primary border-primary/10 hover:bg-primary/10"
+              )}
+            >
+              <MapIcon size={10} /> {nearbyOnly ? 'Nearby Mode: Active' : 'Filter by Proximity'}
+            </button>
+            <button 
+              onClick={openUserList}
+              className="text-[8px] sm:text-[9px] font-black text-primary uppercase tracking-widest hover:text-white transition-colors flex items-center gap-1.5 sm:gap-2 bg-primary/5 py-1.5 px-3 rounded-full border border-primary/10"
+            >
+              Matrix <ExternalLink size={8} />
+            </button>
+          </div>
         </div>
 
         <div className="flex gap-4 overflow-x-auto pb-4 pt-2 -mx-2 px-2 custom-scrollbar snap-x no-scrollbar">
@@ -505,8 +568,6 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
               </div>
             </motion.div>
           ))}
-          
-          {/* View All Card */}
           <motion.div
             whileHover={{ scale: 1.02 }}
             onClick={openUserList}
@@ -579,7 +640,6 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
                 </div>
               </div>
 
-              {/* Slider Dots */}
               {spotlights.length > 1 && (
                 <div className="absolute bottom-6 right-8 flex gap-1.5">
                   {spotlights.map((_, idx) => (
@@ -646,7 +706,7 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
           ) : (
             <div className="bg-white/5 border border-white/5 rounded-3xl p-8 text-center">
               <Building2 className="mx-auto text-gray-700 mb-2" size={24} />
-              <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">No active nodes in this category</p>
+              <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">No active nodes detected nearby</p>
             </div>
           )}
         </section>
@@ -684,7 +744,7 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
             </div>
             <div className="space-y-1">
               <p className="text-xs font-black text-white/50 uppercase tracking-widest">No Matches Detected</p>
-              <p className="text-[10px] text-gray-600">Try adjusting your search or category filters</p>
+              <p className="text-[10px] text-gray-600">Try adjusting your filters or expansion radius</p>
             </div>
           </div>
         )}
@@ -699,9 +759,7 @@ function StoreCard({ store, profile, onSelect }: { store: StoreType, profile: Us
     <motion.div 
       whileHover={{ y: -5 }}
       whileTap={{ scale: 0.98 }}
-      onClick={() => {
-        onSelect(store.id);
-      }}
+      onClick={() => onSelect(store.id)}
       className="neon-card p-3.5 sm:p-5 space-y-3 sm:space-y-4 cursor-pointer group"
     >
       <div className="flex items-center gap-3 sm:gap-4">

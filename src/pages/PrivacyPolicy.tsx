@@ -65,6 +65,7 @@ export default function PrivacyPolicy() {
                     <p><span className="text-white font-bold">Account and Profile Data:</span> When you sign up and log in using Google Authentication, we receive personal data from Google, which includes your Full Name, Email Address, and Profile Image.</p>
                     <p><span className="text-white font-bold">Storefront and Contact Data:</span> To set up a storefront, list products/services, or complete a profile, you provide us with your Phone Number, business description, and any media uploaded for listings.</p>
                     <p><span className="text-white font-bold">Communication Data:</span> Any information you provide when you contact our support team or send us feedback.</p>
+                    <p><span className="text-white font-bold">Reporting and Abuse Data:</span> If you submit a report or are the subject of a report, we collect details about the infraction, reporter identity, and evidence provided to maintain platform integrity.</p>
                   </div>
                 </div>
 
@@ -105,7 +106,8 @@ export default function PrivacyPolicy() {
                   "Facilitate Node Comms",
                   "Improve Service Logic",
                   "Security & Safety Protocols",
-                  "Compliance with Law"
+                  "Compliance with Law",
+                  "Automated Abuse Detection"
                 ].map((item, i) => (
                   <div key={i} className="px-4 py-2 bg-white/5 rounded-xl border border-white/5 text-[10px] font-black text-gray-500 uppercase tracking-widest flex items-center gap-2">
                     <div className="w-1 h-1 rounded-full bg-primary" />
@@ -135,15 +137,24 @@ export default function PrivacyPolicy() {
                   </div>
                   <div className="space-y-1">
                     <h3 className="text-xs font-black text-white uppercase tracking-wider italic">Legal Disclosures</h3>
-                    <p className="text-xs">We may disclose information if required by law or to protect the safety/rights of our users or the public.</p>
+                    <p className="text-xs">We may disclose information if required by law or to protect the safety/rights of our users or the public. This includes sharing anonymized report data with relevant authorities if illegal acts are detected.</p>
                   </div>
                 </div>
               </div>
             </section>
 
+            <section className="space-y-4 bg-red-500/5 p-8 rounded-[2.5rem] border border-red-500/10">
+              <h2 className="text-lg font-black text-white italic uppercase tracking-tighter flex items-center gap-3">
+                <span className="text-red-500 text-2xl">04.</span> Automated Enforcement
+              </h2>
+              <p className="text-sm">
+                To protect our community, we use automated logic to process reports. If a node is reported three (3) times within a month for verified abuse, the system will automatically suspend the account to prevent further harm. High-level admin review is maintained for all such actions.
+              </p>
+            </section>
+
             <section className="space-y-4 bg-primary/5 p-8 rounded-[2.5rem] border border-primary/10">
               <h2 className="text-lg font-black text-white italic uppercase tracking-tighter flex items-center gap-3">
-                <span className="text-primary text-2xl">04.</span> Data Security
+                <span className="text-primary text-2xl">05.</span> Data Security
               </h2>
               <p className="text-sm">
                 We implement industry-standard encryption (HTTPS) to safeguard data. While we use commercially acceptable means to protect information, no method of transmission is 100% secure.
@@ -154,14 +165,14 @@ export default function PrivacyPolicy() {
               <section className="space-y-4 bg-white/5 p-6 rounded-3xl border border-white/10">
                 <div className="flex items-center gap-2 text-white">
                   <Database size={16} />
-                  <h3 className="text-sm font-black uppercase tracking-wider italic">05. Retention</h3>
+                  <h3 className="text-sm font-black uppercase tracking-wider italic">06. Retention</h3>
                 </div>
-                <p className="text-xs leading-relaxed">Data is retained as long as your account is active. Deleted account data is anonymized unless required for tax compliance records.</p>
+                <p className="text-xs leading-relaxed">Data is retained as long as your account is active. Deleted account data is anonymized unless required for tax compliance records or disciplinary history (banned IDs are retained permanently to prevent re-entry).</p>
               </section>
               <section className="space-y-4 bg-white/5 p-6 rounded-3xl border border-white/10">
                 <div className="flex items-center gap-2 text-white">
                   <Trash2 size={16} />
-                  <h3 className="text-sm font-black uppercase tracking-wider italic">06. Your Rights</h3>
+                  <h3 className="text-sm font-black uppercase tracking-wider italic">07. Your Rights</h3>
                 </div>
                 <p className="text-xs leading-relaxed">You have the right to access, correct, or request deletion of your personal data through your profile settings.</p>
               </section>
@@ -169,7 +180,7 @@ export default function PrivacyPolicy() {
 
             <section className="space-y-6 bg-white/5 p-8 rounded-[2.5rem] border border-white/10">
               <h2 className="text-lg font-black text-white italic uppercase tracking-tighter flex items-center gap-3">
-                <span className="text-primary text-2xl">07.</span> Children’s Privacy
+                <span className="text-primary text-2xl">08.</span> Children’s Privacy
               </h2>
               <p className="text-sm">
                 The Platform is not intended for individuals under 18. We do not knowingly collect personal data from children.
@@ -178,7 +189,7 @@ export default function PrivacyPolicy() {
 
             <section className="space-y-4">
               <h2 className="text-lg font-black text-white italic uppercase tracking-tighter flex items-center gap-3">
-                <span className="text-primary text-2xl">08.</span> Changes to Policy
+                <span className="text-primary text-2xl">09.</span> Changes to Policy
               </h2>
               <p className="text-sm">
                 We periodically update this policy. Changes are notified via the "Last Updated" date on this page.

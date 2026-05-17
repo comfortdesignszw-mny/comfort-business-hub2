@@ -86,7 +86,7 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 // Sync utility for splitting PII from public-facing profiles
 export async function syncPublicProfile(profile: any) {
   try {
-    const { setDoc, doc } = await import('firebase/firestore');
+    const { setDoc, doc, serverTimestamp } = await import('firebase/firestore');
     const publicProfile = {
       uid: profile.uid,
       name: profile.name,
@@ -95,7 +95,7 @@ export async function syncPublicProfile(profile: any) {
       location: profile.location ? { city: profile.location.city } : null,
       isVerified: profile.isVerified || false,
       gateway: profile.gateway || null,
-      updatedAt: new Date().toISOString()
+      updatedAt: serverTimestamp()
     };
     
     await setDoc(doc(db, 'public_profiles', profile.uid), publicProfile);

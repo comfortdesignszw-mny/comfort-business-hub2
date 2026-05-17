@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Zap, ShoppingBag, ArrowRight, MessageSquare, Phone, Check, Loader2, MapPinned, CreditCard, Share2, X, Info, Star, Store as StoreIcon, Edit3, Trash2, ChevronDown, ChevronUp
+  Zap, ShoppingBag, ArrowRight, MessageSquare, Phone, Check, Loader2, MapPinned, CreditCard, Share2, X, Info, Star, Store as StoreIcon, Edit3, Trash2, ChevronDown, ChevronUp, ShieldAlert
 } from 'lucide-react';
 import { UserProfile, Product, Store, EngagementType } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
@@ -11,6 +11,7 @@ import { collection, addDoc, serverTimestamp, setDoc, doc, getDoc } from 'fireba
 import { interactionService } from '../services/interactionService';
 import OptimizedImage from './OptimizedImage';
 import { useModals } from '../context/ModalContext';
+import ReportModal from './ReportModal';
 
 import { useMessaging } from '../components/MessagingProvider';
 import { UnifiedCheckoutModal, EcoCashModal, PodModal } from './CheckoutModals';
@@ -44,6 +45,7 @@ export default function ProductCard({
   const [isStoreLoading, setIsStoreLoading] = useState(!initialStore);
   const [isEngaging, setIsEngaging] = useState(false);
   const [activeModal, setActiveModal] = useState<'checkout' | 'ecocash' | 'pod' | null>(null);
+  const [showReportModal, setShowReportModal] = useState(false);
   const [purchaseQuantity, setPurchaseQuantity] = useState(1);
   const navigate = useNavigate();
 
@@ -211,6 +213,16 @@ export default function ProductCard({
             <Share2 size={12} className="sm:w-[14px] sm:h-[14px]" />
           </button>
 
+          {!isOwner && profile && (
+            <button 
+              onClick={(e) => { e.stopPropagation(); setShowReportModal(true); }}
+              className="absolute top-10 sm:top-14 right-2 sm:right-4 p-1.5 sm:p-2 bg-red-500/20 backdrop-blur-md rounded-xl border border-red-500/20 text-red-500 hover:bg-red-500 hover:text-white transition-all hover:scale-110 active:scale-95 shadow-xl z-20"
+              title="Report Abuse"
+            >
+              <ShieldAlert size={12} className="sm:w-[14px] sm:h-[14px]" />
+            </button>
+          )}
+
           {isOwner && profile?.currentRole === 'supplier' && (
             <div className="absolute top-4 right-14 flex gap-2 z-20">
               <button 
@@ -323,6 +335,19 @@ export default function ProductCard({
           />
         )}
       </AnimatePresence>
+
+      {profile && (
+        <ReportModal 
+          isOpen={showReportModal}
+          onClose={() => setShowReportModal(false)}
+          targetId={product.id}
+          targetType="product"
+          targetName={product.name}
+          ownerId={product.ownerId}
+          reporterId={profile.uid}
+          reporterName={profile.name || profile.businessName || 'Anonymous User'}
+        />
+      )}
     </>
   );
 }

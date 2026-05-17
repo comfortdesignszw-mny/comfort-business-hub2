@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
-  X, User, Shield, MapPin, MessageSquare, Users, Check, Loader2, Star, Building2, Store as StoreIcon
+  X, User, Shield, MapPin, MessageSquare, Users, Check, Loader2, Star, Building2, Store as StoreIcon, ShieldAlert
 } from 'lucide-react';
 import { doc, getDoc, collection, query, where, onSnapshot } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
@@ -9,6 +9,7 @@ import { UserProfile, Store, Connection } from '../types';
 import { cn } from '../lib/utils';
 import { interactionService } from '../services/interactionService';
 import { useNavigate } from 'react-router-dom';
+import ReportModal from './ReportModal';
 
 interface UserProfileModalProps {
   userId: string;
@@ -23,6 +24,7 @@ export default function UserProfileModal({ userId, isOpen, onClose, currentUserP
   const [loading, setLoading] = useState(true);
   const [connection, setConnection] = useState<Connection | null>(null);
   const [isConnecting, setIsConnecting] = useState(false);
+  const [showReportModal, setShowReportModal] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -216,7 +218,27 @@ export default function UserProfileModal({ userId, isOpen, onClose, currentUserP
                       >
                         <MessageSquare size={20} />
                       </button>
+                      <button 
+                        onClick={() => setShowReportModal(true)}
+                        className="w-14 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center justify-center text-red-500 hover:bg-red-500 hover:text-white transition-all"
+                        title="Report User"
+                      >
+                        <ShieldAlert size={20} />
+                      </button>
                     </div>
+                  )}
+
+                  {profile && currentUserProfile && (
+                    <ReportModal 
+                      isOpen={showReportModal}
+                      onClose={() => setShowReportModal(false)}
+                      targetId={profile.uid}
+                      targetType="user"
+                      targetName={profile.name}
+                      ownerId={profile.uid}
+                      reporterId={currentUserProfile.uid}
+                      reporterName={currentUserProfile.name || currentUserProfile.businessName || 'Anonymous User'}
+                    />
                   )}
 
                   {/* Stores / Business Nodes */}

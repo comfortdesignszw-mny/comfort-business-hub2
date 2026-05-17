@@ -18,6 +18,9 @@ export default function SupplierSetup({ profile, onComplete, existingStore }: { 
   const [email, setEmail] = useState(existingStore?.email || '');
   const [contacts, setContacts] = useState(existingStore?.contactNumbers || ['']);
   const [category, setCategory] = useState(existingStore?.category || BUSINESS_CATEGORIES[0]);
+  const [customCategory, setCustomCategory] = useState(
+    existingStore?.category && !BUSINESS_CATEGORIES.includes(existingStore.category) ? existingStore.category : ''
+  );
   const [specificBusinessType, setSpecificBusinessType] = useState(existingStore?.specificBusinessType || '');
   const [logo, setLogo] = useState(existingStore?.logo || '');
   const [coverPhoto, setCoverPhoto] = useState(existingStore?.coverPhoto || '');
@@ -34,6 +37,7 @@ export default function SupplierSetup({ profile, onComplete, existingStore }: { 
       setEmail(existingStore.email);
       setContacts(existingStore.contactNumbers || ['']);
       setCategory(existingStore.category);
+      setCustomCategory(BUSINESS_CATEGORIES.includes(existingStore.category) ? '' : existingStore.category);
       setSpecificBusinessType(existingStore.specificBusinessType || '');
       setLogo(existingStore.logo || '');
       setCoverPhoto(existingStore.coverPhoto || '');
@@ -60,13 +64,15 @@ export default function SupplierSetup({ profile, onComplete, existingStore }: { 
 
     try {
         const hash = geohashForLocation([location.lat, location.lng]);
+        const finalCategory = category === 'Other' || (!BUSINESS_CATEGORIES.includes(category) && category !== '') ? customCategory : category;
+        
         const storeData = {
           ownerId: profile.uid,
           name,
           description,
           email,
           contactNumbers: contacts.filter(c => c.trim() !== ''),
-          category,
+          category: finalCategory,
           specificBusinessType,
           logo: logo || `https://api.dicebear.com/7.x/initials/svg?seed=${encodeURIComponent(name)}`,
           coverPhoto: coverPhoto || `https://images.unsplash.com/photo-1441986300917-64674bd600d8?w=800&q=80`,
@@ -190,15 +196,44 @@ export default function SupplierSetup({ profile, onComplete, existingStore }: { 
               </div>
               <div className="space-y-2">
                 <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Operational Sector</label>
-                <select 
-                  className="w-full bg-[#0d1117] border border-white/10 rounded-2xl px-4 py-4 text-white outline-none focus:border-primary/50 transition-all text-xs font-bold appearance-none cursor-pointer"
-                  value={category}
-                  onChange={(e) => setCategory(e.target.value)}
-                >
-                  {BUSINESS_CATEGORIES.map(cat => (
-                    <option key={cat} value={cat} className="bg-[#0d1117] text-white py-2">{cat}</option>
-                  ))}
-                </select>
+                <div className="space-y-3">
+                  <select 
+                    className="w-full bg-[#0d1117] border border-white/10 rounded-2xl px-4 py-4 text-white outline-none focus:border-primary/50 transition-all text-xs font-bold appearance-none cursor-pointer"
+                    value={BUSINESS_CATEGORIES.includes(category) ? category : 'Other'}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      if (val === 'Other') {
+                        setCategory('Other');
+                      } else {
+                        setCategory(val);
+                        setCustomCategory('');
+                      }
+                    }}
+                  >
+                    {BUSINESS_CATEGORIES.map(cat => (
+                      <option key={cat} value={cat} className="bg-[#0d1117] text-white py-2">{cat}</option>
+                    ))}
+                    <option value="Other" className="bg-[#0d1117] text-white py-2">Other / Custom</option>
+                  </select>
+
+                  {(category === 'Other' || (!BUSINESS_CATEGORIES.includes(category) && category !== '')) && (
+                    <motion.div
+                      initial={{ opacity: 0, height: 0 }}
+                      animate={{ opacity: 1, height: 'auto' }}
+                      className="space-y-2"
+                    >
+                      <label className="text-[9px] font-black text-primary uppercase tracking-widest ml-1 italic">Define Sector</label>
+                      <input 
+                        type="text"
+                        placeholder="Enter your custom business sector"
+                        className="w-full bg-white/5 border border-primary/20 rounded-2xl px-4 py-4 text-white placeholder-gray-700 outline-none focus:border-primary/50 transition-all text-xs font-bold font-mono"
+                        value={customCategory}
+                        onChange={(e) => setCustomCategory(e.target.value)}
+                        required={category === 'Other'}
+                      />
+                    </motion.div>
+                  )}
+                </div>
               </div>
             </div>
 

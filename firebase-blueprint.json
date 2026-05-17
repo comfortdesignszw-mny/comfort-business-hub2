@@ -40,6 +40,10 @@
           }
         },
         "isVerified": { "type": "boolean" },
+        "isAdmin": { "type": "boolean" },
+        "status": { "type": "string", "enum": ["active", "suspended", "banned"] },
+        "suspensionEnd": { "type": "string", "format": "date-time" },
+        "reportCount": { "type": "number" },
         "requiredProducts": { "type": "array", "items": { "type": "string" } },
         "createdAt": { "type": "string", "format": "date-time" },
         "updatedAt": { "type": "string", "format": "date-time" }
@@ -242,6 +246,25 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["userId", "type", "fromUserId", "createdAt"]
+    },
+    "Report": {
+      "title": "Abuse Report",
+      "description": "Report of substandard or abusive content.",
+      "type": "object",
+      "properties": {
+        "id": { "type": "string" },
+        "reporterId": { "type": "string" },
+        "reporterName": { "type": "string" },
+        "targetId": { "type": "string" },
+        "targetType": { "type": "string", "enum": ["product", "store", "user"] },
+        "targetName": { "type": "string" },
+        "ownerId": { "type": "string" },
+        "type": { "type": "string", "enum": ["substandard", "misinformation", "illegal", "nudity", "violence"] },
+        "details": { "type": "string" },
+        "status": { "type": "string", "enum": ["pending", "resolved", "dismissed"] },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["reporterId", "targetId", "targetType", "type", "details", "createdAt"]
     }
   },
   "firestore": {
@@ -296,6 +319,10 @@
     "notifications": {
       "schema": "Notification",
       "description": "User notification alerts"
+    },
+    "reports": {
+      "schema": "Report",
+      "description": "Abuse and quality reports"
     }
   }
 }

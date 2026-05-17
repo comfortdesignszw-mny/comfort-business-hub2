@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { signInWithPopup, GoogleAuthProvider, browserPopupRedirectResolver } from 'firebase/auth';
 import { auth, db, handleFirestoreError, OperationType, syncPublicProfile } from '../lib/firebase';
-import { doc, setDoc, getDoc } from 'firebase/firestore';
+import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'motion/react';
 import { Zap, LogIn, Shield, Globe, Cpu, AlertTriangle } from 'lucide-react';
 import { Link } from 'react-router-dom';
@@ -29,19 +29,37 @@ export default function Login() {
         return;
       }
 
+      const profileData: Partial<UserProfile> = {
+        uid: user.uid,
+        name: user.displayName || 'Operator',
+        email: user.email || undefined,
+        avatar: user.photoURL || undefined,
+        isVerified: user.emailVerified,
+        updatedAt: serverTimestamp()
+      };
+
       if (!docSnap.exists()) {
-        const profile: UserProfile = {
-          uid: user.uid,
-          name: user.displayName || 'Operator',
+        const newProfile: UserProfile = {
+          ...profileData,
           phone: user.phoneNumber || 'Unlinked',
           currentRole: 'customer',
-          isVerified: user.emailVerified
-        };
+        } as UserProfile;
+        
         try {
-          await setDoc(doc(db, 'users', user.uid), profile);
-          await syncPublicProfile(profile);
+          await setDoc(doc(db, 'users', user.uid), newProfile);
+          await syncPublicProfile(newProfile);
         } catch (e) {
           handleFirestoreError(e, OperationType.WRITE, userPath);
+          return;
+        }
+      } else {
+        // Sync existing profile with latest Google data
+        try {
+          await setDoc(doc(db, 'users', user.uid), profileData, { merge: true });
+          const existingProfile = docSnap.data() as UserProfile;
+          await syncPublicProfile({ ...existingProfile, ...profileData });
+        } catch (e) {
+          handleFirestoreError(e, OperationType.UPDATE, userPath);
           return;
         }
       }

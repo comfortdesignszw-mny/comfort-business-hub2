@@ -8,6 +8,7 @@
     "Real-time messaging",
     "Offline-first sync",
     "Location-based marketplace",
-    "Local payment gateway interfaces"
+    "Local payment gateway interfaces",
+    "MAJOR_CAPABILITY_SERVER_SIDE_GEMINI_API"
   ]
 }

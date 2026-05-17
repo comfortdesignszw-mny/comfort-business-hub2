@@ -97,6 +97,11 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [customCategory, setCustomCategory] = useState('');
   const [isEditingLocation, setIsEditingLocation] = useState(false);
+  const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
+  const [waUrl, setWaUrl] = useState('');
+  const [isWaParsing, setIsWaParsing] = useState(false);
+  const [waImportedProducts, setWaImportedProducts] = useState<any[]>([]);
+  const [waError, setWaError] = useState<string | null>(null);
 
   const [engagementStats, setEngagementStats] = useState({ engaged: 0, interested: 0, volume: 0 });
 
@@ -313,6 +318,61 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
     } else {
       navigator.clipboard.writeText(shareUrl);
       alert('Store Link Copied to Clipboard!');
+    }
+  };
+
+  const handleWhatsAppImport = async () => {
+    if (!waUrl) return;
+    setIsWaParsing(true);
+    setWaError(null);
+    try {
+      const resp = await fetch('/api/import/whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ url: waUrl })
+      });
+      const data = await resp.json();
+      if (data.error) throw new Error(data.error);
+      setWaImportedProducts(data.products || []);
+    } catch (err: any) {
+      setWaError(err.message || 'Failed to parse catalogue');
+    } finally {
+      setIsWaParsing(false);
+    }
+  };
+
+  const commitWaImport = async (selectedIndices: number[]) => {
+    if (!activeStore || !profile) return;
+    setIsSubmitting(true);
+    try {
+      const selected = waImportedProducts.filter((_, i) => selectedIndices.includes(i));
+      for (const p of selected) {
+        const newId = `prod_wa_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+        const data = {
+          name: p.name,
+          description: p.description || '',
+          price: p.price,
+          currency: p.currency || 'USD',
+          category: 'General',
+          images: p.image ? [p.image] : [`https://api.dicebear.com/7.x/shapes/svg?seed=${encodeURIComponent(p.name)}`],
+          buyButtonType: 'chat' as BuyButtonType,
+          buyButtonLink: '',
+          isActive: false, // Import as draft (offline)
+          storeId: activeStore.id,
+          ownerId: profile.uid,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+          id: newId
+        };
+        await offlineResilientWrite('products', newId, 'create', data);
+      }
+      setShowWhatsAppModal(false);
+      setWaUrl('');
+      setWaImportedProducts([]);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.CREATE, 'products-bulk-import');
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -667,23 +727,37 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
             <h2 className="font-black text-white uppercase tracking-tighter text-lg">Inventory Matrix</h2>
             <span className="px-2 py-0.5 bg-primary/10 text-primary text-[8px] font-black rounded border border-primary/20 uppercase tracking-widest">{products.length} Items</span>
           </div>
-          <button 
-            onClick={() => {
-              if (!profile.isVerified) {
-                alert("Security Lock Active: Email verification required to add inventory items.");
-                return;
-              }
-              handleOpenForm();
-            }}
-            className={cn(
-              "w-10 h-10 rounded-xl border flex items-center justify-center transition-all",
-              profile.isVerified 
-                ? "bg-primary/20 border-primary/20 text-primary hover:bg-primary hover:text-[#05070a]" 
-                : "bg-red-500/10 border-red-500/20 text-red-500 opacity-50 cursor-not-allowed"
-            )}
-          >
-            <Plus size={20} />
-          </button>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => {
+                if (!profile.isVerified) {
+                  alert("Security Lock Active: Email verification required to import listings.");
+                  return;
+                }
+                setShowWhatsAppModal(true);
+              }}
+              className="flex items-center gap-2 bg-neon-green/10 border border-neon-green/20 text-neon-green px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-neon-green/20 transition-all shadow-lg shadow-neon-green/5"
+            >
+              <Phone size={14} /> Import from WA
+            </button>
+            <button 
+              onClick={() => {
+                if (!profile.isVerified) {
+                  alert("Security Lock Active: Email verification required to add inventory items.");
+                  return;
+                }
+                handleOpenForm();
+              }}
+              className={cn(
+                "w-10 h-10 rounded-xl border flex items-center justify-center transition-all",
+                profile.isVerified 
+                  ? "bg-primary/20 border-primary/20 text-primary hover:bg-primary hover:text-[#05070a]" 
+                  : "bg-red-500/10 border-red-500/20 text-red-500 opacity-50 cursor-not-allowed"
+              )}
+            >
+              <Plus size={20} />
+            </button>
+          </div>
         </div>
 
         <div className="space-y-4">
@@ -1036,6 +1110,93 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
                   </button>
                 </div>
               </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* WhatsApp Import Modal */}
+      <AnimatePresence>
+        {showWhatsAppModal && (
+          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-[#05070a]/90 backdrop-blur-md"
+              onClick={() => setShowWhatsAppModal(false)}
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-lg neon-card !bg-[#0d1117] p-8 space-y-6 shadow-2xl border border-white/10"
+            >
+              <div className="flex justify-between items-start">
+                <header className="space-y-1">
+                  <div className="flex items-center gap-2">
+                    <div className="w-8 h-8 bg-neon-green/20 rounded-lg flex items-center justify-center text-neon-green">
+                      <Phone size={18} />
+                    </div>
+                    <h3 className="text-xl font-black text-white italic uppercase tracking-tighter">WhatsApp Linker</h3>
+                  </div>
+                  <p className="text-[9px] text-gray-500 font-bold uppercase tracking-widest">Hydrate your matrix from external catalogues</p>
+                </header>
+                <button onClick={() => setShowWhatsAppModal(false)} className="text-gray-500 hover:text-white"><X size={20} /></button>
+              </div>
+
+              {waImportedProducts.length === 0 ? (
+                <div className="space-y-4">
+                  <div className="space-y-2">
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Catalogue URL Uplink</label>
+                    <input 
+                      type="url"
+                      placeholder="https://wa.me/c/..."
+                      className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-white placeholder-gray-700 outline-none focus:border-neon-green/50 font-mono text-xs"
+                      value={waUrl}
+                      onChange={e => setWaUrl(e.target.value)}
+                    />
+                  </div>
+                  {waError && <p className="text-[10px] text-red-500 font-bold uppercase tracking-widest italic">{waError}</p>}
+                  <button 
+                    onClick={handleWhatsAppImport}
+                    disabled={isWaParsing || !waUrl}
+                    className="w-full py-4 bg-neon-green/10 border border-neon-green/20 text-neon-green rounded-xl text-[10px] font-black uppercase tracking-[0.2em] hover:bg-neon-green/20 transition-all flex items-center justify-center gap-2 disabled:opacity-50"
+                  >
+                    {isWaParsing ? <Loader2 className="animate-spin" size={16} /> : <Zap size={16} />}
+                    Scan Catalogue Context
+                  </button>
+                </div>
+              ) : (
+                <div className="space-y-6">
+                  <div className="max-h-[300px] overflow-y-auto space-y-3 pr-2 custom-scrollbar">
+                    {waImportedProducts.map((p, idx) => (
+                      <div key={idx} className="p-3 bg-white/5 border border-white/5 rounded-xl flex items-center gap-3">
+                        <div className="w-12 h-12 bg-white/10 rounded-lg overflow-hidden flex-shrink-0">
+                          {p.image && <img src={p.image} className="w-full h-full object-cover" alt="" referrerPolicy="no-referrer" />}
+                        </div>
+                        <div className="flex-1 overflow-hidden">
+                          <h4 className="text-[10px] font-black text-white italic truncate">{p.name}</h4>
+                          <p className="text-[9px] text-primary font-bold">{formatCurrency(p.price, p.currency)}</p>
+                        </div>
+                        <Check className="text-neon-green" size={16} />
+                      </div>
+                    ))}
+                  </div>
+                  <button 
+                    onClick={() => commitWaImport(waImportedProducts.map((_, i) => i))}
+                    className="w-full btn-neon py-4 text-xs font-black uppercase tracking-[0.2em] italic flex items-center justify-center gap-2"
+                  >
+                    <Plus size={16} /> Decrypt {waImportedProducts.length} Items into Inventory
+                  </button>
+                  <button 
+                    onClick={() => setWaImportedProducts([])}
+                    className="w-full text-[9px] font-black text-gray-500 uppercase tracking-widest hover:text-white"
+                  >
+                    Discard Scan
+                  </button>
+                </div>
+              )}
+            </motion.div>
           </div>
         )}
       </AnimatePresence>

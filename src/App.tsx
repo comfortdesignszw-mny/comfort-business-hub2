@@ -7,10 +7,10 @@ import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Link, useLocation, useNavigate } from 'react-router-dom';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth, db, handleFirestoreError, OperationType, syncPublicProfile } from './lib/firebase';
-import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { 
   Search, ShoppingBag, MessageSquare, User as UserIcon, Store, LayoutGrid, 
-  Zap, Menu, Bell, ArrowLeft, X, Heart, Star, UserPlus, Check, Loader2, Users 
+  Zap, Menu, Bell, ArrowLeft, X, Heart, Star, UserPlus, Check, Loader2, Users, ShieldAlert
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile, Role, AppNotification } from './types';
@@ -35,6 +35,7 @@ const CustomerSetup = lazy(() => import('./pages/CustomerSetup'));
 const StoreDetail = lazy(() => import('./pages/StoreDetail'));
 const StoresHub = lazy(() => import('./pages/StoresHub'));
 const ProductDetail = lazy(() => import('./pages/ProductDetail'));
+const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
 
@@ -90,15 +91,33 @@ export default function App() {
           if (docSnap.exists()) {
             const profileData = docSnap.data() as UserProfile;
             
-            // Sync verification status with Firebase Auth
+            // Sync verification status and profile info with Firebase Auth
+            let needsUpdate = false;
+            const updates: any = {};
+
             if (profileData.isVerified !== firebaseUser.emailVerified) {
-              await updateDoc(doc(db, 'users', firebaseUser.uid), {
-                isVerified: firebaseUser.emailVerified
-              });
-              profileData.isVerified = firebaseUser.emailVerified;
+              updates.isVerified = firebaseUser.emailVerified;
+              needsUpdate = true;
             }
 
-            setProfile(profileData);
+            if (!profileData.avatar && firebaseUser.photoURL) {
+              updates.avatar = firebaseUser.photoURL;
+              needsUpdate = true;
+            }
+
+            if (!profileData.email && firebaseUser.email) {
+              updates.email = firebaseUser.email;
+              needsUpdate = true;
+            }
+
+            if (needsUpdate) {
+              updates.updatedAt = serverTimestamp();
+              await updateDoc(doc(db, 'users', firebaseUser.uid), updates);
+              // Optimistically update local profile (minus serverTimestamp which is complex to represent locally without causing dev server vs rules issues)
+              setProfile({ ...profileData, ...updates, updatedAt: new Date().toISOString() });
+            } else {
+              setProfile(profileData);
+            }
 
             // Proactively sync public profile for matrix visibility
             syncPublicProfile(profileData);
@@ -200,6 +219,7 @@ export default function App() {
                                         <Route path="/chat" element={<Chat profile={profile} />} />
                                         <Route path="/store/:id" element={<StoreDetail profile={profile} />} />
                                         <Route path="/product/:id" element={<ProductDetail profile={profile} />} />
+                                        <Route path="/admin" element={<AdminDashboard profile={profile} />} />
                                         <Route path="/profile" element={<Profile profile={profile} setProfile={setProfile} />} />
                                         <Route path="*" element={<Navigate to="/" replace />} />
                                       </>
@@ -301,6 +321,7 @@ function Sidebar({ profile, onClose }: { profile: UserProfile | null, onClose: (
     ...(profile?.currentRole === 'supplier' ? [{ path: '/stores', icon: Store, label: 'Stores' }] : []),
     { path: '/deals', icon: Zap, label: 'Markets' },
     { path: '/chat', icon: MessageSquare, label: 'Comms' },
+    ...(profile?.email === 'comfort.designszw@gmail.com' || profile?.isAdmin ? [{ path: '/admin', icon: ShieldAlert, label: 'Command' }] : []),
     { path: '/profile', icon: UserIcon, label: 'Hub' },
   ];
 
@@ -585,6 +606,7 @@ function Navigation({ profile }: { profile: UserProfile | null }) {
     ...(profile?.currentRole === 'supplier' ? [{ path: '/stores', icon: Store, label: 'Stores' }] : []),
     { path: '/deals', icon: Zap, label: 'Markets' },
     { path: '/chat', icon: MessageSquare, label: 'Comms' },
+    ...(profile?.email === 'comfort.designszw@gmail.com' || profile?.isAdmin ? [{ path: '/admin', icon: ShieldAlert, label: 'Command' }] : []),
     { path: '/profile', icon: UserIcon, label: 'Hub' },
   ];
 

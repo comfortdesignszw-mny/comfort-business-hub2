@@ -9,7 +9,9 @@ export interface PublicProfile {
     city?: string;
   };
   isVerified: boolean;
-  updatedAt: string;
+  status?: 'active' | 'suspended' | 'banned';
+  isAdmin?: boolean;
+  updatedAt: any;
 }
 
 export interface UserProfile {
@@ -25,6 +27,10 @@ export interface UserProfile {
   businessName?: string;
   businessCategory?: string;
   isVerified: boolean;
+  isAdmin?: boolean;
+  status?: 'active' | 'suspended' | 'banned';
+  suspensionEnd?: string;
+  reportCount?: number;
   whatsappUrl?: string;
   requiredProducts?: string[];
   fcmToken?: string;
@@ -38,6 +44,7 @@ export interface UserProfile {
     details: string;
     isActive: boolean;
   };
+  updatedAt?: any;
 }
 
 export interface Store {
@@ -60,7 +67,8 @@ export interface Store {
   followerCount?: number;
   likeCount?: number;
   statsResetAt?: string;
-  createdAt: string;
+  createdAt: any;
+  updatedAt?: any;
 }
 
 export type BuyButtonType = 'checkout' | 'chat' | 'link' | 'ecocash' | 'pod';
@@ -83,7 +91,8 @@ export interface Product {
   followerCount?: number;
   likeCount?: number;
   isActive: boolean;
-  createdAt: string;
+  createdAt: any;
+  updatedAt?: any;
 }
 
 export interface AppNotification {
@@ -121,7 +130,7 @@ export interface Deal {
   agreedPrice: number;
   customerNotes?: string;
   supplierNotes?: string;
-  updatedAt: string;
+  updatedAt: any;
 }
 
 export interface Message {
@@ -131,7 +140,7 @@ export interface Message {
   text: string;
   type: 'text' | 'quote' | 'location' | 'image';
   payload?: any;
-  createdAt: string;
+  createdAt: any;
 }
 
 export interface Spotlight {
@@ -168,7 +177,7 @@ export interface Conversation {
   id: string;
   participants: string[];
   lastMessage?: string;
-  updatedAt: string;
+  updatedAt: any;
 }
 
 export type ConnectionStatus = 'pending' | 'accepted' | 'declined';
@@ -185,4 +194,20 @@ export interface Connection {
   type?: 'partner' | 'supplier' | 'customer';
   createdAt: any;
   updatedAt: any;
+}
+
+export type ReportType = 'substandard' | 'misinformation' | 'illegal' | 'nudity' | 'violence';
+
+export interface Report {
+  id: string;
+  reporterId: string;
+  reporterName: string;
+  targetId: string; // Product ID, Store ID, or User ID
+  targetType: 'product' | 'store' | 'user';
+  targetName: string;
+  ownerId: string; // Owner of the reported item
+  type: ReportType;
+  details: string;
+  status: 'pending' | 'resolved' | 'dismissed';
+  createdAt: any;
 }

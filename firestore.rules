@@ -1,10 +1,7 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
-    // 0. GLOBAL SAFETY NET
-    match /{document=**} { allow read, write: if false; }
-
-    // Health Check (Anonymous connection diagnostic)
+    // Health Check
     match /test/connection {
       allow read: if true;
     }
@@ -13,108 +10,129 @@ service cloud.firestore {
     function isSignedIn() { return request.auth != null; }
     function isVerified() { return isSignedIn() && request.auth.token.email_verified == true; }
     function isOwner(uid) { return isSignedIn() && request.auth.uid == uid; }
+    function isAdmin() { 
+      return isSignedIn() && (
+        request.auth.token.email == "comfort.designszw@gmail.com" || 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true
+      ); 
+    }
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
     function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
 
-    // 2. ENTITY VALIDATORS (Anti-Shadow Update)
+    // 2. ENTITY VALIDATORS
     function isValidUser(data) {
       return data.uid == request.auth.uid
-        && data.name is string && data.name.size() <= 100
-        && data.currentRole in ['customer', 'supplier']
+        && (data.name is string && data.name.size() <= 100)
+        && (!('currentRole' in data) || (data.currentRole in ['customer', 'supplier']))
         && (!('phone' in data) || (data.phone is string && data.phone.size() <= 20))
-        && (!('email' in data) || (data.email is string && data.email.size() <= 100));
+        && (!('email' in data) || (data.email is string && data.email.size() <= 100))
+        && (!('avatar' in data) || (data.avatar is string && data.avatar.size() <= 2056))
+        && (!('requiredProducts' in data) || (data.requiredProducts is list && data.requiredProducts.size() <= 50));
     }
 
     function isValidStore(data) {
       return data.ownerId == request.auth.uid
-        && data.name is string && data.name.size() >= 1 && data.name.size() <= 500
-        && (!('geohash' in data) || (data.geohash is string && data.geohash.size() <= 128))
-        && (!('category' in data) || (data.category is string && data.category.size() <= 200))
-        && (!('description' in data) || (data.description is string && data.description.size() <= 10000));
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 200
+        && (!('geohash' in data) || (data.geohash is string && data.geohash.size() <= 32))
+        && (!('description' in data) || (data.description is string && data.description.size() <= 5000))
+        && (!('contactNumbers' in data) || (data.contactNumbers is list && data.contactNumbers.size() <= 5))
+        && (!('logo' in data) || (data.logo is string && data.logo.size() <= 2056));
     }
 
     function isValidProduct(data) {
       return data.ownerId == request.auth.uid
-        && data.name is string && data.name.size() >= 2 && data.name.size() <= 100
+        && data.name is string && data.name.size() >= 1 && data.name.size() <= 150
         && data.price is number && data.price >= 0
+        && (!('images' in data) || (data.images is list && data.images.size() <= 10))
         && data.buyButtonType in ['checkout', 'chat', 'link', 'ecocash', 'pod'];
     }
 
     function isValidReview(data) {
       return data.userId == request.auth.uid
-        && data.productId is string && data.productId.size() <= 128
         && data.rating is number && data.rating >= 1 && data.rating <= 5
-        && (!('comment' in data) || (data.comment is string && data.comment.size() <= 2000));
+        && (!('comment' in data) || (data.comment is string && data.comment.size() <= 1000));
     }
 
-    function isValidMessage(data) {
-      return data.senderId == request.auth.uid
-        && data.text is string && data.text.size() <= 5000
-        && data.conversationId is string && data.conversationId.size() <= 128;
+    function isValidDeal(data) {
+      return (data.supplierId == request.auth.uid || data.customerId == request.auth.uid)
+        && data.status in ['pending', 'quoted', 'accepted', 'delivered', 'cancelled'];
     }
 
     function isValidPublicProfile(data) {
       return data.uid == request.auth.uid
         && data.name is string && data.name.size() <= 100
         && data.currentRole in ['customer', 'supplier']
-        && data.isVerified is bool;
-    }
-
-    function isValidSpotlight(data) {
-      return data.authorId == request.auth.uid
-        && data.title is string && data.title.size() >= 2 && data.title.size() <= 100
-        && data.content is string && data.content.size() >= 10 && data.content.size() <= 5000
-        && data.type in ['news', 'event', 'update', 'spotlight']
-        && data.isActive is bool
-        && (!('location' in data) || (data.location is string && data.location.size() <= 200))
-        && (!('date' in data) || (data.date is string && data.date.size() <= 100))
-        && (!('image' in data) || (data.image is string && data.image.size() <= 2000));
+        && data.isVerified == (request.auth.token.email_verified == true);
     }
 
     // 3. COLLECTIONS
+
+    match /reports/{id} {
+      allow create: if isSignedIn() && isValidId(id) && incoming().reporterId == request.auth.uid;
+      allow get, list, update, delete: if isAdmin();
+    }
+
     match /users/{userId} {
-      allow get: if isOwner(userId);
-      allow list: if false; 
-      allow create: if isOwner(userId) && isValidUser(incoming()) && isValidId(userId);
-      allow update: if isOwner(userId) && isValidUser(incoming())
-        && incoming().uid == existing().uid
-        && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'phone', 'avatar', 'currentRole', 'geohash', 'lat', 'lng', 'businessName', 'businessCategory', 'whatsappUrl', 'requiredProducts', 'location', 'gateway', 'isVerified', 'fcmToken', 'updatedAt', '_syncedAt', 'uid']);
+      allow get: if isOwner(userId) || isAdmin();
+      allow list: if isAdmin(); 
+      allow create: if isOwner(userId) && isValidId(userId);
+      allow update: if isOwner(userId) || isAdmin();
     }
 
     match /public_profiles/{userId} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
-      allow create, update: if isOwner(userId) && isValidPublicProfile(incoming()) && isValidId(userId);
-      allow delete: if isOwner(userId);
+      allow get, list: if isSignedIn();
+      allow create, update: if (isOwner(userId) || isAdmin()) && isValidId(userId) && isValidPublicProfile(incoming()) && incoming().updatedAt == request.time;
+      allow delete: if isOwner(userId) || isAdmin();
     }
 
     match /stores/{storeId} {
       allow get: if true;
-      allow list: if isSignedIn();
-      allow create: if isVerified() && isValidStore(incoming()) && isValidId(storeId);
+      allow list: if true; 
+      allow create: if isVerified() && isValidStore(incoming()) && isValidId(storeId) && incoming().updatedAt == request.time;
       allow update: if isSignedIn() && (
+        // Tier 1: Owner Update
         (isOwner(existing().ownerId) && isValidStore(incoming()) 
           && incoming().ownerId == existing().ownerId
-          && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'contactNumbers', 'email', 'category', 'logo', 'coverPhoto', 'address', 'specificBusinessType', 'geohash', 'lat', 'lng', 'updatedAt', 'followerCount', 'likeCount', 'ownerId', '_syncedAt', 'statsResetAt']))
-        || (incoming().diff(existing()).affectedKeys().hasOnly(['followerCount', 'likeCount']) && incoming().ownerId == existing().ownerId)
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'contactNumbers', 'email', 'category', 'logo', 'coverPhoto', 'address', 'specificBusinessType', 'geohash', 'lat', 'lng', 'updatedAt', 'followerCount', 'likeCount', '_syncedAt']))
+        || 
+        // Tier 2: Public Interactions (Follow/Like)
+        (incoming().diff(existing()).affectedKeys().hasOnly(['followerCount', 'likeCount']) 
+          && incoming().ownerId == existing().ownerId)
       );
       allow delete: if isOwner(existing().ownerId);
     }
 
     match /products/{productId} {
       allow get: if true;
-      allow list: if isSignedIn();
-      allow create: if isVerified() && isValidProduct(incoming()) && isValidId(productId)
+      allow list: if true;
+      allow create: if isVerified() && isValidProduct(incoming()) && isValidId(productId) && incoming().updatedAt == request.time
         && get(/databases/$(database)/documents/stores/$(incoming().storeId)).data.ownerId == request.auth.uid;
       allow update: if isSignedIn() && (
-        (isOwner(existing().ownerId) && isValidProduct(incoming()) 
+        // Tier 1: Owner Update
+        (isOwner(existing().ownerId) && isValidProduct(incoming())
           && incoming().ownerId == existing().ownerId
           && incoming().storeId == existing().storeId
-          && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'price', 'currency', 'category', 'images', 'buyButtonType', 'buyButtonLink', 'isActive', 'rating', 'reviewCount', 'likeCount', 'updatedAt', 'ownerId', 'storeId', '_syncedAt']))
-        || (incoming().diff(existing()).affectedKeys().hasOnly(['rating', 'reviewCount', 'likeCount']))
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'price', 'currency', 'category', 'images', 'buyButtonType', 'buyButtonLink', 'isActive', 'rating', 'reviewCount', 'likeCount', 'updatedAt', '_syncedAt']))
+        ||
+        // Tier 2: Public Feedback (Rating/Likes)
+        (incoming().diff(existing()).affectedKeys().hasOnly(['rating', 'reviewCount', 'likeCount'])
+          && incoming().ownerId == existing().ownerId)
       );
       allow delete: if isOwner(existing().ownerId);
+    }
+
+    match /deals/{id} {
+      allow get: if isSignedIn() && (resource.data.supplierId == request.auth.uid || resource.data.customerId == request.auth.uid);
+      allow list: if isSignedIn() && (resource.data.supplierId == request.auth.uid || resource.data.customerId == request.auth.uid);
+      allow create: if isVerified() && isValidId(id) && isValidDeal(incoming()) && incoming().updatedAt == request.time;
+      allow update: if isVerified() && isValidDeal(incoming())
+        && (existing().supplierId == request.auth.uid || existing().customerId == request.auth.uid)
+        && incoming().updatedAt == request.time
+        && existing().status != 'delivered' && existing().status != 'cancelled' // Locking terminal states
+        && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'agreedPrice', 'customerNotes', 'supplierNotes', 'updatedAt']);
     }
 
     match /notifications/{id} {
@@ -130,16 +148,15 @@ service cloud.firestore {
       allow list: if isSignedIn() && request.auth.uid in resource.data.participants;
 
       match /messages/{messageId} {
-        allow get: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/conversations/$(convoId)).data.participants;
-        allow list: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/conversations/$(convoId)).data.participants;
-        allow create: if isSignedIn() && isValidId(messageId) && isValidMessage(incoming())
+        allow get, list: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/conversations/$(convoId)).data.participants;
+        allow create: if isSignedIn() && isValidId(messageId)
+          && incoming().senderId == request.auth.uid
           && request.auth.uid in get(/databases/$(database)/documents/conversations/$(convoId)).data.participants;
       }
     }
 
     match /reviews/{reviewId} {
-      allow get: if true;
-      allow list: if isSignedIn();
+      allow get, list: if true;
       allow create: if isVerified() && isValidId(reviewId) && isValidReview(incoming());
       allow delete: if isOwner(existing().userId);
     }
@@ -152,45 +169,33 @@ service cloud.firestore {
     }
 
     match /storeLikes/{id} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
+      allow get, list: if isSignedIn();
       allow create: if isSignedIn() && isValidId(id) && incoming().userId == request.auth.uid;
       allow delete: if isOwner(existing().userId);
     }
 
     match /productLikes/{id} {
-      allow get: if isSignedIn();
-      allow list: if isSignedIn();
+      allow get, list: if isSignedIn();
       allow create: if isSignedIn() && isValidId(id) && incoming().userId == request.auth.uid;
       allow delete: if isOwner(existing().userId);
     }
     
     match /engagements/{id} {
-      allow get: if isSignedIn() && (resource.data.supplierId == request.auth.uid || resource.data.customerId == request.auth.uid);
-      allow list: if isSignedIn() && (resource.data.supplierId == request.auth.uid || resource.data.customerId == request.auth.uid);
+      allow get, list: if isSignedIn() && (resource.data.supplierId == request.auth.uid || resource.data.customerId == request.auth.uid);
       allow create: if isSignedIn() && isValidId(id) && incoming().customerId == request.auth.uid;
     }
 
-    match /deals/{id} {
-      allow get: if isSignedIn() && (resource.data.supplierId == request.auth.uid || resource.data.customerId == request.auth.uid);
-      allow list: if isSignedIn() && (resource.data.supplierId == request.auth.uid || resource.data.customerId == request.auth.uid);
-      allow create: if isVerified() && isValidId(id) && (incoming().supplierId == request.auth.uid || incoming().customerId == request.auth.uid);
-      allow update: if isVerified() && (existing().supplierId == request.auth.uid || existing().customerId == request.auth.uid);
-    }
-
     match /spotlights/{id} {
-      allow get: if true;
-      allow list: if isSignedIn();
-      allow create: if isVerified() && isValidId(id) && isValidSpotlight(incoming());
-      allow update: if isOwner(existing().authorId) && isValidSpotlight(incoming())
+      allow get, list: if true;
+      allow create: if isVerified() && isValidId(id) && incoming().authorId == request.auth.uid;
+      allow update: if isOwner(existing().authorId) 
         && incoming().authorId == existing().authorId
-        && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'content', 'type', 'image', 'location', 'date', 'isActive', 'updatedAt', 'authorId', 'authorName', 'createdAt', '_syncedAt']);
+        && incoming().diff(existing()).affectedKeys().hasOnly(['title', 'content', 'type', 'image', 'location', 'date', 'isActive', 'updatedAt', '_syncedAt']);
       allow delete: if isOwner(existing().authorId);
     }
 
     match /connections/{id} {
-      allow get: if isSignedIn() && (resource.data.senderId == request.auth.uid || resource.data.receiverId == request.auth.uid);
-      allow list: if isSignedIn() && (resource.data.senderId == request.auth.uid || resource.data.receiverId == request.auth.uid);
+      allow get, list: if isSignedIn() && (resource.data.senderId == request.auth.uid || resource.data.receiverId == request.auth.uid);
       allow create: if isSignedIn() && isValidId(id) && incoming().senderId == request.auth.uid;
       allow update: if isSignedIn() && (
         (existing().receiverId == request.auth.uid && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'type', 'updatedAt', '_syncedAt'])) ||
@@ -200,3 +205,4 @@ service cloud.firestore {
     }
   }
 }
+

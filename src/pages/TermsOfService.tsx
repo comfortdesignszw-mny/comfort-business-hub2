@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Shield, ChevronLeft, Mail, Phone, Scale } from 'lucide-react';
+import { Shield, ChevronLeft, Mail, Phone, Scale, ShieldAlert } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function TermsOfService() {
@@ -150,14 +150,22 @@ export default function TermsOfService() {
               <p className="text-sm">You agree to indemnify and hold harmless the Platform from any claims, liabilities, or losses arising out of misuse, violation of Terms, or infringement of third-party rights.</p>
             </section>
 
-            <section className="space-y-4">
+            <section className="space-y-4 bg-white/5 p-8 rounded-[2.5rem] border border-white/10">
               <h2 className="text-lg font-black text-white italic uppercase tracking-tighter flex items-center gap-3">
-                <span className="text-primary text-2xl">09.</span> Termination
+                <span className="text-primary text-2xl">09.</span> Reporting and Suspension
               </h2>
-              <p className="text-sm">We reserve the right to suspend or terminate accounts without prior notice for breaches of these Terms, fraudulent activity, or bringing disrepute to the community hub.</p>
+              <p className="text-sm">We maintain a zero-tolerance policy for abuse, substandard products, misinformation, illegal content, nudity, or content promoting violence. Users are encouraged to report any infractions via the on-platform "Report" tools.</p>
+              <div className="p-4 bg-red-500/10 rounded-2xl border border-red-500/20 mt-4">
+                <p className="text-xs font-black text-red-500 uppercase flex items-center gap-2 mb-2">
+                   <ShieldAlert size={14} /> Enforcement Protocol
+                </p>
+                <p className="text-xs text-gray-300 leading-relaxed italic">
+                  Any account, storefront, or product reported <span className="text-white font-bold">three (3) times within a single month</span> for verified violations will result in an <span className="text-white font-bold text-red-500">automatic suspension</span> of the responsible account for a duration of two weeks. Repeated violations may result in a permanent ban.
+                </p>
+              </div>
             </section>
 
-            <section className="space-y-4 bg-white/5 p-8 rounded-[2.5rem] border border-white/10">
+            <section className="space-y-4">
               <h2 className="text-lg font-black text-white italic uppercase tracking-tighter flex items-center gap-3">
                 <span className="text-primary text-2xl">10.</span> Governing Law
               </h2>
