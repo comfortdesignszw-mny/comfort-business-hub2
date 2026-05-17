@@ -88,36 +88,6 @@ export default function ReportModal({
       // 1. Save the report
       await setDoc(doc(db, 'reports', reportId), reportData);
 
-      // 2. Automated Suspension Logic
-      // Check if this owner has been reported 3 times in the current month
-      const startOfMonth = new Date(now.getFullYear(), now.getMonth(), 1).toISOString();
-      const q = query(
-        collection(db, 'reports'),
-        where('ownerId', '==', ownerId),
-        where('createdAt', '>=', startOfMonth)
-      );
-      
-      const snapshot = await getDocs(q);
-      const reportCount = snapshot.size;
-
-      if (reportCount >= 3) {
-        // Auto-suspend for 2 weeks
-        const suspensionEnd = new Date();
-        suspensionEnd.setDate(suspensionEnd.getDate() + 14);
-        
-        await updateDoc(doc(db, 'users', ownerId), {
-          status: 'suspended',
-          suspensionEnd: suspensionEnd.toISOString(),
-          updatedAt: serverTimestamp()
-        });
-
-        // Also update public profile
-        await updateDoc(doc(db, 'public_profiles', ownerId), {
-          status: 'suspended',
-          updatedAt: serverTimestamp()
-        });
-      }
-
       setSuccess(true);
       setTimeout(() => {
         onClose();

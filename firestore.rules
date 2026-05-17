@@ -1,17 +1,26 @@
 rules_version = '2';
 service cloud.firestore {
   match /databases/{database}/documents {
+    // Health Check
+    match /test/{document=**} {
+      allow read: if true;
+    }
+
     // 1. PRIMITIVES & HELPERS
     function isSignedIn() { return request.auth != null; }
     function isVerified() { return isSignedIn() && request.auth.token.email_verified == true; }
     function isOwner(uid) { return isSignedIn() && request.auth.uid == uid; }
     function isAdmin() { 
       return isSignedIn() && (
-        request.auth.token.email == "comfort.designszw@gmail.com" || 
-        (exists(/databases/$(database)/documents/users/$(request.auth.uid)) && 
-         get(/databases/$(database)/documents/users/$(request.auth.uid)).data.get('isAdmin', false) == true)
+        isHardcodedAdmin() || 
+        get(/databases/$(database)/documents/users/$(request.auth.uid)).data.isAdmin == true
       ); 
     }
+    function isHardcodedAdmin() {
+      return isSignedIn() && request.auth.token.email == "comfort.designszw@gmail.com";
+    }
+    function isReporter(reportData) { return isSignedIn() && reportData.reporterId == request.auth.uid; }
+    function isTargetOwner(reportData) { return isSignedIn() && reportData.ownerId == request.auth.uid; }
     function incoming() { return request.resource.data; }
     function existing() { return resource.data; }
     function isValidId(id) { return id is string && id.size() <= 128 && id.matches('^[a-zA-Z0-9_\\-]+$'); }
@@ -66,20 +75,23 @@ service cloud.firestore {
 
     match /reports/{id} {
       allow create: if isSignedIn() && isValidId(id) && incoming().reporterId == request.auth.uid;
-      allow get, list, update, delete: if isAdmin();
+      // Allow listing to support automated counting logic
+      allow list: if isSignedIn();
+      allow get: if isHardcodedAdmin() || isAdmin() || isReporter(resource.data) || isTargetOwner(resource.data);
+      allow update, delete: if isHardcodedAdmin() || isAdmin();
     }
 
     match /users/{userId} {
-      allow get: if isOwner(userId) || isAdmin();
-      allow list: if isAdmin(); 
+      allow get: if isOwner(userId) || isHardcodedAdmin() || isAdmin();
+      allow list: if isHardcodedAdmin() || isAdmin(); 
       allow create: if isOwner(userId) && isValidId(userId);
-      allow update: if isOwner(userId) || isAdmin();
+      allow update: if isOwner(userId) || isHardcodedAdmin() || isAdmin();
     }
 
     match /public_profiles/{userId} {
       allow get, list: if isSignedIn();
-      allow create, update: if (isOwner(userId) || isAdmin()) && isValidId(userId) && isValidPublicProfile(incoming()) && incoming().updatedAt == request.time;
-      allow delete: if isOwner(userId) || isAdmin();
+      allow create, update: if (isOwner(userId) || isHardcodedAdmin() || isAdmin()) && isValidId(userId) && isValidPublicProfile(incoming()) && incoming().updatedAt == request.time;
+      allow delete: if isOwner(userId) || isHardcodedAdmin() || isAdmin();
     }
 
     match /stores/{storeId} {

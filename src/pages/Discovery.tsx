@@ -188,38 +188,23 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
     };
   }, [profile]);
 
-  // Real-time listener for users / members
   useEffect(() => {
-    // 1. Real-time matrix of newest members
-    const uq = query(
-      collection(db, 'public_profiles'),
-      orderBy('updatedAt', 'desc'),
-      limit(20)
-    );
-    
-    const unsubscribeUsers = onSnapshot(uq, (snapshot) => {
-      setDisplayedUsers(snapshot.docs.map(d => ({ uid: d.id, ...d.data() } as PublicProfile)));
-    }, (err) => {
-      console.warn("Matrix: Connection disrupted.", err);
-    });
-
-    // 2. Periodic Refresh for Total Count (Cheaper than real-time listener on large collection)
+    let isMounted = true;
     const fetchUserCount = async () => {
       try {
         const snapshot = await getCountFromServer(collection(db, 'public_profiles'));
-        setUserCount(snapshot.data().count);
+        if (isMounted) setUserCount(snapshot.data().count);
+        const usersSnap = await getDocs(query(collection(db, 'public_profiles'), limit(10)));
+        if (isMounted) setDisplayedUsers(usersSnap.docs.map(d => ({ uid: d.id, ...d.data() } as PublicProfile)));
       } catch (err) {
-        console.warn("Signal: User count temporarily unavailable.");
+        if (isMounted) {
+          console.warn("Signal: User count temporarily unavailable.");
+          setUserCount(null);
+        }
       }
     };
-
-    fetchUserCount();
-    const countInterval = setInterval(fetchUserCount, 30000); // Refresh every 30 seconds
-
-    return () => {
-      unsubscribeUsers();
-      clearInterval(countInterval);
-    };
+    const timer = setTimeout(fetchUserCount, 1000);
+    return () => { isMounted = false; clearTimeout(timer); };
   }, []);
 
   useEffect(() => {
