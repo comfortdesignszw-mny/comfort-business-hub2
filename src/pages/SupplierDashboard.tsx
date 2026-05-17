@@ -544,9 +544,10 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
             </div>
           </div>
         ) : (
-          <div className="p-6 sm:p-8 relative z-10 flex flex-col justify-end flex-1">
-            <div className="flex items-center gap-6">
-              <div className="w-20 h-20 sm:w-28 sm:h-28 bg-[#05070a]/80 backdrop-blur-xl rounded-3xl border border-primary/30 flex items-center justify-center text-3xl font-black text-primary italic overflow-hidden shadow-2xl">
+          <div className="p-5 sm:p-10 relative z-10 flex flex-col justify-center items-center sm:items-start flex-1 text-center sm:text-left">
+            <div className="flex flex-col sm:flex-row items-center sm:items-start gap-4 sm:gap-8 w-full">
+              {/* Logo on top for profile */}
+              <div className="w-16 h-16 sm:w-24 sm:h-24 bg-[#05070a]/80 backdrop-blur-xl rounded-2xl sm:rounded-3xl border border-primary/30 flex items-center justify-center text-xl sm:text-3xl font-black text-primary italic overflow-hidden shadow-2xl flex-shrink-0">
                 {activeStore.logo ? (
                   <img 
                     src={activeStore.logo} 
@@ -559,50 +560,52 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
                   />
                 ) : activeStore.name.charAt(0)}
               </div>
-              <div className="space-y-1.5 flex-1">
-                <div className="flex items-center justify-between">
-                  <div>
-                    <h1 className="text-2xl sm:text-4xl font-black text-white italic uppercase tracking-tighter leading-none shadow-black drop-shadow-lg">{activeStore.name}</h1>
-                    <p className="text-[10px] text-primary font-black uppercase tracking-widest mt-2 bg-primary/10 w-fit px-2 py-0.5 rounded border border-primary/20">{activeStore.category} Sector Hub</p>
+
+              <div className="flex-1 space-y-3 w-full">
+                <div className="flex flex-col sm:flex-row items-center sm:items-start justify-between gap-4">
+                  <div className="space-y-1">
+                    <h1 className="text-xl sm:text-3xl font-black text-white italic uppercase tracking-tighter leading-none shadow-black drop-shadow-lg">{activeStore.name}</h1>
+                    <p className="text-[8px] sm:text-[9px] text-primary font-black uppercase tracking-[0.2em] mt-1.5 bg-primary/10 w-fit px-2 py-0.5 rounded border border-primary/20 mx-auto sm:mx-0">{activeStore.category} Sector Hub</p>
                   </div>
+                  
                   <div className="flex items-center gap-2">
                     <button 
                       onClick={handleShareStore}
-                      className="p-3 bg-black/40 backdrop-blur-md border border-white/10 rounded-xl text-white hover:text-primary hover:border-primary/50 transition-all hover:scale-110 active:scale-95 shadow-xl"
+                      className="p-2 sm:p-3 bg-black/40 backdrop-blur-md border border-white/10 rounded-xl text-white hover:text-primary hover:border-primary/50 transition-all hover:scale-110 active:scale-95 shadow-xl"
                       title="Share Store Link"
                     >
-                      <Share2 size={18} />
+                      <Share2 size={16} />
                     </button>
                     <button 
                       onClick={() => {
                         setIsEditingStore(true);
                         setStoreEditData({});
                       }}
-                      className="p-3 bg-black/40 backdrop-blur-md border border-white/10 rounded-xl text-white hover:text-primary hover:border-primary/50 transition-all hover:scale-110 active:scale-95 shadow-xl"
+                      className="p-2 sm:p-3 bg-black/40 backdrop-blur-md border border-white/10 rounded-xl text-white hover:text-primary hover:border-primary/50 transition-all hover:scale-110 active:scale-95 shadow-xl"
                       title="Edit Store Profile"
                     >
-                      <Edit3 size={18} />
+                      <Edit3 size={16} />
                     </button>
                   </div>
                 </div>
                 
-                <div className="flex items-center gap-4 pt-3 flex-wrap">
-                  <div className="flex items-center gap-2">
-                    <div className="w-2 h-2 bg-neon-green rounded-full shadow-[0_0_10px_#39FF14] animate-pulse"></div>
-                    <span className="text-[9px] font-black uppercase text-white tracking-widest">Active Status</span>
+                <div className="flex flex-wrap items-center justify-center sm:justify-start gap-2 sm:gap-4 pt-1">
+                  <div className="flex items-center gap-1.5 px-2 py-1 bg-black/40 rounded-lg border border-white/5">
+                    <div className="w-1 h-1 bg-neon-green rounded-full shadow-[0_0_8px_#39FF14] animate-pulse"></div>
+                    <span className="text-[8px] font-black uppercase text-white tracking-widest leading-none">Active</span>
                   </div>
-                  <div className="flex items-center gap-2 px-2 py-0.5 bg-primary/10 border border-primary/20 rounded text-[8px] font-black text-primary uppercase tracking-widest animate-pulse">
-                    <Sparkles size={10} /> Live on Discovery Explorer
+                  <div className="flex items-center gap-1.5 px-2 py-1 bg-primary/10 border border-primary/20 rounded-lg text-[8px] font-black text-primary uppercase tracking-widest animate-pulse leading-none">
+                    <Sparkles size={8} /> Live Explorer
                   </div>
-                  <div className="flex items-center gap-2 text-[9px] text-gray-300 font-bold uppercase tracking-widest bg-black/20 px-2.5 py-1 rounded-lg border border-white/5">
-                    <MapPin size={10} className="text-primary" /> {activeStore.address || 'Matrix Location'}
+                  <div className="flex items-center gap-1.5 text-[8px] text-gray-300 font-bold uppercase tracking-widest bg-black/40 px-2.5 py-1 rounded-lg border border-white/5 leading-none">
+                    <MapPin size={10} className="text-primary" /> {activeStore.address || 'Distributed Hub Node'}
                   </div>
                 </div>
               </div>
             </div>
             
-            <div className="mt-8 border-t border-white/10 pt-6">
-               <p className="text-xs text-gray-300 font-medium max-w-2xl leading-relaxed drop-shadow-lg">
+            <div className="mt-6 sm:mt-8 pt-4 sm:pt-6 border-t border-white/10 w-full">
+               <p className="text-[10px] sm:text-xs text-gray-300 font-medium max-w-2xl leading-relaxed drop-shadow-lg mx-auto sm:mx-0">
                  {activeStore.description}
                </p>
             </div>

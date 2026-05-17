@@ -56,10 +56,15 @@ export function NotificationProvider({ children, profile }: { children: React.Re
 
           // 3. Browser Native Notification
           if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-            new Notification(latest.title, {
-              body: latest.message,
-              icon: '/pwa-192x192.png'
-            });
+            try {
+              new Notification(latest.title, {
+                body: latest.message,
+                icon: '/pwa-192x192.png'
+              });
+            } catch (err) {
+              console.warn('Native Notification construction failed, possibly illegal constructor in this environment. Falling back to UI toast only.', err);
+              // Fallback: If service worker is available, we could use it, but we already have showToast(latest) above
+            }
           }
         }
       }

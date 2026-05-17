@@ -216,7 +216,7 @@ export function StoreDetailContent({ store, profile, showMap = true, allowEdit =
           </div>
         )}
 
-        <div className="relative z-10 flex flex-col items-center text-center space-y-2 sm:space-y-4 px-4 sm:px-6">
+        <div className="relative z-10 flex flex-col items-center text-center space-y-4 sm:space-y-6 px-4 sm:px-6">
           {isEditingCover && isOwner ? (
             <div className="w-full max-w-lg mb-8">
                <ImageInput 
@@ -229,7 +229,7 @@ export function StoreDetailContent({ store, profile, showMap = true, allowEdit =
           ) : (
             <div 
               onClick={() => openUserProfile(store.ownerId)}
-              className="w-16 h-16 sm:w-24 sm:h-24 rounded-xl sm:rounded-3xl bg-[#0d1117] border-2 border-primary/30 sm:border-4 border-[#05070a] shadow-2xl overflow-hidden flex items-center justify-center text-primary font-black text-xl sm:text-4xl cursor-pointer hover:border-primary transition-all group/logo shrink-0"
+              className="w-16 h-16 sm:w-24 sm:h-24 rounded-2xl sm:rounded-3xl bg-[#0d1117] border-2 border-primary/30 sm:border-4 border-[#05070a] shadow-2xl overflow-hidden flex items-center justify-center text-primary font-black text-xl sm:text-4xl cursor-pointer hover:border-primary transition-all group/logo shrink-0"
             >
               {store.logo ? (
                 <img src={store.logo} className="w-full h-full object-cover group-hover/logo:scale-110 transition-transform" referrerPolicy="no-referrer" />
@@ -237,7 +237,7 @@ export function StoreDetailContent({ store, profile, showMap = true, allowEdit =
             </div>
           )}
           
-          <div className="space-y-1 sm:space-y-1.5 w-full max-w-lg">
+          <div className="space-y-1.5 sm:space-y-2 w-full max-w-lg">
             {isEditingInfo && isOwner ? (
               <div className="space-y-3 pt-4">
                 <div className="space-y-1">
@@ -267,15 +267,12 @@ export function StoreDetailContent({ store, profile, showMap = true, allowEdit =
                 onClick={() => openUserProfile(store.ownerId)}
               >
                 <h2 className="text-xl sm:text-3xl font-black text-white italic uppercase tracking-tighter leading-tight group-hover/title:text-primary transition-colors">{store.name}</h2>
-                <div className="flex items-center justify-center gap-1.5 sm:gap-2 mt-1">
-                  <MapPin size={10} className="text-primary group-hover/title:scale-110 transition-transform" />
-                  <p className="text-[8px] sm:text-[10px] text-gray-400 font-bold uppercase tracking-widest group-hover/title:text-white transition-colors">{store.category} • {store.address || 'Local Hub'}</p>
-                </div>
+                <p className="text-[8px] sm:text-[9px] text-primary font-black uppercase tracking-[0.2em] mt-1 bg-primary/10 w-fit px-2 py-0.5 rounded border border-primary/20 mx-auto transition-all">{store.category} Sector Hub</p>
               </div>
             )}
           </div>
 
-          <div className="flex flex-wrap justify-center gap-2">
+          <div className="flex flex-wrap justify-center gap-2 pt-2">
             <div className="glass-pill !text-neon-green flex items-center gap-1.5 text-[9px] sm:text-xs">
               <Star size={10} className="fill-neon-green sm:w-3 sm:h-3" /> {store.rating.toFixed(1)} ({store.reviewCount})
             </div>
@@ -316,9 +313,17 @@ export function StoreDetailContent({ store, profile, showMap = true, allowEdit =
             </button>
           </div>
 
-          <p className="text-[10px] sm:text-xs text-gray-400 max-w-md mx-auto leading-relaxed">
-            {store.description}
-          </p>
+          <div className="w-full max-w-lg pt-4 border-t border-white/10 mt-2 sm:mt-4">
+             {store.address && (
+              <div className="flex items-center justify-center gap-1.5 mb-3">
+                <MapPin size={10} className="text-primary" />
+                <p className="text-[9px] sm:text-[11px] text-gray-300 font-bold uppercase tracking-widest">{store.address}</p>
+              </div>
+            )}
+            <p className="text-[10px] sm:text-xs text-gray-400 leading-relaxed font-medium">
+              {store.description}
+            </p>
+          </div>
         </div>
       </header>
 
