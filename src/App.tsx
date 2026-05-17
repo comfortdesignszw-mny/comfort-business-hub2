@@ -35,6 +35,10 @@ const CustomerSetup = lazy(() => import('./pages/CustomerSetup'));
 const StoreDetail = lazy(() => import('./pages/StoreDetail'));
 const StoresHub = lazy(() => import('./pages/StoresHub'));
 const ProductDetail = lazy(() => import('./pages/ProductDetail'));
+const TermsOfService = lazy(() => import('./pages/TermsOfService'));
+const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
+
+import Footer from './components/Footer';
 
 // Loading component for suspense
 const PageLoader = () => (
@@ -48,6 +52,21 @@ const PageLoader = () => (
     </motion.div>
   </div>
 );
+
+// Global Scroll To Top component
+const ScrollToTop = () => {
+  const { pathname } = useLocation();
+  useEffect(() => {
+    // Scroll the main content area to top
+    const main = document.querySelector('main');
+    if (main) {
+      main.scrollTo(0, 0);
+    } else {
+      window.scrollTo(0, 0);
+    }
+  }, [pathname]);
+  return null;
+};
 
 export default function App() {
   useMobileHeight();
@@ -130,62 +149,78 @@ export default function App() {
 
   return (
     <Router>
+      <ScrollToTop />
       <div className="flex flex-col h-screen-mobile bg-[#05070a] relative shadow-2xl">
-        {!user ? (
-          <Routes>
-            <Route path="/login" element={<Login />} />
-            <Route path="*" element={<Navigate to="/login" replace />} />
-          </Routes>
-        ) : (
-          <NotificationProvider profile={profile}>
-            <MessagingProvider profile={profile}>
-              <ModalProvider profile={profile}>
-                <Header profile={profile} onMenuClick={() => setShowSidebar(true)} />
-                <AnimatePresence>
-                  {showSidebar && (
-                    <Sidebar 
-                      profile={profile} 
-                      onClose={() => setShowSidebar(false)} 
-                    />
-                  )}
-                </AnimatePresence>
-                <main className="flex-1 overflow-y-auto custom-scrollbar pb-24">
-                  <div className="max-w-7xl mx-auto w-full">
-                    <AnimatePresence mode="wait">
-                      <Suspense fallback={<PageLoader />}>
-                        <Routes>
-                          {isProfileIncomplete ? (
-                            <Route path="*" element={<CustomerSetup profile={profile!} />} />
-                          ) : (
-                            <>
-                              <Route path="/" element={<Discovery profile={profile} setProfile={setProfile} />} />
-                              <Route 
-                                path="/stores" 
-                                element={
-                                  profile?.currentRole === 'supplier' 
-                                    ? <StoresHub profile={profile} /> 
-                                    : <Navigate to="/" replace />
-                                } 
-                              />
-                              <Route path="/deals" element={<DealRoom profile={profile} />} />
-                              <Route path="/chat" element={<Chat profile={profile} />} />
-                              <Route path="/store/:id" element={<StoreDetail profile={profile} />} />
-                              <Route path="/product/:id" element={<ProductDetail profile={profile} />} />
-                              <Route path="/profile" element={<Profile profile={profile} setProfile={setProfile} />} />
-                              <Route path="*" element={<Navigate to="/" replace />} />
-                            </>
+        <AnimatePresence mode="wait">
+          <Suspense fallback={<PageLoader />}>
+            <Routes>
+              {!user ? (
+                <>
+                  <Route path="/login" element={<Login />} />
+                  <Route path="/terms" element={<TermsOfService />} />
+                  <Route path="/privacy" element={<PrivacyPolicy />} />
+                  <Route path="*" element={<Navigate to="/login" replace />} />
+                </>
+              ) : (
+                <Route path="/*" element={
+                  <NotificationProvider profile={profile}>
+                    <MessagingProvider profile={profile}>
+                      <ModalProvider profile={profile}>
+                        <Header profile={profile} onMenuClick={() => setShowSidebar(true)} />
+                        <AnimatePresence>
+                          {showSidebar && (
+                            <Sidebar 
+                              profile={profile} 
+                              onClose={() => setShowSidebar(false)} 
+                            />
                           )}
-                        </Routes>
-                      </Suspense>
-                    </AnimatePresence>
-                  </div>
-                </main>
-                <Navigation profile={profile} />
-                <PWAPrompt />
-              </ModalProvider>
-            </MessagingProvider>
-          </NotificationProvider>
-        )}
+                        </AnimatePresence>
+                        <main className="flex-1 overflow-y-auto custom-scrollbar pb-24">
+                          <div className="max-w-7xl mx-auto w-full min-h-full flex flex-col">
+                            <div className="flex-1">
+                              <AnimatePresence mode="wait">
+                                <Suspense fallback={<PageLoader />}>
+                                  <Routes>
+                                    <Route path="/terms" element={<TermsOfService />} />
+                                    <Route path="/privacy" element={<PrivacyPolicy />} />
+                                    {isProfileIncomplete ? (
+                                      <Route path="*" element={<CustomerSetup profile={profile!} />} />
+                                    ) : (
+                                      <>
+                                        <Route path="/" element={<Discovery profile={profile} setProfile={setProfile} />} />
+                                        <Route 
+                                          path="/stores" 
+                                          element={
+                                            profile?.currentRole === 'supplier' 
+                                              ? <StoresHub profile={profile} /> 
+                                              : <Navigate to="/" replace />
+                                          } 
+                                        />
+                                        <Route path="/deals" element={<DealRoom profile={profile} />} />
+                                        <Route path="/chat" element={<Chat profile={profile} />} />
+                                        <Route path="/store/:id" element={<StoreDetail profile={profile} />} />
+                                        <Route path="/product/:id" element={<ProductDetail profile={profile} />} />
+                                        <Route path="/profile" element={<Profile profile={profile} setProfile={setProfile} />} />
+                                        <Route path="*" element={<Navigate to="/" replace />} />
+                                      </>
+                                    )}
+                                  </Routes>
+                                </Suspense>
+                              </AnimatePresence>
+                            </div>
+                            <Footer />
+                          </div>
+                        </main>
+                        <Navigation profile={profile} />
+                        <PWAPrompt />
+                      </ModalProvider>
+                    </MessagingProvider>
+                  </NotificationProvider>
+                } />
+              )}
+            </Routes>
+          </Suspense>
+        </AnimatePresence>
       </div>
     </Router>
   );
@@ -554,8 +589,8 @@ function Navigation({ profile }: { profile: UserProfile | null }) {
   ];
 
   return (
-    <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-7xl px-4 z-30 flex justify-center">
-      <div className="bg-[#0d1117]/80 backdrop-blur-2xl border border-white/10 p-2 rounded-2xl shadow-2xl flex items-center justify-between w-full max-w-[400px]">
+    <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-7xl px-4 z-30 flex justify-center pointer-events-none">
+      <div className="bg-[#0d1117]/80 backdrop-blur-2xl border border-white/10 p-2 rounded-2xl shadow-2xl flex items-center justify-between w-full max-w-[400px] pointer-events-auto">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path || (item.path === '/' && location.pathname === '');
           return (

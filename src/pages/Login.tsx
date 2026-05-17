@@ -4,6 +4,7 @@ import { auth, db, handleFirestoreError, OperationType, syncPublicProfile } from
 import { doc, setDoc, getDoc } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'motion/react';
 import { Zap, LogIn, Shield, Globe, Cpu, AlertTriangle } from 'lucide-react';
+import { Link } from 'react-router-dom';
 import { UserProfile } from '../types';
 
 export default function Login() {
@@ -128,13 +129,18 @@ export default function Login() {
                 </button>
               </div>
 
-              <div className="p-6 bg-white/[0.02] rounded-2xl border border-white/5 space-y-4">
-                <div className="flex items-center gap-2">
-                  <Globe size={14} className="text-primary" />
-                  <span className="text-[9px] font-black uppercase text-white tracking-widest">Global Node Access</span>
+                <div className="p-6 bg-white/[0.02] rounded-2xl border border-white/5 space-y-4">
+                  <div className="flex items-center gap-2">
+                    <Globe size={14} className="text-primary" />
+                    <span className="text-[9px] font-black uppercase text-white tracking-widest">Global Node Access</span>
+                  </div>
+                  <p className="text-[10px] text-gray-500 leading-relaxed font-medium">By connecting, you authorize the Comfort Business Hub to synchronize your trade data across regional nodes.</p>
+                  
+                  <div className="flex justify-center gap-6 pt-2 border-t border-white/5">
+                    <Link to="/terms" className="text-[9px] font-black text-gray-600 uppercase tracking-widest hover:text-primary transition-colors">Terms of Service</Link>
+                    <Link to="/privacy" className="text-[9px] font-black text-gray-600 uppercase tracking-widest hover:text-primary transition-colors">Privacy Policy</Link>
+                  </div>
                 </div>
-                <p className="text-[10px] text-gray-500 leading-relaxed font-medium">By connecting, you authorize the Comfort Business Hub to synchronize your trade data across regional nodes.</p>
-              </div>
             </motion.div>
           </AnimatePresence>
         </motion.div>
@@ -157,10 +163,6 @@ export default function Login() {
           </div>
         </section>
       </div>
-
-      <footer className="mt-auto text-center py-8">
-        <p className="text-[8px] text-gray-700 font-black uppercase tracking-[0.4em]">Secure Terminal • Zimbabwean Jurisdiction</p>
-      </footer>
     </div>
   );
 }
