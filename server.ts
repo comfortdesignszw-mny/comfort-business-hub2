@@ -16,7 +16,7 @@ async function startServer() {
   let ai: GoogleGenAI | null = null;
   const apiKey = process.env.GEMINI_API_KEY;
   
-  if (apiKey) {
+  if (apiKey && apiKey !== 'MY_GEMINI_API_KEY') {
     ai = new GoogleGenAI({ 
       apiKey,
       httpOptions: {
@@ -31,7 +31,9 @@ async function startServer() {
   app.post('/api/import/whatsapp', async (req, res) => {
     try {
       if (!ai) {
-        return res.status(503).json({ error: 'Gemini API not configured. Please add GEMINI_API_KEY in Secrets.' });
+        return res.status(503).json({ 
+          error: 'Gemini API is not configured. To use the WhatsApp Scanner, please add your GEMINI_API_KEY to the "Secrets" panel in the AI Studio Settings menu.' 
+        });
       }
 
       const { url } = req.body;
