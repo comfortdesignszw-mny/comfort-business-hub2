@@ -11,7 +11,7 @@ import {
   orderBy, limit, updateDoc, increment, runTransaction, onSnapshot 
 } from 'firebase/firestore';
 import { UserProfile, Product, Store, Review } from '../types';
-import { cn, formatCurrency } from '../lib/utils';
+import { cn, formatCurrency, safeShare } from '../lib/utils';
 import { interactionService } from '../services/interactionService';
 import { useMessaging } from '../components/MessagingProvider';
 import { useNotifications } from '../components/NotificationProvider';
@@ -153,17 +153,17 @@ export default function ProductDetail({ profile }: { profile: UserProfile | null
     }
   };
 
-  const handleShare = () => {
+  const handleShare = async () => {
     const shareUrl = `${window.location.origin}/product/${id}`;
     if (navigator.share) {
-      navigator.share({
+      await safeShare({
         title: product?.name || 'Comfort Business Hub product',
         text: `Check out ${product?.name} on Comfort Business Hub!`,
         url: shareUrl,
-      }).catch(console.error);
+      });
     } else {
       navigator.clipboard.writeText(shareUrl);
-      alert('Product Link Copied to Clipboard!');
+      triggerFeedback('Link Copied', 'Product Link Copied to Clipboard!', 'message');
     }
   };
 

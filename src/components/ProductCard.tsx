@@ -5,7 +5,7 @@ import {
   Zap, ShoppingBag, ArrowRight, MessageSquare, Phone, Check, Loader2, MapPinned, CreditCard, Share2, X, Info, Star, Store as StoreIcon, Edit3, Trash2, ChevronDown, ChevronUp, ShieldAlert, Heart
 } from 'lucide-react';
 import { UserProfile, Product, Store, EngagementType } from '../types';
-import { cn, formatCurrency } from '../lib/utils';
+import { cn, formatCurrency, safeShare } from '../lib/utils';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { collection, addDoc, serverTimestamp, setDoc, doc, getDoc } from 'firebase/firestore';
 import { interactionService } from '../services/interactionService';
@@ -22,17 +22,13 @@ export default function ProductCard({
   profile, 
   store: initialStore,
   onAction,
-  isOwner = false,
-  onEdit,
-  onDelete
+  isOwner = false
 }: { 
   product: Product, 
   profile: UserProfile | null, 
   store?: Store,
   onAction?: (prod: Product) => void, 
   isOwner?: boolean,
-  onEdit?: (prod: Product) => void,
-  onDelete?: (prod: Product) => void,
   key?: React.Key 
 }) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -169,18 +165,18 @@ export default function ProductCard({
 
   const images = product.images && product.images.length > 0 ? product.images : ['https://images.unsplash.com/photo-1555529733-0e670560f7e1?q=80&w=600&auto=format&fit=crop'];
 
-  const handleShare = (e: React.MouseEvent) => {
+  const handleShare = async (e: React.MouseEvent) => {
     e.stopPropagation();
     const shareUrl = `${window.location.origin}/product/${product.id}`;
     if (navigator.share) {
-      navigator.share({
+      await safeShare({
         title: product.name,
         text: `Check out ${product.name} on Comfort Business Hub!`,
         url: shareUrl,
-      }).catch(console.error);
+      });
     } else {
       navigator.clipboard.writeText(shareUrl);
-      alert('Node Link Copied to Clipboard!');
+      triggerFeedback('Link Copied', 'Node Link Copied to Clipboard!', 'message');
     }
   };
 
@@ -230,39 +226,24 @@ export default function ProductCard({
           </button>
 
           {!isOwner && (
-            <button 
-              onClick={handleLike}
-              className="absolute top-2 sm:top-4 right-10 sm:right-14 p-1.5 sm:p-2 bg-[#05070a]/80 backdrop-blur-md rounded-xl border border-white/10 text-white hover:text-red-500 transition-colors hover:scale-110 active:scale-95 shadow-xl z-20"
-            >
-              <Heart size={12} className={cn("sm:w-[14px] sm:h-[14px]", product.likeCount ? "fill-red-500 text-red-500" : "")} />
-            </button>
-          )}
-
-          {!isOwner && profile && (
-            <button 
-              onClick={(e) => { e.stopPropagation(); setShowReportModal(true); }}
-              className="absolute top-10 sm:top-14 right-2 sm:right-4 p-1.5 sm:p-2 bg-red-500/20 backdrop-blur-md rounded-xl border border-red-500/20 text-red-500 hover:bg-red-500 hover:text-white transition-all hover:scale-110 active:scale-95 shadow-xl z-20"
-              title="Report Abuse"
-            >
-              <ShieldAlert size={12} className="sm:w-[14px] sm:h-[14px]" />
-            </button>
-          )}
-
-          {isOwner && profile?.currentRole === 'supplier' && (
-            <div className="absolute top-4 right-14 flex gap-2 z-20">
+            <>
               <button 
-                onClick={(e) => { e.stopPropagation(); onEdit?.(product); }}
-                className="p-2 bg-primary/20 backdrop-blur-md rounded-xl border border-primary/30 text-primary hover:bg-primary hover:text-black transition-all shadow-xl"
+                onClick={handleLike}
+                className="absolute top-2 sm:top-4 right-10 sm:right-14 p-1.5 sm:p-2 bg-[#05070a]/80 backdrop-blur-md rounded-xl border border-white/10 text-white hover:text-red-500 transition-colors hover:scale-110 active:scale-95 shadow-xl z-20"
               >
-                <Edit3 size={14} />
+                <Heart size={12} className={cn("sm:w-[14px] sm:h-[14px]", product.likeCount ? "fill-red-500 text-red-500" : "")} />
               </button>
-              <button 
-                onClick={(e) => { e.stopPropagation(); onDelete?.(product); }}
-                className="p-2 bg-red-500/20 backdrop-blur-md rounded-xl border border-red-500/30 text-red-500 hover:bg-red-500 hover:text-white transition-all shadow-xl"
-              >
-                <Trash2 size={14} />
-              </button>
-            </div>
+
+              {profile && (
+                <button 
+                  onClick={(e) => { e.stopPropagation(); setShowReportModal(true); }}
+                  className="absolute top-10 sm:top-14 right-2 sm:right-4 p-1.5 sm:p-2 bg-red-500/20 backdrop-blur-md rounded-xl border border-red-500/20 text-red-500 hover:bg-red-500 hover:text-white transition-all hover:scale-110 active:scale-95 shadow-xl z-20"
+                  title="Report Abuse"
+                >
+                  <ShieldAlert size={12} className="sm:w-[14px] sm:h-[14px]" />
+                </button>
+              )}
+            </>
           )}
         </div>
 

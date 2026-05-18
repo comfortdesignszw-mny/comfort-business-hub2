@@ -11,3 +11,20 @@ export function formatCurrency(amount: number, currency: string = 'USD') {
     currency,
   }).format(amount);
 }
+
+export async function safeShare(data: ShareData) {
+  if (!navigator.share) {
+    throw new Error('Share API not supported');
+  }
+  try {
+    await navigator.share(data);
+  } catch (err: any) {
+    if (err.name === 'AbortError') {
+      console.log('Share canceled by user');
+      return;
+    }
+    // For other errors, we might want to let the caller handle them or log them
+    console.error('Share failed:', err);
+    throw err;
+  }
+}

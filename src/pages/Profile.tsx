@@ -1069,7 +1069,6 @@ function SupplierInventoryPreview({ profile }: { profile: UserProfile }) {
               product={p}
               profile={profile}
               isOwner={true}
-              onEdit={() => navigate('/stores?tab=manage', { state: { editProduct: p } })}
             />
         ))}
 
