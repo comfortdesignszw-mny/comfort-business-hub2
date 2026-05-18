@@ -273,13 +273,15 @@ export default function ProductDetail({ profile }: { profile: UserProfile | null
                 <span className="text-[10px] font-black text-white">{product.rating?.toFixed(1) || 'N/A'}</span>
                 <span className="text-[9px] text-gray-500 font-bold uppercase overflow-hidden whitespace-nowrap">({product.reviewCount || 0})</span>
               </div>
-              <button 
-                onClick={handleLike}
-                className="glass-pill !text-cyan-400 !border-cyan-400/30 flex items-center gap-1.5 hover:bg-cyan-400/10 transition-all font-black py-1 px-3"
-              >
-                <Heart size={10} className={cn("fill-cyan-400", product.likeCount ? "opacity-100" : "opacity-30")} />
-                <span className="text-[9px]">{product.likeCount || 0}</span>
-              </button>
+              {profile?.uid !== product.ownerId && (
+                <button 
+                  onClick={handleLike}
+                  className="glass-pill !text-cyan-400 !border-cyan-400/30 flex items-center gap-1.5 hover:bg-cyan-400/10 transition-all font-black py-1 px-3"
+                >
+                  <Heart size={10} className={cn("fill-cyan-400", product.likeCount ? "opacity-100" : "opacity-30")} />
+                  <span className="text-[9px]">{product.likeCount || 0}</span>
+                </button>
+              )}
             </div>
           </div>
           <div className="text-left sm:text-right w-full sm:w-auto pt-3 border-t border-white/5 sm:border-0 flex sm:flex-col justify-between items-center sm:items-end">

@@ -324,18 +324,22 @@ export function StoreDetailContent({ store, profile, showMap = true, allowEdit =
                 {connection?.status === 'accepted' ? 'Trusted Partner' : connection?.status === 'pending' ? 'Request Sent' : 'Connect Node'}
               </button>
             )}
-            <button 
-              onClick={handleFollow}
-              className="glass-pill border-cyan-400/30 text-cyan-400 bg-cyan-400/5 hover:bg-cyan-400/10 hover:shadow-[0_0_15px_rgba(34,211,238,0.4)] flex items-center gap-1.5 text-[9px] sm:text-xs transition-all animate-pulse"
-            >
-              <UserPlus size={10} className="sm:w-3 sm:h-3" /> {store.followerCount || 0} Followers
-            </button>
-            <button 
-              onClick={handleLike}
-              className="glass-pill border-cyan-400/30 text-cyan-400 bg-cyan-400/5 hover:bg-cyan-400/10 hover:shadow-[0_0_15px_rgba(34,211,238,0.4)] flex items-center gap-1.5 text-[9px] sm:text-xs transition-all"
-            >
-              <Heart size={10} className="fill-cyan-400 sm:w-3 sm:h-3" /> {store.likeCount || 0} Likes
-            </button>
+            {profile?.uid !== store.ownerId && (
+              <button 
+                onClick={handleFollow}
+                className="glass-pill border-cyan-400/30 text-cyan-400 bg-cyan-400/5 hover:bg-cyan-400/10 hover:shadow-[0_0_15px_rgba(34,211,238,0.4)] flex items-center gap-1.5 text-[9px] sm:text-xs transition-all animate-pulse"
+              >
+                <UserPlus size={10} className="sm:w-3 sm:h-3" /> {store.followerCount || 0} Followers
+              </button>
+            )}
+            {profile?.uid !== store.ownerId && (
+              <button 
+                onClick={handleLike}
+                className="glass-pill border-cyan-400/30 text-cyan-400 bg-cyan-400/5 hover:bg-cyan-400/10 hover:shadow-[0_0_15px_rgba(34,211,238,0.4)] flex items-center gap-1.5 text-[9px] sm:text-xs transition-all"
+              >
+                <Heart size={10} className="fill-cyan-400 sm:w-3 sm:h-3" /> {store.likeCount || 0} Likes
+              </button>
+            )}
             <button 
               onClick={handleShare}
               className="glass-pill hover:bg-white/10 flex items-center gap-1.5 text-[9px] sm:text-xs"
