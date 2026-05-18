@@ -310,23 +310,25 @@ export default function ProductDetail({ profile }: { profile: UserProfile | null
             </div>
           </button>
           
-          <div className="flex gap-2 p-1">
-            <button 
-              onClick={handleTalk}
-              disabled={isEngaging}
-              className="flex-1 sm:flex-none px-6 py-4 sm:py-0 bg-white/5 border border-white/10 rounded-2xl text-[#05070a] font-black uppercase text-[10px] tracking-widest text-primary hover:bg-primary hover:text-black transition-all flex items-center justify-center gap-2"
-            >
-              {isEngaging ? <Loader2 size={14} className="animate-spin" /> : <MessageSquare size={16} />}
-              Talk
-            </button>
-            <button 
-              onClick={handlePurchase}
-              className="flex-[2] sm:flex-none px-10 py-4 sm:py-0 bg-primary rounded-2xl flex items-center justify-center text-[#05070a] font-black uppercase text-[10px] tracking-widest hover:shadow-[0_0_20px_rgba(0,242,254,0.3)] transition-all gap-2"
-            >
-               <Zap size={16} className="fill-current" />
-               Initialize Order
-            </button>
-          </div>
+          {profile?.uid !== product.ownerId && (
+            <div className="flex gap-2 p-1">
+              <button 
+                onClick={handleTalk}
+                disabled={isEngaging}
+                className="flex-1 sm:flex-none px-6 py-4 sm:py-0 bg-white/5 border border-white/10 rounded-2xl text-[#05070a] font-black uppercase text-[10px] tracking-widest text-primary hover:bg-primary hover:text-black transition-all flex items-center justify-center gap-2"
+              >
+                {isEngaging ? <Loader2 size={14} className="animate-spin" /> : <MessageSquare size={16} />}
+                Talk
+              </button>
+              <button 
+                onClick={handlePurchase}
+                className="flex-[2] sm:flex-none px-10 py-4 sm:py-0 bg-primary rounded-2xl flex items-center justify-center text-[#05070a] font-black uppercase text-[10px] tracking-widest hover:shadow-[0_0_20px_rgba(0,242,254,0.3)] transition-all gap-2"
+              >
+                 <Zap size={16} className="fill-current" />
+                 Initialize Order
+              </button>
+            </div>
+          )}
         </div>
 
         {/* Description */}

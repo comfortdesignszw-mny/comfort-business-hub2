@@ -14,6 +14,7 @@ import { doc, updateDoc, collection, addDoc, query, where, getDocs, deleteDoc, o
 import { cn, formatCurrency } from '../lib/utils';
 import ImageInput from '../components/ImageInput';
 import LocationPicker from '../components/LocationPicker';
+import ProductCard from '../components/ProductCard';
 
 export default function Profile({ profile, setProfile }: { profile: UserProfile | null, setProfile: (p: UserProfile) => void }) {
   const [isEditing, setIsEditing] = useState(false);
@@ -1063,23 +1064,13 @@ function SupplierInventoryPreview({ profile }: { profile: UserProfile }) {
 
       <div className="grid grid-cols-2 gap-4">
         {products.map((p) => (
-          <div 
-            key={p.id}
-            onClick={() => navigate(`/product/${p.id}`)}
-            className="neon-card p-2 group cursor-pointer flex flex-col gap-2"
-          >
-            <div className="aspect-square rounded-xl overflow-hidden bg-[#0d1117] border border-white/5">
-              <img 
-                src={p.images[0]} 
-                className="w-full h-full object-cover opacity-60 group-hover:opacity-100 group-hover:scale-110 transition-all duration-500" 
-                alt={p.name}
-              />
-            </div>
-            <div className="px-1 pb-1">
-              <p className="text-[9px] font-black text-white uppercase tracking-tighter truncate">{p.name}</p>
-              <p className="text-[10px] font-black text-primary italic">{formatCurrency(p.price, p.currency)}</p>
-            </div>
-          </div>
+            <ProductCard 
+              key={p.id}
+              product={p}
+              profile={profile}
+              isOwner={true}
+              onEdit={() => navigate('/stores?tab=manage', { state: { editProduct: p } })}
+            />
         ))}
 
         {products.length === 0 && (
@@ -1109,7 +1100,9 @@ function ConnectionManager({ profile }: { profile: UserProfile }) {
     const unsub1 = onSnapshot(q1, (snap) => {
       const c1 = snap.docs.map(d => ({ id: d.id, ...d.data() } as Connection));
       setConnections(prev => {
-        const others = prev.filter(p => p.receiverId !== profile.uid); 
+        // Remove old versions of these connections by ID
+        const otherIds = new Set(c1.map(c => c.id));
+        const others = prev.filter(p => !otherIds.has(p.id));
         return [...others, ...c1];
       });
       setLoading(false);
@@ -1118,7 +1111,9 @@ function ConnectionManager({ profile }: { profile: UserProfile }) {
     const unsub2 = onSnapshot(q2, (snap) => {
       const c2 = snap.docs.map(d => ({ id: d.id, ...d.data() } as Connection));
       setConnections(prev => {
-        const others = prev.filter(p => p.senderId !== profile.uid); 
+        // Remove old versions of these connections by ID
+        const otherIds = new Set(c2.map(c => c.id));
+        const others = prev.filter(p => !otherIds.has(p.id));
         return [...others, ...c2];
       });
       setLoading(false);

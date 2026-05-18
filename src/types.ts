@@ -98,7 +98,7 @@ export interface Product {
 export interface AppNotification {
   id: string;
   userId: string;
-  type: 'engage' | 'buy' | 'rate' | 'follow' | 'like_store' | 'like_product' | 'connect_request' | 'connect_accept';
+  type: 'engage' | 'buy' | 'rate' | 'follow' | 'like_store' | 'like_product' | 'connect_request' | 'connect_accept' | 'message';
   fromUserId: string;
   fromUserName: string;
   targetId?: string;
@@ -133,13 +133,25 @@ export interface Deal {
   updatedAt: any;
 }
 
+export interface MessageAttachment {
+  id: string;
+  url: string;
+  name: string;
+  type: string; // mime type
+  size: number;
+  thumbnail?: string;
+  metadata?: any;
+}
+
 export interface Message {
   id: string;
   conversationId: string;
   senderId: string;
   text: string;
-  type: 'text' | 'quote' | 'location' | 'image';
+  type: 'text' | 'quote' | 'location' | 'image' | 'video' | 'file' | 'contact' | 'audio';
   payload?: any;
+  attachments?: MessageAttachment[];
+  read: boolean;
   createdAt: any;
 }
 

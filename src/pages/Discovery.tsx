@@ -722,6 +722,7 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
                   product={product} 
                   profile={profile} 
                   store={storesMap[product.storeId]}
+                  isOwner={profile?.uid === product.ownerId}
                 />
               </div>
             ))}

@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
 import { messaging, db } from '../lib/firebase';
 import { getToken, onMessage } from 'firebase/messaging';
-import { doc, updateDoc, addDoc, collection, serverTimestamp, setDoc } from 'firebase/firestore';
+import { doc, updateDoc, addDoc, collection, serverTimestamp, setDoc, query, where, onSnapshot, getDoc } from 'firebase/firestore';
 import { UserProfile } from '../types';
 import { motion, AnimatePresence } from 'motion/react';
 import { Bell, X, WifiOff, Wifi } from 'lucide-react';
@@ -12,8 +12,10 @@ interface MessagingContextType {
   token: string | null;
   notification: any | null;
   isOnline: boolean;
+  unreadMessagesCount: number;
   queuedMessages: QueuedMessage[];
   sendMessage: (convoId: string, text: string) => Promise<void>;
+  sendAttachment: (convoId: string, type: 'image' | 'video' | 'file' | 'location' | 'contact', payload: any) => Promise<void>;
   startConversation: (targetUid: string, initialMessage?: string) => Promise<string>;
 }
 
@@ -21,8 +23,10 @@ const MessagingContext = createContext<MessagingContextType>({
   token: null, 
   notification: null, 
   isOnline: true, 
+  unreadMessagesCount: 0,
   queuedMessages: [],
   sendMessage: async () => {},
+  sendAttachment: async () => {},
   startConversation: async () => ''
 });
 
@@ -32,11 +36,41 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode, profile: U
   const [token, setToken] = useState<string | null>(null);
   const [notification, setNotification] = useState<any>(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
   
   const queuedMessages = useLiveQuery(
-    () => localDB.queuedMessages.toArray(),
+    () => localDB.queuedMessages.orderBy('createdAt').toArray(),
     []
   ) || [];
+
+  const updateQueuedMessage = async (id: number, updates: Partial<QueuedMessage>) => {
+    await localDB.queuedMessages.update(id, updates);
+  };
+
+  useEffect(() => {
+    if (!profile) {
+      setUnreadMessagesCount(0);
+      return;
+    }
+
+    // Listener for unread messages across all user's conversations
+    // Since Firestore doesn't support complex cross-collection queries for messages easily, 
+    // we listen to conversations where user is a participant and has unread messages.
+    // However, it's easier to listen to messages directly if we know the conversations.
+    // For now, let's listen to all "notifications" of type 'message' which we will create below.
+    const q = query(
+      collection(db, 'notifications'),
+      where('userId', '==', profile.uid),
+      where('type', '==', 'message'),
+      where('read', '==', false)
+    );
+
+    const unsubscribe = onSnapshot(q, (snap) => {
+      setUnreadMessagesCount(snap.size);
+    });
+
+    return () => unsubscribe();
+  }, [profile?.uid]);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -55,17 +89,22 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode, profile: U
   useEffect(() => {
     if (isOnline && queuedMessages.length > 0 && profile) {
       const syncMessages = async () => {
-        for (const msg of queuedMessages) {
+        // Only sync messages that are 'pending' (ready to sync)
+        const readyToSync = queuedMessages.filter(m => m.status === 'pending');
+        
+        for (const msg of readyToSync) {
           try {
-            // Check if conversation exists, if not, we might have a problem if it was a startConversation offline
-            // But for simplicity, we assume the conversation was created or will be created
-            await addDoc(collection(db, 'conversations', msg.convoId, 'messages'), {
+            const messageData = {
               conversationId: msg.convoId,
               senderId: msg.senderId,
               text: msg.text,
-              type: 'text',
+              type: msg.type || 'text',
+              payload: msg.payload || null,
+              read: false,
               createdAt: serverTimestamp()
-            });
+            };
+
+            await addDoc(collection(db, 'conversations', msg.convoId, 'messages'), messageData);
 
             await updateDoc(doc(db, 'conversations', msg.convoId), {
               lastMessage: msg.text,
@@ -86,38 +125,127 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode, profile: U
   const sendMessage = async (convoId: string, text: string) => {
     if (!profile) return;
 
-    if (!isOnline) {
-      await localDB.queuedMessages.add({
-        convoId,
-        senderId: profile.uid,
-        text,
-        createdAt: Date.now(),
-        status: 'pending'
-      });
-      return;
-    }
+    const localId = await localDB.queuedMessages.add({
+      convoId,
+      senderId: profile.uid,
+      text,
+      type: 'text',
+      createdAt: Date.now(),
+      status: isOnline ? 'pending' : 'pending' // Always start as pending for now
+    });
+
+    if (!isOnline) return;
 
     try {
-      await addDoc(collection(db, 'conversations', convoId, 'messages'), {
+      const messageData = {
         conversationId: convoId,
         senderId: profile.uid,
         text,
         type: 'text',
+        read: false,
         createdAt: serverTimestamp()
-      });
+      };
+
+      await addDoc(collection(db, 'conversations', convoId, 'messages'), messageData);
 
       await updateDoc(doc(db, 'conversations', convoId), {
         lastMessage: text,
         updatedAt: serverTimestamp()
       });
+
+      // Notification logic...
+      const convoDoc = await getDoc(doc(db, 'conversations', convoId));
+      if (convoDoc.exists()) {
+        const otherId = convoDoc.data().participants?.find((p: string) => p !== profile.uid);
+        if (otherId) {
+          await addDoc(collection(db, 'notifications'), {
+            userId: otherId,
+            type: 'message',
+            fromUserId: profile.uid,
+            fromUserName: profile.name || 'User',
+            targetId: convoId,
+            title: `New Message from ${profile.name || 'User'}`,
+            message: text.length > 50 ? text.substring(0, 47) + '...' : text,
+            read: false,
+            createdAt: serverTimestamp()
+          });
+        }
+      }
+
+      await localDB.queuedMessages.delete(localId);
     } catch (err) {
-      await localDB.queuedMessages.add({
+      console.error("Send failed:", err);
+      // Keep in localDB if failed
+    }
+  };
+
+  const sendAttachment = async (convoId: string, type: any, payload: any, localId?: number) => {
+    if (!profile) return;
+
+    // If no localId, this might be a new request or coming from Chat.tsx
+    // For Chat.tsx, it might have already added a placeholder
+    let finalLocalId = localId;
+    if (!finalLocalId) {
+      finalLocalId = await localDB.queuedMessages.add({
         convoId,
         senderId: profile.uid,
-        text,
+        text: type === 'image' ? '[Image]' : type === 'video' ? '[Video]' : '[File]',
+        type,
+        payload,
         createdAt: Date.now(),
         status: 'pending'
       });
+    }
+
+    if (!isOnline) {
+      await localDB.queuedMessages.update(finalLocalId, { status: 'pending' });
+      return;
+    }
+
+    try {
+      const messageData = {
+        conversationId: convoId,
+        senderId: profile.uid,
+        text: type === 'image' ? '[Image Attachment]' : 
+              type === 'video' ? '[Video Attachment]' : 
+              type === 'location' ? '[Location Share]' : 
+              type === 'contact' ? '[Contact Shared]' : '[File Attachment]',
+        type,
+        payload,
+        read: false,
+        createdAt: serverTimestamp()
+      };
+
+      await addDoc(collection(db, 'conversations', convoId, 'messages'), messageData);
+
+      await updateDoc(doc(db, 'conversations', convoId), {
+        lastMessage: messageData.text,
+        updatedAt: serverTimestamp()
+      });
+
+      // Notify
+      const convoDoc = await getDoc(doc(db, 'conversations', convoId));
+      if (convoDoc.exists()) {
+        const otherId = convoDoc.data().participants?.find((p: string) => p !== profile.uid);
+        if (otherId) {
+          await addDoc(collection(db, 'notifications'), {
+            userId: otherId,
+            type: 'message',
+            fromUserId: profile.uid,
+            fromUserName: profile.name || 'User',
+            targetId: convoId,
+            title: `New Attachment from ${profile.name || 'User'}`,
+            message: messageData.text,
+            read: false,
+            createdAt: serverTimestamp()
+          });
+        }
+      }
+
+      await localDB.queuedMessages.delete(finalLocalId);
+    } catch (err) {
+      console.error("Attachment send failed:", err);
+      await localDB.queuedMessages.update(finalLocalId, { status: 'pending' });
     }
   };
 
@@ -142,17 +270,13 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode, profile: U
         }
       } catch (err) {
         console.error("Conversation initialization failed:", err);
-        // If we fail here, sendMessage will handle queuing if it was an error due to offline
         if (initialMessage) {
           await sendMessage(convoId, initialMessage);
         }
       }
     };
 
-    // Execute in background
     ensureConversation();
-
-    // Return ID immediately for navigation
     return convoId;
   };
 
@@ -161,23 +285,14 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode, profile: U
 
     const requestPermission = async () => {
       try {
-        if (!('Notification' in window)) {
-          console.log('This browser does not support desktop notifications');
-          return;
-        }
+        if (!('Notification' in window)) return;
 
         const permission = await Notification.requestPermission();
         if (permission === 'granted') {
-          // Get the FCM token
-          // Note: In production you'd need a VAPID key: 
-          // const currentToken = await getToken(messaging, { vapidKey: 'YOUR_VAPID_KEY' });
-          // If this fails with permission error, it's usually a missing project config or VAPID key
           try {
             const currentToken = await getToken(messaging);
-            
             if (currentToken) {
               setToken(currentToken);
-              // Store token in Firestore if it changed
               if (profile.fcmToken !== currentToken) {
                 await updateDoc(doc(db, 'users', profile.uid), {
                   fcmToken: currentToken
@@ -185,38 +300,34 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode, profile: U
               }
             }
           } catch (tokenErr) {
-            // Silently fail token retrieval as we have Firestore fallbacks
-            console.warn('FCM Token sync skipped. This is expected if FCM is not fully configured in Firebase Console.', tokenErr);
+            console.warn('FCM Token sync skipped.', tokenErr);
           }
         }
       } catch (err) {
-        console.warn('Notification permission request failed or was denied.', err);
+        console.warn('Notification permission request failed.', err);
       }
     };
 
     requestPermission();
 
-    // Handle foreground messages
     const unsubscribe = onMessage(messaging, (payload) => {
-      console.log('Foreground message received: ', payload);
       setNotification(payload);
-      
-      // Simple custom notification toast
-      if (payload.notification) {
-        const title = payload.notification.title || 'New Notification';
-        const body = payload.notification.body || '';
-        
-        // Use a simple custom alert or trigger a global toast
-        // For now, we'll log it and let the UI react to the 'notification' state
-        console.log(`Notification: ${title} - ${body}`);
-      }
     });
 
     return () => unsubscribe();
   }, [profile]);
 
   return (
-    <MessagingContext.Provider value={{ token, notification, isOnline, queuedMessages, sendMessage, startConversation }}>
+    <MessagingContext.Provider value={{ 
+      token, 
+      notification, 
+      isOnline, 
+      unreadMessagesCount, 
+      queuedMessages, 
+      sendMessage, 
+      sendAttachment,
+      startConversation 
+    }}>
       {children}
       <AnimatePresence>
         {/* Connection Status Toast */}

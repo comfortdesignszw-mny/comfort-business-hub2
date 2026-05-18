@@ -307,7 +307,7 @@ export function StoreDetailContent({ store, profile, showMap = true, allowEdit =
             <div className="glass-pill !text-neon-green flex items-center gap-1.5 text-[9px] sm:text-xs">
               <Star size={10} className="fill-neon-green sm:w-3 sm:h-3" /> {store.rating.toFixed(1)} ({store.reviewCount})
             </div>
-            {!isOwner && (
+            {profile?.uid !== store.ownerId && (
               <button 
                 onClick={handleConnect}
                 disabled={!!connection}

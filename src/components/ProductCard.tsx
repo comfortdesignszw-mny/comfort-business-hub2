@@ -311,23 +311,25 @@ export default function ProductCard({
               </div>
             </div>
 
-            <div className="flex gap-1.5 sm:gap-2" onClick={(e) => e.stopPropagation()}>
-              <button 
-                onClick={() => handleAction('engage')}
-                disabled={isEngaging}
-                className="flex-1 py-2 sm:py-3 bg-white/5 border border-white/10 rounded-xl text-[8px] sm:text-[9px] font-black uppercase tracking-widest text-gray-400 hover:text-white hover:bg-white/10 transition-all flex items-center justify-center gap-1.5 sm:gap-2"
-              >
-                {isEngaging ? <Loader2 size={10} className="animate-spin" /> : <MessageSquare size={10} />}
-                Talk
-              </button>
-              <button 
-                onClick={() => handleAction('shop')}
-                className="flex-[1.5] py-2 sm:py-3 bg-primary rounded-xl text-[8px] sm:text-[9px] font-black uppercase tracking-[0.15em] sm:tracking-[0.2em] text-[#05070a] shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-1.5 sm:gap-2"
-              >
-                {getActionIcon()}
-                {product.buyButtonText || 'Order'}
-              </button>
-            </div>
+            {!isOwner && (
+              <div className="flex gap-1.5 sm:gap-2" onClick={(e) => e.stopPropagation()}>
+                <button 
+                  onClick={() => handleAction('engage')}
+                  disabled={isEngaging}
+                  className="flex-1 py-2 sm:py-3 bg-white/5 border border-white/10 rounded-xl text-[8px] sm:text-[9px] font-black uppercase tracking-widest text-gray-400 hover:text-white hover:bg-white/10 transition-all flex items-center justify-center gap-1.5 sm:gap-2"
+                >
+                  {isEngaging ? <Loader2 size={10} className="animate-spin" /> : <MessageSquare size={10} />}
+                  Talk
+                </button>
+                <button 
+                  onClick={() => handleAction('shop')}
+                  className="flex-[1.5] py-2 sm:py-3 bg-primary rounded-xl text-[8px] sm:text-[9px] font-black uppercase tracking-[0.15em] sm:tracking-[0.2em] text-[#05070a] shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-1.5 sm:gap-2"
+                >
+                  {getActionIcon()}
+                  {product.buyButtonText || 'Order'}
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </motion.div>

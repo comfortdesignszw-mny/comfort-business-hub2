@@ -28,8 +28,11 @@ export interface QueuedMessage {
   convoId: string;
   senderId: string;
   text: string;
+  type?: string;
+  payload?: any;
   createdAt: number;
-  status: 'pending' | 'failed';
+  status: 'pending' | 'failed' | 'uploading';
+  progress?: number;
 }
 
 export class ComfortOfflineDB extends Dexie {

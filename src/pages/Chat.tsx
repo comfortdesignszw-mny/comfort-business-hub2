@@ -3,16 +3,20 @@ import React from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   MessageSquare, Phone, MoreVertical, Send, ImageIcon, MapPin, 
-  FileText, Zap, ChevronRight, ArrowLeft, Paperclip, Plus, Loader2, ShieldCheck, Lock
+  FileText, Zap, ChevronRight, ArrowLeft, Paperclip, Plus, Loader2, ShieldCheck, Lock,
+  Camera, Video, User, File, X as CloseIcon, Download
 } from 'lucide-react';
-import { UserProfile, Conversation, Message } from '../types';
+import { UserProfile, Conversation, Message, MessageAttachment } from '../types';
 import { cn } from '../lib/utils';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { db, handleFirestoreError, OperationType, storage } from '../lib/firebase';
+import { localDB } from '../lib/db';
 import { 
   collection, query, where, onSnapshot, orderBy, 
   addDoc, serverTimestamp, doc, getDoc, updateDoc,
-  limit
+  limit, writeBatch, getDocs
 } from 'firebase/firestore';
+import { ref, uploadBytesResumable, getDownloadURL } from 'firebase/storage';
+import imageCompression from 'browser-image-compression';
 
 import { useMessaging } from '../components/MessagingProvider';
 
@@ -45,6 +49,15 @@ export default function Chat({ profile }: { profile: UserProfile | null }) {
         const data = d.data();
         const otherId = data.participants?.find((p: string) => p !== profile.uid);
         
+        // Fetch unread count for this convo (sender !== profile.uid && read == false)
+        const unreadQ = query(
+          collection(db, 'conversations', d.id, 'messages'),
+          where('senderId', '!=', profile.uid),
+          where('read', '==', false)
+        );
+        const unreadSnap = await getDocs(unreadQ);
+        const unreadCount = unreadSnap.size;
+
         let otherName = 'Secure Node';
         if (otherId) {
           try {
@@ -69,7 +82,8 @@ export default function Chat({ profile }: { profile: UserProfile | null }) {
           id: d.id,
           ...data,
           participantName: otherName,
-          participantId: otherId
+          participantId: otherId,
+          unreadCount
         };
       }));
       setConversations(convos);
@@ -138,9 +152,16 @@ export default function Chat({ profile }: { profile: UserProfile | null }) {
               <div className="flex-1 text-left space-y-1">
                 <div className="flex justify-between items-center">
                   <h4 className="font-black text-white uppercase tracking-widest text-sm group-hover:text-primary transition-colors">{conv.participantName}</h4>
-                  <span className="text-[8px] text-gray-600 font-bold uppercase">
-                    {conv.updatedAt?.seconds ? new Date(conv.updatedAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}
-                  </span>
+                  <div className="flex flex-col items-end gap-1">
+                    <span className="text-[8px] text-gray-600 font-bold uppercase">
+                      {conv.updatedAt?.seconds ? new Date(conv.updatedAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}
+                    </span>
+                    {conv.unreadCount > 0 && (
+                      <span className="w-5 h-5 bg-red-600 rounded-full flex items-center justify-center text-[8px] font-black text-white shadow-[0_0_10px_rgba(255,0,0,0.5)] animate-pulse">
+                        {conv.unreadCount}
+                      </span>
+                    )}
+                  </div>
                 </div>
                 <p className="text-xs text-gray-500 line-clamp-1 font-medium italic">"{conv.lastMessage || 'Channel established'}"</p>
               </div>
@@ -169,11 +190,15 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
   const [text, setText] = useState('');
   const [messages, setMessages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
-  const { sendMessage, queuedMessages } = useMessaging();
+  const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
+  const { sendMessage, sendAttachment, queuedMessages } = useMessaging();
   const [participantInfo, setParticipantInfo] = useState<{ name: string } | null>(
     convo.participantName ? { name: convo.participantName } : null
   );
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const videoInputRef = useRef<HTMLInputElement>(null);
+  const docInputRef = useRef<HTMLInputElement>(null);
 
   const currentQueuedMessages = queuedMessages.filter(m => m.convoId === convo.id);
 
@@ -224,8 +249,38 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      setMessages(snapshot.docs.map(d => ({ id: d.id, ...d.data() })));
+      const docs = snapshot.docs.map(d => ({ id: d.id, ...d.data() }));
+      setMessages(docs);
       setLoading(false);
+      
+      // Mark unread messages as read
+      const unreadMessages = snapshot.docs.filter(d => !d.data().read && d.data().senderId !== profile.uid);
+      if (unreadMessages.length > 0) {
+        const batch = writeBatch(db);
+        unreadMessages.forEach(d => {
+          batch.update(d.ref, { read: true });
+        });
+        batch.commit();
+      }
+
+      // Also mark corresponding notifications as read
+      const markNotificationsRead = async () => {
+        const nQuery = query(
+          collection(db, 'notifications'), 
+          where('userId', '==', profile.uid),
+          where('type', '==', 'message'),
+          where('targetId', '==', convo.id),
+          where('read', '==', false)
+        );
+        const nSnap = await getDocs(nQuery);
+        if (!nSnap.empty) {
+          const batch = writeBatch(db);
+          nSnap.docs.forEach(d => batch.update(d.ref, { read: true }));
+          await batch.commit();
+        }
+      };
+      markNotificationsRead();
+
       setTimeout(() => {
         scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
       }, 100);
@@ -248,13 +303,132 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
     }, 100);
   };
 
+  const handleFileUpload = async (file: File, type: 'image' | 'video' | 'file') => {
+    if (!profile || !convo.id) return;
+    
+    setShowAttachmentMenu(false);
+
+    // Create local preview
+    const previewUrl = URL.createObjectURL(file);
+    const localId = await localDB.queuedMessages.add({
+      convoId: convo.id,
+      senderId: profile.uid,
+      text: type === 'image' ? '[Image]' : type === 'video' ? '[Video]' : '[File]',
+      type,
+      payload: { url: previewUrl, name: file.name, size: file.size },
+      createdAt: Date.now(),
+      status: 'uploading',
+      progress: 0
+    });
+
+    try {
+      let finalFile = file;
+
+      // Compress image if applicable
+      if (type === 'image' && file.type.startsWith('image/')) {
+        const options = {
+          maxSizeMB: 0.5,
+          maxWidthOrHeight: 1920,
+          useWebWorker: true,
+          onProgress: (p: number) => {
+            localDB.queuedMessages.update(localId, { progress: p * 0.2 }); // 1st 20% for compression
+          }
+        };
+        try {
+          finalFile = await imageCompression(file, options);
+          console.log(`Compression complete: ${(file.size / 1024 / 1024).toFixed(2)}MB -> ${(finalFile.size / 1024 / 1024).toFixed(2)}MB`);
+        } catch (error) {
+          console.error("Compression failed, using original:", error);
+        }
+      }
+
+      const storagePath = `conversations/${convo.id}/${Date.now()}_${file.name}`;
+      const storageRef = ref(storage, storagePath);
+      const uploadTask = uploadBytesResumable(storageRef, finalFile);
+
+      uploadTask.on('state_changed', 
+        (snapshot) => {
+          const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 80 + 20; // Last 80% for upload
+          localDB.queuedMessages.update(localId, { progress });
+        }, 
+        (error) => {
+          console.error("Upload failed:", error);
+          localDB.queuedMessages.update(localId, { status: 'failed' });
+        }, 
+        async () => {
+          const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
+          
+          // Cleanup local blob URL if it was an image
+          URL.revokeObjectURL(previewUrl);
+
+          await sendAttachment(convo.id, type, {
+            url: downloadURL,
+            name: file.name,
+            size: finalFile.size,
+            mimeType: file.type
+          }, localId);
+          
+          setTimeout(() => {
+            scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+          }, 100);
+        }
+      );
+    } catch (err) {
+      console.error("Attachment handling failed:", err);
+      localDB.queuedMessages.update(localId, { status: 'failed' });
+    }
+  };
+
+  const handleLocationShare = async () => {
+    if (!navigator.geolocation) {
+      alert("Geolocation is not supported by this browser.");
+      return;
+    }
+
+    setShowAttachmentMenu(false);
+    navigator.geolocation.getCurrentPosition(async (pos) => {
+      const { latitude, longitude } = pos.coords;
+      await sendAttachment(convo.id, 'location', {
+        lat: latitude,
+        lng: longitude,
+        address: `Lat: ${latitude.toFixed(4)}, Lng: ${longitude.toFixed(4)}`
+      });
+      
+      setTimeout(() => {
+        scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+      }, 100);
+    });
+  };
+
+  const handleContactShare = async () => {
+    // Simulated contact share for now
+    setShowAttachmentMenu(false);
+    await sendAttachment(convo.id, 'contact', {
+      name: "Business Node",
+      phone: "+263 XXX XXX XXX",
+      vcard: "BEGIN:VCARD\nVERSION:3.0\nFN:Business Node\nTEL:+263\nEND:VCARD"
+    });
+    
+    setTimeout(() => {
+      scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });
+    }, 100);
+  };
+
   const allMessages = [...messages, ...currentQueuedMessages.map(m => ({
     id: `queued-${m.id}`,
     senderId: m.senderId,
     text: m.text,
+    type: m.type,
+    payload: m.payload,
     createdAt: { seconds: Math.floor(m.createdAt / 1000) },
-    isQueued: true
-  }))];
+    isQueued: true,
+    status: m.status,
+    progress: m.progress
+  }))].sort((a, b) => {
+    const timeA = a.createdAt?.seconds || 0;
+    const timeB = b.createdAt?.seconds || 0;
+    return timeA - timeB;
+  });
 
   return (
     <motion.div 
@@ -292,57 +466,221 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
         </div>
       </div>
 
-      {/* Messages */}
-      <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar pb-32">
-        <div className="flex flex-col items-center gap-2 py-8">
-          <ShieldCheck size={32} className="text-primary/20" />
-          <span className="glass-pill !text-[8px] uppercase tracking-[0.3em] font-black !border-primary/10">Privacy Matrix Established</span>
-          <p className="text-[7px] text-gray-700 font-bold uppercase tracking-widest max-w-[200px] text-center">Protocol: End-to-End Node Restriction. Only participants can access this stream.</p>
-        </div>
-        
-        {loading ? (
-          <div className="flex justify-center py-20">
-            <Loader2 className="animate-spin text-primary/40" size={24} />
+        {/* Messages */}
+        <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar pb-32">
+          <div className="flex flex-col items-center gap-2 py-8">
+            <ShieldCheck size={32} className="text-primary/20" />
+            <span className="glass-pill !text-[8px] uppercase tracking-[0.3em] font-black !border-primary/10">Privacy Matrix Established</span>
+            <p className="text-[7px] text-gray-700 font-bold uppercase tracking-widest max-w-[200px] text-center">Protocol: End-to-End Node Restriction. Only participants can access this stream.</p>
           </div>
-        ) : (
-          allMessages.map((msg) => {
-            const isMe = msg.senderId === profile?.uid;
-            return (
-              <div 
-                key={msg.id} 
-                className={cn(
-                  "flex flex-col max-w-[85%] space-y-1",
-                  isMe ? "ml-auto items-end" : "items-start"
-                )}
-              >
+          
+          {loading ? (
+            <div className="flex justify-center py-20">
+              <Loader2 className="animate-spin text-primary/40" size={24} />
+            </div>
+          ) : (
+            allMessages.map((msg) => {
+              const isMe = msg.senderId === profile?.uid;
+              return (
                 <div 
+                  key={msg.id} 
                   className={cn(
-                    "px-4 py-3 rounded-2xl text-sm font-medium shadow-lg backdrop-blur-md relative overflow-hidden group whitespace-pre-wrap transition-all",
-                    isMe 
-                      ? "bg-primary/20 text-white border border-primary/30 rounded-tr-none text-right" 
-                      : "bg-white/5 text-gray-200 border border-white/10 rounded-tl-none text-left",
-                    msg.isQueued && "opacity-60 border-dashed border-gray-500"
+                    "flex flex-col max-w-[85%] space-y-1",
+                    isMe ? "ml-auto items-end" : "items-start"
                   )}
                 >
-                  {isMe && <div className="absolute top-0 right-0 w-12 h-12 bg-primary/10 blur-xl group-hover:bg-primary/20 transition-colors"></div>}
-                  <p className="relative z-10 leading-relaxed font-medium tracking-tight">{msg.text}</p>
+                  <div 
+                    className={cn(
+                      "px-4 py-3 rounded-2xl text-sm font-medium shadow-lg backdrop-blur-md relative overflow-hidden group whitespace-pre-wrap transition-all",
+                      isMe 
+                        ? "bg-primary/20 text-white border border-primary/30 rounded-tr-none text-right" 
+                        : "bg-white/5 text-gray-200 border border-white/10 rounded-tl-none text-left",
+                      msg.isQueued && "opacity-80 border-dashed border-gray-500/50"
+                    )}
+                  >
+                    {isMe && <div className="absolute top-0 right-0 w-12 h-12 bg-primary/10 blur-xl group-hover:bg-primary/20 transition-colors"></div>}
+                    
+                    {/* Render different message types */}
+                    {msg.type === 'image' && msg.payload?.url && (
+                      <div className="space-y-2 relative">
+                        <img 
+                          src={msg.payload.url} 
+                          alt="Attachment" 
+                          className={cn(
+                            "max-w-full rounded-xl border border-white/10 cursor-pointer hover:opacity-90 transition-opacity",
+                            msg.status === 'uploading' && "opacity-40 grayscale blur-[2px]"
+                          )}
+                          onClick={() => window.open(msg.payload.url, '_blank')}
+                        />
+                        {msg.status === 'uploading' && (
+                          <div className="absolute inset-0 flex flex-col items-center justify-center gap-2">
+                            <Loader2 size={24} className="animate-spin text-primary" />
+                            <span className="text-[8px] font-black uppercase tracking-[0.2em] text-white bg-black/50 px-2 py-0.5 rounded-full">
+                              {Math.round(msg.progress || 0)}%
+                            </span>
+                          </div>
+                        )}
+                        {msg.text && msg.text !== '[Image Attachment]' && msg.text !== '[Image]' && <p className="text-[11px] opacity-80">{msg.text}</p>}
+                      </div>
+                    )}
+
+                    {msg.type === 'video' && msg.payload?.url && (
+                      <div className="space-y-2 relative">
+                        {msg.status === 'uploading' ? (
+                          <div className="w-[200px] aspect-video bg-white/5 rounded-xl flex flex-col items-center justify-center border border-white/10 relative overflow-hidden">
+                             <Video size={32} className="text-gray-700 mb-2" />
+                             <div className="absolute bottom-0 left-0 h-1 bg-primary/50" style={{ width: `${msg.progress || 0}%` }} />
+                             <span className="text-[8px] font-black text-gray-500 uppercase tracking-widest text-center px-4">Processing Node... {Math.round(msg.progress || 0)}%</span>
+                          </div>
+                        ) : (
+                          <video 
+                            src={msg.payload.url} 
+                            controls 
+                            className="max-w-full rounded-xl border border-white/10"
+                          />
+                        )}
+                        {msg.text && msg.text !== '[Video Attachment]' && msg.text !== '[Video]' && <p className="text-[11px] opacity-80">{msg.text}</p>}
+                      </div>
+                    )}
+
+                    {msg.type === 'file' && msg.payload?.url && (
+                      <div className="relative">
+                        <a 
+                          href={msg.status === 'uploading' ? '#' : msg.payload.url} 
+                          target={msg.status === 'uploading' ? undefined : "_blank"} 
+                          rel="noreferrer"
+                          className={cn(
+                            "flex items-center gap-3 p-2 bg-white/5 rounded-xl border border-white/10 hover:bg-white/10 transition-all shrink-0",
+                            msg.status === 'uploading' && "opacity-50 grayscale pointer-events-none"
+                          )}
+                        >
+                          <div className="w-10 h-10 bg-primary/20 rounded-lg flex items-center justify-center text-primary">
+                            <FileText size={20} />
+                          </div>
+                          <div className="flex-1 min-w-0 pr-4 text-left">
+                            <p className="text-[10px] font-black uppercase tracking-tight truncate text-white">{msg.payload.name || 'Document'}</p>
+                            <p className="text-[8px] text-gray-500 font-bold uppercase">{(msg.payload.size / 1024).toFixed(0)} KB • {msg.status === 'uploading' ? 'UPLOADING' : 'FILE'}</p>
+                          </div>
+                          {msg.status === 'uploading' ? <Loader2 size={14} className="animate-spin text-primary" /> : <Download size={14} className="text-gray-500" />}
+                        </a>
+                      </div>
+                    )}
+
+                    {msg.type === 'location' && msg.payload && (
+                      <div className="space-y-2">
+                        <div className="flex items-center gap-2 mb-1 p-1">
+                          <MapPin size={14} className="text-primary" />
+                          <span className="text-[10px] font-black uppercase tracking-tight">Shared Location</span>
+                        </div>
+                        <div 
+                          className="w-full aspect-video bg-white/10 rounded-xl flex flex-col items-center justify-center cursor-pointer border border-white/5 hover:bg-white/20 transition-all"
+                          onClick={() => window.open(`https://www.google.com/maps?q=${msg.payload.lat},${msg.payload.lng}`, '_blank')}
+                        >
+                          <MapPin size={24} className="text-primary animate-bounce mb-2" />
+                          <p className="text-[8px] font-black uppercase text-gray-400">View on Secure Maps</p>
+                        </div>
+                        {msg.payload.address && <p className="text-[9px] text-gray-500 italic mt-1">{msg.payload.address}</p>}
+                      </div>
+                    )}
+
+                    {msg.type === 'contact' && msg.payload && (
+                      <div className="flex items-center gap-3 p-2 bg-white/5 rounded-xl border border-white/10 w-full min-w-[200px]">
+                        <div className="w-10 h-10 bg-accent/20 rounded-lg flex items-center justify-center text-accent">
+                          <User size={20} />
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="text-[10px] font-black uppercase tracking-tight truncate text-white">{msg.payload.name}</p>
+                          <p className="text-[8px] text-gray-500 font-bold uppercase">{msg.payload.phone}</p>
+                        </div>
+                        <button className="p-1 px-2 bg-white/5 rounded-lg text-[8px] font-black text-primary uppercase tracking-widest border border-primary/20">Add</button>
+                      </div>
+                    )}
+
+                    {(!msg.type || msg.type === 'text') && (
+                      <p className="relative z-10 leading-relaxed font-medium tracking-tight whitespace-pre-wrap">{msg.text}</p>
+                    )}
+                  </div>
+                  <p className="text-[7px] text-gray-600 font-black uppercase tracking-widest flex items-center gap-1">
+                    {msg.createdAt?.seconds ? new Date(msg.createdAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Sending...'} • {msg.isQueued ? <span className="text-gray-500 italic">PENDING SYNC</span> : (isMe ? 'PROCESSED' : 'DECODED')}
+                  </p>
                 </div>
-                <p className="text-[7px] text-gray-600 font-black uppercase tracking-widest flex items-center gap-1">
-                  {msg.createdAt?.seconds ? new Date(msg.createdAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Sending...'} • {msg.isQueued ? <span className="text-gray-500 italic">PENDING SYNC</span> : (isMe ? 'PROCESSED' : 'DECODED')}
-                </p>
-              </div>
-            );
-          })
-        )}
-      </div>
+              );
+            })
+          )}
+        </div>
 
       {/* Input area */}
-      <div className="p-4 bg-[#05070a] border-t border-white/5 backdrop-blur-xl absolute bottom-0 left-0 right-0">
+      <div className="p-4 bg-[#05070a] border-t border-white/5 backdrop-blur-xl absolute bottom-0 left-0 right-0 z-[110]">
+        
+        {/* Attachment Menu */}
+        <AnimatePresence>
+          {showAttachmentMenu && (
+            <motion.div
+              initial={{ opacity: 0, y: 50, scale: 0.95 }}
+              animate={{ opacity: 1, y: -10, scale: 1 }}
+              exit={{ opacity: 0, y: 50, scale: 0.95 }}
+              className="absolute bottom-full left-4 bg-[#0d1117] border border-white/10 rounded-3xl p-4 shadow-2xl grid grid-cols-3 gap-4 mb-4 z-[120]"
+            >
+              {[
+                { icon: ImageIcon, label: 'Image', color: 'text-primary', onClick: () => fileInputRef.current?.click() },
+                { icon: Video, label: 'Video', color: 'text-neon-green', onClick: () => videoInputRef.current?.click() },
+                { icon: FileText, label: 'Document', color: 'text-accent', onClick: () => docInputRef.current?.click() },
+                { icon: MapPin, label: 'Location', color: 'text-red-500', onClick: handleLocationShare },
+                { icon: User, label: 'Contact', color: 'text-blue-500', onClick: handleContactShare },
+                { icon: Camera, label: 'Media', color: 'text-white', onClick: () => fileInputRef.current?.click() },
+              ].map((item, idx) => (
+                <motion.button
+                  key={idx}
+                  whileHover={{ scale: 1.05, backgroundColor: 'rgba(255,255,255,0.05)' }}
+                  whileTap={{ scale: 0.95 }}
+                  onClick={item.onClick}
+                  className="flex flex-col items-center gap-2 p-2 rounded-2xl transition-all"
+                >
+                  <div className={cn("w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center border border-white/5 shadow-inner", item.color)}>
+                    <item.icon size={20} />
+                  </div>
+                  <span className="text-[8px] font-black uppercase tracking-widest text-gray-500">{item.label}</span>
+                </motion.button>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        {/* Hidden inputs */}
+        <input 
+          type="file" 
+          ref={fileInputRef} 
+          className="hidden" 
+          accept="image/*" 
+          onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], 'image')} 
+        />
+        <input 
+          type="file" 
+          ref={videoInputRef} 
+          className="hidden" 
+          accept="video/*" 
+          onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], 'video')} 
+        />
+        <input 
+          type="file" 
+          ref={docInputRef} 
+          className="hidden" 
+          accept=".pdf,.doc,.docx,.txt" 
+          onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], 'file')} 
+        />
+
         <form onSubmit={handleSend} className="relative group max-w-4xl mx-auto">
           <div className="absolute -inset-0.5 bg-gradient-to-r from-primary to-accent rounded-2xl blur opacity-10 group-focus-within:opacity-30 transition duration-1000"></div>
           <div className="relative flex items-center bg-[#0d1117] border border-white/10 rounded-2xl overflow-hidden p-2">
-            <button type="button" className="w-10 h-10 flex items-center justify-center text-gray-500 hover:text-primary transition-colors">
-              <Paperclip size={20} />
+            <button 
+              type="button" 
+              onClick={() => setShowAttachmentMenu(!showAttachmentMenu)}
+              className={cn(
+                "w-10 h-10 flex items-center justify-center transition-colors",
+                showAttachmentMenu ? "text-primary rotate-45" : "text-gray-500 hover:text-primary"
+              )}
+            >
+              {showAttachmentMenu ? <Plus size={24} /> : <Paperclip size={20} />}
             </button>
             <input 
               type="text" 
@@ -350,6 +688,7 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
               className="flex-1 bg-transparent px-2 py-3 text-white placeholder-gray-600 outline-none text-sm font-bold tracking-tight italic"
               value={text}
               onChange={(e) => setText(e.target.value)}
+              onFocus={() => setShowAttachmentMenu(false)}
             />
             <button 
               type="submit"

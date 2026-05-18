@@ -105,8 +105,8 @@ service cloud.firestore {
           && incoming().updatedAt == request.time
           && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'contactNumbers', 'email', 'category', 'logo', 'coverPhoto', 'address', 'specificBusinessType', 'geohash', 'lat', 'lng', 'updatedAt', 'followerCount', 'likeCount', '_syncedAt']))
         || 
-        // Tier 2: Public Interactions (Follow/Like)
-        (incoming().diff(existing()).affectedKeys().hasOnly(['followerCount', 'likeCount']) 
+        // Tier 2: Public Interactions (Follow/Like/Rate)
+        (incoming().diff(existing()).affectedKeys().hasOnly(['followerCount', 'likeCount', 'rating', 'reviewCount', 'updatedAt', '_syncedAt']) 
           && incoming().ownerId == existing().ownerId)
       );
       allow delete: if isOwner(existing().ownerId);
@@ -126,7 +126,7 @@ service cloud.firestore {
           && incoming().diff(existing()).affectedKeys().hasOnly(['name', 'description', 'price', 'currency', 'category', 'images', 'buyButtonType', 'buyButtonLink', 'isActive', 'rating', 'reviewCount', 'likeCount', 'updatedAt', '_syncedAt']))
         ||
         // Tier 2: Public Feedback (Rating/Likes)
-        (incoming().diff(existing()).affectedKeys().hasOnly(['rating', 'reviewCount', 'likeCount'])
+        (incoming().diff(existing()).affectedKeys().hasOnly(['rating', 'reviewCount', 'likeCount', 'updatedAt', '_syncedAt'])
           && incoming().ownerId == existing().ownerId)
       );
       allow delete: if isOwner(existing().ownerId);
@@ -146,7 +146,7 @@ service cloud.firestore {
     match /notifications/{id} {
       allow get, delete: if isOwner(existing().userId);
       allow list: if isSignedIn() && resource.data.userId == request.auth.uid;
-      allow create: if isSignedIn() && incoming().fromUserId == request.auth.uid;
+      allow create: if isSignedIn() && (incoming().fromUserId == request.auth.uid || (incoming().userId == request.auth.uid && incoming().fromUserId == 'system'));
       allow update: if isOwner(existing().userId) && incoming().diff(existing()).affectedKeys().hasOnly(['read', 'updatedAt', '_syncedAt']);
     }
 
@@ -160,6 +160,8 @@ service cloud.firestore {
         allow create: if isSignedIn() && isValidId(messageId)
           && incoming().senderId == request.auth.uid
           && request.auth.uid in get(/databases/$(database)/documents/conversations/$(convoId)).data.participants;
+        allow update: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/conversations/$(convoId)).data.participants
+          && (incoming().diff(existing()).affectedKeys().hasOnly(['read', 'updatedAt', '_syncedAt']) || isOwner(existing().senderId));
       }
     }
 

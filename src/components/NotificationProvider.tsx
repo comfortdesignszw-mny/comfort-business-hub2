@@ -3,7 +3,7 @@ import { collection, query, where, orderBy, onSnapshot, doc, updateDoc } from 'f
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { UserProfile, AppNotification } from '../types';
 import { AnimatePresence, motion } from 'motion/react';
-import { Bell, X, Info, Star, ShoppingBag, Zap, Heart, UserPlus } from 'lucide-react';
+import { Bell, X, Info, Star, ShoppingBag, Zap, Heart, UserPlus, MessageSquare } from 'lucide-react';
 
 interface NotificationContextType {
   notifications: AppNotification[];
@@ -122,6 +122,21 @@ export function NotificationProvider({ children, profile }: { children: React.Re
         osc1.stop(now + 0.2);
         osc2.start(now + 0.05);
         osc2.stop(now + 0.3);
+      } else if (type === 'message') {
+        // Soft "ding" for messages
+        const osc = context.createOscillator();
+        const g = context.createGain();
+        osc.type = 'sine';
+        osc.frequency.setValueAtTime(1100, now);
+        
+        g.gain.setValueAtTime(0, now);
+        g.gain.linearRampToValueAtTime(0.15, now + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + 0.4);
+        
+        osc.connect(g);
+        g.connect(masterGain);
+        osc.start(now);
+        osc.stop(now + 0.4);
       } else {
         // Default tech alert
         const osc = context.createOscillator();
@@ -207,6 +222,7 @@ function getIcon(type: AppNotification['type']) {
     case 'follow': return <UserPlus size={20} />;
     case 'like_store': 
     case 'like_product': return <Heart size={20} />;
+    case 'message': return <MessageSquare size={20} />;
     default: return <Bell size={20} />;
   }
 }
