@@ -10,13 +10,14 @@ interface NotificationContextType {
   unreadCount: number;
   markAsRead: (id: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
+  triggerFeedback: (title: string, message: string, type: AppNotification['type']) => void;
 }
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
 export function NotificationProvider({ children, profile }: { children: React.ReactNode, profile: UserProfile | null }) {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
-  const [showToast, setShowToast] = useState<AppNotification | null>(null);
+  const [showToast, setShowToast] = useState<{title: string, message: string, type: AppNotification['type']} | null>(null);
 
   useEffect(() => {
     if (!profile) {
@@ -48,13 +49,9 @@ export function NotificationProvider({ children, profile }: { children: React.Re
         const latest = newNotifications[0];
         if (latest && !latest.read) {
           // 1. Show UI Toast
-          setShowToast(latest);
-          setTimeout(() => setShowToast(null), 5000);
+          triggerFeedback(latest.title, latest.message, latest.type);
 
-          // 2. Play Notification Sound
-          playNotificationSound();
-
-          // 3. Browser Native Notification
+          // 2. Browser Native Notification
           if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
             try {
               new Notification(latest.title, {
@@ -62,8 +59,7 @@ export function NotificationProvider({ children, profile }: { children: React.Re
                 icon: '/pwa-192x192.png'
               });
             } catch (err) {
-              console.warn('Native Notification construction failed, possibly illegal constructor in this environment. Falling back to UI toast only.', err);
-              // Fallback: If service worker is available, we could use it, but we already have showToast(latest) above
+              console.warn('Native Notification construction failed', err);
             }
           }
         }
@@ -77,23 +73,72 @@ export function NotificationProvider({ children, profile }: { children: React.Re
     return () => unsubscribe();
   }, [profile?.uid, notifications.length]);
 
-  const playNotificationSound = () => {
+  const triggerFeedback = (title: string, message: string, type: AppNotification['type']) => {
+    setShowToast({ title, message, type });
+    playNotificationSound(type);
+    setTimeout(() => setShowToast(null), 5000);
+  };
+
+  const playNotificationSound = (type: AppNotification['type']) => {
     try {
       const context = new (window.AudioContext || (window as any).webkitAudioContext)();
-      const oscillator = context.createOscillator();
-      const gain = context.createGain();
+      const masterGain = context.createGain();
+      masterGain.connect(context.destination);
+      masterGain.gain.setValueAtTime(0.1, context.currentTime);
 
-      oscillator.type = 'sine';
-      oscillator.frequency.setValueAtTime(880, context.currentTime); // A5 note
-      oscillator.connect(gain);
-      gain.connect(context.destination);
+      const now = context.currentTime;
 
-      gain.gain.setValueAtTime(0, context.currentTime);
-      gain.gain.linearRampToValueAtTime(0.1, context.currentTime + 0.01);
-      gain.gain.exponentialRampToValueAtTime(0.0001, context.currentTime + 0.5);
+      // Optimized "Cyber/Tech" sound design based on type
+      if (type === 'like_product' || type === 'like_store' || type === 'follow') {
+        // High-pitched "blip-bloop" for positive interactions
+        const osc1 = context.createOscillator();
+        const osc2 = context.createOscillator();
+        const g1 = context.createGain();
+        const g2 = context.createGain();
 
-      oscillator.start();
-      oscillator.stop(context.currentTime + 0.5);
+        osc1.type = 'sine';
+        osc2.type = 'square';
+        
+        osc1.frequency.setValueAtTime(880, now); // A5
+        osc1.frequency.exponentialRampToValueAtTime(1760, now + 0.1); // A6
+        
+        osc2.frequency.setValueAtTime(440, now + 0.05); // A4
+        osc2.frequency.exponentialRampToValueAtTime(880, now + 0.15); // A5
+
+        g1.gain.setValueAtTime(0, now);
+        g1.gain.linearRampToValueAtTime(0.2, now + 0.01);
+        g1.gain.exponentialRampToValueAtTime(0.0001, now + 0.2);
+
+        g2.gain.setValueAtTime(0, now + 0.05);
+        g2.gain.linearRampToValueAtTime(0.1, now + 0.06);
+        g2.gain.exponentialRampToValueAtTime(0.0001, now + 0.3);
+
+        osc1.connect(g1);
+        g1.connect(masterGain);
+        osc2.connect(g2);
+        g2.connect(masterGain);
+
+        osc1.start(now);
+        osc1.stop(now + 0.2);
+        osc2.start(now + 0.05);
+        osc2.stop(now + 0.3);
+      } else {
+        // Default tech alert
+        const osc = context.createOscillator();
+        const g = context.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(660, now); // E5
+        osc.frequency.exponentialRampToValueAtTime(330, now + 0.3); // E4
+        
+        g.gain.setValueAtTime(0, now);
+        g.gain.linearRampToValueAtTime(0.2, now + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + 0.5);
+        
+        osc.connect(g);
+        g.connect(masterGain);
+        osc.start(now);
+        osc.stop(now + 0.5);
+      }
     } catch (e) {
       console.warn('Audio feedback blocked by browser settings');
     }
@@ -120,7 +165,7 @@ export function NotificationProvider({ children, profile }: { children: React.Re
   const unreadCount = notifications.filter(n => !n.read).length;
 
   return (
-    <NotificationContext.Provider value={{ notifications, unreadCount, markAsRead, markAllAsRead }}>
+    <NotificationContext.Provider value={{ notifications, unreadCount, markAsRead, markAllAsRead, triggerFeedback }}>
       {children}
       
       {/* Real-time Toast Component */}

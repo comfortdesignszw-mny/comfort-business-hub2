@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Zap, ShoppingBag, ArrowRight, MessageSquare, Phone, Check, Loader2, MapPinned, CreditCard, Share2, X, Info, Star, Store as StoreIcon, Edit3, Trash2, ChevronDown, ChevronUp, ShieldAlert
+  Zap, ShoppingBag, ArrowRight, MessageSquare, Phone, Check, Loader2, MapPinned, CreditCard, Share2, X, Info, Star, Store as StoreIcon, Edit3, Trash2, ChevronDown, ChevronUp, ShieldAlert, Heart
 } from 'lucide-react';
 import { UserProfile, Product, Store, EngagementType } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
@@ -11,6 +11,7 @@ import { collection, addDoc, serverTimestamp, setDoc, doc, getDoc } from 'fireba
 import { interactionService } from '../services/interactionService';
 import OptimizedImage from './OptimizedImage';
 import { useModals } from '../context/ModalContext';
+import { useNotifications } from './NotificationProvider';
 import ReportModal from './ReportModal';
 
 import { useMessaging } from '../components/MessagingProvider';
@@ -48,6 +49,7 @@ export default function ProductCard({
   const [showReportModal, setShowReportModal] = useState(false);
   const [purchaseQuantity, setPurchaseQuantity] = useState(1);
   const navigate = useNavigate();
+  const { triggerFeedback } = useNotifications();
 
   useEffect(() => {
     if (initialStore) {
@@ -141,6 +143,20 @@ export default function ProductCard({
     setActiveModal('checkout');
   };
 
+  const handleLike = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!profile) {
+      navigate('/login');
+      return;
+    }
+    try {
+      await interactionService.likeProduct(product.id, product.ownerId, profile);
+      triggerFeedback('Success', `You liked ${storeData.name}'s product: ${product.name}`, 'like_product');
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const getActionIcon = () => {
     switch (product.buyButtonType) {
       case 'link': return <ArrowRight size={14} />;
@@ -212,6 +228,15 @@ export default function ProductCard({
           >
             <Share2 size={12} className="sm:w-[14px] sm:h-[14px]" />
           </button>
+
+          {!isOwner && (
+            <button 
+              onClick={handleLike}
+              className="absolute top-2 sm:top-4 right-10 sm:right-14 p-1.5 sm:p-2 bg-[#05070a]/80 backdrop-blur-md rounded-xl border border-white/10 text-white hover:text-red-500 transition-colors hover:scale-110 active:scale-95 shadow-xl z-20"
+            >
+              <Heart size={12} className={cn("sm:w-[14px] sm:h-[14px]", product.likeCount ? "fill-red-500 text-red-500" : "")} />
+            </button>
+          )}
 
           {!isOwner && profile && (
             <button 

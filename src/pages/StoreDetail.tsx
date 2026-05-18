@@ -14,6 +14,7 @@ import ImageInput from '../components/ImageInput';
 import ReportModal from '../components/ReportModal';
 import { useModals } from '../context/ModalContext';
 import { interactionService } from '../services/interactionService';
+import { useNotifications } from '../components/NotificationProvider';
 
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
 import L from 'leaflet';
@@ -31,6 +32,7 @@ L.Marker.prototype.options.icon = DefaultIcon;
 export function StoreDetailContent({ store, profile, showMap = true, allowEdit = true }: { store: StoreType, profile: UserProfile | null, showMap?: boolean, allowEdit?: boolean }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
+  const { triggerFeedback } = useNotifications();
   
   // Store Edit State
   const [isEditingCover, setIsEditingCover] = useState(false);
@@ -77,6 +79,33 @@ export function StoreDetailContent({ store, profile, showMap = true, allowEdit =
       name: store.name, 
       avatar: store.logo 
     });
+    triggerFeedback('Uplink Initialized', `Connection request sent to ${store.name}`, 'connect_request');
+  };
+
+  const handleFollow = async () => {
+    if (!profile) {
+      navigate('/login');
+      return;
+    }
+    try {
+      await interactionService.followStore(store.id, store.ownerId, profile);
+      triggerFeedback('Success', `You are now following ${store.name}'s node`, 'follow');
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleLike = async () => {
+    if (!profile) {
+      navigate('/login');
+      return;
+    }
+    try {
+      await interactionService.likeStore(store.id, store.ownerId, profile);
+      triggerFeedback('Success', `You liked ${store.name}'s storefront`, 'like_store');
+    } catch (err) {
+      console.error(err);
+    }
   };
 
   // Sync local cover with store prop
@@ -296,13 +325,13 @@ export function StoreDetailContent({ store, profile, showMap = true, allowEdit =
               </button>
             )}
             <button 
-              onClick={() => profile && interactionService.followStore(store.id, store.ownerId, profile)}
+              onClick={handleFollow}
               className="glass-pill border-cyan-400/30 text-cyan-400 bg-cyan-400/5 hover:bg-cyan-400/10 hover:shadow-[0_0_15px_rgba(34,211,238,0.4)] flex items-center gap-1.5 text-[9px] sm:text-xs transition-all animate-pulse"
             >
               <UserPlus size={10} className="sm:w-3 sm:h-3" /> {store.followerCount || 0} Followers
             </button>
             <button 
-              onClick={() => profile && interactionService.likeStore(store.id, store.ownerId, profile)}
+              onClick={handleLike}
               className="glass-pill border-cyan-400/30 text-cyan-400 bg-cyan-400/5 hover:bg-cyan-400/10 hover:shadow-[0_0_15px_rgba(34,211,238,0.4)] flex items-center gap-1.5 text-[9px] sm:text-xs transition-all"
             >
               <Heart size={10} className="fill-cyan-400 sm:w-3 sm:h-3" /> {store.likeCount || 0} Likes

@@ -14,6 +14,7 @@ import { UserProfile, Product, Store, Review } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
 import { interactionService } from '../services/interactionService';
 import { useMessaging } from '../components/MessagingProvider';
+import { useNotifications } from '../components/NotificationProvider';
 
 import { UnifiedCheckoutModal, EcoCashModal, PodModal } from '../components/CheckoutModals';
 
@@ -21,6 +22,7 @@ export default function ProductDetail({ profile }: { profile: UserProfile | null
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
+  const { triggerFeedback } = useNotifications();
   
   // Try to get pre-loaded data from navigation state
   const preloadedProduct = location.state?.product as Product | undefined;
@@ -114,6 +116,19 @@ export default function ProductDetail({ profile }: { profile: UserProfile | null
     setActiveModal('checkout');
   };
 
+  const handleLike = async () => {
+    if (!profile || !product) {
+      navigate('/login');
+      return;
+    }
+    try {
+      await interactionService.likeProduct(product.id, product.ownerId, profile);
+      triggerFeedback('Success', `You liked ${store?.name || 'this user'}'s product: ${product.name}`, 'like_product');
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!profile || !id || !product || !store) return;
@@ -129,6 +144,7 @@ export default function ProductDetail({ profile }: { profile: UserProfile | null
         product.ownerId
       );
       
+      triggerFeedback('Neural Feedback Received', `You rated ${product.name} with ${newReview.rating} stars`, 'rate');
       setNewReview({ rating: 5, comment: '' });
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, 'submit-review');
@@ -258,7 +274,7 @@ export default function ProductDetail({ profile }: { profile: UserProfile | null
                 <span className="text-[9px] text-gray-500 font-bold uppercase overflow-hidden whitespace-nowrap">({product.reviewCount || 0})</span>
               </div>
               <button 
-                onClick={() => profile && interactionService.likeProduct(product.id, product.ownerId, profile)}
+                onClick={handleLike}
                 className="glass-pill !text-cyan-400 !border-cyan-400/30 flex items-center gap-1.5 hover:bg-cyan-400/10 transition-all font-black py-1 px-3"
               >
                 <Heart size={10} className={cn("fill-cyan-400", product.likeCount ? "opacity-100" : "opacity-30")} />

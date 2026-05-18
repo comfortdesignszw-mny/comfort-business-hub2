@@ -4,7 +4,7 @@ import { useNavigate, useSearchParams } from 'react-router-dom';
 import { 
   Search, MapPin, Filter, Star, Zap, ShoppingBag, Store, ArrowRight, 
   SlidersHorizontal, MessageSquare, Sparkles, X, Phone, Check, Loader2, MapPinned, CreditCard,
-  Megaphone, Calendar, FileText, Building2, ExternalLink, Share2, Info, Users, Shield, Map as MapIcon, List
+  Megaphone, Calendar, FileText, Building2, ExternalLink, Share2, Info, Users, Shield, Map as MapIcon, List, UserPlus, Heart
 } from 'lucide-react';
 import { UserProfile, Product, Store as StoreType, Message, Spotlight, PublicProfile } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
@@ -13,6 +13,8 @@ import { collection, query, limit, getDocs, where, addDoc, serverTimestamp, setD
 import { BUSINESS_CATEGORIES, PRODUCT_CATEGORIES } from '../constants';
 import ProductCard from '../components/ProductCard';
 import { useModals } from '../context/ModalContext';
+import { useNotifications } from '../components/NotificationProvider';
+import { interactionService } from '../services/interactionService';
 import { StoreDetailContent } from './StoreDetail';
 import OptimizedImage from '../components/OptimizedImage';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
@@ -742,13 +744,58 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
 
 function StoreCard({ store, profile, onSelect }: { store: StoreType, profile: UserProfile | null, onSelect: (id: string) => void }) {
   const navigate = useNavigate();
+  const { triggerFeedback } = useNotifications();
+
+  const handleFollow = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!profile) {
+      navigate('/login');
+      return;
+    }
+    try {
+      await interactionService.followStore(store.id, store.ownerId, profile);
+      triggerFeedback('Success', `You are now following ${store.name}'s node`, 'follow');
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
+  const handleLike = async (e: React.MouseEvent) => {
+    e.stopPropagation();
+    if (!profile) {
+      navigate('/login');
+      return;
+    }
+    try {
+      await interactionService.likeStore(store.id, store.ownerId, profile);
+      triggerFeedback('Success', `You liked ${store.name}'s storefront`, 'like_store');
+    } catch (err) {
+      console.error(err);
+    }
+  };
+
   return (
     <motion.div 
       whileHover={{ y: -5 }}
       whileTap={{ scale: 0.98 }}
       onClick={() => onSelect(store.id)}
-      className="neon-card p-3.5 sm:p-5 space-y-3 sm:space-y-4 cursor-pointer group"
+      className="neon-card p-3.5 sm:p-5 space-y-3 sm:space-y-4 cursor-pointer group relative"
     >
+      <div className="absolute top-2 right-2 flex gap-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
+        <button 
+          onClick={handleFollow}
+          className="p-1.5 bg-[#05070a]/80 backdrop-blur-md rounded-lg border border-white/10 text-primary hover:bg-primary hover:text-[#05070a] transition-all"
+        >
+          <UserPlus size={10} />
+        </button>
+        <button 
+          onClick={handleLike}
+          className="p-1.5 bg-[#05070a]/80 backdrop-blur-md rounded-lg border border-white/10 text-red-500 hover:bg-red-500 hover:text-white transition-all"
+        >
+          <Heart size={10} className={cn(store.likeCount ? "fill-current" : "")} />
+        </button>
+      </div>
+
       <div className="flex items-center gap-3 sm:gap-4">
         <div className="w-10 h-10 sm:w-14 sm:h-14 rounded-lg sm:rounded-2xl bg-gradient-to-br from-primary/20 to-accent/20 border border-white/10 flex items-center justify-center text-primary font-black text-base sm:text-xl shadow-[0_0_15px_rgba(0,242,254,0.1)] group-hover:scale-110 transition-transform flex-shrink-0 overflow-hidden">
           {store.logo ? (

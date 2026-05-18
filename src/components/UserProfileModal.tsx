@@ -9,6 +9,7 @@ import { UserProfile, Store, Connection } from '../types';
 import { cn } from '../lib/utils';
 import { interactionService } from '../services/interactionService';
 import { useNavigate } from 'react-router-dom';
+import { useNotifications } from './NotificationProvider';
 import ReportModal from './ReportModal';
 
 interface UserProfileModalProps {
@@ -26,6 +27,7 @@ export default function UserProfileModal({ userId, isOpen, onClose, currentUserP
   const [isConnecting, setIsConnecting] = useState(false);
   const [showReportModal, setShowReportModal] = useState(false);
   const navigate = useNavigate();
+  const { triggerFeedback } = useNotifications();
 
   useEffect(() => {
     if (!isOpen || !userId) return;
@@ -103,6 +105,7 @@ export default function UserProfileModal({ userId, isOpen, onClose, currentUserP
         name: profile!.name,
         avatar: profile!.avatar
       });
+      triggerFeedback('Cyber-Uplink Requested', `You sent a connection request to ${profile!.name}`, 'connect_request');
     } catch (err) {
       console.error("Connection failed:", err);
     } finally {

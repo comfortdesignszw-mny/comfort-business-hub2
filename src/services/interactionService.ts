@@ -4,6 +4,7 @@ import {
   addDoc, 
   deleteDoc, 
   getDocs, 
+  getDoc,
   query, 
   where, 
   serverTimestamp, 
@@ -75,18 +76,15 @@ export const interactionService = {
 
   async sendConnectionRequest(sender: UserProfile, receiver: { uid: string, name: string, avatar?: string }) {
     try {
-      // Check if already exists
-      const q = query(
-        collection(db, 'connections'),
-        where('senderId', '==', sender.uid),
-        where('receiverId', '==', receiver.uid)
-      );
-      const snap = await getDocs(q);
-      if (!snap.empty) return;
+      // Use deterministic ID to prevent multiple requests
+      const connectionId = [sender.uid, receiver.uid].sort().join('_');
+      const connRef = doc(db, 'connections', connectionId);
+      
+      const snap = await getDoc(connRef);
+      if (snap.exists()) return;
 
-      const connRef = doc(collection(db, 'connections'));
       await setDoc(connRef, {
-        id: connRef.id,
+        id: connectionId,
         senderId: sender.uid,
         senderName: sender.name || 'User',
         senderAvatar: sender.avatar || '',
@@ -98,7 +96,7 @@ export const interactionService = {
         updatedAt: serverTimestamp()
       });
 
-      await this.sendNotification(receiver.uid, 'connect_request', sender, connRef.id);
+      await this.sendNotification(receiver.uid, 'connect_request', sender, connectionId);
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, 'send-connection-request');
     }
@@ -137,17 +135,13 @@ export const interactionService = {
 
   async followStore(storeId: string, storeOwnerId: string, user: UserProfile) {
     try {
-      await runTransaction(db, async (transaction) => {
-        const followQuery = query(
-          collection(db, 'follows'),
-          where('storeId', '==', storeId),
-          where('userId', '==', user.uid)
-        );
-        const followSnap = await getDocs(followQuery);
-        
-        if (!followSnap.empty) return; // Already following
+      const followId = `${storeId}_${user.uid}`;
+      const followRef = doc(db, 'follows', followId);
+      
+      const followSnap = await getDoc(followRef);
+      if (followSnap.exists()) return; // Already following
 
-        const followRef = doc(collection(db, 'follows'));
+      await runTransaction(db, async (transaction) => {
         transaction.set(followRef, {
           storeId,
           userId: user.uid,
@@ -167,17 +161,13 @@ export const interactionService = {
 
   async likeStore(storeId: string, storeOwnerId: string, user: UserProfile) {
     try {
-      await runTransaction(db, async (transaction) => {
-        const likeQuery = query(
-          collection(db, 'storeLikes'),
-          where('storeId', '==', storeId),
-          where('userId', '==', user.uid)
-        );
-        const likeSnap = await getDocs(likeQuery);
-        
-        if (!likeSnap.empty) return; // Already liked
+      const likeId = `${storeId}_${user.uid}`;
+      const likeRef = doc(db, 'storeLikes', likeId);
+      
+      const likeSnap = await getDoc(likeRef);
+      if (likeSnap.exists()) return; // Already liked
 
-        const likeRef = doc(collection(db, 'storeLikes'));
+      await runTransaction(db, async (transaction) => {
         transaction.set(likeRef, {
           storeId,
           userId: user.uid,
@@ -197,17 +187,13 @@ export const interactionService = {
 
   async likeProduct(productId: string, productOwnerId: string, user: UserProfile) {
     try {
-      await runTransaction(db, async (transaction) => {
-        const likeQuery = query(
-          collection(db, 'productLikes'),
-          where('productId', '==', productId),
-          where('userId', '==', user.uid)
-        );
-        const likeSnap = await getDocs(likeQuery);
-        
-        if (!likeSnap.empty) return; // Already liked
+      const likeId = `${productId}_${user.uid}`;
+      const likeRef = doc(db, 'productLikes', likeId);
+      
+      const likeSnap = await getDoc(likeRef);
+      if (likeSnap.exists()) return; // Already liked
 
-        const likeRef = doc(collection(db, 'productLikes'));
+      await runTransaction(db, async (transaction) => {
         transaction.set(likeRef, {
           productId,
           userId: user.uid,
