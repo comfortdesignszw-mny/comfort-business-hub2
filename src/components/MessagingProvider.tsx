@@ -37,6 +37,7 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode, profile: U
   const [notification, setNotification] = useState<any>(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
+  const ongoingSyncs = React.useRef(new Set<number>());
   
   const queuedMessages = useLiveQuery(
     () => localDB.queuedMessages.orderBy('createdAt').toArray(),
@@ -89,15 +90,30 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode, profile: U
   useEffect(() => {
     if (isOnline && queuedMessages.length > 0 && profile) {
       const syncMessages = async () => {
-        // Only sync messages that are 'pending' (ready to sync)
         const readyToSync = queuedMessages.filter(m => m.status === 'pending');
         
         for (const msg of readyToSync) {
+          if (ongoingSyncs.current.has(msg.id!)) continue;
+          ongoingSyncs.current.add(msg.id!);
+
           try {
+            // Mark as uploading in DB as well
+            await localDB.queuedMessages.update(msg.id!, { status: 'uploading' });
+
+            // Determine text for history/notification
+            let displayText = msg.text;
+            if (msg.type !== 'text') {
+              displayText = 
+                msg.type === 'image' ? '[Image Attachment]' : 
+                msg.type === 'video' ? '[Video Attachment]' : 
+                msg.type === 'location' ? '[Location Share]' : 
+                msg.type === 'contact' ? '[Contact Shared]' : '[File Attachment]';
+            }
+
             const messageData = {
               conversationId: msg.convoId,
               senderId: msg.senderId,
-              text: msg.text,
+              text: displayText,
               type: msg.type || 'text',
               payload: msg.payload || null,
               read: false,
@@ -107,14 +123,42 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode, profile: U
             await addDoc(collection(db, 'conversations', msg.convoId, 'messages'), messageData);
 
             await updateDoc(doc(db, 'conversations', msg.convoId), {
-              lastMessage: msg.text,
+              lastMessage: displayText,
               updatedAt: serverTimestamp()
             });
+
+            // Notification
+            const convoDoc = await getDoc(doc(db, 'conversations', msg.convoId));
+            if (convoDoc.exists()) {
+              const otherId = convoDoc.data().participants?.find((p: string) => p !== profile.uid);
+              if (otherId) {
+                await addDoc(collection(db, 'notifications'), {
+                  userId: otherId,
+                  type: 'message',
+                  fromUserId: profile.uid,
+                  fromUserName: profile.name || 'User',
+                  targetId: msg.convoId,
+                  title: `New Message from ${profile.name || 'User'}`,
+                  message: displayText.length > 50 ? displayText.substring(0, 47) + '...' : displayText,
+                  read: false,
+                  createdAt: serverTimestamp()
+                });
+              }
+            }
 
             await localDB.queuedMessages.delete(msg.id!);
           } catch (err) {
             console.error("Failed to sync message:", err);
-            await localDB.queuedMessages.update(msg.id!, { status: 'failed' });
+            // Don't mark as failed immediately if it's a transient network error
+            // but for now we'll mark it to avoid infinite loops if it's a data error
+            if (err instanceof Error && err.message.includes('permission')) {
+               await localDB.queuedMessages.update(msg.id!, { status: 'failed' });
+            } else {
+               // Allow retry later by resetting to pending
+               await localDB.queuedMessages.update(msg.id!, { status: 'pending' });
+            }
+          } finally {
+            ongoingSyncs.current.delete(msg.id!);
           }
         }
       };
@@ -125,65 +169,19 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode, profile: U
   const sendMessage = async (convoId: string, text: string) => {
     if (!profile) return;
 
-    const localId = await localDB.queuedMessages.add({
+    await localDB.queuedMessages.add({
       convoId,
       senderId: profile.uid,
       text,
       type: 'text',
       createdAt: Date.now(),
-      status: isOnline ? 'pending' : 'pending' // Always start as pending for now
+      status: 'pending'
     });
-
-    if (!isOnline) return;
-
-    try {
-      const messageData = {
-        conversationId: convoId,
-        senderId: profile.uid,
-        text,
-        type: 'text',
-        read: false,
-        createdAt: serverTimestamp()
-      };
-
-      await addDoc(collection(db, 'conversations', convoId, 'messages'), messageData);
-
-      await updateDoc(doc(db, 'conversations', convoId), {
-        lastMessage: text,
-        updatedAt: serverTimestamp()
-      });
-
-      // Notification logic...
-      const convoDoc = await getDoc(doc(db, 'conversations', convoId));
-      if (convoDoc.exists()) {
-        const otherId = convoDoc.data().participants?.find((p: string) => p !== profile.uid);
-        if (otherId) {
-          await addDoc(collection(db, 'notifications'), {
-            userId: otherId,
-            type: 'message',
-            fromUserId: profile.uid,
-            fromUserName: profile.name || 'User',
-            targetId: convoId,
-            title: `New Message from ${profile.name || 'User'}`,
-            message: text.length > 50 ? text.substring(0, 47) + '...' : text,
-            read: false,
-            createdAt: serverTimestamp()
-          });
-        }
-      }
-
-      await localDB.queuedMessages.delete(localId);
-    } catch (err) {
-      console.error("Send failed:", err);
-      // Keep in localDB if failed
-    }
   };
 
   const sendAttachment = async (convoId: string, type: any, payload: any, localId?: number) => {
     if (!profile) return;
 
-    // If no localId, this might be a new request or coming from Chat.tsx
-    // For Chat.tsx, it might have already added a placeholder
     let finalLocalId = localId;
     if (!finalLocalId) {
       finalLocalId = await localDB.queuedMessages.add({
@@ -195,57 +193,13 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode, profile: U
         createdAt: Date.now(),
         status: 'pending'
       });
-    }
-
-    if (!isOnline) {
-      await localDB.queuedMessages.update(finalLocalId, { status: 'pending' });
-      return;
-    }
-
-    try {
-      const messageData = {
-        conversationId: convoId,
-        senderId: profile.uid,
-        text: type === 'image' ? '[Image Attachment]' : 
-              type === 'video' ? '[Video Attachment]' : 
-              type === 'location' ? '[Location Share]' : 
-              type === 'contact' ? '[Contact Shared]' : '[File Attachment]',
-        type,
-        payload,
-        read: false,
-        createdAt: serverTimestamp()
-      };
-
-      await addDoc(collection(db, 'conversations', convoId, 'messages'), messageData);
-
-      await updateDoc(doc(db, 'conversations', convoId), {
-        lastMessage: messageData.text,
-        updatedAt: serverTimestamp()
+    } else {
+      // If we already have a localId (e.g. from Chat.tsx uploading state), 
+      // we just update it to 'pending' to trigger the sync logic
+      await localDB.queuedMessages.update(finalLocalId, { 
+        status: 'pending',
+        payload // Ensure final payload (with downloadURL) is set
       });
-
-      // Notify
-      const convoDoc = await getDoc(doc(db, 'conversations', convoId));
-      if (convoDoc.exists()) {
-        const otherId = convoDoc.data().participants?.find((p: string) => p !== profile.uid);
-        if (otherId) {
-          await addDoc(collection(db, 'notifications'), {
-            userId: otherId,
-            type: 'message',
-            fromUserId: profile.uid,
-            fromUserName: profile.name || 'User',
-            targetId: convoId,
-            title: `New Attachment from ${profile.name || 'User'}`,
-            message: messageData.text,
-            read: false,
-            createdAt: serverTimestamp()
-          });
-        }
-      }
-
-      await localDB.queuedMessages.delete(finalLocalId);
-    } catch (err) {
-      console.error("Attachment send failed:", err);
-      await localDB.queuedMessages.update(finalLocalId, { status: 'pending' });
     }
   };
 
