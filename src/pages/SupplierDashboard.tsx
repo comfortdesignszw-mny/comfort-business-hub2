@@ -96,6 +96,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
   const [formData, setFormData] = useState<ProductForm>(initialForm);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSavingStore, setIsSavingStore] = useState(false);
+  const [isWaitingForStore, setIsWaitingForStore] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [customCategory, setCustomCategory] = useState('');
   const [isEditingLocation, setIsEditingLocation] = useState(false);
@@ -116,6 +117,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
       setStores(fetchedStores);
       
       if (fetchedStores.length > 0) {
+        setIsWaitingForStore(false);
         // Set active store if not set or if current active store was updated
         setActiveStore(prev => {
           if (!prev) {
@@ -378,11 +380,13 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
     }
   };
 
-  if (loading) {
+  if (loading || isWaitingForStore) {
     return (
       <div className="flex flex-col items-center justify-center h-64 space-y-4">
         <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
-        <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Decrypting Dashboard...</p>
+        <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
+          {isWaitingForStore ? 'Synchronizing Node with Network...' : 'Decrypting Dashboard...'}
+        </p>
       </div>
     );
   }
@@ -397,7 +401,13 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
           >
             <X size={24} />
           </button>
-          <SupplierSetup profile={profile} />
+          <SupplierSetup 
+            profile={profile} 
+            onComplete={() => {
+              setIsWaitingForStore(true);
+              setShowStoreSetup(false);
+            }} 
+          />
         </div>
       );
     }

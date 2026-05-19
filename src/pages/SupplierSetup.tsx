@@ -85,6 +85,7 @@ export default function SupplierSetup({ profile, onComplete, existingStore }: { 
 
       if (existingStore) {
         await offlineResilientWrite('stores', existingStore.id, 'update', storeData);
+        onComplete?.();
       } else {
         const newStoreId = `store_${Date.now()}_${Math.random().toString(36).substring(7)}`;
         const hash = geohashForLocation([location.lat, location.lng]);
@@ -99,12 +100,12 @@ export default function SupplierSetup({ profile, onComplete, existingStore }: { 
           createdAt: new Date().toISOString()
         };
         await offlineResilientWrite('stores', newStoreId, 'create', newStoreData);
-      }
-
-      if (onComplete) {
-        onComplete();
-      } else {
-        window.location.reload();
+        
+        if (onComplete) {
+          onComplete();
+        } else {
+          alert("Storefront initialized successfully!");
+        }
       }
     } catch (error) {
       handleFirestoreError(error, existingStore ? OperationType.UPDATE : OperationType.CREATE, existingStore ? `stores/${existingStore.id}` : 'stores');
