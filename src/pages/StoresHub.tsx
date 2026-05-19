@@ -207,10 +207,6 @@ function StoreCard({ store, profile }: StoreCardProps) {
     <motion.div 
       whileHover={{ y: -8 }}
       onClick={() => {
-        if (!profile) {
-          navigate('/login');
-          return;
-        }
         navigate(`/store/${store.id}`);
       }}
       className="group relative bg-[#0d1117] border border-white/5 rounded-[2.5rem] overflow-hidden cursor-pointer hover:border-primary/40 transition-all duration-500 shadow-2xl flex flex-col h-full"

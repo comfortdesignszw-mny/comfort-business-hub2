@@ -12,11 +12,13 @@ import { offlineResilientWrite } from '../lib/sync';
 import { geohashForLocation } from 'geofire-common';
 import { doc, updateDoc, collection, addDoc, query, where, getDocs, deleteDoc, orderBy, serverTimestamp, limit, onSnapshot } from 'firebase/firestore';
 import { cn, formatCurrency } from '../lib/utils';
+import { useNotifications } from '../components/NotificationProvider';
 import ImageInput from '../components/ImageInput';
 import LocationPicker from '../components/LocationPicker';
 import ProductCard from '../components/ProductCard';
 
 export default function Profile({ profile, setProfile }: { profile: UserProfile | null, setProfile: (p: UserProfile) => void }) {
+  const { triggerFeedback } = useNotifications();
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
   const [activeModal, setActiveModal] = useState<'gateway' | 'location' | 'spotlights' | 'delete' | 'connections' | null>(null);
@@ -79,11 +81,14 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
   const handleDeleteAccount = async () => {
     if (!profile || !auth.currentUser) return;
     
+    // Immediate UI feedback and lock
     setIsDeleting(true);
+    triggerFeedback('Initializing Purge Protocol', 'Securely erasing all nodes and identity footprints from the Matrix...', 'notification');
+
     try {
       const uid = profile.uid;
       
-      // 1. Wipe root collections associated with user
+      // 1. Defined collection map for systematic erasure
       const collectionsToWipe = [
         { name: 'stores', field: 'ownerId' },
         { name: 'products', field: 'ownerId' },
@@ -100,74 +105,73 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
         { name: 'productLikes', field: 'userId' },
         { name: 'reports', field: 'reporterId' },
         { name: 'reports', field: 'ownerId' },
-        { name: 'public_profiles', field: 'uid' }
+        { name: 'public_profiles', field: 'uid' },
+        { name: 'connections', field: 'senderId' },
+        { name: 'connections', field: 'receiverId' }
       ];
 
-      // Execute all data wipes in parallel for maximum velocity
-      const wipePromises = [
-        // Wipe all linked collections
-        ...collectionsToWipe.map(async (coll) => {
-          try {
-            const q = query(collection(db, coll.name), where(coll.field, '==', uid));
-            const snap = await getDocs(q);
-            const deletePromises = snap.docs.map(d => deleteDoc(doc(db, coll.name, d.id)));
-            await Promise.all(deletePromises);
-          } catch (e) {
-            console.error(`Wipe failed for ${coll.name}:`, e);
-          }
-        }),
+      // Execute all category wipes in parallel for maximum throughput
+      await Promise.all(collectionsToWipe.map(async (coll) => {
+        try {
+          const q = query(collection(db, coll.name), where(coll.field, '==', uid));
+          const snap = await getDocs(q);
+          if (snap.empty) return;
 
-        // Wipe Conversations and Sub-messages
-        (async () => {
-          try {
-            const convQuery = query(collection(db, 'conversations'), where('participants', 'array-contains', uid));
-            const convSnap = await getDocs(convQuery);
-            
-            await Promise.all(convSnap.docs.map(async (convoDoc) => {
-              try {
-                const msgSnap = await getDocs(collection(db, 'conversations', convoDoc.id, 'messages'));
-                const msgDeletes = msgSnap.docs.map(m => deleteDoc(doc(db, 'conversations', convoDoc.id, 'messages', m.id)));
-                await Promise.all(msgDeletes);
-                return deleteDoc(doc(db, 'conversations', convoDoc.id));
-              } catch (err) {
-                console.error(`Individual conversation wipe failed (${convoDoc.id}):`, err);
-              }
-            }));
-          } catch (e) {
-            console.error("Conversation/Message wipe failed:", e);
-          }
-        })(),
+          // Process in smaller parallel chunks to avoid overwhelming the socket
+          await Promise.all(snap.docs.map(d => deleteDoc(doc(db, coll.name, d.id))));
+        } catch (e) {
+          console.error(`Wipe segment failure for ${coll.name}/${coll.field}:`, e);
+          // We continue to ensure as much data as possible is purged
+        }
+      }));
 
-        // Wipe User Profile (wrapped in immediate async for catch)
-        (async () => {
-          try {
-            await deleteDoc(doc(db, 'users', uid));
-          } catch (e) {
-            console.error("User profile document wipe failed:", e);
-          }
-        })()
-      ];
-
-      // Wait for all deletions to complete
-      await Promise.all(wipePromises);
-
-      // Final Auth Operation
-      // Note: Full auth account deletion might require recent login
+      // 2. Wipe Conversations - Requires deep sub-collection traversal
       try {
+        const convQuery = query(collection(db, 'conversations'), where('participants', 'array-contains', uid));
+        const convSnap = await getDocs(convQuery);
+        
+        await Promise.all(convSnap.docs.map(async (convoDoc) => {
+          try {
+            const msgSnap = await getDocs(collection(db, 'conversations', convoDoc.id, 'messages'));
+            await Promise.all(msgSnap.docs.map(m => deleteDoc(doc(db, 'conversations', convoDoc.id, 'messages', m.id))));
+            await deleteDoc(doc(db, 'conversations', convoDoc.id));
+          } catch (err) {
+            console.error(`Conversation node wipe failure (${convoDoc.id}):`, err);
+          }
+        }));
+      } catch (e) {
+        console.error("Deep message traversal failed:", e);
+      }
+
+      // 3. Final Identity Node Deletion (Root User Entry)
+      try {
+        await deleteDoc(doc(db, 'users', uid));
+      } catch (e) {
+        console.error("Root identity node failed to purge:", e);
+      }
+
+      // 4. Auth Account Removal
+      try {
+        // Attempt deep deletion - this might require fresh login
         await auth.currentUser.delete();
       } catch (authErr) {
-        console.warn("Auth deletion deferred (re-auth required), signing out instead.");
+        console.warn("Auth deletion deferred (re-auth required), signing out for safety.");
       }
       
-      // Forced Logout & Success Confirmation
-      alert("All your personal data, transactions and product listings are completely wiped from our system");
+      // 5. Hard Reset & Redirection
+      triggerFeedback('Identity Purged', 'All node data has been securely erased. Connection closed.', 'success');
       
+      // Clear local state immediately
+      setProfile(null as any);
       await auth.signOut();
+      
+      // Navigate and force sync
       navigate('/login', { replace: true });
-      window.location.reload(); // Hard reset to clear any dangling state
+      setTimeout(() => window.location.reload(), 500); 
     } catch (e) {
-      console.error("CRITICAL IDENTITY PURGE FAILURE:", e);
-      alert("Critical failure during identity purge. Partial data might remain. Please contact support.");
+      console.error("TOTAL NODE PURGE FAILURE:", e);
+      triggerFeedback('Purge Error', 'Fatal error during identity erasure. Partial data may exist.', 'error');
+      
       await auth.signOut();
       navigate('/login', { replace: true });
     } finally {

@@ -15,6 +15,7 @@ import { cn, formatCurrency, safeShare } from '../lib/utils';
 import { interactionService } from '../services/interactionService';
 import { useMessaging } from '../components/MessagingProvider';
 import { useNotifications } from '../components/NotificationProvider';
+import AuthGuard from '../components/AuthGuard';
 
 import { UnifiedCheckoutModal, EcoCashModal, PodModal } from '../components/CheckoutModals';
 
@@ -89,10 +90,7 @@ export default function ProductDetail({ profile }: { profile: UserProfile | null
   const [isEngaging, setIsEngaging] = useState(false);
 
   const handleTalk = () => {
-    if (!profile) {
-      navigate('/login');
-      return;
-    }
+    if (!profile) return;
     if (!product) return;
 
     setIsEngaging(true);
@@ -109,18 +107,12 @@ export default function ProductDetail({ profile }: { profile: UserProfile | null
   };
 
   const handlePurchase = () => {
-    if (!profile) {
-      navigate('/login');
-      return;
-    }
+    if (!profile) return;
     setActiveModal('checkout');
   };
 
   const handleLike = async () => {
-    if (!profile || !product) {
-      navigate('/login');
-      return;
-    }
+    if (!profile || !product) return;
     try {
       await interactionService.likeProduct(product.id, product.ownerId, profile);
       triggerFeedback('Success', `You liked ${store?.name || 'this user'}'s product: ${product.name}`, 'like_product');
@@ -274,13 +266,18 @@ export default function ProductDetail({ profile }: { profile: UserProfile | null
                 <span className="text-[9px] text-gray-500 font-bold uppercase overflow-hidden whitespace-nowrap">({product.reviewCount || 0})</span>
               </div>
               {profile?.uid !== product.ownerId && (
-                <button 
-                  onClick={handleLike}
-                  className="glass-pill !text-cyan-400 !border-cyan-400/30 flex items-center gap-1.5 hover:bg-cyan-400/10 transition-all font-black py-1 px-3"
+                <AuthGuard 
+                  title="Log Interest Signal" 
+                  message="Sign in to save this product to your tactical awareness dashboard."
                 >
-                  <Heart size={10} className={cn("fill-cyan-400", product.likeCount ? "opacity-100" : "opacity-30")} />
-                  <span className="text-[9px]">{product.likeCount || 0}</span>
-                </button>
+                  <button 
+                    onClick={handleLike}
+                    className="glass-pill !text-cyan-400 !border-cyan-400/30 flex items-center gap-1.5 hover:bg-cyan-400/10 transition-all font-black py-1 px-3"
+                  >
+                    <Heart size={10} className={cn("fill-cyan-400", product.likeCount ? "opacity-100" : "opacity-30")} />
+                    <span className="text-[9px]">{product.likeCount || 0}</span>
+                  </button>
+                </AuthGuard>
               )}
             </div>
           </div>
@@ -312,21 +309,31 @@ export default function ProductDetail({ profile }: { profile: UserProfile | null
           
           {profile?.uid !== product.ownerId && (
             <div className="flex gap-2 p-1">
-              <button 
-                onClick={handleTalk}
-                disabled={isEngaging}
-                className="flex-1 sm:flex-none px-6 py-4 sm:py-0 bg-white/5 border border-white/10 rounded-2xl text-[#05070a] font-black uppercase text-[10px] tracking-widest text-primary hover:bg-primary hover:text-black transition-all flex items-center justify-center gap-2"
+              <AuthGuard 
+                title="Establish Communication" 
+                message="Authenticate to initiate a secure signal stream with the inventory node operator."
               >
-                {isEngaging ? <Loader2 size={14} className="animate-spin" /> : <MessageSquare size={16} />}
-                Talk
-              </button>
-              <button 
-                onClick={handlePurchase}
-                className="flex-[2] sm:flex-none px-10 py-4 sm:py-0 bg-primary rounded-2xl flex items-center justify-center text-[#05070a] font-black uppercase text-[10px] tracking-widest hover:shadow-[0_0_20px_rgba(0,242,254,0.3)] transition-all gap-2"
+                <button 
+                  onClick={handleTalk}
+                  disabled={isEngaging}
+                  className="flex-1 sm:flex-none px-6 py-4 sm:py-0 bg-white/5 border border-white/10 rounded-2xl text-[#05070a] font-black uppercase text-[10px] tracking-widest text-primary hover:bg-primary hover:text-black transition-all flex items-center justify-center gap-2"
+                >
+                  {isEngaging ? <Loader2 size={14} className="animate-spin" /> : <MessageSquare size={16} />}
+                  Talk
+                </button>
+              </AuthGuard>
+              <AuthGuard 
+                title="Initialize Acquisition" 
+                message="Join the Network Hub to process secure payments and finalize the logistics of this acquisition."
               >
-                 <Zap size={16} className="fill-current" />
-                 Initialize Order
-              </button>
+                <button 
+                  onClick={handlePurchase}
+                  className="flex-[2] sm:flex-none px-10 py-4 sm:py-0 bg-primary rounded-2xl flex items-center justify-center text-[#05070a] font-black uppercase text-[10px] tracking-widest hover:shadow-[0_0_20px_rgba(0,242,254,0.3)] transition-all gap-2"
+                >
+                   <Zap size={16} className="fill-current" />
+                   Initialize Order
+                </button>
+              </AuthGuard>
             </div>
           )}
         </div>
@@ -358,7 +365,10 @@ export default function ProductDetail({ profile }: { profile: UserProfile | null
           </div>
 
           {/* Submit Review Form */}
-          {profile ? (
+          <AuthGuard
+            title="Log Feedback Signal"
+            message="Secure authentication is required to contribute to the overall trust consensus of this node."
+          >
             <motion.div 
                initial={{ opacity: 0, y: 20 }}
                animate={{ opacity: 1, y: 0 }}
@@ -403,18 +413,7 @@ export default function ProductDetail({ profile }: { profile: UserProfile | null
                 </button>
               </form>
             </motion.div>
-          ) : (
-            <div className="p-8 border border-dashed border-white/10 rounded-3xl text-center bg-white/5 space-y-4">
-              <Info className="mx-auto text-gray-700" size={24} />
-              <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Identify Yourself to Provide Feedback</p>
-              <button 
-                onClick={() => navigate('/login')}
-                className="text-[10px] text-primary font-black uppercase tracking-widest border-b border-primary/30 pb-0.5 hover:text-white hover:border-white transition-all"
-              >
-                Access Hub Network
-              </button>
-            </div>
-          )}
+          </AuthGuard>
 
           {/* List of Reviews */}
           <div className="space-y-4">

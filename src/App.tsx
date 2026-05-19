@@ -10,7 +10,8 @@ import { auth, db, handleFirestoreError, OperationType, syncPublicProfile } from
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { 
   Search, ShoppingBag, MessageSquare, User as UserIcon, Store, LayoutGrid, 
-  Zap, Menu, Bell, ArrowLeft, X, Heart, Star, UserPlus, Check, Loader2, Users, ShieldAlert
+  Zap, Menu, Bell, ArrowLeft, X, Heart, Star, UserPlus, Check, Loader2, Users, ShieldAlert,
+  LogIn
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile, Role, AppNotification } from './types';
@@ -28,7 +29,7 @@ const Discovery = lazy(() => import('./pages/Discovery'));
 const DealRoom = lazy(() => import('./pages/DealRoom'));
 const Chat = lazy(() => import('./pages/Chat'));
 const Profile = lazy(() => import('./pages/Profile'));
-const Login = lazy(() => import('./pages/Login'));
+import Login from './pages/Login';
 const SupplierSetup = lazy(() => import('./pages/SupplierSetup'));
 const SupplierDashboard = lazy(() => import('./pages/SupplierDashboard'));
 const CustomerSetup = lazy(() => import('./pages/CustomerSetup'));
@@ -173,71 +174,72 @@ export default function App() {
         <AnimatePresence mode="wait">
           <Suspense fallback={<PageLoader />}>
             <Routes>
-              {!user ? (
-                <>
-                  <Route path="/login" element={<Login />} />
-                  <Route path="/terms" element={<TermsOfService />} />
-                  <Route path="/privacy" element={<PrivacyPolicy />} />
-                  <Route path="*" element={<Navigate to="/login" replace />} />
-                </>
-              ) : (
-                <Route path="/*" element={
-                  <NotificationProvider profile={profile}>
-                    <MessagingProvider profile={profile}>
-                      <ModalProvider profile={profile}>
-                        <Header profile={profile} onMenuClick={() => setShowSidebar(true)} />
-                        <AnimatePresence>
-                          {showSidebar && (
-                            <Sidebar 
-                              profile={profile} 
-                              onClose={() => setShowSidebar(false)} 
-                            />
-                          )}
-                        </AnimatePresence>
-                        <main className="flex-1 overflow-y-auto custom-scrollbar pb-24">
-                          <div className="max-w-7xl mx-auto w-full min-h-full flex flex-col">
-                            <div className="flex-1">
-                              <AnimatePresence mode="wait">
-                                <Suspense fallback={<PageLoader />}>
-                                  <Routes>
-                                    <Route path="/terms" element={<TermsOfService />} />
-                                    <Route path="/privacy" element={<PrivacyPolicy />} />
-                                    {isProfileIncomplete ? (
-                                      <Route path="*" element={<CustomerSetup profile={profile!} />} />
-                                    ) : (
-                                      <>
-                                        <Route path="/" element={<Discovery profile={profile} setProfile={setProfile} />} />
-                                        <Route 
-                                          path="/stores" 
-                                          element={
-                                            profile?.currentRole === 'supplier' 
-                                              ? <StoresHub profile={profile} /> 
-                                              : <Navigate to="/" replace />
-                                          } 
-                                        />
-                                        <Route path="/deals" element={<DealRoom profile={profile} />} />
-                                        <Route path="/chat" element={<Chat profile={profile} />} />
-                                        <Route path="/store/:id" element={<StoreDetail profile={profile} />} />
-                                        <Route path="/product/:id" element={<ProductDetail profile={profile} />} />
-                                        <Route path="/admin" element={<AdminDashboard profile={profile} />} />
-                                        <Route path="/profile" element={<Profile profile={profile} setProfile={setProfile} />} />
-                                        <Route path="*" element={<Navigate to="/" replace />} />
-                                      </>
-                                    )}
-                                  </Routes>
-                                </Suspense>
-                              </AnimatePresence>
-                            </div>
-                            <Footer />
+              <Route path="/*" element={
+                <NotificationProvider profile={profile}>
+                  <MessagingProvider profile={profile}>
+                    <ModalProvider profile={profile}>
+                      <Header profile={profile} onMenuClick={() => setShowSidebar(true)} />
+                      <AnimatePresence>
+                        {showSidebar && (
+                          <Sidebar 
+                            profile={profile} 
+                            onClose={() => setShowSidebar(false)} 
+                          />
+                        )}
+                      </AnimatePresence>
+                      <main className="flex-1 overflow-y-auto custom-scrollbar pb-24">
+                        <div className="max-w-7xl mx-auto w-full min-h-full flex flex-col">
+                          <div className="flex-1">
+                            <AnimatePresence mode="wait">
+                              <Suspense fallback={<PageLoader />}>
+                                <Routes>
+                                  {/* Public Routes */}
+                                  <Route path="/" element={<Discovery profile={profile} setProfile={setProfile} />} />
+                                  <Route path="/store/:id" element={<StoreDetail profile={profile} />} />
+                                  <Route path="/product/:id" element={<ProductDetail profile={profile} />} />
+                                  <Route path="/terms" element={<TermsOfService />} />
+                                  <Route path="/privacy" element={<PrivacyPolicy />} />
+                                  <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
+
+                                  {/* Protected Content */}
+                                  {!user ? (
+                                    <Route path="*" element={<Navigate to="/login" replace />} />
+                                  ) : (
+                                    <>
+                                      {isProfileIncomplete ? (
+                                        <Route path="*" element={<CustomerSetup profile={profile!} />} />
+                                      ) : (
+                                        <>
+                                          <Route 
+                                            path="/stores" 
+                                            element={
+                                              profile?.currentRole === 'supplier' 
+                                                ? <StoresHub profile={profile} /> 
+                                                : <Navigate to="/" replace />
+                                            } 
+                                          />
+                                          <Route path="/deals" element={<DealRoom profile={profile} />} />
+                                          <Route path="/chat" element={<Chat profile={profile} />} />
+                                          <Route path="/admin" element={<AdminDashboard profile={profile} />} />
+                                          <Route path="/profile" element={<Profile profile={profile} setProfile={setProfile} />} />
+                                          <Route path="*" element={<Navigate to="/" replace />} />
+                                        </>
+                                      )}
+                                    </>
+                                  )}
+                                </Routes>
+                              </Suspense>
+                            </AnimatePresence>
                           </div>
-                        </main>
-                        <Navigation profile={profile} />
-                        <PWAPrompt />
-                      </ModalProvider>
-                    </MessagingProvider>
-                  </NotificationProvider>
-                } />
-              )}
+                          <Footer />
+                        </div>
+                      </main>
+                      <Navigation profile={profile} />
+                      <PWAPrompt />
+                    </ModalProvider>
+                  </MessagingProvider>
+                </NotificationProvider>
+              } />
             </Routes>
           </Suspense>
         </AnimatePresence>
@@ -285,29 +287,41 @@ function Header({ profile, onMenuClick }: { profile: UserProfile | null, onMenuC
           </div>
         </div>
         <div className="flex items-center gap-2">
-          <button 
-            onClick={() => setShowNotifications(true)}
-            className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center text-gray-400 hover:text-primary transition-all relative group"
-          >
-            <Bell size={20} className="group-hover:scale-110" />
-            {unreadCount > 0 && (
-              <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-red-600 rounded-full border-2 border-[#05070a] shadow-[0_0_10px_rgba(255,0,0,0.5)] flex items-center justify-center text-[8px] font-black text-white">
-                {unreadCount > 9 ? '9+' : unreadCount}
-              </span>
-            )}
-          </button>
-          
-          <AnimatePresence>
-            {showNotifications && (
-              <NotificationsModal profile={profile} onClose={() => setShowNotifications(false)} />
-            )}
-          </AnimatePresence>
+          {profile ? (
+            <>
+              <button 
+                onClick={() => setShowNotifications(true)}
+                className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center text-gray-400 hover:text-primary transition-all relative group"
+              >
+                <Bell size={20} className="group-hover:scale-110" />
+                {unreadCount > 0 && (
+                  <span className="absolute -top-1 -right-1 min-w-[18px] h-[18px] px-1 bg-red-600 rounded-full border-2 border-[#05070a] shadow-[0_0_10px_rgba(255,0,0,0.5)] flex items-center justify-center text-[8px] font-black text-white">
+                    {unreadCount > 9 ? '9+' : unreadCount}
+                  </span>
+                )}
+              </button>
+              
+              <AnimatePresence>
+                {showNotifications && (
+                  <NotificationsModal profile={profile} onClose={() => setShowNotifications(false)} />
+                )}
+              </AnimatePresence>
 
-          <Link to="/profile" className="w-10 h-10 rounded-xl overflow-hidden border border-white/10 hover:border-primary/50 transition-colors text-primary font-bold">
-            <div className="w-full h-full bg-primary/20 flex items-center justify-center overflow-hidden">
-              {profile?.name?.charAt(0).toUpperCase() || <UserIcon size={18} />}
-            </div>
-          </Link>
+              <Link to="/profile" className="w-10 h-10 rounded-xl overflow-hidden border border-white/10 hover:border-primary/50 transition-colors text-primary font-bold">
+                <div className="w-full h-full bg-primary/20 flex items-center justify-center overflow-hidden">
+                  {profile?.name?.charAt(0).toUpperCase() || <UserIcon size={18} />}
+                </div>
+              </Link>
+            </>
+          ) : (
+            <Link 
+              to="/login"
+              className="bg-primary px-4 py-2 rounded-xl text-[10px] font-black uppercase text-[#05070a] tracking-widest hover:shadow-[0_0_15px_rgba(0,242,254,0.3)] transition-all flex items-center gap-2"
+            >
+              <LogIn size={14} />
+              Login
+            </Link>
+          )}
         </div>
       </div>
     </header>
@@ -319,11 +333,15 @@ function Sidebar({ profile, onClose }: { profile: UserProfile | null, onClose: (
   const location = useLocation();
   const navItems = [
     { path: '/', icon: Search, label: 'Explore' },
-    ...(profile?.currentRole === 'supplier' ? [{ path: '/stores', icon: Store, label: 'Stores' }] : []),
-    { path: '/deals', icon: Zap, label: 'Markets' },
-    { path: '/chat', icon: MessageSquare, label: 'Comms' },
-    ...(profile?.email === 'comfort.designszw@gmail.com' || profile?.isAdmin ? [{ path: '/admin', icon: ShieldAlert, label: 'Command' }] : []),
-    { path: '/profile', icon: UserIcon, label: 'Hub' },
+    ...(profile ? [
+      ...(profile.currentRole === 'supplier' ? [{ path: '/stores', icon: Store, label: 'Stores' }] : []),
+      { path: '/deals', icon: Zap, label: 'Markets' },
+      { path: '/chat', icon: MessageSquare, label: 'Comms' },
+      ...(profile.email === 'comfort.designszw@gmail.com' || profile.isAdmin ? [{ path: '/admin', icon: ShieldAlert, label: 'Command' }] : []),
+      { path: '/profile', icon: UserIcon, label: 'Hub' },
+    ] : [
+      { path: '/login', icon: LogIn, label: 'Hub Login' }
+    ]),
   ];
 
   return (
@@ -611,11 +629,15 @@ function Navigation({ profile }: { profile: UserProfile | null }) {
   
   const navItems = [
     { path: '/', icon: Search, label: 'Explore' },
-    ...(profile?.currentRole === 'supplier' ? [{ path: '/stores', icon: Store, label: 'Stores' }] : []),
-    { path: '/deals', icon: Zap, label: 'Markets' },
-    { path: '/chat', icon: MessageSquare, label: 'Comms' },
-    ...(profile?.email === 'comfort.designszw@gmail.com' || profile?.isAdmin ? [{ path: '/admin', icon: ShieldAlert, label: 'Command' }] : []),
-    { path: '/profile', icon: UserIcon, label: 'Hub' },
+    ...(profile ? [
+      ...(profile.currentRole === 'supplier' ? [{ path: '/stores', icon: Store, label: 'Stores' }] : []),
+      { path: '/deals', icon: Zap, label: 'Markets' },
+      { path: '/chat', icon: MessageSquare, label: 'Comms' },
+      ...(profile.email === 'comfort.designszw@gmail.com' || profile.isAdmin ? [{ path: '/admin', icon: ShieldAlert, label: 'Command' }] : []),
+      { path: '/profile', icon: UserIcon, label: 'Hub' },
+    ] : [
+      { path: '/login', icon: LogIn, label: 'Hub login' }
+    ]),
   ];
 
   return (

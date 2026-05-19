@@ -78,7 +78,7 @@ service cloud.firestore {
       // Allow listing for your own reports or if you are an admin
       allow list: if isSignedIn() && (isHardcodedAdmin() || isAdmin() || resource.data.reporterId == request.auth.uid || resource.data.ownerId == request.auth.uid);
       allow get: if isHardcodedAdmin() || isAdmin() || isReporter(resource.data) || isTargetOwner(resource.data);
-      allow update, delete: if isHardcodedAdmin() || isAdmin() || (resource != null && resource.data.reporterId == request.auth.uid);
+      allow update, delete: if isHardcodedAdmin() || isAdmin() || (resource != null && (resource.data.reporterId == request.auth.uid || resource.data.ownerId == request.auth.uid));
     }
 
     match /users/{userId} {
@@ -90,7 +90,7 @@ service cloud.firestore {
     }
 
     match /public_profiles/{userId} {
-      allow get, list: if isSignedIn();
+      allow get, list: if true;
       allow create, update: if (isOwner(userId) || isHardcodedAdmin() || isAdmin()) && isValidId(userId) && isValidPublicProfile(incoming()) && incoming().updatedAt == request.time;
       allow delete: if isOwner(userId) || isHardcodedAdmin() || isAdmin();
     }
@@ -146,17 +146,14 @@ service cloud.firestore {
     }
 
     match /notifications/{id} {
-      allow get, delete: if isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.fromUserId == request.auth.uid);
-      allow list: if isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.fromUserId == request.auth.uid);
+      allow get, list, delete: if isSignedIn() && (resource.data.userId == request.auth.uid || resource.data.fromUserId == request.auth.uid);
       allow create: if isSignedIn() && (incoming().fromUserId == request.auth.uid || (incoming().userId == request.auth.uid && incoming().fromUserId == 'system'));
       allow update: if isOwner(existing().userId) && incoming().diff(existing()).affectedKeys().hasOnly(['read', 'updatedAt', '_syncedAt']);
     }
 
     match /conversations/{convoId} {
       allow create: if isSignedIn() && request.auth.uid in incoming().participants;
-      allow get, update: if isSignedIn() && request.auth.uid in existing().participants;
-      allow list: if isSignedIn() && request.auth.uid in resource.data.participants;
-      allow delete: if isSignedIn() && request.auth.uid in resource.data.participants;
+      allow get, list, update, delete: if isSignedIn() && request.auth.uid in resource.data.participants;
 
       match /messages/{messageId} {
         allow get, list: if isSignedIn() && request.auth.uid in get(/databases/$(database)/documents/conversations/$(convoId)).data.participants;

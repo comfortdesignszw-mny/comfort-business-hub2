@@ -11,7 +11,7 @@ import LocationPicker from '../components/LocationPicker';
 import { offlineResilientWrite } from '../lib/sync';
 import { geohashForLocation } from 'geofire-common';
 
-export default function SupplierSetup({ profile, onComplete, existingStore }: { profile: UserProfile, onComplete?: () => void, existingStore?: StoreType }) {
+export default function SupplierSetup({ profile, onComplete, existingStore }: { profile: UserProfile, onComplete?: (id?: string) => void, existingStore?: StoreType }) {
   const [loading, setLoading] = useState(false);
   const [name, setName] = useState(existingStore?.name || '');
   const [description, setDescription] = useState(existingStore?.description || '');
@@ -85,7 +85,7 @@ export default function SupplierSetup({ profile, onComplete, existingStore }: { 
 
       if (existingStore) {
         await offlineResilientWrite('stores', existingStore.id, 'update', storeData);
-        onComplete?.();
+        onComplete?.(existingStore.id);
       } else {
         const newStoreId = `store_${Date.now()}_${Math.random().toString(36).substring(7)}`;
         const hash = geohashForLocation([location.lat, location.lng]);
@@ -102,7 +102,7 @@ export default function SupplierSetup({ profile, onComplete, existingStore }: { 
         await offlineResilientWrite('stores', newStoreId, 'create', newStoreData);
         
         if (onComplete) {
-          onComplete();
+          onComplete(newStoreId);
         } else {
           alert("Storefront initialized successfully!");
         }

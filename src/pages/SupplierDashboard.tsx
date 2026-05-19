@@ -108,6 +108,8 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
 
   const [engagementStats, setEngagementStats] = useState({ engaged: 0, interested: 0, volume: 0 });
 
+  const [waitingForId, setWaitingForId] = useState<string | null>(null);
+
   useEffect(() => {
     setLoading(true);
     // Real-time Stores Listener
@@ -118,17 +120,28 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
       
       if (fetchedStores.length > 0) {
         setIsWaitingForSync(false);
-        // Set active store if not set or if current active store was updated
+        // Set active store
         setActiveStore(prev => {
-          if (!prev) {
-            // Check location state for preferred store
-            const state = location.state as any;
-            if (state?.activeStore) {
-              return fetchedStores.find(s => s.id === state.activeStore.id) || fetchedStores[0];
+          // 1. If we were waiting for a specific ID, select it
+          if (waitingForId) {
+            const target = fetchedStores.find(s => s.id === waitingForId);
+            if (target) {
+              setWaitingForId(null);
+              return target;
             }
-            return fetchedStores[0];
           }
-          return fetchedStores.find(s => s.id === prev.id) || fetchedStores[0];
+
+          // 2. If we had an active store, stay on it if still exists
+          if (prev) {
+            return fetchedStores.find(s => s.id === prev.id) || fetchedStores[0];
+          }
+
+          // 3. Fallback to selection logic from state or first store
+          const state = location.state as any;
+          if (state?.activeStore) {
+            return fetchedStores.find(s => s.id === state.activeStore.id) || fetchedStores[0];
+          }
+          return fetchedStores[0];
         });
       }
       setLoading(false);
@@ -138,7 +151,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
     });
 
     return () => storesUnsub();
-  }, [profile.uid, location.key]);
+  }, [profile.uid, location.key, waitingForId]);
 
   // Real-time Products Listener for Active Store
   useEffect(() => {
@@ -405,9 +418,11 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
           </button>
           <SupplierSetup 
             profile={profile} 
-            onComplete={() => {
+            onComplete={(newId) => {
+              if (newId) setWaitingForId(newId);
               setIsWaitingForSync(true);
               setShowStoreSetup(false);
+              triggerFeedback('Uplink Synchronized', 'Your node data is being propagated through the network hub.', 'connect_accept');
             }} 
           />
         </div>
