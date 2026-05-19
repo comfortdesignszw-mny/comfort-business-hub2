@@ -49,7 +49,7 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode, profile: U
   };
 
   useEffect(() => {
-    if (!profile || profile.isGuest) {
+    if (!profile) {
       setUnreadMessagesCount(0);
       return;
     }
@@ -235,7 +235,7 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode, profile: U
   };
 
   useEffect(() => {
-    if (!profile || profile.isGuest || !messaging) return;
+    if (!profile || !messaging) return;
 
     const requestPermission = async () => {
       try {

@@ -387,7 +387,7 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
           </div>
         </div>
 
-        {profile && !profile.isGuest && (
+        {profile && (
           <div className="flex gap-2 overflow-x-auto pb-2 -mx-2 px-2 no-scrollbar scroll-smooth">
             {categories.map((cat) => (
               <button
@@ -876,7 +876,6 @@ function StoreCard({ store, profile, onSelect }: { store: StoreType, profile: Us
             title="Follow this Storefront" 
             message="Sign in to follow this node and receive real-time inventory updates and market signals."
             profile={profile}
-            requireRealUser={true}
           >
             <button 
               onClick={handleFollow}
@@ -889,7 +888,6 @@ function StoreCard({ store, profile, onSelect }: { store: StoreType, profile: Us
             title="Save for Later"
             message="Join the network to save this storefront to your private dashboard."
             profile={profile}
-            requireRealUser={true}
           >
             <button 
               onClick={handleLike}

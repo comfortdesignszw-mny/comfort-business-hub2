@@ -59,6 +59,10 @@ export default function TermsOfService() {
               <p className="text-sm relative z-10 leading-loose">
                 The Platform is a business hub and multi-vendor marketplace built to allow users to sign up, create business profiles, establish customizable storefronts, and list products or services for sale. The Platform serves as an intermediary venue connecting sellers ("Sellers") with customers ("Buyers"). We do not sell or possess any products or services listed by third-party Sellers.
               </p>
+              <div className="h-px bg-white/10 w-full relative z-10" />
+              <p className="text-xs text-gray-500 relative z-10 leading-relaxed italic">
+                <span className="text-white font-bold uppercase tracking-wider not-italic">Guest & Anonymous Modes:</span> In addition to full node membership, the Platform supports Guest Browsing and Guest Access modes. Anonymous explorers can browse public inventories and share nodes, while user-activated Guest Sessions allow users to register a local temporary identifier and test transactions (e.g., placing inquiries via the "Talk" option or submitting purchase intents via "Order Now" commands) to preview the system seamlessly.
+              </p>
             </section>
 
             <section className="space-y-6">
@@ -69,6 +73,10 @@ export default function TermsOfService() {
                 <li className="flex gap-4">
                   <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 flex-shrink-0" />
                   <p className="text-sm"><span className="text-white font-bold">Google Authentication:</span> To access certain features, you must register for an account using your Google Account. You agree to provide and maintain accurate, current, and complete profile information, including your full name, phone number, and profile image.</p>
+                </li>
+                <li className="flex gap-4">
+                  <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 flex-shrink-0" />
+                  <p className="text-sm"><span className="text-white font-bold">Guest Accounts and Access:</span> Users may opt to transact or inquire under a guest account. Personal information is not explicitly persisted on our central servers for guest access, except where required for conversion logging (e.g. logging active business leads or store metrics for "Talk" and "Order Now" commands) to provide accurate dashboard statistics. Clearing your device's browser cache or logged-out manual dissolution will permanently erase guest tokens and historical access.</p>
                 </li>
                 <li className="flex gap-4">
                   <div className="w-1.5 h-1.5 rounded-full bg-primary mt-2 flex-shrink-0" />

@@ -70,7 +70,7 @@ export function StoreDetailContent({ store, profile, onGuestLogin, showMap = tru
   }, [profile?.uid, store.ownerId]);
 
   const handleConnect = async () => {
-    if (!profile || profile.isGuest) {
+    if (!profile) {
       navigate('/login');
       return;
     }
@@ -84,7 +84,7 @@ export function StoreDetailContent({ store, profile, onGuestLogin, showMap = tru
   };
 
   const handleFollow = async () => {
-    if (!profile || profile.isGuest) {
+    if (!profile) {
       navigate('/login');
       return;
     }
@@ -97,7 +97,7 @@ export function StoreDetailContent({ store, profile, onGuestLogin, showMap = tru
   };
 
   const handleLike = async () => {
-    if (!profile || profile.isGuest) {
+    if (!profile) {
       navigate('/login');
       return;
     }
@@ -313,7 +313,6 @@ export function StoreDetailContent({ store, profile, onGuestLogin, showMap = tru
                 title="Establish Node Interlock"
                 message="Secure identity is required to establish a direct business partnership and private channel access."
                 profile={profile}
-                requireRealUser={true}
               >
                 <button 
                   onClick={handleConnect}
@@ -337,7 +336,6 @@ export function StoreDetailContent({ store, profile, onGuestLogin, showMap = tru
                 title="Follow Strategic Feed"
                 message="Join the Network Hub to follow this node and receive real-time supply chain updates."
                 profile={profile}
-                requireRealUser={true}
               >
                 <button 
                   onClick={handleFollow}
@@ -352,7 +350,6 @@ export function StoreDetailContent({ store, profile, onGuestLogin, showMap = tru
                 title="Log Store Interest"
                 message="Sign in to save this storefront to your private business registry."
                 profile={profile}
-                requireRealUser={true}
               >
                 <button 
                   onClick={handleLike}

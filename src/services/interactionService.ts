@@ -24,7 +24,7 @@ export const interactionService = {
     customTitle?: string,
     customMessage?: string
   ) {
-    if (recipientId === fromUser.uid || fromUser.isGuest) return; 
+    if (recipientId === fromUser.uid) return; 
 
     try {
       const title = customTitle || this.getDefaultTitle(type);
@@ -75,7 +75,6 @@ export const interactionService = {
   },
 
   async sendConnectionRequest(sender: UserProfile, receiver: { uid: string, name: string, avatar?: string }) {
-    if (sender.isGuest) return;
     try {
       // Use deterministic ID to prevent multiple requests
       const connectionId = [sender.uid, receiver.uid].sort().join('_');
@@ -135,7 +134,6 @@ export const interactionService = {
   },
 
   async followStore(storeId: string, storeOwnerId: string, user: UserProfile) {
-    if (user.isGuest) return;
     try {
       const followId = `${storeId}_${user.uid}`;
       const followRef = doc(db, 'follows', followId);
@@ -162,7 +160,6 @@ export const interactionService = {
   },
 
   async likeStore(storeId: string, storeOwnerId: string, user: UserProfile) {
-    if (user.isGuest) return;
     try {
       const likeId = `${storeId}_${user.uid}`;
       const likeRef = doc(db, 'storeLikes', likeId);
@@ -189,7 +186,6 @@ export const interactionService = {
   },
 
   async likeProduct(productId: string, productOwnerId: string, user: UserProfile) {
-    if (user.isGuest) return;
     try {
       const likeId = `${productId}_${user.uid}`;
       const likeRef = doc(db, 'productLikes', likeId);
@@ -216,7 +212,6 @@ export const interactionService = {
   },
 
   async submitReview(productId: string, storeId: string, profile: UserProfile, rating: number, comment: string, productOwnerId: string) {
-    if (profile.isGuest) return;
     try {
       await runTransaction(db, async (transaction) => {
         const productRef = doc(db, 'products', productId);

@@ -270,7 +270,6 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
                   title="Log Interest Signal" 
                   message="Sign in to save this product to your tactical awareness dashboard."
                   profile={profile}
-                  requireRealUser={true}
                 >
                   <button 
                     onClick={handleLike}
@@ -315,7 +314,6 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
                 title="Establish Communication" 
                 message="Authenticate to initiate a secure signal stream with the inventory node operator."
                 profile={profile}
-                requireRealUser={true}
               >
                 <button 
                   onClick={handleTalk}
@@ -376,7 +374,6 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
             title="Log Feedback Signal"
             message="Secure authentication is required to contribute to the overall trust consensus of this node."
             profile={profile}
-            requireRealUser={true}
           >
             <motion.div 
                initial={{ opacity: 0, y: 20 }}

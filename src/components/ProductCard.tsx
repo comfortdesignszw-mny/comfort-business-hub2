@@ -80,7 +80,7 @@ export default function ProductCard({
   }, [product.storeId, initialStore]);
 
   const logEngagement = async (type: EngagementType) => {
-    if (!profile || profile.isGuest || !product.ownerId) return;
+    if (!profile || !product.ownerId) return;
     
     try {
       const customerName = profile.name || profile.businessName || profile.email?.split('@')[0] || 'Member';
@@ -103,12 +103,6 @@ export default function ProductCard({
 
   const handleAction = (type: 'shop' | 'engage') => {
     if (!profile) {
-      navigate('/login');
-      return;
-    }
-
-    if (type === 'engage' && profile.isGuest) {
-      // In guest mode, cannot talk/chat, redirect to login
       navigate('/login');
       return;
     }
@@ -148,7 +142,7 @@ export default function ProductCard({
 
   const handleLike = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!profile || profile.isGuest) {
+    if (!profile) {
       navigate('/login');
       return;
     }

@@ -90,6 +90,18 @@ export default function PrivacyPolicy() {
                     <span className="text-white font-bold">Payment Gateways:</span> We receive transaction confirmation tokens but do not store full credit card numbers or banking passwords.
                   </p>
                 </div>
+
+                <div className="bg-white/5 p-6 rounded-3xl border border-white/10">
+                  <h3 className="text-xs font-black text-white uppercase mb-4 flex items-center gap-2">
+                    <div className="w-2 h-2 rounded-full bg-primary" />
+                    D. Guest Sessions & Local Sandbox Storage
+                  </h3>
+                  <p className="text-xs leading-relaxed">
+                    <span className="text-white font-bold text-primary">Local Storage Protocols:</span> Guest profile vectors, authorization keys, and session parameters are stored strictly in client-side HTML5 local storage (localStorage) within your terminal browser. This structure operates independent of our permanent user auth directory.
+                    <br/><br/>
+                    <span className="text-white font-bold text-primary">Inquiry and Conversion Analytics:</span> For guests initiating inquiries (clicking "Talk") or simulating transaction intents (selecting "Order Now"), the Platform logs a system conversion signal. These telemetry logs associate events to a temporary guest signature to verify pipeline integrity and record store volumes. No permanent physical identifiers, emails, or personal contact entries are recorded under these guest tracking indicators unless you choose to provide them to the Seller.
+                  </p>
+                </div>
               </div>
             </section>
 
@@ -167,14 +179,14 @@ export default function PrivacyPolicy() {
                   <Database size={16} />
                   <h3 className="text-sm font-black uppercase tracking-wider italic">06. Retention</h3>
                 </div>
-                <p className="text-xs leading-relaxed">Data is retained as long as your account is active. Deleted account data is anonymized unless required for tax compliance records or disciplinary history (banned IDs are retained permanently to prevent re-entry).</p>
+                <p className="text-xs leading-relaxed">Data is retained as long as your account is active. Deleted account data is anonymized unless required for tax compliance records or disciplinary history. Guest profiles and guest session trackers have a temporary lifetime and are entirely deleted from local device cache when the user terminates their guest session or purges host cookies.</p>
               </section>
               <section className="space-y-4 bg-white/5 p-6 rounded-3xl border border-white/10">
                 <div className="flex items-center gap-2 text-white">
                   <Trash2 size={16} />
                   <h3 className="text-sm font-black uppercase tracking-wider italic">07. Your Rights</h3>
                 </div>
-                <p className="text-xs leading-relaxed">You have the right to access, correct, or request deletion of your personal data through your profile settings.</p>
+                <p className="text-xs leading-relaxed">You have the right to access, correct, or request deletion of your personal data. Guest session users can instantly execute their right to erasure of self-contained session information by selecting "Terminate Guest Session" inside the dashboard sidebar navigation console.</p>
               </section>
             </div>
 

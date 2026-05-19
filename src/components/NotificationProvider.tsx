@@ -20,7 +20,7 @@ export function NotificationProvider({ children, profile }: { children: React.Re
   const [showToast, setShowToast] = useState<{title: string, message: string, type: AppNotification['type']} | null>(null);
 
   useEffect(() => {
-    if (!profile || profile.isGuest) {
+    if (!profile) {
       setNotifications([]);
       return;
     }

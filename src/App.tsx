@@ -58,15 +58,42 @@ const PageLoader = () => (
 // Global Scroll To Top component
 const ScrollToTop = () => {
   const { pathname } = useLocation();
+
   useEffect(() => {
-    // Scroll the main content area to top
-    const main = document.querySelector('main');
-    if (main) {
-      main.scrollTo(0, 0);
-    } else {
-      window.scrollTo(0, 0);
+    // Explicitly set browser scroll restoration to manual so standard browser history navigation does not battle our reset
+    if (typeof window !== 'undefined' && 'scrollRestoration' in window.history) {
+      window.history.scrollRestoration = 'manual';
     }
+  }, []);
+
+  useEffect(() => {
+    const performScrollReset = () => {
+      // Scroll the main content pane
+      const main = document.querySelector('main');
+      if (main) {
+        main.scrollTo(0, 0);
+        main.scrollTop = 0;
+      }
+
+      // Scroll window frame elements
+      window.scrollTo(0, 0);
+      if (document.documentElement) document.documentElement.scrollTop = 0;
+      if (document.body) document.body.scrollTop = 0;
+    };
+
+    // Reset scroll immediately
+    performScrollReset();
+
+    // Defer a tiny bit to run clean-ups after React finishes its layout cycles and content gets painted
+    const animationFrameId = requestAnimationFrame(performScrollReset);
+    const timeoutId = setTimeout(performScrollReset, 0);
+
+    return () => {
+      cancelAnimationFrame(animationFrameId);
+      clearTimeout(timeoutId);
+    };
   }, [pathname]);
+
   return null;
 };
 
