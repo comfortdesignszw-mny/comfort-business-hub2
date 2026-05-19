@@ -1,9 +1,15 @@
-import React, { useState } from 'react';
-import { signInWithPopup, GoogleAuthProvider, browserPopupRedirectResolver } from 'firebase/auth';
+import React, { useState, useEffect } from 'react';
+import { 
+  signInWithPopup, 
+  signInWithRedirect,
+  getRedirectResult,
+  GoogleAuthProvider, 
+  browserPopupRedirectResolver 
+} from 'firebase/auth';
 import { auth, db, handleFirestoreError, OperationType, syncPublicProfile } from '../lib/firebase';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'motion/react';
-import { Zap, LogIn, Shield, Globe, Cpu, AlertTriangle } from 'lucide-react';
+import { Zap, LogIn, Shield, Globe, Cpu, AlertTriangle, ExternalLink } from 'lucide-react';
 import { Link } from 'react-router-dom';
 import { UserProfile } from '../types';
 
@@ -11,73 +17,100 @@ export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
+  // Handle redirect result on mount
+  useEffect(() => {
+    const checkRedirect = async () => {
+      try {
+        const result = await getRedirectResult(auth);
+        if (result) {
+          setLoading(true);
+          await finishLogin(result.user);
+        }
+      } catch (err: any) {
+        console.error('Redirect login error:', err);
+        setError(err.message || "Failed to resume authentication sequence.");
+      } finally {
+        setLoading(false);
+      }
+    };
+    checkRedirect();
+  }, []);
+
+  const finishLogin = async (user: any) => {
+    const userPath = `users/${user.uid}`;
+    // Check if profile exists
+    let docSnap;
+    try {
+      docSnap = await getDoc(doc(db, 'users', user.uid));
+    } catch (e) {
+      handleFirestoreError(e, OperationType.GET, userPath);
+      return;
+    }
+
+    const profileData: Partial<UserProfile> = {
+      uid: user.uid,
+      name: user.displayName || 'Operator',
+      email: user.email || undefined,
+      avatar: user.photoURL || undefined,
+      isVerified: user.emailVerified,
+      updatedAt: serverTimestamp()
+    };
+
+    if (!docSnap.exists()) {
+      const newProfile: UserProfile = {
+        ...profileData,
+        phone: user.phoneNumber || 'Unlinked',
+        currentRole: 'customer',
+      } as UserProfile;
+      
+      try {
+        await setDoc(doc(db, 'users', user.uid), newProfile);
+        await syncPublicProfile(newProfile);
+      } catch (e) {
+        handleFirestoreError(e, OperationType.WRITE, userPath);
+        return;
+      }
+    } else {
+      // Sync existing profile with latest Google data
+      try {
+        await setDoc(doc(db, 'users', user.uid), profileData, { merge: true });
+        const existingProfile = docSnap.data() as UserProfile;
+        await syncPublicProfile({ ...existingProfile, ...profileData });
+      } catch (e) {
+        handleFirestoreError(e, OperationType.UPDATE, userPath);
+        return;
+      }
+    }
+    
+    window.location.reload();
+  };
+
   const handleGoogleLogin = async () => {
     setLoading(true);
     setError(null);
+    const provider = new GoogleAuthProvider();
+    
     try {
-      const provider = new GoogleAuthProvider();
-      // Using browserPopupRedirectResolver to improve communication in iframe environments
+      // First attempt with popup as it's better UX if it works
       const { user } = await signInWithPopup(auth, provider, browserPopupRedirectResolver);
-      
-      const userPath = `users/${user.uid}`;
-      // Check if profile exists
-      let docSnap;
-      try {
-        docSnap = await getDoc(doc(db, 'users', user.uid));
-      } catch (e) {
-        handleFirestoreError(e, OperationType.GET, userPath);
-        return;
-      }
-
-      const profileData: Partial<UserProfile> = {
-        uid: user.uid,
-        name: user.displayName || 'Operator',
-        email: user.email || undefined,
-        avatar: user.photoURL || undefined,
-        isVerified: user.emailVerified,
-        updatedAt: serverTimestamp()
-      };
-
-      if (!docSnap.exists()) {
-        const newProfile: UserProfile = {
-          ...profileData,
-          phone: user.phoneNumber || 'Unlinked',
-          currentRole: 'customer',
-        } as UserProfile;
-        
-        try {
-          await setDoc(doc(db, 'users', user.uid), newProfile);
-          await syncPublicProfile(newProfile);
-        } catch (e) {
-          handleFirestoreError(e, OperationType.WRITE, userPath);
-          return;
-        }
-      } else {
-        // Sync existing profile with latest Google data
-        try {
-          await setDoc(doc(db, 'users', user.uid), profileData, { merge: true });
-          const existingProfile = docSnap.data() as UserProfile;
-          await syncPublicProfile({ ...existingProfile, ...profileData });
-        } catch (e) {
-          handleFirestoreError(e, OperationType.UPDATE, userPath);
-          return;
-        }
-      }
-      
-      window.location.reload();
+      await finishLogin(user);
     } catch (err: any) {
       console.error('Login Error:', err);
-      let message = err.message || "Failed to establish uplink.";
       
-      if (err.code === 'auth/internal-error' || err.code === 'auth/network-request-failed') {
-        message = "Network connectivity issues or unauthorized terminal. Ensure your domain is allowlisted in Firebase, and try again";
-      } else if (err.code === 'auth/popup-blocked') {
-        message = "Login interface blocked by browser. Please enable popups for this site and try again.";
+      if (err.code === 'auth/popup-blocked' || err.code === 'auth/cancelled-popup-request') {
+        // Fallback to redirect if popup is blocked or fails due to sandboxing
+        try {
+          await signInWithRedirect(auth, provider);
+        } catch (redirectErr: any) {
+          setError("Direct uplink failed. Please open this app in a new tab using the top-right button.");
+        }
       } else if (err.code === 'auth/popup-closed-by-user') {
-        message = "Authentication sequence aborted by operator.";
+        setError("Uplink sequence aborted. Please keep the authentication window open until complete.");
+      } else if (err.code === 'auth/internal-error' || err.code === 'auth/network-request-failed') {
+        setError("Network connectivity issues or unauthorized terminal. Ensure your domain is allowlisted.");
+      } else {
+        setError(err.message || "Failed to establish uplink.");
       }
-      
-      setError(message);
     } finally {
       setLoading(false);
     }

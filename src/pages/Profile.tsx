@@ -102,36 +102,45 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
         { name: 'reports', field: 'ownerId' }
       ];
 
-      for (const coll of collectionsToWipe) {
-        try {
-          const q = query(collection(db, coll.name), where(coll.field, '==', uid));
-          const snap = await getDocs(q);
-          const deletePromises = snap.docs.map(d => deleteDoc(doc(db, coll.name, d.id)));
-          await Promise.all(deletePromises);
-        } catch (e) {
-          console.error(`Wipe failed for ${coll.name}:`, e);
-        }
-      }
+      // Execute all data wipes in parallel for maximum velocity
+      const wipePromises = [
+        // Wipe all linked collections
+        ...collectionsToWipe.map(async (coll) => {
+          try {
+            const q = query(collection(db, coll.name), where(coll.field, '==', uid));
+            const snap = await getDocs(q);
+            const deletePromises = snap.docs.map(d => deleteDoc(doc(db, coll.name, d.id)));
+            return Promise.all(deletePromises);
+          } catch (e) {
+            console.error(`Wipe failed for ${coll.name}:`, e);
+          }
+        }),
 
-      // 2. Wipe Conversations and Sub-messages
-      const convQuery = query(collection(db, 'conversations'), where('participants', 'array-contains', uid));
-      const convSnap = await getDocs(convQuery);
-      
-      for (const convoDoc of convSnap.docs) {
-        try {
-          const msgSnap = await getDocs(collection(db, 'conversations', convoDoc.id, 'messages'));
-          const msgDeletes = msgSnap.docs.map(m => deleteDoc(doc(db, 'conversations', convoDoc.id, 'messages', m.id)));
-          await Promise.all(msgDeletes);
-          await deleteDoc(doc(db, 'conversations', convoDoc.id));
-        } catch (e) {
-          console.error("Conversation/Message wipe failed:", e);
-        }
-      }
+        // Wipe Conversations and Sub-messages
+        (async () => {
+          try {
+            const convQuery = query(collection(db, 'conversations'), where('participants', 'array-contains', uid));
+            const convSnap = await getDocs(convQuery);
+            
+            return Promise.all(convSnap.docs.map(async (convoDoc) => {
+              const msgSnap = await getDocs(collection(db, 'conversations', convoDoc.id, 'messages'));
+              const msgDeletes = msgSnap.docs.map(m => deleteDoc(doc(db, 'conversations', convoDoc.id, 'messages', m.id)));
+              await Promise.all(msgDeletes);
+              return deleteDoc(doc(db, 'conversations', convoDoc.id));
+            }));
+          } catch (e) {
+            console.error("Conversation/Message wipe failed:", e);
+          }
+        })(),
 
-      // 3. Wipe User Profile
-      await deleteDoc(doc(db, 'users', uid));
+        // Wipe User Profile
+        deleteDoc(doc(db, 'users', uid))
+      ];
 
-      // 4. Final Auth Operation
+      // Wait for all deletions to complete
+      await Promise.all(wipePromises);
+
+      // Final Auth Operation
       // Note: Full auth account deletion might require recent login
       try {
         await auth.currentUser.delete();
@@ -139,14 +148,17 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
         console.warn("Auth deletion deferred (re-auth required), signing out instead.");
       }
       
-      // 5. Success Message & Forced Logout
+      // Forced Logout & Success Confirmation
       alert("All your personal data, transactions and product listings are completely wiped from our system");
       
-      auth.signOut();
-      navigate('/login');
+      await auth.signOut();
+      navigate('/login', { replace: true });
+      window.location.reload(); // Hard reset to clear any dangling state
     } catch (e) {
-      handleFirestoreError(e, OperationType.DELETE, `account-wipe-${profile.uid}`);
+      console.error("CRITICAL IDENTITY PURGE FAILURE:", e);
       alert("Critical failure during identity purge. Partial data might remain. Please contact support.");
+      await auth.signOut();
+      navigate('/login', { replace: true });
     } finally {
       setIsDeleting(false);
       setActiveModal(null);
