@@ -74,6 +74,7 @@ export default function App() {
   useMobileHeight();
   const [user, setUser] = useState<User | null>(null);
   const [profile, setProfile] = useState<UserProfile | null>(null);
+  const [isGuest, setIsGuest] = useState<boolean>(false);
   const [hasStore, setHasStore] = useState<boolean>(false);
   const [loading, setLoading] = useState(true);
 
@@ -83,9 +84,23 @@ export default function App() {
   const isProfileIncomplete = profile?.currentRole === 'customer' && (!profile.requiredProducts || profile.requiredProducts.length === 0);
 
   useEffect(() => {
+    // Check for guest session on mount
+    const savedGuestProfile = localStorage.getItem('guest_profile');
+    if (savedGuestProfile && !user) {
+      try {
+        const guestData = JSON.parse(savedGuestProfile);
+        setProfile(guestData);
+        setIsGuest(true);
+      } catch (e) {
+        console.error("Failed to parse guest profile", e);
+      }
+    }
+
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       setUser(firebaseUser);
       if (firebaseUser) {
+        setIsGuest(false);
+        localStorage.removeItem('guest_profile');
         const userPath = `users/${firebaseUser.uid}`;
         try {
           const docSnap = await getDoc(doc(db, 'users', firebaseUser.uid));
@@ -141,7 +156,33 @@ export default function App() {
       setLoading(false);
     });
     return unsubscribe;
-  }, []);
+  }, [user]);
+
+  const handleGuestLogin = () => {
+    const guestUid = `guest_${Math.random().toString(36).substring(2, 11)}`;
+    const guestProfile: UserProfile = {
+      uid: guestUid,
+      isGuest: true,
+      name: 'Guest User',
+      phone: '',
+      currentRole: 'customer',
+      isVerified: false,
+      updatedAt: new Date().toISOString()
+    };
+    setProfile(guestProfile);
+    setIsGuest(true);
+    localStorage.setItem('guest_profile', JSON.stringify(guestProfile));
+  };
+
+  const handleLogout = async () => {
+    if (isGuest) {
+      setProfile(null);
+      setIsGuest(false);
+      localStorage.removeItem('guest_profile');
+    } else {
+      await auth.signOut();
+    }
+  };
 
   if (loading) {
     return (
@@ -178,12 +219,13 @@ export default function App() {
                 <NotificationProvider profile={profile}>
                   <MessagingProvider profile={profile}>
                     <ModalProvider profile={profile}>
-                      <Header profile={profile} onMenuClick={() => setShowSidebar(true)} />
+                      <Header profile={profile} onMenuClick={() => setShowSidebar(true)} onLogout={handleLogout} />
                       <AnimatePresence>
                         {showSidebar && (
                           <Sidebar 
                             profile={profile} 
                             onClose={() => setShowSidebar(false)} 
+                            onLogout={handleLogout}
                           />
                         )}
                       </AnimatePresence>
@@ -194,9 +236,9 @@ export default function App() {
                               <Suspense fallback={<PageLoader />}>
                                 <Routes>
                                   {/* Public Routes */}
-                                  <Route path="/" element={<Discovery profile={profile} setProfile={setProfile} />} />
-                                  <Route path="/store/:id" element={<StoreDetail profile={profile} />} />
-                                  <Route path="/product/:id" element={<ProductDetail profile={profile} />} />
+                                  <Route path="/" element={<Discovery profile={profile} setProfile={setProfile} onGuestLogin={handleGuestLogin} />} />
+                                  <Route path="/store/:id" element={<StoreDetail profile={profile} onGuestLogin={handleGuestLogin} />} />
+                                  <Route path="/product/:id" element={<ProductDetail profile={profile} onGuestLogin={handleGuestLogin} />} />
                                   <Route path="/terms" element={<TermsOfService />} />
                                   <Route path="/privacy" element={<PrivacyPolicy />} />
                                   <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
@@ -248,7 +290,7 @@ export default function App() {
   );
 }
 
-function Header({ profile, onMenuClick }: { profile: UserProfile | null, onMenuClick?: () => void }) {
+function Header({ profile, onMenuClick, onLogout }: { profile: UserProfile | null, onMenuClick?: () => void, onLogout?: () => void }) {
   const location = useLocation();
   const navigate = useNavigate();
   const isHome = location.pathname === '/' || location.pathname === '';
@@ -312,6 +354,16 @@ function Header({ profile, onMenuClick }: { profile: UserProfile | null, onMenuC
                   {profile?.name?.charAt(0).toUpperCase() || <UserIcon size={18} />}
                 </div>
               </Link>
+
+              {profile?.isGuest && (
+                <button 
+                  onClick={onLogout}
+                  className="w-10 h-10 bg-red-500/10 rounded-xl flex items-center justify-center text-red-500 hover:bg-red-500 hover:text-white transition-all border border-red-500/20"
+                  title="Logout Guest Agent"
+                >
+                  <X size={20} />
+                </button>
+              )}
             </>
           ) : (
             <Link 
@@ -328,7 +380,7 @@ function Header({ profile, onMenuClick }: { profile: UserProfile | null, onMenuC
   );
 }
 
-function Sidebar({ profile, onClose }: { profile: UserProfile | null, onClose: () => void }) {
+function Sidebar({ profile, onClose, onLogout }: { profile: UserProfile | null, onClose: () => void, onLogout?: () => void }) {
   const { unreadMessagesCount } = useMessaging();
   const location = useLocation();
   const navItems = [
@@ -410,18 +462,31 @@ function Sidebar({ profile, onClose }: { profile: UserProfile | null, onClose: (
           })}
         </div>
 
-        <div className="p-6 border-t border-white/5 bg-white/5">
+        <div className="p-6 border-t border-white/5 bg-white/5 space-y-4">
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary font-bold overflow-hidden border border-primary/20">
               {profile?.name?.charAt(0).toUpperCase() || <UserIcon size={18} />}
             </div>
             <div className="flex-1 min-w-0">
-              <p className="text-[10px] font-black text-white uppercase truncate">{profile?.name || 'Authorized User'}</p>
+              <p className="text-[10px] font-black text-white uppercase truncate">{profile?.name || 'Anonymous User'}</p>
               <p className="text-[8px] text-gray-500 font-bold uppercase tracking-widest">
-                {profile?.currentRole || 'Role Unknown'}
+                {profile ? (profile.currentRole || 'Member') : 'Browsing Matrix'} {profile?.isGuest && '(Guest Session)'}
               </p>
             </div>
           </div>
+
+          {profile?.isGuest && (
+            <button 
+              onClick={() => {
+                if (onLogout) onLogout();
+                onClose();
+              }}
+              className="w-full py-3 bg-red-500/10 border border-red-500/20 text-red-500 rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all flex items-center justify-center gap-2"
+            >
+              <LogIn size={14} className="rotate-180" />
+              Terminate Guest Session
+            </button>
+          )}
         </div>
       </motion.aside>
     </div>

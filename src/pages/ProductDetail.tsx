@@ -19,7 +19,7 @@ import AuthGuard from '../components/AuthGuard';
 
 import { UnifiedCheckoutModal, EcoCashModal, PodModal } from '../components/CheckoutModals';
 
-export default function ProductDetail({ profile }: { profile: UserProfile | null }) {
+export default function ProductDetail({ profile, onGuestLogin }: { profile: UserProfile | null, onGuestLogin?: () => void }) {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const location = useLocation();
@@ -225,7 +225,7 @@ export default function ProductDetail({ profile }: { profile: UserProfile | null
           {/* Share Button */}
           <button 
             onClick={handleShare}
-            className="absolute top-3 right-3 sm:top-6 sm:right-6 p-2 sm:p-3 bg-black/50 backdrop-blur-md rounded-xl sm:rounded-2xl border border-white/10 text-white hover:text-primary transition-all hover:scale-110 active:scale-95 shadow-2xl"
+            className="absolute top-3 right-3 sm:top-6 sm:right-6 p-2 sm:p-3 bg-black/50 backdrop-blur-md rounded-xl sm:rounded-2xl border border-white/10 text-white hover:text-primary transition-all hover:scale-110 active:scale-95 shadow-2xl no-auth-guard"
           >
             <Share2 size={16} />
           </button>
@@ -269,6 +269,8 @@ export default function ProductDetail({ profile }: { profile: UserProfile | null
                 <AuthGuard 
                   title="Log Interest Signal" 
                   message="Sign in to save this product to your tactical awareness dashboard."
+                  profile={profile}
+                  requireRealUser={true}
                 >
                   <button 
                     onClick={handleLike}
@@ -312,6 +314,8 @@ export default function ProductDetail({ profile }: { profile: UserProfile | null
               <AuthGuard 
                 title="Establish Communication" 
                 message="Authenticate to initiate a secure signal stream with the inventory node operator."
+                profile={profile}
+                requireRealUser={true}
               >
                 <button 
                   onClick={handleTalk}
@@ -325,6 +329,9 @@ export default function ProductDetail({ profile }: { profile: UserProfile | null
               <AuthGuard 
                 title="Initialize Acquisition" 
                 message="Join the Network Hub to process secure payments and finalize the logistics of this acquisition."
+                profile={profile}
+                allowGuest={true}
+                onGuestContinue={onGuestLogin}
               >
                 <button 
                   onClick={handlePurchase}
@@ -368,6 +375,8 @@ export default function ProductDetail({ profile }: { profile: UserProfile | null
           <AuthGuard
             title="Log Feedback Signal"
             message="Secure authentication is required to contribute to the overall trust consensus of this node."
+            profile={profile}
+            requireRealUser={true}
           >
             <motion.div 
                initial={{ opacity: 0, y: 20 }}

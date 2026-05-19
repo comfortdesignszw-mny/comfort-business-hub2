@@ -9,6 +9,8 @@ interface GuestLoginPromptProps {
   title?: string;
   message?: string;
   actionLabel?: string;
+  allowGuest?: boolean;
+  onGuestContinue?: () => void;
 }
 
 export default function GuestLoginPrompt({ 
@@ -16,7 +18,9 @@ export default function GuestLoginPrompt({
   onClose, 
   title = "Authentication Required", 
   message = "Please sign in to access secure features and perform real-time interactions.",
-  actionLabel = "Sign In"
+  actionLabel = "Sign In",
+  allowGuest = false,
+  onGuestContinue
 }: GuestLoginPromptProps) {
   const navigate = useNavigate();
 
@@ -66,6 +70,19 @@ export default function GuestLoginPrompt({
                   <LogIn size={16} />
                   {actionLabel}
                 </button>
+
+                {allowGuest && (
+                  <button
+                    onClick={() => {
+                      if (onGuestContinue) onGuestContinue();
+                    }}
+                    className="w-full py-4 bg-accent/20 text-accent rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] border border-accent/20 hover:bg-accent/30 hover:shadow-[0_0_20px_rgba(255,0,212,0.2)] transition-all flex items-center justify-center gap-2 group/guest"
+                  >
+                    <ShoppingBag size={16} className="group-hover/guest:animate-bounce" />
+                    Transact as a Guest
+                  </button>
+                )}
+
                 <button
                   onClick={onClose}
                   className="w-full py-4 bg-white/5 text-gray-500 rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] hover:text-white hover:bg-white/10 transition-all"

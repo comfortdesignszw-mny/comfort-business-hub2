@@ -33,7 +33,7 @@ function MapController({ center, isFollowing }: { center: [number, number], isFo
   return null;
 }
 
-export default function Discovery({ profile, setProfile }: { profile: UserProfile | null, setProfile: (p: UserProfile) => void }) {
+export default function Discovery({ profile, setProfile, onGuestLogin }: { profile: UserProfile | null, setProfile: (p: UserProfile) => void, onGuestLogin?: () => void }) {
   const navigate = useNavigate();
   const { openUserList, openUserProfile } = useModals();
   const [searchTerm, setSearchTerm] = useState('');
@@ -309,7 +309,7 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
       )}
 
       {/* User Count Notification */}
-      {profile && userCount !== null && (
+      {profile && !profile.isGuest && userCount !== null && (
         <motion.div 
           initial={{ opacity: 0, y: 10 }}
           animate={{ opacity: 1, y: 0 }}
@@ -320,6 +320,7 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
           <AuthGuard 
             title="Access Hub Matrix" 
             message="Secure authentication is required to view the full neural network of supply chain partners."
+            profile={profile}
           >
             <div onClick={openUserList} className="flex items-center gap-2">
               <div className="flex -space-x-1.5">
@@ -386,7 +387,7 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
           </div>
         </div>
 
-        {profile && (
+        {profile && !profile.isGuest && (
           <div className="flex gap-2 overflow-x-auto pb-2 -mx-2 px-2 no-scrollbar scroll-smooth">
             {categories.map((cat) => (
               <button
@@ -406,7 +407,7 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
         )}
 
       <div className="flex items-center justify-between px-2">
-        {profile && (
+        {profile && !profile.isGuest && (
           <>
             <div 
               onClick={handleGetLocation}
@@ -540,7 +541,7 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
       </AnimatePresence>
 
       {/* Neural Member Matrix Section */}
-      {profile && (
+      {profile && !profile.isGuest && (
         <section className="space-y-6 pt-2">
         <div className="flex items-center justify-between px-1">
           <div className="flex items-center gap-2 sm:gap-3">
@@ -565,6 +566,7 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
             <AuthGuard 
               title="Matrix View Restricted" 
               message="Join the Network Hub to browse the full matrix of authenticated suppliers and partners."
+              profile={profile}
             >
               <button 
                 onClick={openUserList}
@@ -582,6 +584,7 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
               <AuthGuard 
                 title="View Partner Profile"
                 message="Enter the Hub network to connect with registered partners and view tactical intelligence."
+                profile={profile}
               >
                 <motion.div
                   whileHover={{ y: -5, scale: 1.02 }}
@@ -620,6 +623,7 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
           <AuthGuard 
             title="Full Matrix Access" 
             message="Sign in to explore the complete directory of synchronized business nodes."
+            profile={profile}
           >
             <motion.div
               whileHover={{ scale: 1.02 }}
@@ -754,8 +758,16 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
             ) : filteredStores.length > 0 ? (
               <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4 snap-x px-1">
                 {filteredStores.map((store) => (
-                  <div key={store.id} className="min-w-[240px] snap-center">
-                    <StoreCard store={store} profile={profile} onSelect={setSelectedStoreId} />
+                  <div key={store.id} className="min-w-[240px] snap-center contents">
+                    <AuthGuard
+                      title="Access Node Infrastructure"
+                      message="Secure authentication is required to audit this supplier's complete storefront and inventory matrix."
+                      profile={profile}
+                      allowGuest={true}
+                      onGuestContinue={onGuestLogin}
+                    >
+                      <StoreCard store={store} profile={profile} onSelect={setSelectedStoreId} />
+                    </AuthGuard>
                   </div>
                 ))}
               </div>
@@ -785,13 +797,21 @@ export default function Discovery({ profile, setProfile }: { profile: UserProfil
         ) : filteredDeals.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 px-1">
             {filteredDeals.map((product) => (
-              <div key={product.id} id={`product-${product.id}`} className={cn(sharedProductId === product.id && "ring-2 ring-primary ring-offset-4 ring-offset-[#05070a] rounded-3xl")}>
-                <ProductCard 
-                  product={product} 
-                  profile={profile} 
-                  store={storesMap[product.storeId]}
-                  isOwner={profile?.uid === product.ownerId}
-                />
+              <div key={product.id} id={`product-${product.id}`} className={cn("contents", sharedProductId === product.id && "ring-2 ring-primary ring-offset-4 ring-offset-[#05070a] rounded-3xl")}>
+                <AuthGuard
+                  title="Access Detailed Intelligence"
+                  message="Sign in to view full technical specifications, verified ratings, and secure procurement options for this node."
+                  profile={profile}
+                  allowGuest={true}
+                  onGuestContinue={onGuestLogin}
+                >
+                  <ProductCard 
+                    product={product} 
+                    profile={profile} 
+                    store={storesMap[product.storeId]}
+                    isOwner={profile?.uid === product.ownerId}
+                  />
+                </AuthGuard>
               </div>
             ))}
           </div>
@@ -855,6 +875,8 @@ function StoreCard({ store, profile, onSelect }: { store: StoreType, profile: Us
           <AuthGuard 
             title="Follow this Storefront" 
             message="Sign in to follow this node and receive real-time inventory updates and market signals."
+            profile={profile}
+            requireRealUser={true}
           >
             <button 
               onClick={handleFollow}
@@ -866,6 +888,8 @@ function StoreCard({ store, profile, onSelect }: { store: StoreType, profile: Us
           <AuthGuard 
             title="Save for Later"
             message="Join the network to save this storefront to your private dashboard."
+            profile={profile}
+            requireRealUser={true}
           >
             <button 
               onClick={handleLike}

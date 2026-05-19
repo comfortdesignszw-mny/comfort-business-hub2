@@ -16,6 +16,7 @@ export interface PublicProfile {
 
 export interface UserProfile {
   uid: string;
+  isGuest?: boolean;
   name: string;
   email?: string;
   phone: string;

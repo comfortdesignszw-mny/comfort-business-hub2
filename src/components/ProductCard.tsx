@@ -10,6 +10,7 @@ import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { collection, addDoc, serverTimestamp, setDoc, doc, getDoc } from 'firebase/firestore';
 import { interactionService } from '../services/interactionService';
 import OptimizedImage from './OptimizedImage';
+import AuthGuard from './AuthGuard';
 import { useModals } from '../context/ModalContext';
 import { useNotifications } from './NotificationProvider';
 import ReportModal from './ReportModal';
@@ -79,7 +80,7 @@ export default function ProductCard({
   }, [product.storeId, initialStore]);
 
   const logEngagement = async (type: EngagementType) => {
-    if (!profile || !product.ownerId) return;
+    if (!profile || profile.isGuest || !product.ownerId) return;
     
     try {
       const customerName = profile.name || profile.businessName || profile.email?.split('@')[0] || 'Member';
@@ -102,6 +103,12 @@ export default function ProductCard({
 
   const handleAction = (type: 'shop' | 'engage') => {
     if (!profile) {
+      navigate('/login');
+      return;
+    }
+
+    if (type === 'engage' && profile.isGuest) {
+      // In guest mode, cannot talk/chat, redirect to login
       navigate('/login');
       return;
     }
@@ -141,7 +148,7 @@ export default function ProductCard({
 
   const handleLike = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    if (!profile) {
+    if (!profile || profile.isGuest) {
       navigate('/login');
       return;
     }
@@ -220,21 +227,27 @@ export default function ProductCard({
 
           <button 
             onClick={handleShare}
-            className="absolute top-2 sm:top-4 right-2 sm:right-4 p-1.5 sm:p-2 bg-[#05070a]/80 backdrop-blur-md rounded-xl border border-white/10 text-white hover:text-primary transition-colors hover:scale-110 active:scale-95 shadow-xl z-20"
+            className="absolute top-2 sm:top-4 right-2 sm:right-4 p-1.5 sm:p-2 bg-[#05070a]/80 backdrop-blur-md rounded-xl border border-white/10 text-white hover:text-primary transition-colors hover:scale-110 active:scale-95 shadow-xl z-20 no-auth-guard"
           >
             <Share2 size={12} className="sm:w-[14px] sm:h-[14px]" />
           </button>
 
           {!isOwner && (
             <>
-              <button 
-                onClick={handleLike}
-                className="absolute top-2 sm:top-4 right-10 sm:right-14 p-1.5 sm:p-2 bg-[#05070a]/80 backdrop-blur-md rounded-xl border border-white/10 text-white hover:text-red-500 transition-colors hover:scale-110 active:scale-95 shadow-xl z-20"
+              <AuthGuard
+                title="Save for Later"
+                message="Join the network to save this node to your private dashboard."
+                profile={profile}
               >
-                <Heart size={12} className={cn("sm:w-[14px] sm:h-[14px]", product.likeCount ? "fill-red-500 text-red-500" : "")} />
-              </button>
+                <button 
+                  onClick={handleLike}
+                  className="absolute top-2 sm:top-4 right-10 sm:right-14 p-1.5 sm:p-2 bg-[#05070a]/80 backdrop-blur-md rounded-xl border border-white/10 text-white hover:text-red-500 transition-colors hover:scale-110 active:scale-95 shadow-xl z-20"
+                >
+                  <Heart size={12} className={cn("sm:w-[14px] sm:h-[14px]", product.likeCount ? "fill-red-500 text-red-500" : "")} />
+                </button>
+              </AuthGuard>
 
-              {profile && (
+              {profile && !profile.isGuest && (
                 <button 
                   onClick={(e) => { e.stopPropagation(); setShowReportModal(true); }}
                   className="absolute top-10 sm:top-14 right-2 sm:right-4 p-1.5 sm:p-2 bg-red-500/20 backdrop-blur-md rounded-xl border border-red-500/20 text-red-500 hover:bg-red-500 hover:text-white transition-all hover:scale-110 active:scale-95 shadow-xl z-20"
@@ -294,14 +307,21 @@ export default function ProductCard({
 
             {!isOwner && (
               <div className="flex gap-1.5 sm:gap-2" onClick={(e) => e.stopPropagation()}>
-                <button 
-                  onClick={() => handleAction('engage')}
-                  disabled={isEngaging}
-                  className="flex-1 py-2 sm:py-3 bg-white/5 border border-white/10 rounded-xl text-[8px] sm:text-[9px] font-black uppercase tracking-widest text-gray-400 hover:text-white hover:bg-white/10 transition-all flex items-center justify-center gap-1.5 sm:gap-2"
+                <AuthGuard 
+                  title="Direct Network Uplink" 
+                  message="Secure authentication is required to initiate a direct communication channel with this supplier node."
+                  profile={profile}
                 >
-                  {isEngaging ? <Loader2 size={10} className="animate-spin" /> : <MessageSquare size={10} />}
-                  Talk
-                </button>
+                  <button 
+                    onClick={() => handleAction('engage')}
+                    disabled={isEngaging}
+                    className="flex-1 py-2 sm:py-3 bg-white/5 border border-white/10 rounded-xl text-[8px] sm:text-[9px] font-black uppercase tracking-widest text-gray-400 hover:text-white hover:bg-white/10 transition-all flex items-center justify-center gap-1.5 sm:gap-2"
+                  >
+                    {isEngaging ? <Loader2 size={10} className="animate-spin" /> : <MessageSquare size={10} />}
+                    Talk
+                  </button>
+                </AuthGuard>
+                
                 <button 
                   onClick={() => handleAction('shop')}
                   className="flex-[1.5] py-2 sm:py-3 bg-primary rounded-xl text-[8px] sm:text-[9px] font-black uppercase tracking-[0.15em] sm:tracking-[0.2em] text-[#05070a] shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-1.5 sm:gap-2"

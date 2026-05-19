@@ -10,6 +10,7 @@ import { doc, getDoc, collection, query, where, getDocs, onSnapshot, limit, upda
 import { UserProfile, Product, Store as StoreType, Connection } from '../types';
 import { cn, formatCurrency, safeShare } from '../lib/utils';
 import ProductCard from '../components/ProductCard';
+import AuthGuard from '../components/AuthGuard';
 import ImageInput from '../components/ImageInput';
 import ReportModal from '../components/ReportModal';
 import { useModals } from '../context/ModalContext';
@@ -29,7 +30,7 @@ const DefaultIcon = L.icon({
 });
 L.Marker.prototype.options.icon = DefaultIcon;
 
-export function StoreDetailContent({ store, profile, showMap = true, allowEdit = true }: { store: StoreType, profile: UserProfile | null, showMap?: boolean, allowEdit?: boolean }) {
+export function StoreDetailContent({ store, profile, onGuestLogin, showMap = true, allowEdit = true }: { store: StoreType, profile: UserProfile | null, onGuestLogin?: () => void, showMap?: boolean, allowEdit?: boolean }) {
   const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const { triggerFeedback } = useNotifications();
@@ -69,7 +70,7 @@ export function StoreDetailContent({ store, profile, showMap = true, allowEdit =
   }, [profile?.uid, store.ownerId]);
 
   const handleConnect = async () => {
-    if (!profile) {
+    if (!profile || profile.isGuest) {
       navigate('/login');
       return;
     }
@@ -83,7 +84,7 @@ export function StoreDetailContent({ store, profile, showMap = true, allowEdit =
   };
 
   const handleFollow = async () => {
-    if (!profile) {
+    if (!profile || profile.isGuest) {
       navigate('/login');
       return;
     }
@@ -96,7 +97,7 @@ export function StoreDetailContent({ store, profile, showMap = true, allowEdit =
   };
 
   const handleLike = async () => {
-    if (!profile) {
+    if (!profile || profile.isGuest) {
       navigate('/login');
       return;
     }
@@ -308,41 +309,62 @@ export function StoreDetailContent({ store, profile, showMap = true, allowEdit =
               <Star size={10} className="fill-neon-green sm:w-3 sm:h-3" /> {store.rating.toFixed(1)} ({store.reviewCount})
             </div>
             {profile?.uid !== store.ownerId && (
-              <button 
-                onClick={handleConnect}
-                disabled={!!connection}
-                className={cn(
-                  "glass-pill flex items-center gap-1.5 text-[9px] sm:text-xs transition-all",
-                  connection?.status === 'accepted' 
-                    ? "border-neon-green/30 text-neon-green bg-neon-green/5 shadow-[0_0_15px_rgba(57,255,20,0.2)]" 
-                    : connection?.status === 'pending'
-                    ? "border-gray-500/30 text-gray-400 bg-white/5 opacity-50"
-                    : "border-primary/30 text-primary bg-primary/5 hover:bg-primary/20 hover:shadow-[0_0_15px_rgba(0,242,254,0.3)] animate-pulse"
-                )}
+              <AuthGuard
+                title="Establish Node Interlock"
+                message="Secure identity is required to establish a direct business partnership and private channel access."
+                profile={profile}
+                requireRealUser={true}
               >
-                <Users size={10} className="sm:w-3 sm:h-3" /> 
-                {connection?.status === 'accepted' ? 'Trusted Partner' : connection?.status === 'pending' ? 'Request Sent' : 'Connect Node'}
-              </button>
+                <button 
+                  onClick={handleConnect}
+                  disabled={!!connection}
+                  className={cn(
+                    "glass-pill flex items-center gap-1.5 text-[9px] sm:text-xs transition-all",
+                    connection?.status === 'accepted' 
+                      ? "border-neon-green/30 text-neon-green bg-neon-green/5 shadow-[0_0_15px_rgba(57,255,20,0.2)]" 
+                      : connection?.status === 'pending'
+                      ? "border-gray-500/30 text-gray-400 bg-white/5 opacity-50"
+                      : "border-primary/30 text-primary bg-primary/5 hover:bg-primary/20 hover:shadow-[0_0_15px_rgba(0,242,254,0.3)] animate-pulse"
+                  )}
+                >
+                  <Users size={10} className="sm:w-3 sm:h-3" /> 
+                  {connection?.status === 'accepted' ? 'Trusted Partner' : connection?.status === 'pending' ? 'Request Sent' : 'Connect Node'}
+                </button>
+              </AuthGuard>
             )}
             {profile?.uid !== store.ownerId && (
-              <button 
-                onClick={handleFollow}
-                className="glass-pill border-cyan-400/30 text-cyan-400 bg-cyan-400/5 hover:bg-cyan-400/10 hover:shadow-[0_0_15px_rgba(34,211,238,0.4)] flex items-center gap-1.5 text-[9px] sm:text-xs transition-all animate-pulse"
+              <AuthGuard
+                title="Follow Strategic Feed"
+                message="Join the Network Hub to follow this node and receive real-time supply chain updates."
+                profile={profile}
+                requireRealUser={true}
               >
-                <UserPlus size={10} className="sm:w-3 sm:h-3" /> {store.followerCount || 0} Followers
-              </button>
+                <button 
+                  onClick={handleFollow}
+                  className="glass-pill border-cyan-400/30 text-cyan-400 bg-cyan-400/5 hover:bg-cyan-400/10 hover:shadow-[0_0_15px_rgba(34,211,238,0.4)] flex items-center gap-1.5 text-[9px] sm:text-xs transition-all animate-pulse"
+                >
+                  <UserPlus size={10} className="sm:w-3 sm:h-3" /> {store.followerCount || 0} Followers
+                </button>
+              </AuthGuard>
             )}
             {profile?.uid !== store.ownerId && (
-              <button 
-                onClick={handleLike}
-                className="glass-pill border-cyan-400/30 text-cyan-400 bg-cyan-400/5 hover:bg-cyan-400/10 hover:shadow-[0_0_15px_rgba(34,211,238,0.4)] flex items-center gap-1.5 text-[9px] sm:text-xs transition-all"
+              <AuthGuard
+                title="Log Store Interest"
+                message="Sign in to save this storefront to your private business registry."
+                profile={profile}
+                requireRealUser={true}
               >
-                <Heart size={10} className="fill-cyan-400 sm:w-3 sm:h-3" /> {store.likeCount || 0} Likes
-              </button>
+                <button 
+                  onClick={handleLike}
+                  className="glass-pill border-cyan-400/30 text-cyan-400 bg-cyan-400/5 hover:bg-cyan-400/10 hover:shadow-[0_0_15px_rgba(34,211,238,0.4)] flex items-center gap-1.5 text-[9px] sm:text-xs transition-all"
+                >
+                  <Heart size={10} className="fill-cyan-400 sm:w-3 sm:h-3" /> {store.likeCount || 0} Likes
+                </button>
+              </AuthGuard>
             )}
             <button 
               onClick={handleShare}
-              className="glass-pill hover:bg-white/10 flex items-center gap-1.5 text-[9px] sm:text-xs"
+              className="glass-pill hover:bg-white/10 flex items-center gap-1.5 text-[9px] sm:text-xs no-auth-guard"
             >
               <Share2 size={10} className="sm:w-3 sm:h-3" /> Share Node
             </button>
@@ -379,10 +401,13 @@ export function StoreDetailContent({ store, profile, showMap = true, allowEdit =
           </p>
           <div className="flex flex-col gap-3">
              <button 
-                onClick={() => navigate('/login')}
+                onClick={() => {
+                  if (onGuestLogin) onGuestLogin();
+                  else navigate('/login');
+                }}
                 className="btn-neon w-full py-3 text-[10px] uppercase font-black tracking-widest"
               >
-                Create Hub Identity
+                {onGuestLogin ? 'Transact as Guest' : 'Create Hub Identity'}
               </button>
               <p className="text-[8px] text-gray-500 font-black uppercase tracking-widest">Connect with verified local suppliers instantly</p>
           </div>
@@ -496,7 +521,7 @@ export function StoreDetailContent({ store, profile, showMap = true, allowEdit =
   );
 }
 
-export default function StoreDetail({ profile }: { profile: UserProfile | null }) {
+export default function StoreDetail({ profile, onGuestLogin }: { profile: UserProfile | null, onGuestLogin?: () => void }) {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const [store, setStore] = useState<StoreType | null>(null);
@@ -550,7 +575,7 @@ export default function StoreDetail({ profile }: { profile: UserProfile | null }
       animate={{ opacity: 1 }}
       className="p-4"
     >
-      <StoreDetailContent store={store} profile={profile} />
+      <StoreDetailContent store={store} profile={profile} onGuestLogin={onGuestLogin} />
     </motion.div>
   );
 }
