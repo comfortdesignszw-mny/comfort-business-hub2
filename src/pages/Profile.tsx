@@ -99,7 +99,8 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
         { name: 'storeLikes', field: 'userId' },
         { name: 'productLikes', field: 'userId' },
         { name: 'reports', field: 'reporterId' },
-        { name: 'reports', field: 'ownerId' }
+        { name: 'reports', field: 'ownerId' },
+        { name: 'public_profiles', field: 'uid' }
       ];
 
       // Execute all data wipes in parallel for maximum velocity
@@ -110,7 +111,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
             const q = query(collection(db, coll.name), where(coll.field, '==', uid));
             const snap = await getDocs(q);
             const deletePromises = snap.docs.map(d => deleteDoc(doc(db, coll.name, d.id)));
-            return Promise.all(deletePromises);
+            await Promise.all(deletePromises);
           } catch (e) {
             console.error(`Wipe failed for ${coll.name}:`, e);
           }
@@ -122,19 +123,29 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
             const convQuery = query(collection(db, 'conversations'), where('participants', 'array-contains', uid));
             const convSnap = await getDocs(convQuery);
             
-            return Promise.all(convSnap.docs.map(async (convoDoc) => {
-              const msgSnap = await getDocs(collection(db, 'conversations', convoDoc.id, 'messages'));
-              const msgDeletes = msgSnap.docs.map(m => deleteDoc(doc(db, 'conversations', convoDoc.id, 'messages', m.id)));
-              await Promise.all(msgDeletes);
-              return deleteDoc(doc(db, 'conversations', convoDoc.id));
+            await Promise.all(convSnap.docs.map(async (convoDoc) => {
+              try {
+                const msgSnap = await getDocs(collection(db, 'conversations', convoDoc.id, 'messages'));
+                const msgDeletes = msgSnap.docs.map(m => deleteDoc(doc(db, 'conversations', convoDoc.id, 'messages', m.id)));
+                await Promise.all(msgDeletes);
+                return deleteDoc(doc(db, 'conversations', convoDoc.id));
+              } catch (err) {
+                console.error(`Individual conversation wipe failed (${convoDoc.id}):`, err);
+              }
             }));
           } catch (e) {
             console.error("Conversation/Message wipe failed:", e);
           }
         })(),
 
-        // Wipe User Profile
-        deleteDoc(doc(db, 'users', uid))
+        // Wipe User Profile (wrapped in immediate async for catch)
+        (async () => {
+          try {
+            await deleteDoc(doc(db, 'users', uid));
+          } catch (e) {
+            console.error("User profile document wipe failed:", e);
+          }
+        })()
       ];
 
       // Wait for all deletions to complete
