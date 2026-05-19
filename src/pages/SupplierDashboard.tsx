@@ -96,7 +96,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
   const [formData, setFormData] = useState<ProductForm>(initialForm);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSavingStore, setIsSavingStore] = useState(false);
-  const [isWaitingForStore, setIsWaitingForStore] = useState(false);
+  const [isWaitingForSync, setIsWaitingForSync] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [customCategory, setCustomCategory] = useState('');
   const [isEditingLocation, setIsEditingLocation] = useState(false);
@@ -117,7 +117,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
       setStores(fetchedStores);
       
       if (fetchedStores.length > 0) {
-        setIsWaitingForStore(false);
+        setIsWaitingForSync(false);
         // Set active store if not set or if current active store was updated
         setActiveStore(prev => {
           if (!prev) {
@@ -173,6 +173,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
     const productsQuery = query(collection(db, 'products'), where('storeId', '==', activeStore.id));
     const productsUnsub = onSnapshot(productsQuery, (snap) => {
       setProducts(snap.docs.map(d => ({ id: d.id, ...d.data() } as Product)));
+      setIsWaitingForSync(false);
     }, (err) => {
       handleFirestoreError(err, OperationType.GET, `supplier-products-${activeStore.id}`);
     });
@@ -293,6 +294,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
         });
       }
       
+      setIsWaitingForSync(true);
       setShowProductForm(false);
     } catch (e) {
       handleFirestoreError(e, editingProduct ? OperationType.UPDATE : OperationType.CREATE, 'products');
@@ -380,12 +382,12 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
     }
   };
 
-  if (loading || isWaitingForStore) {
+  if (loading || isWaitingForSync) {
     return (
       <div className="flex flex-col items-center justify-center h-64 space-y-4">
         <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
         <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
-          {isWaitingForStore ? 'Synchronizing Node with Network...' : 'Decrypting Dashboard...'}
+          {isWaitingForSync ? 'Synchronizing Node with Network...' : 'Decrypting Dashboard...'}
         </p>
       </div>
     );
@@ -404,7 +406,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
           <SupplierSetup 
             profile={profile} 
             onComplete={() => {
-              setIsWaitingForStore(true);
+              setIsWaitingForSync(true);
               setShowStoreSetup(false);
             }} 
           />
