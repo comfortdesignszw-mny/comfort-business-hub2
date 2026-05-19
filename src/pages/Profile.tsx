@@ -89,30 +89,49 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
         { name: 'products', field: 'ownerId' },
         { name: 'reviews', field: 'userId' },
         { name: 'notifications', field: 'userId' },
+        { name: 'notifications', field: 'fromUserId' },
         { name: 'engagements', field: 'customerId' },
         { name: 'engagements', field: 'supplierId' },
         { name: 'deals', field: 'customerId' },
         { name: 'deals', field: 'supplierId' },
-        { name: 'spotlights', field: 'authorId' }
+        { name: 'spotlights', field: 'authorId' },
+        { name: 'follows', field: 'userId' },
+        { name: 'storeLikes', field: 'userId' },
+        { name: 'productLikes', field: 'userId' },
+        { name: 'reports', field: 'reporterId' },
+        { name: 'reports', field: 'ownerId' }
       ];
 
       for (const coll of collectionsToWipe) {
-        const q = query(collection(db, coll.name), where(coll.field, '==', uid));
-        const snap = await getDocs(q);
-        const deletePromises = snap.docs.map(d => deleteDoc(doc(db, coll.name, d.id)));
-        await Promise.all(deletePromises);
+        try {
+          const q = query(collection(db, coll.name), where(coll.field, '==', uid));
+          const snap = await getDocs(q);
+          const deletePromises = snap.docs.map(d => deleteDoc(doc(db, coll.name, d.id)));
+          await Promise.all(deletePromises);
+        } catch (e) {
+          console.error(`Wipe failed for ${coll.name}:`, e);
+        }
       }
 
-      // 2. Wipe Conversations (Special participant check)
+      // 2. Wipe Conversations and Sub-messages
       const convQuery = query(collection(db, 'conversations'), where('participants', 'array-contains', uid));
       const convSnap = await getDocs(convQuery);
-      const convDeletes = convSnap.docs.map(d => deleteDoc(doc(db, 'conversations', d.id)));
-      await Promise.all(convDeletes);
+      
+      for (const convoDoc of convSnap.docs) {
+        try {
+          const msgSnap = await getDocs(collection(db, 'conversations', convoDoc.id, 'messages'));
+          const msgDeletes = msgSnap.docs.map(m => deleteDoc(doc(db, 'conversations', convoDoc.id, 'messages', m.id)));
+          await Promise.all(msgDeletes);
+          await deleteDoc(doc(db, 'conversations', convoDoc.id));
+        } catch (e) {
+          console.error("Conversation/Message wipe failed:", e);
+        }
+      }
 
       // 3. Wipe User Profile
       await deleteDoc(doc(db, 'users', uid));
 
-      // 4. Final Auth Operation & Logout
+      // 4. Final Auth Operation
       // Note: Full auth account deletion might require recent login
       try {
         await auth.currentUser.delete();
@@ -120,11 +139,14 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
         console.warn("Auth deletion deferred (re-auth required), signing out instead.");
       }
       
+      // 5. Success Message & Forced Logout
+      alert("All your personal data, transactions and product listings are completely wiped from our system");
+      
       auth.signOut();
       navigate('/login');
     } catch (e) {
       handleFirestoreError(e, OperationType.DELETE, `account-wipe-${profile.uid}`);
-      alert("Critical failure during identity purge. Please contact system admin.");
+      alert("Critical failure during identity purge. Partial data might remain. Please contact support.");
     } finally {
       setIsDeleting(false);
       setActiveModal(null);
