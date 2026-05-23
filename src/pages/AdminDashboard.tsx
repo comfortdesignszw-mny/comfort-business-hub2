@@ -406,7 +406,11 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
                   </div>
 
                   <div className="flex flex-wrap gap-2">
-                    {user.status === 'suspended' ? (
+                    {user.isAdmin || user.email === 'comfort.designszw@gmail.com' ? (
+                      <span className="text-[8px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl border bg-primary/10 border-primary/35 text-primary shadow-[0_0_15px_rgba(255,0,212,0.1)]">
+                        Immutable Node (System Admin)
+                      </span>
+                    ) : user.status === 'suspended' ? (
                       <button 
                         onClick={() => handleUserStatus(user.uid, 'active')}
                         disabled={!!isProcessing}

@@ -39,6 +39,7 @@ import { useNotifications } from '../components/NotificationProvider';
 import { PRODUCT_CATEGORIES, BUSINESS_CATEGORIES } from '../constants';
 import SupplierSetup from './SupplierSetup';
 import { offlineResilientWrite } from '../lib/sync';
+import { localDB } from '../lib/db';
 import ImageInput from '../components/ImageInput';
 import LocationPicker from '../components/LocationPicker';
 import { geohashForLocation } from 'geofire-common';
@@ -109,6 +110,18 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
   const [engagementStats, setEngagementStats] = useState({ engaged: 0, interested: 0, volume: 0 });
 
   const [waitingForId, setWaitingForId] = useState<string | null>(null);
+
+  // Autosave product form draft to localStorage
+  useEffect(() => {
+    if (showProductForm && !editingProduct) {
+      if (formData.name !== '' || formData.description !== '' || formData.images.length > 0) {
+        localStorage.setItem('supplier_product_form_draft', JSON.stringify({
+          formData,
+          customCategory
+        }));
+      }
+    }
+  }, [formData, showProductForm, editingProduct, customCategory]);
 
   useEffect(() => {
     setLoading(true);
@@ -184,8 +197,52 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
     });
     
     const productsQuery = query(collection(db, 'products'), where('storeId', '==', activeStore.id));
-    const productsUnsub = onSnapshot(productsQuery, (snap) => {
-      setProducts(snap.docs.map(d => ({ id: d.id, ...d.data() } as Product)));
+    
+    // 1. Instantly pull and render from local cache for super fast, zero-delay preview!
+    localDB.cache
+      .where('collection')
+      .equals('products')
+      .toArray()
+      .then((cachedDocs) => {
+        const storeCachedProducts = cachedDocs
+          .map((item) => item.data as Product)
+          .filter((p) => p.storeId === activeStore.id);
+        
+        if (storeCachedProducts.length > 0) {
+          storeCachedProducts.sort((a, b) => new Date(b.createdAt || b.updatedAt).getTime() - new Date(a.createdAt || a.updatedAt).getTime());
+          setProducts(storeCachedProducts);
+        }
+      })
+      .catch((e) => console.error('[Cache] Failed loading cached products:', e));
+
+    const productsUnsub = onSnapshot(productsQuery, async (snap) => {
+      const dbProducts = snap.docs.map(d => ({ id: d.id, ...d.data() } as Product));
+      
+      // 2. Refresh localDB cache values in background with clean database references
+      for (const p of dbProducts) {
+        await localDB.cache.put({
+          id: `products:${p.id}`,
+          collection: 'products',
+          docId: p.id,
+          data: p,
+          updatedAt: Date.now()
+        });
+      }
+
+      // 3. Keep any cached/outbox items that are optimistic or offline drafts
+      const cachedDocs = await localDB.cache.where('collection').equals('products').toArray();
+      const storeCachedProducts = cachedDocs
+        .map((item) => item.data as Product)
+        .filter((p) => p.storeId === activeStore.id);
+
+      const mergedMap = new Map<string, Product>();
+      storeCachedProducts.forEach(p => mergedMap.set(p.id, p));
+      dbProducts.forEach(p => mergedMap.set(p.id, p));
+
+      const mergedProducts = Array.from(mergedMap.values());
+      mergedProducts.sort((a, b) => new Date(b.createdAt || b.updatedAt).getTime() - new Date(a.createdAt || a.updatedAt).getTime());
+
+      setProducts(mergedProducts);
       setIsWaitingForSync(false);
     }, (err) => {
       handleFirestoreError(err, OperationType.GET, `supplier-products-${activeStore.id}`);
@@ -260,8 +317,27 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
       }
     } else {
       setEditingProduct(null);
-      setFormData(initialForm);
-      setCustomCategory('');
+      // Auto-load product creation draft from local storage cache if available
+      const cachedDraft = localStorage.getItem('supplier_product_form_draft');
+      if (cachedDraft) {
+        try {
+          const parsed = JSON.parse(cachedDraft);
+          if (parsed.formData) {
+            setFormData(parsed.formData);
+            setCustomCategory(parsed.customCategory || '');
+            triggerFeedback('Draft Restored', 'Unsaved product parameters resumed from local cache.', 'message');
+          } else {
+            setFormData(initialForm);
+            setCustomCategory('');
+          }
+        } catch (e) {
+          setFormData(initialForm);
+          setCustomCategory('');
+        }
+      } else {
+        setFormData(initialForm);
+        setCustomCategory('');
+      }
     }
     setShowProductForm(true);
   };
@@ -297,17 +373,25 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
       };
 
       if (editingProduct) {
+        const updatedProduct: Product = {
+          ...editingProduct,
+          ...data,
+        } as Product;
         await offlineResilientWrite('products', editingProduct.id, 'update', data);
+        setProducts(prev => prev.map(p => p.id === editingProduct.id ? updatedProduct : p));
       } else {
         const newId = `prod_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-        await offlineResilientWrite('products', newId, 'create', {
+        const newProduct: Product = {
           ...data,
           id: newId,
           createdAt: new Date().toISOString()
-        });
+        } as Product;
+        await offlineResilientWrite('products', newId, 'create', newProduct);
+        setProducts(prev => [newProduct, ...prev]);
       }
       
-      setIsWaitingForSync(true);
+      localStorage.removeItem('supplier_product_form_draft');
+      setIsWaitingForSync(false);
       setShowProductForm(false);
     } catch (e) {
       handleFirestoreError(e, editingProduct ? OperationType.UPDATE : OperationType.CREATE, 'products');

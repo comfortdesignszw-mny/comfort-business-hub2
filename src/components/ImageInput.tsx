@@ -29,14 +29,16 @@ export default function ImageInput({ value, onChange, label, className, aspectRa
     const file = e.target.files?.[0];
     if (!file) return;
 
-    if (file.size > 2 * 1024 * 1024) {
-      alert("File size must be less than 2MB. We will compress it for you.");
-    }
-
     setIsProcessing(true);
     try {
-      const reader = new FileReader();
-      reader.onloadend = () => {
+      const quickReader = new FileReader();
+      quickReader.onloadend = () => {
+        // 1. Instantly render a fast, raw preview with zero loading delay!
+        const rawDataUrl = quickReader.result as string;
+        onChange(rawDataUrl);
+        setIsProcessing(false);
+
+        // 2. Spawn compression in the background to avoid blocking user interaction
         const img = new Image();
         img.onload = () => {
           const canvas = document.createElement('canvas');
@@ -64,12 +66,13 @@ export default function ImageInput({ value, onChange, label, className, aspectRa
 
           // Compress to JPEG with 0.6 quality
           const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.6);
+          
+          // 3. Update with the optimized background reference silently
           onChange(compressedDataUrl);
-          setIsProcessing(false);
         };
-        img.src = reader.result as string;
+        img.src = rawDataUrl;
       };
-      reader.readAsDataURL(file);
+      quickReader.readAsDataURL(file);
     } catch (err) {
       console.error("Error processing image:", err);
       setIsProcessing(false);

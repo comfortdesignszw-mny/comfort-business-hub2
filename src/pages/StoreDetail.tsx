@@ -14,6 +14,7 @@ import AuthGuard from '../components/AuthGuard';
 import ImageInput from '../components/ImageInput';
 import ReportModal from '../components/ReportModal';
 import { useModals } from '../context/ModalContext';
+import { localDB } from '../lib/db';
 import { interactionService } from '../services/interactionService';
 import { useNotifications } from '../components/NotificationProvider';
 
@@ -139,6 +140,25 @@ export function StoreDetailContent({ store, profile, onGuestLogin, showMap = tru
   useEffect(() => {
     if (!store.id) return;
     setLoading(true);
+
+    // 1. Unify instant local DB cache lookup to allow super fast sub-10ms UI display
+    localDB.cache
+      .where('collection')
+      .equals('products')
+      .toArray()
+      .then((cachedDocs) => {
+        const storeCachedProducts = cachedDocs
+          .map((item) => item.data as Product)
+          .filter((p) => p.storeId === store.id && p.isActive);
+        
+        if (storeCachedProducts.length > 0) {
+          storeCachedProducts.sort((a, b) => new Date(b.createdAt || b.updatedAt).getTime() - new Date(a.createdAt || a.updatedAt).getTime());
+          setProducts(storeCachedProducts);
+          setLoading(false); // Instant render!
+        }
+      })
+      .catch((e) => console.error('[Store cache load error]:', e));
+
     const pq = query(
       collection(db, 'products'),
       where('storeId', '==', store.id),
@@ -146,8 +166,21 @@ export function StoreDetailContent({ store, profile, onGuestLogin, showMap = tru
       limit(50)
     );
     
-    const productsUnsub = onSnapshot(pq, (snap) => {
-      setProducts(snap.docs.map(d => ({ id: d.id, ...d.data() } as Product)));
+    const productsUnsub = onSnapshot(pq, async (snap) => {
+      const dbProducts = snap.docs.map(d => ({ id: d.id, ...d.data() } as Product));
+      
+      // 2. Put incoming products into Cache so subsequent loads are immediate
+      for (const p of dbProducts) {
+        await localDB.cache.put({
+          id: `products:${p.id}`,
+          collection: 'products',
+          docId: p.id,
+          data: p,
+          updatedAt: Date.now()
+        });
+      }
+
+      setProducts(dbProducts);
       setLoading(false);
     });
 
