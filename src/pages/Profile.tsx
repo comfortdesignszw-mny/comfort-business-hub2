@@ -1,10 +1,10 @@
 import React, { useState, useTransition, useEffect, useRef } from 'react';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   User, Store, Phone, MapPin, Shield, LogOut, ChevronRight, Wallet, 
   Bell, Zap, Image as ImageIcon, X, Check, CreditCard, 
-  Navigation, Crosshair, Save, Loader2, Megaphone, Trash2, Calendar, FileText, Plus, Users, MessageSquare
+  Navigation, Crosshair, Save, Loader2, Megaphone, Trash2, Calendar, FileText, Plus, Users, MessageSquare, Share
 } from 'lucide-react';
 import { UserProfile, Role, Spotlight, Product, Connection } from '../types';
 import { auth, db, handleFirestoreError, OperationType, syncPublicProfile } from '../lib/firebase';
@@ -18,6 +18,12 @@ import LocationPicker from '../components/LocationPicker';
 import ProductCard from '../components/ProductCard';
 
 export default function Profile({ profile, setProfile }: { profile: UserProfile | null, setProfile: (p: UserProfile) => void }) {
+  const { id: routeId } = useParams<{ id?: string }>();
+  const [observedProfile, setObservedProfile] = useState<UserProfile | null>(null);
+  const [observedStores, setObservedStores] = useState<any[]>([]);
+  const [loadingObserved, setLoadingObserved] = useState(false);
+  const isObserved = !!routeId && routeId !== profile?.uid;
+
   const { triggerFeedback } = useNotifications();
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
@@ -25,6 +31,44 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
   const [isDeleting, setIsDeleting] = useState(false);
   const [editData, setEditData] = useState<Partial<UserProfile>>({});
   const [engagementStats, setEngagementStats] = useState({ engaged: 0, volume: 0 });
+
+  useEffect(() => {
+    if (!isObserved) {
+      setObservedProfile(null);
+      setObservedStores([]);
+      return;
+    }
+
+    const fetchPublicData = async () => {
+      setLoadingObserved(true);
+      try {
+        const { getDoc, doc, collection, query, where, getDocs } = await import('firebase/firestore');
+        let userDoc = await getDoc(doc(db, 'public_profiles', routeId));
+        if (!userDoc.exists()) {
+          userDoc = await getDoc(doc(db, 'users', routeId));
+        }
+
+        if (userDoc.exists()) {
+          const uData = { uid: userDoc.id, ...userDoc.data() } as UserProfile;
+          setObservedProfile(uData);
+
+          if (uData.currentRole === 'supplier') {
+            const storesSnap = await getDocs(query(collection(db, 'stores'), where('ownerId', '==', routeId)));
+            const items = storesSnap.docs.map(d => ({ id: d.id, ...d.data() }));
+            setObservedStores(items);
+          }
+        } else {
+          setObservedProfile(null);
+        }
+      } catch (err) {
+        console.error("Error loading observed public profile:", err);
+      } finally {
+        setLoadingObserved(false);
+      }
+    };
+
+    fetchPublicData();
+  }, [routeId, isObserved]);
 
   useEffect(() => {
     if (!profile || profile.currentRole !== 'supplier') return;
@@ -231,6 +275,186 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
     });
   };
 
+  const handleShareProfile = async () => {
+    const shareUrl = `${window.location.origin}/profile/${profile?.uid}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: profile?.name || 'Comfort Node',
+          text: `Check out ${profile?.name || 'Comfort Node'}'s profile on Comfort Business Hub!`,
+          url: shareUrl,
+        });
+      } catch (err) {
+        console.error(err);
+      }
+    } else {
+      navigator.clipboard.writeText(shareUrl);
+      triggerFeedback('Link Copied', 'Profile Link Copied to Clipboard!', 'message');
+    }
+  };
+
+  const handleShareObservedProfile = async () => {
+    if (!observedProfile) return;
+    const shareUrl = `${window.location.origin}/profile/${observedProfile.uid}`;
+    if (navigator.share) {
+      try {
+        await navigator.share({
+          title: observedProfile.name,
+          text: `Check out ${observedProfile.name}'s profile on Comfort Business Hub!`,
+          url: shareUrl,
+        });
+      } catch (err) {
+        console.error(err);
+      }
+    } else {
+      navigator.clipboard.writeText(shareUrl);
+      triggerFeedback('Link Copied', 'Profile Link Copied to Clipboard!', 'message');
+    }
+  };
+
+  if (loadingObserved) {
+    return (
+      <div className="min-h-[50vh] flex flex-col items-center justify-center gap-4 text-center p-6">
+        <Loader2 className="animate-spin text-primary" size={32} />
+        <p className="text-xs font-black text-gray-500 uppercase tracking-[0.2em] animate-pulse">Syncing Public Profile Frame...</p>
+      </div>
+    );
+  }
+
+  if (isObserved) {
+    if (!observedProfile) {
+      return (
+        <div className="min-h-[50vh] flex flex-col items-center justify-center gap-6 text-center p-6 max-w-sm mx-auto">
+          <div className="w-16 h-16 rounded-2xl bg-white/5 border border-white/10 flex items-center justify-center text-gray-500">
+            <X size={24} />
+          </div>
+          <div className="space-y-2">
+            <h3 className="text-md font-black text-white uppercase italic tracking-tighter">Null Profile Identifier</h3>
+            <p className="text-[10px] text-gray-400 font-medium leading-relaxed">
+              This node identifier footprint does not reside on the active network matrix directory. It may have been purged or relocated.
+            </p>
+          </div>
+          <button 
+            onClick={() => navigate('/')}
+            className="w-full bg-white/5 border border-white/10 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest text-primary hover:bg-white/10 transition-all"
+          >
+            Access Main Network
+          </button>
+        </div>
+      );
+    }
+
+    // Render observed public profile here!
+    return (
+      <motion.div 
+        initial={{ opacity: 0, y: 10 }}
+        animate={{ opacity: 1, y: 0 }}
+        exit={{ opacity: 0, y: -10 }}
+        className="p-4 space-y-8 max-w-3xl mx-auto pb-24"
+      >
+        <section className="flex flex-col items-center text-center space-y-6 pt-6">
+          <div className="w-full max-w-sm">
+            <div className="flex flex-col items-center space-y-6">
+              <div className="relative">
+                <div className="absolute -inset-1 bg-gradient-to-r from-primary to-accent rounded-full blur opacity-25"></div>
+                <div className="relative w-32 h-32 bg-[#0d1117] border-4 border-[#05070a] rounded-full flex items-center justify-center text-white text-4xl font-black shadow-2xl relative overflow-hidden">
+                  <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-accent/10"></div>
+                  {observedProfile.avatar ? (
+                    <img 
+                      src={observedProfile.avatar} 
+                      alt={observedProfile.name} 
+                      className="w-full h-full object-cover" 
+                      referrerPolicy="no-referrer" 
+                    />
+                  ) : observedProfile.name.charAt(0)}
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                <div className="space-y-1">
+                  <h2 className="text-2xl font-black text-white italic tracking-tighter uppercase">{observedProfile.name}</h2>
+                  <div className="flex items-center justify-center gap-3">
+                    {observedProfile.phone && (
+                      <>
+                        <p className="text-xs text-gray-500 font-black uppercase tracking-widest">{observedProfile.phone}</p>
+                        <div className="w-1.5 h-1.5 bg-gray-700 rounded-full"></div>
+                      </>
+                    )}
+                    <p className="text-[10px] text-primary font-black uppercase tracking-widest">Operator Node: {observedProfile.uid.slice(0, 8)}</p>
+                  </div>
+                </div>
+
+                <div className="flex justify-center gap-3">
+                  {observedProfile.isVerified && (
+                    <div className="glass-pill !text-neon-green !border-neon-green/20 flex items-center gap-1.5 shadow-[0_0_10px_rgba(57,255,20,0.1)]">
+                      <Shield size={12} className="fill-neon-green/20" /> Verified Operator
+                    </div>
+                  )}
+                  <div className="glass-pill capitalize">{observedProfile.currentRole} Role</div>
+                </div>
+
+                <div className="flex justify-center gap-2">
+                  <button 
+                    onClick={handleShareObservedProfile}
+                    className="flex items-center gap-2 px-4 py-2 bg-primary/15 hover:bg-primary/25 text-primary rounded-xl border border-primary/20 text-[9px] font-black uppercase tracking-widest transition-all no-auth-guard"
+                  >
+                    <Share size={12} /> Share Operator Node
+                  </button>
+                  {profile && profile.uid !== observedProfile.uid && (
+                    <button 
+                      onClick={() => navigate(`/chat?recipient=${observedProfile.uid}`)}
+                      className="flex items-center gap-2 px-4 py-2 bg-white/5 hover:bg-white/10 text-white rounded-xl border border-white/10 text-[9px] font-black uppercase tracking-widest transition-all"
+                    >
+                      <MessageSquare size={12} /> Establish Comms
+                    </button>
+                  )}
+                </div>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        {observedProfile.currentRole === 'supplier' && (
+          <section className="space-y-6">
+            <h3 className="text-sm font-black text-white uppercase tracking-widest text-center">Managed Storefront Nodes</h3>
+            
+            {observedStores.length === 0 ? (
+              <div className="text-center p-8 bg-white/5 rounded-3xl border border-white/5 space-y-2">
+                <p className="text-xs font-black text-gray-400 uppercase tracking-wider">No Storefronts Active</p>
+                <p className="text-[10px] text-gray-500 leading-relaxed font-bold uppercase tracking-widest">This supplier does not have any active marketplaces listed currently.</p>
+              </div>
+            ) : (
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                {observedStores.map((store) => (
+                  <div 
+                    key={store.id}
+                    onClick={() => navigate(`/store/${store.id}`)}
+                    className="neon-card p-6 flex items-center gap-4 hover:scale-[1.02] active:scale-[0.98] cursor-pointer transition-all"
+                  >
+                    <div className="w-16 h-16 rounded-2xl overflow-hidden bg-white/5 shrink-0 border border-white/10 flex items-center justify-center text-white font-bold text-lg">
+                      {store.logo ? (
+                        <img src={store.logo} alt={store.name} className="w-full h-full object-cover" />
+                      ) : store.name?.charAt(0)}
+                    </div>
+                    <div className="flex-1 min-w-0 text-left">
+                      <h4 className="text-sm font-black text-white uppercase truncate">{store.name}</h4>
+                      <p className="text-[10px] text-gray-400 line-clamp-2 mt-1 leading-normal font-medium">{store.description || 'Verified Supplier store'}</p>
+                      {store.location && (
+                        <div className="flex items-center gap-1 text-[8px] text-primary font-bold uppercase mt-2 tracking-widest">
+                          <MapPin size={8} /> {store.location.city}
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+        )}
+      </motion.div>
+    );
+  }
+
   if (!profile) return null;
 
   return (
@@ -362,12 +586,20 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
                   )}
                   <div className="glass-pill">Beta Access</div>
                 </div>
-                <button 
-                  onClick={() => setIsEditing(true)}
-                  className="mx-auto flex items-center gap-2 px-4 py-2 bg-white/5 rounded-xl border border-white/10 text-[9px] font-black text-gray-400 uppercase tracking-widest hover:text-primary transition-all"
-                >
-                  Modify Identity Parameters
-                </button>
+                <div className="flex justify-center gap-2">
+                  <button 
+                    onClick={() => setIsEditing(true)}
+                    className="flex items-center gap-2 px-3 py-2 bg-white/5 rounded-xl border border-white/10 text-[9px] font-black text-gray-400 uppercase tracking-widest hover:text-primary transition-all"
+                  >
+                    Modify Identity Parameters
+                  </button>
+                  <button 
+                    onClick={handleShareProfile}
+                    className="flex items-center gap-2 px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-xl border border-primary/20 text-[9px] font-black uppercase tracking-widest transition-all no-auth-guard"
+                  >
+                    <Share size={12} /> Share Hub Node
+                  </button>
+                </div>
               </div>
             </div>
           )}

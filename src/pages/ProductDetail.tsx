@@ -39,6 +39,7 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
   const [newReview, setNewReview] = useState({ rating: 5, comment: '' });
   const [activeModal, setActiveModal] = useState<'checkout' | 'ecocash' | 'pod' | null>(null);
   const [purchaseQuantity, setPurchaseQuantity] = useState(1);
+  const [activeTab, setActiveTab] = useState<'insight' | 'feedback'>('insight');
   const { startConversation } = useMessaging();
 
   useEffect(() => {
@@ -184,63 +185,63 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
     <motion.div 
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
-      className="pb-24 space-y-8"
+      className="pb-20 md:pb-24 space-y-3 sm:space-y-4 max-w-4xl mx-auto flex flex-col h-[calc(100vh-140px)] md:h-auto overflow-hidden text-white"
     >
       {/* Product Image Slider */}
-      <section className="relative px-2 sm:px-4 pt-2 sm:pt-4">
-        <div className="relative aspect-[16/10] sm:aspect-video rounded-[1.5rem] sm:rounded-[2.5rem] overflow-hidden neon-card group max-h-[35vh] sm:max-h-none">
+      <section className="relative px-1 pt-1 flex-shrink-0">
+        <div className="relative aspect-[21/9] sm:aspect-[16/10] md:aspect-video rounded-2xl overflow-hidden neon-card group h-[18vh] sm:h-[25vh] md:h-[35vh]">
           <AnimatePresence mode="wait">
             <motion.img 
               key={currentImageIndex}
               src={images[currentImageIndex]} 
               className="w-full h-full object-cover"
-              initial={{ opacity: 0, scale: 1.1 }}
+              initial={{ opacity: 0, scale: 1.05 }}
               animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.9 }}
-              transition={{ duration: 0.5 }}
+              exit={{ opacity: 0, scale: 0.95 }}
+              transition={{ duration: 0.3 }}
               referrerPolicy="no-referrer"
             />
           </AnimatePresence>
           
-          <div className="absolute inset-0 bg-gradient-to-t from-[#05070a]/80 via-transparent to-transparent pointer-events-none" />
+          <div className="absolute inset-0 bg-gradient-to-t from-[#05070a]/90 via-transparent to-transparent pointer-events-none" />
 
           {/* Navigation Arrows */}
           {images.length > 1 && (
             <>
               <button 
                 onClick={() => setCurrentImageIndex(prev => (prev - 1 + images.length) % images.length)}
-                className="absolute left-2 sm:left-4 top-1/2 -translate-y-1/2 p-1.5 sm:p-2 bg-black/50 backdrop-blur-md rounded-xl text-white hover:text-primary transition-colors opacity-0 group-hover:opacity-100"
+                className="absolute left-2 top-1/2 -translate-y-1/2 p-1 bg-black/60 backdrop-blur-md rounded-lg text-white hover:text-primary transition-colors hover:scale-105 active:scale-95"
               >
-                <ChevronLeft size={16} />
+                <ChevronLeft size={12} />
               </button>
               <button 
                 onClick={() => setCurrentImageIndex(prev => (prev + 1) % images.length)}
-                className="absolute right-2 sm:right-4 top-1/2 -translate-y-1/2 p-1.5 sm:p-2 bg-black/50 backdrop-blur-md rounded-xl text-white hover:text-primary transition-colors opacity-0 group-hover:opacity-100"
+                className="absolute right-2 top-1/2 -translate-y-1/2 p-1 bg-black/60 backdrop-blur-md rounded-lg text-white hover:text-primary transition-colors hover:scale-105 active:scale-95"
               >
-                <ChevronRight size={16} />
+                <ChevronRight size={12} />
               </button>
             </>
           )}
 
-          {/* Share Button */}
+          {/* Share Button representing floating item */}
           <button 
             onClick={handleShare}
-            className="absolute top-3 right-3 sm:top-6 sm:right-6 p-2 sm:p-3 bg-black/50 backdrop-blur-md rounded-xl sm:rounded-2xl border border-white/10 text-white hover:text-primary transition-all hover:scale-110 active:scale-95 shadow-2xl no-auth-guard"
+            className="absolute top-2 right-2 p-1.5 bg-black/60 backdrop-blur-md rounded-lg border border-white/10 text-white hover:text-primary transition-all hover:scale-105 active:scale-95 z-10"
           >
-            <Share2 size={16} />
+            <Share2 size={12} />
           </button>
         </div>
 
         {/* Thumbnail indicators */}
         {images.length > 1 && (
-          <div className="flex justify-center gap-2 mt-4">
+          <div className="flex justify-center gap-1 mt-1">
             {images.map((_, idx) => (
               <button 
                 key={idx}
                 onClick={() => setCurrentImageIndex(idx)}
                 className={cn(
-                  "h-1 rounded-full transition-all duration-300",
-                  idx === currentImageIndex ? "w-8 bg-primary" : "w-2 bg-white/20"
+                  "h-0.5 rounded-full transition-all duration-300",
+                  idx === currentImageIndex ? "w-6 bg-primary" : "w-1 bg-white/20"
                 )}
               />
             ))}
@@ -249,21 +250,21 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
       </section>
 
       {/* Main Info */}
-      <section className="px-4 sm:px-6 space-y-6">
-        <div className="flex flex-col sm:flex-row justify-between items-start gap-4">
-          <div className="space-y-1 sm:space-y-2 flex-1 w-full">
-            <h2 className="text-xl sm:text-3xl font-black text-white italic uppercase tracking-tighter leading-tight sm:text-4xl">
+      <section className="px-2 sm:px-4 space-y-2 sm:space-y-3 flex-shrink-0">
+        <div className="flex justify-between items-start gap-2">
+          <div className="space-y-0.5 flex-1 min-w-0">
+            <h2 className="text-sm sm:text-lg md:text-xl font-black text-white italic uppercase tracking-tighter leading-tight">
               {product.name}
             </h2>
-            <div className="flex flex-wrap items-center gap-2 sm:gap-3">
-              <div className="glass-pill !text-primary !border-primary/20 flex items-center gap-1.5 py-1 px-3">
-                <Zap size={10} className="fill-primary" />
-                <span className="text-[10px] uppercase font-black">{product.category}</span>
+            <div className="flex flex-wrap items-center gap-1">
+              <div className="glass-pill !text-primary !border-primary/20 flex items-center gap-1 py-0.5 px-2 text-[8px] sm:text-[9px] uppercase font-black">
+                <Zap size={8} className="fill-primary" />
+                <span>{product.category}</span>
               </div>
-              <div className="flex items-center gap-1.5 bg-white/5 py-1 px-2.5 rounded-full border border-white/5">
-                <Star size={10} className="fill-primary text-primary" />
-                <span className="text-[10px] font-black text-white">{product.rating?.toFixed(1) || 'N/A'}</span>
-                <span className="text-[9px] text-gray-500 font-bold uppercase overflow-hidden whitespace-nowrap">({product.reviewCount || 0})</span>
+              <div className="flex items-center gap-1 bg-white/5 py-0.5 px-2 rounded-full border border-white/5 text-[8px] sm:text-[9px] font-black">
+                <Star size={8} className="fill-primary text-primary" />
+                <span className="text-white">{product.rating?.toFixed(1) || 'N/A'}</span>
+                <span className="text-gray-500">({product.reviewCount || 0})</span>
               </div>
               {profile?.uid !== product.ownerId && (
                 <AuthGuard 
@@ -273,43 +274,40 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
                 >
                   <button 
                     onClick={handleLike}
-                    className="glass-pill !text-cyan-400 !border-cyan-400/30 flex items-center gap-1.5 hover:bg-cyan-400/10 transition-all font-black py-1 px-3"
+                    className="glass-pill !text-cyan-400 !border-cyan-400/30 flex items-center gap-1 hover:bg-cyan-400/10 transition-all font-black py-0.5 px-2 text-[8px] sm:text-[9px]"
                   >
-                    <Heart size={10} className={cn("fill-cyan-400", product.likeCount ? "opacity-100" : "opacity-30")} />
-                    <span className="text-[9px]">{product.likeCount || 0}</span>
+                    <Heart size={8} className={cn("fill-cyan-400", product.likeCount ? "opacity-100" : "opacity-30")} />
+                    <span>{product.likeCount || 0}</span>
                   </button>
                 </AuthGuard>
               )}
             </div>
           </div>
-          <div className="text-left sm:text-right w-full sm:w-auto pt-3 border-t border-white/5 sm:border-0 flex sm:flex-col justify-between items-center sm:items-end">
-            <div>
-              <p className="text-2xl sm:text-4xl font-black text-primary italic tracking-tighter leading-none">{formatCurrency(product.price, product.currency)}</p>
-              <div className="flex items-center sm:justify-end gap-1 text-neon-green mt-1">
-                 <ShieldCheck size={10} />
-                 <p className="text-[8px] sm:text-[9px] font-black uppercase tracking-widest">Verified Hub Price</p>
-              </div>
+          <div className="text-right shrink-0">
+            <p className="text-lg sm:text-xl md:text-2xl font-black text-primary italic tracking-tighter leading-none">{formatCurrency(product.price, product.currency)}</p>
+            <div className="flex items-center justify-end gap-1 text-neon-green mt-0.5">
+               <ShieldCheck size={8} />
+               <p className="text-[7px] sm:text-[8px] font-black uppercase tracking-widest">Verified Hub Price</p>
             </div>
           </div>
         </div>
 
         {/* Action Bar */}
-        <div className="flex flex-col sm:flex-row gap-3 p-2 bg-white/5 border border-white/5 rounded-3xl backdrop-blur-xl">
+        <div className="flex items-center justify-between gap-2 p-1 bg-white/5 border border-white/5 rounded-2xl backdrop-blur-md">
           <button 
              onClick={() => navigate(`/store/${product.storeId}`)}
-             className="flex-1 flex items-center gap-3 p-3 hover:bg-white/5 rounded-2xl transition-all group border border-white/5 sm:border-0"
+             className="flex items-center gap-1.5 px-1.5 py-1 hover:bg-white/5 rounded-xl transition-all group border border-white/5 max-w-[120px] sm:max-w-[200px]"
           >
-            <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary group-hover:scale-110 transition-transform">
-              <StoreIcon size={20} />
+            <div className="w-5 h-5 rounded-lg bg-primary/20 flex items-center justify-center text-primary group-hover:scale-105 transition-transform shrink-0">
+              <StoreIcon size={10} />
             </div>
-            <div className="text-left overflow-hidden">
-              <p className="text-[9px] text-gray-500 font-black uppercase tracking-widest leading-none mb-1">Direct Node</p>
-              <p className="text-xs font-black text-white uppercase tracking-tight group-hover:text-primary transition-colors truncate">{store?.name || 'Local Store'}</p>
+            <div className="text-left overflow-hidden min-w-0">
+              <p className="text-[9px] font-black text-white uppercase tracking-tight group-hover:text-primary transition-colors truncate">{store?.name || 'Local Store'}</p>
             </div>
           </button>
           
-          {profile?.uid !== product.ownerId && (
-            <div className="flex gap-2 p-1">
+          {profile?.uid !== product.ownerId ? (
+            <div className="flex gap-1 flex-1 justify-end">
               <AuthGuard 
                 title="Establish Communication" 
                 message="Authenticate to initiate a secure signal stream with the inventory node operator."
@@ -318,9 +316,9 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
                 <button 
                   onClick={handleTalk}
                   disabled={isEngaging}
-                  className="flex-1 sm:flex-none px-6 py-4 sm:py-0 bg-white/5 border border-white/10 rounded-2xl text-[#05070a] font-black uppercase text-[10px] tracking-widest text-primary hover:bg-primary hover:text-black transition-all flex items-center justify-center gap-2"
+                  className="px-2 py-1 bg-white/5 border border-white/10 rounded-lg text-primary font-black uppercase text-[8px] sm:text-[9px] tracking-widest hover:bg-primary hover:text-black transition-all flex items-center gap-1 shrink-0"
                 >
-                  {isEngaging ? <Loader2 size={14} className="animate-spin" /> : <MessageSquare size={16} />}
+                  {isEngaging ? <Loader2 size={8} className="animate-spin" /> : <MessageSquare size={8} />}
                   Talk
                 </button>
               </AuthGuard>
@@ -333,137 +331,164 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
               >
                 <button 
                   onClick={handlePurchase}
-                  className="flex-[2] sm:flex-none px-10 py-4 sm:py-0 bg-primary rounded-2xl flex items-center justify-center text-[#05070a] font-black uppercase text-[10px] tracking-widest hover:shadow-[0_0_20px_rgba(0,242,254,0.3)] transition-all gap-2"
+                  className="px-2.5 py-1 bg-primary rounded-lg flex items-center justify-center text-[#05070a] font-black uppercase text-[8px] sm:text-[9px] tracking-widest hover:shadow-[0_0_10px_rgba(0,242,254,0.3)] transition-all gap-1"
                 >
-                   <Zap size={16} className="fill-current" />
-                   Initialize Order
+                   <Zap size={8} className="fill-current" />
+                   Order
                 </button>
               </AuthGuard>
             </div>
+          ) : (
+            <div className="text-[8px] sm:text-[10px] text-primary font-black uppercase tracking-widest pr-1.5">Your Node</div>
           )}
         </div>
-
-        {/* Description */}
-        <div className="space-y-4">
-          <h3 className="font-black text-white uppercase tracking-tighter text-lg italic flex items-center gap-2">
-            <Info size={18} className="text-primary" />
-            Node Insight
-          </h3>
-          <p className="text-gray-400 text-sm leading-relaxed font-medium">
-            {product.description || "No tactical details provided for this inventory node."}
-          </p>
-        </div>
-
-        {/* Ratings & Reviews Section */}
-        <div className="space-y-8 pt-8 border-t border-white/5">
-          <div className="flex items-center justify-between">
-            <h3 className="font-black text-white uppercase tracking-tighter text-xl italic flex items-center gap-2">
-              <Star size={22} className="text-primary fill-primary" />
-              Neural Feedback
-            </h3>
-            <div className="flex items-center gap-2">
-              <span className="text-3xl font-black text-primary">{product.rating?.toFixed(1) || '0.0'}</span>
-              <div className="text-[8px] font-black text-gray-500 uppercase tracking-widest">
-                Overall Consensus
-              </div>
-            </div>
-          </div>
-
-          {/* Submit Review Form */}
-          <AuthGuard
-            title="Log Feedback Signal"
-            message="Secure authentication is required to contribute to the overall trust consensus of this node."
-            profile={profile}
-          >
-            <motion.div 
-               initial={{ opacity: 0, y: 20 }}
-               animate={{ opacity: 1, y: 0 }}
-               className="neon-card p-6 space-y-4 bg-gradient-to-br from-white/5 to-transparent"
-            >
-              <h4 className="text-xs font-black text-white uppercase tracking-[0.2em] mb-4">Post Experience Signal</h4>
-              <form onSubmit={handleSubmitReview} className="space-y-4">
-                <div className="flex gap-4">
-                  {[1, 2, 3, 4, 5].map((star) => (
-                    <button
-                      key={star}
-                      type="button"
-                      onClick={() => setNewReview({ ...newReview, rating: star })}
-                      className="transition-all hover:scale-125"
-                    >
-                      <Star 
-                        size={24} 
-                        className={cn(
-                          "transition-colors",
-                          star <= newReview.rating ? "fill-primary text-primary" : "text-gray-700"
-                        )} 
-                      />
-                    </button>
-                  ))}
-                </div>
-                <div className="relative">
-                  <textarea
-                    placeholder="Describe your synchronization experience..."
-                    className="w-full bg-[#0d1117] border border-white/10 rounded-2xl p-4 text-white text-xs outline-none focus:border-primary/50 transition-colors"
-                    rows={3}
-                    value={newReview.comment}
-                    onChange={(e) => setNewReview({ ...newReview, comment: e.target.value })}
-                  />
-                </div>
-                <button 
-                  type="submit"
-                  disabled={isSubmittingReview}
-                  className="btn-neon w-full py-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2"
-                >
-                  {isSubmittingReview ? <Loader2 className="animate-spin" size={14} /> : <Send size={14} />}
-                  Upload Protocol Signal
-                </button>
-              </form>
-            </motion.div>
-          </AuthGuard>
-
-          {/* List of Reviews */}
-          <div className="space-y-4">
-            {reviews.length > 0 ? (
-              reviews.map((review) => (
-                <div key={review.id} className="p-5 bg-white/5 border border-white/5 rounded-3xl space-y-3">
-                  <div className="flex justify-between items-center">
-                    <div className="flex items-center gap-3">
-                      <div className="w-8 h-8 rounded-lg bg-gray-800 flex items-center justify-center text-xs font-black text-gray-500 border border-white/10 overflow-hidden">
-                        {review.userAvatar ? (
-                           <img src={review.userAvatar} className="w-full h-full object-cover" />
-                        ) : review.userName.charAt(0)}
-                      </div>
-                      <div>
-                        <p className="text-[10px] font-black text-white uppercase tracking-tight">{review.userName}</p>
-                        <div className="flex gap-0.5">
-                          {[1, 2, 3, 4, 5].map((s) => (
-                            <Star 
-                              key={s} 
-                              size={8} 
-                              className={cn(s <= review.rating ? "fill-primary text-primary" : "text-gray-800")} 
-                            />
-                          ))}
-                        </div>
-                      </div>
-                    </div>
-                    <span className="text-[8px] font-black text-gray-600 uppercase tracking-widest">
-                       {review.createdAt?.toDate ? review.createdAt.toDate().toLocaleDateString() : 'Recent'}
-                    </span>
-                  </div>
-                  <p className="text-[11px] text-gray-400 font-medium leading-relaxed italic">
-                    "{review.comment}"
-                  </p>
-                </div>
-              ))
-            ) : (
-              <div className="py-12 text-center bg-[#0d1117] rounded-3xl border border-white/5">
-                <Sparkles size={32} className="mx-auto text-gray-800 mb-4" />
-                <h4 className="text-xs font-black text-gray-600 uppercase tracking-widest italic">Inventory untested - First Signal Required</h4>
-              </div>
-            )}
-          </div>
-        </div>
       </section>
+
+      {/* Tabs list */}
+      <div className="flex border-b border-white/5 flex-shrink-0 px-2 sm:px-4">
+        <button
+          onClick={() => setActiveTab('insight')}
+          className={cn(
+            "flex-1 py-1.5 text-[8px] sm:text-[9px] font-black uppercase tracking-widest text-center border-b-2 transition-all duration-300",
+            activeTab === 'insight' 
+              ? "text-primary border-primary drop-shadow-[0_0_8px_rgba(0,242,254,0.3)]" 
+              : "text-gray-500 border-transparent hover:text-white"
+          )}
+        >
+          Node Insight
+        </button>
+        <button
+          onClick={() => setActiveTab('feedback')}
+          className={cn(
+            "flex-1 py-1.5 text-[8px] sm:text-[9px] font-black uppercase tracking-widest text-center border-b-2 transition-all duration-300",
+            activeTab === 'feedback' 
+              ? "text-primary border-primary drop-shadow-[0_0_8px_rgba(0,242,254,0.3)]" 
+              : "text-gray-500 border-transparent hover:text-white"
+          )}
+        >
+          Reviews ({reviews.length})
+        </button>
+      </div>
+
+      {/* Tab Content Window */}
+      <div className="flex-grow overflow-y-auto custom-scrollbar px-2 sm:px-4 text-xs font-semibold max-h-[30vh]">
+        <AnimatePresence mode="wait">
+          {activeTab === 'insight' ? (
+            <motion.div
+              key="insight-tab"
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -5 }}
+              className="space-y-2 py-1"
+            >
+              <div className="p-3 bg-white/5 border border-white/5 rounded-2xl">
+                <p className="text-gray-300 text-[10px] sm:text-[11px] leading-relaxed font-semibold">
+                  {product.description || "No tactical details provided for this inventory node."}
+                </p>
+              </div>
+            </motion.div>
+          ) : (
+            <motion.div
+              key="feedback-tab"
+              initial={{ opacity: 0, y: 5 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -5 }}
+              className="space-y-3 py-1"
+            >
+              {/* Post Experience Signal form (made extra compact inline) */}
+              <AuthGuard
+                title="Log Feedback Signal"
+                message="Secure authentication is required to contribute to the overall trust consensus."
+                profile={profile}
+              >
+                <div className="p-2.5 bg-white/5 border border-white/5 rounded-xl space-y-1.5">
+                  <p className="text-[7px] font-black text-gray-400 uppercase tracking-widest inline-block">Transmit Experience Signal</p>
+                  <form onSubmit={handleSubmitReview} className="space-y-1.5">
+                    <div className="flex justify-between items-center bg-[#0d1117] p-1 rounded-lg border border-white/5">
+                      <div className="flex gap-1">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <button
+                            key={star}
+                            type="button"
+                            onClick={() => setNewReview({ ...newReview, rating: star })}
+                            className="transition-all hover:scale-110"
+                          >
+                            <Star 
+                              size={12} 
+                              className={cn(
+                                "transition-colors",
+                                star <= newReview.rating ? "fill-primary text-primary" : "text-gray-700"
+                              )} 
+                            />
+                          </button>
+                        ))}
+                      </div>
+                      <button 
+                        type="submit"
+                        disabled={isSubmittingReview}
+                        className="px-2 py-0.5 bg-primary text-[#05070a] rounded-md text-[7px] font-black uppercase tracking-widest flex items-center gap-1 active:scale-95 transition-all"
+                      >
+                        {isSubmittingReview ? <Loader2 className="animate-spin" size={6} /> : <Send size={6} />}
+                        Post
+                      </button>
+                    </div>
+                    <input
+                      type="text"
+                      placeholder="Comment on your synchronization experience..."
+                      className="w-full bg-[#0d1117] border border-white/10 rounded-lg px-2 py-1 text-white text-[9px] outline-none focus:border-primary/50 transition-colors"
+                      value={newReview.comment}
+                      onChange={(e) => setNewReview({ ...newReview, comment: e.target.value })}
+                      required
+                    />
+                  </form>
+                </div>
+              </AuthGuard>
+
+              {/* Reviews List */}
+              <div className="space-y-1.5">
+                {reviews.length > 0 ? (
+                  reviews.map((review) => (
+                    <div key={review.id} className="p-2.5 bg-[#0d1117] border border-white/5 rounded-xl space-y-1.5">
+                      <div className="flex justify-between items-center">
+                        <div className="flex items-center gap-1.5">
+                          <div className="w-4 h-4 rounded bg-gray-800 flex items-center justify-center text-[7px] font-black text-gray-500 border border-white/10 overflow-hidden shrink-0">
+                            {review.userAvatar ? (
+                               <img src={review.userAvatar} className="w-full h-full object-cover" />
+                            ) : review.userName.charAt(0)}
+                          </div>
+                          <div>
+                            <p className="text-[8px] font-black text-white uppercase tracking-tight leading-none">{review.userName}</p>
+                            <div className="flex gap-0.5 mt-0.5">
+                              {[1, 2, 3, 4, 5].map((s) => (
+                                <Star 
+                                  key={s} 
+                                  size={5} 
+                                  className={cn(s <= review.rating ? "fill-primary text-primary" : "text-gray-800")} 
+                                />
+                              ))}
+                            </div>
+                          </div>
+                        </div>
+                        <span className="text-[6px] font-black text-gray-600 uppercase tracking-widest">
+                           {review.createdAt?.toDate ? review.createdAt.toDate().toLocaleDateString() : 'Recent'}
+                        </span>
+                      </div>
+                      <p className="text-[9px] text-gray-400 font-medium leading-normal italic">
+                        "{review.comment}"
+                      </p>
+                    </div>
+                  ))
+                ) : (
+                  <div className="py-4 text-center bg-[#0d1117] rounded-xl border border-white/5">
+                    <Sparkles size={16} className="mx-auto text-gray-800 mb-1" />
+                    <h4 className="text-[7px] font-black text-gray-600 uppercase tracking-widest italic">Untested - Feed consensus first</h4>
+                  </div>
+                )}
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
+      </div>
 
       <AnimatePresence>
         {activeModal === 'checkout' && (

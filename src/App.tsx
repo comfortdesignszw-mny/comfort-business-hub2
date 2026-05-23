@@ -266,6 +266,7 @@ export default function App() {
                                   <Route path="/" element={<Discovery profile={profile} setProfile={setProfile} onGuestLogin={handleGuestLogin} />} />
                                   <Route path="/store/:id" element={<StoreDetail profile={profile} onGuestLogin={handleGuestLogin} />} />
                                   <Route path="/product/:id" element={<ProductDetail profile={profile} onGuestLogin={handleGuestLogin} />} />
+                                  <Route path="/profile/:id" element={<Profile profile={profile} setProfile={setProfile} />} />
                                   <Route path="/terms" element={<TermsOfService />} />
                                   <Route path="/privacy" element={<PrivacyPolicy />} />
                                   <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
