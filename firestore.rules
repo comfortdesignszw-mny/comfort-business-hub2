@@ -85,13 +85,34 @@ service cloud.firestore {
       allow get: if isOwner(userId) || isHardcodedAdmin() || isAdmin();
       allow list: if isHardcodedAdmin() || isAdmin(); 
       allow create: if isOwner(userId) && isValidId(userId);
-      allow update: if isOwner(userId) || isHardcodedAdmin() || isAdmin();
+      allow update: if isValidId(userId) && (
+        isOwner(userId) || isHardcodedAdmin() || isAdmin() || (
+          isVerified() 
+          && incoming().status == 'suspended' 
+          && existing().status == 'active'
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'suspensionEnd', 'suspensionDuration', 'updatedAt'])
+        )
+      );
       allow delete: if isOwner(userId);
     }
 
     match /public_profiles/{userId} {
       allow get, list: if true;
-      allow create, update: if (isOwner(userId) || isHardcodedAdmin() || isAdmin()) && isValidId(userId) && isValidPublicProfile(incoming()) && incoming().updatedAt == request.time;
+      allow create: if isOwner(userId) && isValidId(userId) && isValidPublicProfile(incoming()) && incoming().updatedAt == request.time;
+      allow update: if isValidId(userId) && (
+        (isOwner(userId) && isValidPublicProfile(incoming()) && incoming().updatedAt == request.time)
+        ||
+        ((isHardcodedAdmin() || isAdmin()) 
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']))
+        ||
+        (isVerified() 
+          && incoming().status == 'suspended' 
+          && existing().status == 'active'
+          && incoming().updatedAt == request.time
+          && incoming().diff(existing()).affectedKeys().hasOnly(['status', 'updatedAt']))
+      );
       allow delete: if isOwner(userId) || isHardcodedAdmin() || isAdmin();
     }
 

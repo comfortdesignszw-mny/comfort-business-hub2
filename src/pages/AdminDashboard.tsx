@@ -2,7 +2,8 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   ShieldAlert, Users, Search, Filter, CheckCircle, Info, XCircle, ArrowRight, 
-  Trash2, Pause, Play, AlertCircle, Calendar, Hash, Tag, User as UserIcon, Store, ShoppingBag, ExternalLink, Loader2
+  Trash2, Pause, Play, AlertCircle, Calendar, Hash, Tag, User as UserIcon, Store, ShoppingBag, ExternalLink, Loader2,
+  X, AlertTriangle
 } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { collection, query, orderBy, onSnapshot, doc, updateDoc, getDocs, where, writeBatch, serverTimestamp } from 'firebase/firestore';
@@ -19,6 +20,18 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'resolved' | 'dismissed'>('all');
   const [isProcessing, setIsProcessing] = useState<string | null>(null);
+  
+  // Custom modals state
+  const [quarantineUser, setQuarantineUser] = useState<UserProfile | null>(null);
+  const [selectedDuration, setSelectedDuration] = useState<{ label: string; days: number; durationLabel: string } | null>(null);
+  const [purgeUser, setPurgeUser] = useState<UserProfile | null>(null);
+
+  // Clear selected duration when quarantine modal closes
+  useEffect(() => {
+    if (!quarantineUser) {
+      setSelectedDuration(null);
+    }
+  }, [quarantineUser]);
 
   // Security: Only allow specific admin
   useEffect(() => {
@@ -67,7 +80,7 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
     }
   };
 
-  const handleUserStatus = async (userId: string, newStatus: 'active' | 'suspended' | 'banned', days?: number) => {
+  const handleUserStatus = async (userId: string, newStatus: 'active' | 'suspended' | 'banned', days?: number, durationLabel?: string) => {
     setIsProcessing(userId);
     try {
       const updates: any = { status: newStatus, updatedAt: serverTimestamp() };
@@ -76,8 +89,10 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
         const suspensionEnd = new Date();
         suspensionEnd.setDate(suspensionEnd.getDate() + days);
         updates.suspensionEnd = suspensionEnd.toISOString();
+        updates.suspensionDuration = durationLabel || `${days} days`;
       } else if (newStatus === 'active') {
         updates.suspensionEnd = null;
+        updates.suspensionDuration = null;
       }
 
       const batch = writeBatch(db);
@@ -87,6 +102,45 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
       await batch.commit();
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `users/${userId}`);
+    } finally {
+      setIsProcessing(null);
+    }
+  };
+
+  const handleWipeUser = async (userId: string) => {
+    setIsProcessing(userId);
+    try {
+      // 1. Delete matching stores
+      const storesQuery = query(collection(db, 'stores'), where('ownerId', '==', userId));
+      const storesSnap = await getDocs(storesQuery);
+      if (!storesSnap.empty) {
+        const storeBatch = writeBatch(db);
+        storesSnap.forEach((d) => {
+          storeBatch.delete(doc(db, 'stores', d.id));
+        });
+        await storeBatch.commit();
+      }
+
+      // 2. Delete matching products
+      const productsQuery = query(collection(db, 'products'), where('ownerId', '==', userId));
+      const productsSnap = await getDocs(productsQuery);
+      if (!productsSnap.empty) {
+        const productBatch = writeBatch(db);
+        productsSnap.forEach((d) => {
+          productBatch.delete(doc(db, 'products', d.id));
+        });
+        await productBatch.commit();
+      }
+
+      // 3. Delete user documents & public profiles
+      const mainBatch = writeBatch(db);
+      mainBatch.delete(doc(db, 'users', userId));
+      mainBatch.delete(doc(db, 'public_profiles', userId));
+      await mainBatch.commit();
+      
+      setPurgeUser(null);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `users/${userId}`);
     } finally {
       setIsProcessing(null);
     }
@@ -338,6 +392,11 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
                         )}>
                           {user.currentRole}
                         </span>
+                        {user.status === 'suspended' && (
+                          <span className="text-[7.5px] font-black uppercase tracking-widest px-2 py-0.5 rounded border bg-amber-500/10 border-amber-500/30 text-amber-400 animate-pulse shadow-[0_0_10px_rgba(245,158,11,0.15)]">
+                            Quarantined for {user.suspensionDuration || '14 days'}
+                          </span>
+                        )}
                       </div>
                       <p className="text-[10px] text-gray-500 font-bold">{user.email || user.phone}</p>
                       {user.suspensionEnd && (
@@ -347,7 +406,16 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
                   </div>
 
                   <div className="flex flex-wrap gap-2">
-                    {user.status === 'suspended' || user.status === 'banned' ? (
+                    {user.status === 'suspended' ? (
+                      <button 
+                        onClick={() => handleUserStatus(user.uid, 'active')}
+                        disabled={!!isProcessing}
+                        className="px-4 py-2 bg-amber-500/10 border border-amber-500/30 text-amber-500 text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-amber-500 hover:text-black transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(245,158,11,0.15)] animate-pulse"
+                      >
+                         {isProcessing === user.uid ? <Loader2 size={12} className="animate-spin" /> : <Play size={14} className="fill-current" />}
+                         Reverse Quarantine
+                      </button>
+                    ) : user.status === 'banned' ? (
                       <button 
                         onClick={() => handleUserStatus(user.uid, 'active')}
                         disabled={!!isProcessing}
@@ -359,15 +427,15 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
                     ) : (
                       <>
                         <button 
-                          onClick={() => handleUserStatus(user.uid, 'suspended', 14)}
+                          onClick={() => setQuarantineUser(user)}
                           disabled={!!isProcessing}
                           className="px-4 py-2 bg-amber-500/10 border border-amber-500/30 text-amber-500 text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-amber-500 hover:text-black transition-all flex items-center gap-2"
                         >
                            {isProcessing === user.uid ? <Loader2 size={12} className="animate-spin" /> : <Pause size={14} />}
-                           Quarantine (14d)
+                           Quarantine
                         </button>
                         <button 
-                          onClick={() => handleUserStatus(user.uid, 'banned')}
+                          onClick={() => setPurgeUser(user)}
                           disabled={!!isProcessing}
                           className="px-4 py-2 bg-red-500/10 border border-red-500/30 text-red-500 text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-red-500 hover:text-white transition-all flex items-center gap-2"
                         >
@@ -393,6 +461,195 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
           Any operational node or data-point reported <span className="text-white">3 times</span> within a solar cycle (month) is automatically transitioned to <span className="text-amber-500">Quarantine Phase</span> for a duration of 14 units. Command overrides are permitted via this console.
         </p>
       </footer>
+
+      {/* Quarantine configuration Modal */}
+      <AnimatePresence>
+        {quarantineUser && (
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-[#05070a]/90 backdrop-blur-md"
+              onClick={() => setQuarantineUser(null)}
+            />
+            
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-md bg-[#0d1117] border border-white/10 rounded-[2rem] overflow-hidden shadow-2xl p-6 space-y-6"
+            >
+              <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-amber-500/20 rounded-xl flex items-center justify-center text-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.2)]">
+                    <Pause size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-white uppercase italic tracking-tighter">Quarantine Node</h3>
+                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">{quarantineUser.name}</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setQuarantineUser(null)}
+                  className="w-8 h-8 bg-white/5 rounded-full flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider leading-relaxed">
+                  Select the suspension duration metrics for this node operator. The operator will be locked out and receive a warning prompt upon synchronization attempts.
+                </p>
+
+                <div className="grid grid-cols-1 gap-2">
+                  {[
+                    { label: '24 Hours', days: 1, durationLabel: '24 hrs' },
+                    { label: '3 Days', days: 3, durationLabel: '3 days' },
+                    { label: '1 Week', days: 7, durationLabel: '1 week' },
+                    { label: '2 Weeks', days: 14, durationLabel: '2 weeks' },
+                    { label: '1 Month', days: 30, durationLabel: '1 month' }
+                  ].map((opt) => {
+                    const isSelected = selectedDuration?.durationLabel === opt.durationLabel;
+                    return (
+                      <button
+                        key={opt.durationLabel}
+                        onClick={() => setSelectedDuration(opt)}
+                        className={cn(
+                          "flex items-center justify-between p-3 rounded-xl border text-left transition-all group",
+                          isSelected
+                            ? "bg-amber-500/10 border-amber-500 text-amber-500 shadow-[0_0_15px_rgba(245,158,11,0.15)]"
+                            : "bg-white/5 border-white/5 hover:border-amber-500/30 hover:bg-amber-500/5 text-gray-400 hover:text-white"
+                        )}
+                      >
+                        <span className={cn(
+                          "text-xs font-black uppercase tracking-tight transition-colors",
+                          isSelected ? "text-amber-500" : "text-white group-hover:text-amber-500"
+                        )}>
+                          {opt.label}
+                        </span>
+                        <span className={cn(
+                          "text-[9px] font-bold uppercase tracking-widest px-2 py-0.5 rounded border transition-colors",
+                          isSelected
+                            ? "border-amber-500/30 text-amber-500 bg-amber-500/10"
+                            : "bg-white/5 border-white/5 text-gray-500 group-hover:border-amber-500/20 group-hover:text-amber-500"
+                        )}>
+                          {opt.durationLabel}
+                        </span>
+                      </button>
+                    );
+                  })}
+                </div>
+
+                <AnimatePresence>
+                  {selectedDuration && (
+                    <motion.div
+                      initial={{ opacity: 0, y: 10, height: 0 }}
+                      animate={{ opacity: 1, y: 0, height: 'auto' }}
+                      exit={{ opacity: 0, y: 10, height: 0 }}
+                      className="pt-2"
+                    >
+                      <button
+                        onClick={async () => {
+                          if (!selectedDuration) return;
+                          await handleUserStatus(quarantineUser.uid, 'suspended', selectedDuration.days, selectedDuration.durationLabel);
+                          setQuarantineUser(null);
+                        }}
+                        disabled={!!isProcessing}
+                        className="w-full py-4 bg-amber-500 hover:bg-amber-600 text-black text-[10px] font-black uppercase tracking-[0.2em] rounded-2xl transition-all shadow-[0_0_30px_rgba(245,158,11,0.4)] flex items-center justify-center gap-2 hover:scale-[1.02] active:scale-[0.98] border border-amber-400/50 animate-pulse"
+                      >
+                        {isProcessing === quarantineUser.uid ? (
+                          <Loader2 size={14} className="animate-spin" />
+                        ) : (
+                          <Pause size={14} className="fill-current" />
+                        )}
+                        Quarantine the Node
+                      </button>
+                    </motion.div>
+                  )}
+                </AnimatePresence>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Purge user configuration Modal */}
+      <AnimatePresence>
+        {purgeUser && (
+          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-[#05070a]/95 backdrop-blur-md"
+              onClick={() => setPurgeUser(null)}
+            />
+            
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.95, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.95, y: 20 }}
+              className="relative w-full max-w-md bg-[#0d1117] border border-red-500/20 rounded-[2rem] overflow-hidden shadow-2xl p-6 space-y-6"
+            >
+              <div className="flex items-center justify-between border-b border-white/5 pb-4">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 bg-red-500/20 rounded-xl flex items-center justify-center text-red-500 shadow-[0_0_15px_rgba(239,68,68,0.3)]">
+                    <AlertTriangle size={20} />
+                  </div>
+                  <div>
+                    <h3 className="text-sm font-black text-white uppercase italic tracking-tighter text-red-500">Purge Node Protocol</h3>
+                    <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">{purgeUser.name}</p>
+                  </div>
+                </div>
+                <button 
+                  onClick={() => setPurgeUser(null)}
+                  className="w-8 h-8 bg-white/5 rounded-full flex items-center justify-center text-gray-400 hover:text-white transition-colors"
+                >
+                  <X size={16} />
+                </button>
+              </div>
+
+              <div className="space-y-4">
+                <div className="p-4 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 flex items-start gap-3">
+                  <AlertTriangle size={18} className="shrink-0 mt-0.5" />
+                  <div className="space-y-1">
+                    <p className="text-[10px] font-black uppercase tracking-wider">CRITICAL WAR ROOM ACTION REQUIRED</p>
+                    <p className="text-[9px] text-red-400 font-medium leading-relaxed uppercase">
+                      This action will completely wipe all node traces from the Comfort Business Hub including:
+                    </p>
+                    <ul className="list-disc pl-4 text-[9px] text-red-300 font-medium uppercase space-y-0.5 mt-1">
+                      <li>User Profile Registry</li>
+                      <li>Matrix Public Profile Metadata</li>
+                      <li>Active Stores and Node Assets</li>
+                      <li>All listed Products and Inventory Feed</li>
+                    </ul>
+                  </div>
+                </div>
+                
+                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest text-center">THIS OPERATION IS IRREVERSIBLE.</p>
+              </div>
+
+              <div className="flex gap-3">
+                <button
+                  onClick={() => setPurgeUser(null)}
+                  className="flex-1 py-3 bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-white text-[10px] font-black uppercase tracking-widest transition-colors"
+                >
+                  Abort Purge
+                </button>
+                <button
+                  onClick={() => handleWipeUser(purgeUser.uid)}
+                  className="flex-1 py-3 bg-red-500 hover:bg-red-600 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-colors flex items-center justify-center gap-2 shadow-lg shadow-red-500/20"
+                >
+                  {isProcessing === purgeUser.uid ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                  Execute Wipe
+                </button>
+              </div>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </motion.div>
   );
 }

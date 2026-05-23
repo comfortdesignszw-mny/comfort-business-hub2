@@ -124,7 +124,6 @@ export default function App() {
     }
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
-      setUser(firebaseUser);
       if (firebaseUser) {
         setIsGuest(false);
         localStorage.removeItem('guest_profile');
@@ -134,25 +133,41 @@ export default function App() {
           if (docSnap.exists()) {
             const profileData = docSnap.data() as UserProfile;
             
+            if (profileData.status === 'suspended') {
+              localStorage.setItem('quarantine_temp', JSON.stringify({
+                duration: profileData.suspensionDuration || '14 days'
+              }));
+              await auth.signOut();
+              setUser(null);
+              setProfile(null);
+              setLoading(false);
+              return;
+            }
+          }
+          
+          setUser(firebaseUser);
+          if (docSnap.exists()) {
+            const profileData = docSnap.data() as UserProfile;
+            
             // Sync verification status and profile info with Firebase Auth
             let needsUpdate = false;
             const updates: any = {};
-
+ 
             if (profileData.isVerified !== firebaseUser.emailVerified) {
               updates.isVerified = firebaseUser.emailVerified;
               needsUpdate = true;
             }
-
+ 
             if (!profileData.avatar && firebaseUser.photoURL) {
               updates.avatar = firebaseUser.photoURL;
               needsUpdate = true;
             }
-
+ 
             if (!profileData.email && firebaseUser.email) {
               updates.email = firebaseUser.email;
               needsUpdate = true;
             }
-
+ 
             if (needsUpdate) {
               updates.updatedAt = serverTimestamp();
               await updateDoc(doc(db, 'users', firebaseUser.uid), updates);
@@ -161,10 +176,10 @@ export default function App() {
             } else {
               setProfile(profileData);
             }
-
+ 
             // Proactively sync public profile for matrix visibility
             syncPublicProfile(profileData);
-
+ 
             if (profileData.currentRole === 'supplier') {
               const { collection, query, where, getDocs } = await import('firebase/firestore');
               const storeRes = await getDocs(query(collection(db, 'stores'), where('ownerId', '==', firebaseUser.uid)));
@@ -177,6 +192,7 @@ export default function App() {
           handleFirestoreError(err, OperationType.GET, userPath);
         }
       } else {
+        setUser(null);
         setProfile(null);
         setHasStore(false);
       }

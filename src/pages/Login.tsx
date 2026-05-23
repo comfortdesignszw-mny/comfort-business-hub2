@@ -16,6 +16,26 @@ import { UserProfile } from '../types';
 export default function Login() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [quarantineInfo, setQuarantineInfo] = useState<{ duration: string } | null>(null);
+
+  useEffect(() => {
+    const checkQuarantine = () => {
+      const temp = localStorage.getItem('quarantine_temp');
+      if (temp) {
+        try {
+          const parsed = JSON.parse(temp);
+          setQuarantineInfo(parsed);
+          localStorage.removeItem('quarantine_temp');
+        } catch (err) {
+          console.error(err);
+        }
+      }
+    };
+
+    checkQuarantine();
+    const interval = setInterval(checkQuarantine, 300);
+    return () => clearInterval(interval);
+  }, []);
 
   // Handle redirect result on mount
   useEffect(() => {
@@ -45,6 +65,17 @@ export default function Login() {
     } catch (e) {
       handleFirestoreError(e, OperationType.GET, userPath);
       return;
+    }
+
+    if (docSnap.exists()) {
+      const existingProfile = docSnap.data() as UserProfile;
+      if (existingProfile.status === 'suspended') {
+        const durationText = existingProfile.suspensionDuration || '14 days';
+        await auth.signOut();
+        setQuarantineInfo({ duration: durationText });
+        setLoading(false);
+        return;
+      }
     }
 
     const profileData: Partial<UserProfile> = {
@@ -155,13 +186,28 @@ export default function Login() {
                   <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Authentication Protocol Required</p>
                 </div>
                 
-                {error && (
+                {quarantineInfo ? (
                   <div className="space-y-4">
-                    <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 text-[10px] font-bold uppercase tracking-wider text-center flex items-center gap-2">
-                      <AlertTriangle size={14} className="shrink-0" />
-                      {error}
+                    <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 text-[10px] font-bold uppercase tracking-wider text-center flex items-center justify-center gap-2">
+                      <AlertTriangle size={14} className="shrink-0 text-red-500" />
+                      <span>Uplink sequence aborted, please keep the authentication window open until complete</span>
+                    </div>
+                    <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-amber-400 text-[10px] font-bold uppercase tracking-wider text-center flex flex-col items-center justify-center gap-2">
+                      <AlertTriangle size={24} className="shrink-0 text-amber-500" />
+                      <p className="leading-relaxed">
+                        Your account has been suspended by the System Admin for <span className="underline font-black">{quarantineInfo.duration}</span>.
+                      </p>
                     </div>
                   </div>
+                ) : (
+                  error && (
+                    <div className="space-y-4">
+                      <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 text-[10px] font-bold uppercase tracking-wider text-center flex items-center gap-2">
+                        <AlertTriangle size={14} className="shrink-0" />
+                        {error}
+                      </div>
+                    </div>
+                  )
                 )}
 
                 <button 

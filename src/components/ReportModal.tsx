@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { X, AlertTriangle, Send, Loader2, ShieldAlert } from 'lucide-react';
 import { ReportType, Report } from '../types';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
-import { collection, query, where, getDocs, serverTimestamp, setDoc, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, getDocs, serverTimestamp, setDoc, doc, updateDoc, writeBatch } from 'firebase/firestore';
 import { cn } from '../lib/utils';
 
 interface ReportModalProps {
@@ -87,6 +87,36 @@ export default function ReportModal({
 
       // 1. Save the report
       await setDoc(doc(db, 'reports', reportId), reportData);
+
+      // Check total pending reports on the owner (after saving this report)
+      if (ownerId && ownerId !== 'system') {
+        const pendingSnap = await getDocs(
+          query(
+            collection(db, 'reports'),
+            where('ownerId', '==', ownerId),
+            where('status', '==', 'pending')
+          )
+        );
+        
+        if (pendingSnap.size >= 3) {
+          // Automatic 14-day quarantine
+          const suspensionEnd = new Date();
+          suspensionEnd.setDate(suspensionEnd.getDate() + 14);
+
+          const batch = writeBatch(db);
+          batch.update(doc(db, 'users', ownerId), {
+            status: 'suspended',
+            suspensionEnd: suspensionEnd.toISOString(),
+            suspensionDuration: '14 days',
+            updatedAt: serverTimestamp()
+          });
+          batch.update(doc(db, 'public_profiles', ownerId), {
+            status: 'suspended',
+            updatedAt: serverTimestamp()
+          });
+          await batch.commit();
+        }
+      }
 
       setSuccess(true);
       setTimeout(() => {

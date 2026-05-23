@@ -31,6 +31,7 @@ export interface UserProfile {
   isAdmin?: boolean;
   status?: 'active' | 'suspended' | 'banned';
   suspensionEnd?: string;
+  suspensionDuration?: string;
   reportCount?: number;
   whatsappUrl?: string;
   requiredProducts?: string[];
