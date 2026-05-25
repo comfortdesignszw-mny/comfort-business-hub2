@@ -191,6 +191,7 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
   const [messages, setMessages] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [showAttachmentMenu, setShowAttachmentMenu] = useState(false);
+  const [fileUploadError, setFileUploadError] = useState<string | null>(null);
   const { sendMessage, sendAttachment, queuedMessages } = useMessaging();
   const [participantInfo, setParticipantInfo] = useState<{ name: string } | null>(
     convo.participantName ? { name: convo.participantName } : null
@@ -199,6 +200,13 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
   const fileInputRef = useRef<HTMLInputElement>(null);
   const videoInputRef = useRef<HTMLInputElement>(null);
   const docInputRef = useRef<HTMLInputElement>(null);
+  const chatTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+
+  useEffect(() => {
+    return () => {
+      if (chatTimeoutRef.current) clearTimeout(chatTimeoutRef.current);
+    };
+  }, []);
 
   const currentQueuedMessages = queuedMessages.filter(m => m.convoId === convo.id);
 
@@ -308,6 +316,18 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
     
     setShowAttachmentMenu(false);
 
+    // Basic format lookup: verify if it's the expected type
+    if (type === 'image' && file.type && !file.type.startsWith('image/')) {
+      setFileUploadError("Error uploading file, this may be bad connection or wrong file format, please try again");
+      setTimeout(() => setFileUploadError(null), 10000);
+      return;
+    }
+    if (type === 'video' && file.type && !file.type.startsWith('video/')) {
+      setFileUploadError("Error uploading file, this may be bad connection or wrong file format, please try again");
+      setTimeout(() => setFileUploadError(null), 10000);
+      return;
+    }
+
     // Create local preview
     const previewUrl = URL.createObjectURL(file);
     const localId = await localDB.queuedMessages.add({
@@ -320,6 +340,27 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
       status: 'uploading',
       progress: 0
     });
+
+    let isCompleted = false;
+    let uploadTask: any = null;
+
+    // Start 5-minute timeout timer (300,000 milliseconds)
+    const timeoutTimer = setTimeout(() => {
+      if (!isCompleted) {
+        if (uploadTask) {
+          try {
+            uploadTask.cancel();
+          } catch (e) {
+            console.error("Cancel upload task failed:", e);
+          }
+        }
+        localDB.queuedMessages.update(localId, { status: 'failed' });
+        setFileUploadError("Error uploading file, this may be bad connection or wrong file format, please try again");
+        setTimeout(() => {
+          setFileUploadError(null);
+        }, 10000);
+      }
+    }, 5 * 60 * 1000);
 
     try {
       let finalFile = file;
@@ -344,18 +385,26 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
 
       const storagePath = `conversations/${convo.id}/${Date.now()}_${file.name}`;
       const storageRef = ref(storage, storagePath);
-      const uploadTask = uploadBytesResumable(storageRef, finalFile);
+      uploadTask = uploadBytesResumable(storageRef, finalFile);
 
       uploadTask.on('state_changed', 
-        (snapshot) => {
+        (snapshot: any) => {
           const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 80 + 20; // Last 80% for upload
           localDB.queuedMessages.update(localId, { progress });
         }, 
-        (error) => {
-          console.error("Upload failed:", error);
+        (error: any) => {
+          console.error("Upload failed occurred:", error);
+          isCompleted = true;
+          clearTimeout(timeoutTimer);
           localDB.queuedMessages.update(localId, { status: 'failed' });
+          setFileUploadError("Error uploading file, this may be bad connection or wrong file format, please try again");
+          setTimeout(() => {
+            setFileUploadError(null);
+          }, 10000);
         }, 
         async () => {
+          isCompleted = true;
+          clearTimeout(timeoutTimer);
           const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
           
           // Cleanup local blob URL if it was an image
@@ -375,7 +424,13 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
       );
     } catch (err) {
       console.error("Attachment handling failed:", err);
+      isCompleted = true;
+      clearTimeout(timeoutTimer);
       localDB.queuedMessages.update(localId, { status: 'failed' });
+      setFileUploadError("Error uploading file, this may be bad connection or wrong file format, please try again");
+      setTimeout(() => {
+        setFileUploadError(null);
+      }, 10000);
     }
   };
 
@@ -437,6 +492,36 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
       exit={{ opacity: 0, x: -20 }}
       className="flex flex-col h-screen fixed inset-0 z-[100] bg-[#05070a]"
     >
+      <AnimatePresence>
+        {fileUploadError && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="fixed top-20 left-1/2 -translate-x-1/2 z-[99999] w-[90%] max-w-md"
+          >
+            <div className="bg-[#120404] border border-red-500/50 rounded-2xl p-4 shadow-[0_0_30px_rgba(239,68,68,0.3)] flex items-start gap-3">
+              <div className="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center text-red-500 flex-shrink-0 font-bold">
+                ✕
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="text-[10px] font-black text-red-500 uppercase tracking-widest">Upload Failed</h4>
+                <p className="text-xs text-red-400 font-semibold mt-1 leading-normal">
+                  {fileUploadError}
+                </p>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setFileUploadError(null)}
+                className="text-red-500/60 hover:text-red-400 transition-colors p-1"
+              >
+                <CloseIcon size={14} />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
+
       {/* Chat header */}
       <div className="p-4 border-b border-white/5 flex items-center justify-between bg-white/5 backdrop-blur-xl">
         <div className="flex items-center gap-4">

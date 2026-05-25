@@ -1,6 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useRef, useEffect } from 'react';
 import { Upload, Link as LinkIcon, X, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { cn } from '../lib/utils';
+import { AnimatePresence, motion } from 'motion/react';
 
 interface ImageInputProps {
   value: string;
@@ -14,6 +15,8 @@ export default function ImageInput({ value, onChange, label, className, aspectRa
   const [mode, setMode] = useState<'upload' | 'url'>(value && value.startsWith('data:') ? 'upload' : 'url');
   const [isProcessing, setIsProcessing] = useState(false);
   const [localUrl, setLocalUrl] = useState('');
+  const [uploadError, setUploadError] = useState<string | null>(null);
+  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Sync mode with value changes if needed
   React.useEffect(() => {
@@ -25,14 +28,49 @@ export default function ImageInput({ value, onChange, label, className, aspectRa
     }
   }, [value]);
 
+  useEffect(() => {
+    return () => {
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    };
+  }, []);
+
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Validate if it is actually an image / supported file format
+    if (!file.type || !file.type.startsWith('image/')) {
+      setUploadError("Error uploading file, this may be bad connection or wrong file format, please try again");
+      if (e.target) e.target.value = '';
+      setTimeout(() => {
+        setUploadError(null);
+      }, 10000);
+      return;
+    }
+
     setIsProcessing(true);
+    setUploadError(null);
+
+    // Setup 5-minute timeout (300,000 milliseconds) for image load & compression workflow
+    if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    timeoutRef.current = setTimeout(() => {
+      setIsProcessing(false);
+      onChange('');
+      if (e.target) e.target.value = '';
+      setUploadError("Error uploading file, this may be bad connection or wrong file format, please try again");
+      setTimeout(() => {
+        setUploadError(null);
+      }, 10000);
+    }, 5 * 60 * 1000);
+
     try {
       const quickReader = new FileReader();
       quickReader.onloadend = () => {
+        if (timeoutRef.current) {
+          clearTimeout(timeoutRef.current);
+          timeoutRef.current = null;
+        }
+
         // 1. Instantly render a fast, raw preview with zero loading delay!
         const rawDataUrl = quickReader.result as string;
         onChange(rawDataUrl);
@@ -72,10 +110,25 @@ export default function ImageInput({ value, onChange, label, className, aspectRa
         };
         img.src = rawDataUrl;
       };
+
+      quickReader.onerror = () => {
+        throw new Error("FileReader error");
+      };
+
       quickReader.readAsDataURL(file);
     } catch (err) {
       console.error("Error processing image:", err);
       setIsProcessing(false);
+      onChange('');
+      if (e.target) e.target.value = '';
+      if (timeoutRef.current) {
+        clearTimeout(timeoutRef.current);
+        timeoutRef.current = null;
+      }
+      setUploadError("Error uploading file, this may be bad connection or wrong file format, please try again");
+      setTimeout(() => {
+        setUploadError(null);
+      }, 10000);
     }
   };
 
@@ -208,6 +261,36 @@ export default function ImageInput({ value, onChange, label, className, aspectRa
           </button>
         </div>
       )}
+
+      <AnimatePresence>
+        {uploadError && (
+          <motion.div
+            initial={{ opacity: 0, y: -20, scale: 0.95 }}
+            animate={{ opacity: 1, y: 0, scale: 1 }}
+            exit={{ opacity: 0, scale: 0.95 }}
+            className="fixed top-6 left-1/2 -translate-x-1/2 z-[99999] w-[90%] max-w-md"
+          >
+            <div className="bg-[#120404] border border-red-500/50 rounded-2xl p-4 shadow-[0_0_30px_rgba(239,68,68,0.3)] flex items-start gap-3">
+              <div className="w-8 h-8 rounded-lg bg-red-500/20 flex items-center justify-center text-red-500 flex-shrink-0 font-bold">
+                ✕
+              </div>
+              <div className="flex-1 min-w-0">
+                <h4 className="text-[10px] font-black text-red-500 uppercase tracking-widest">Upload Failed</h4>
+                <p className="text-xs text-red-400 font-semibold mt-1 leading-normal selection:bg-red-500/30">
+                  {uploadError}
+                </p>
+              </div>
+              <button 
+                type="button"
+                onClick={() => setUploadError(null)}
+                className="text-red-500/60 hover:text-red-400 transition-colors p-1"
+              >
+                <X size={14} />
+              </button>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   );
 }
