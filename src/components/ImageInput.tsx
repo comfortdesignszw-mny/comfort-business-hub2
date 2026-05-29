@@ -2,6 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Upload, Link as LinkIcon, X, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { AnimatePresence, motion } from 'motion/react';
+import { uploadAndCompressImage } from '../lib/upload-utils';
 
 interface ImageInputProps {
   value: string;
@@ -50,85 +51,52 @@ export default function ImageInput({ value, onChange, label, className, aspectRa
 
     setIsProcessing(true);
     setUploadError(null);
+    let isCompleted = false;
 
-    // Setup 5-minute timeout (300,000 milliseconds) for image load & compression workflow
+    // Instantly provide local preview for snappy UI
+    const localPreviewUrl = URL.createObjectURL(file);
+    onChange(localPreviewUrl); // Show preview instantly
+
+    // Setup 30-second timeout for robust sync and upload
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(() => {
-      setIsProcessing(false);
-      onChange('');
-      if (e.target) e.target.value = '';
-      setUploadError("Error uploading file, this may be bad connection or wrong file format, please try again");
-      setTimeout(() => {
-        setUploadError(null);
-      }, 10000);
-    }, 5 * 60 * 1000);
+      if (!isCompleted) {
+        setIsProcessing(false);
+        onChange(''); // revert
+        if (e.target) e.target.value = '';
+        setUploadError("Error uploading file, this may be bad connection or wrong file format, please try again");
+        setTimeout(() => {
+          setUploadError(null);
+        }, 10000);
+      }
+    }, 30 * 1000); // 30 seconds!
 
     try {
-      const quickReader = new FileReader();
-      quickReader.onloadend = () => {
-        if (timeoutRef.current) {
-          clearTimeout(timeoutRef.current);
-          timeoutRef.current = null;
-        }
+      const filename = `assets/images/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.\-_]/g, '')}`;
+      const downloadURL = await uploadAndCompressImage(file, filename, {
+        maxWidth: 800,
+        maxHeight: 800,
+        quality: 0.6
+      });
 
-        // 1. Instantly render a fast, raw preview with zero loading delay!
-        const rawDataUrl = quickReader.result as string;
-        onChange(rawDataUrl);
-        setIsProcessing(false);
+      isCompleted = true;
+      if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      
+      onChange(downloadURL); // Pass the final Firebase URL
+      setIsProcessing(false);
 
-        // 2. Spawn compression in the background to avoid blocking user interaction
-        const img = new Image();
-        img.onload = () => {
-          const canvas = document.createElement('canvas');
-          let width = img.width;
-          let height = img.height;
-
-          // Max dimensions
-          const MAX_SIZE = 800;
-          if (width > height) {
-            if (width > MAX_SIZE) {
-              height *= MAX_SIZE / width;
-              width = MAX_SIZE;
-            }
-          } else {
-            if (height > MAX_SIZE) {
-              width *= MAX_SIZE / height;
-              height = MAX_SIZE;
-            }
-          }
-
-          canvas.width = width;
-          canvas.height = height;
-          const ctx = canvas.getContext('2d');
-          ctx?.drawImage(img, 0, 0, width, height);
-
-          // Compress to JPEG with 0.6 quality
-          const compressedDataUrl = canvas.toDataURL('image/jpeg', 0.6);
-          
-          // 3. Update with the optimized background reference silently
-          onChange(compressedDataUrl);
-        };
-        img.src = rawDataUrl;
-      };
-
-      quickReader.onerror = () => {
-        throw new Error("FileReader error");
-      };
-
-      quickReader.readAsDataURL(file);
     } catch (err) {
       console.error("Error processing image:", err);
-      setIsProcessing(false);
-      onChange('');
-      if (e.target) e.target.value = '';
-      if (timeoutRef.current) {
-        clearTimeout(timeoutRef.current);
-        timeoutRef.current = null;
+      if (!isCompleted) {
+        isCompleted = true;
+        if (timeoutRef.current) clearTimeout(timeoutRef.current);
+        
+        setIsProcessing(false);
+        onChange('');
+        if (e.target) e.target.value = '';
+        setUploadError("Error uploading file, this may be bad connection or wrong file format, please try again");
+        setTimeout(() => setUploadError(null), 10000);
       }
-      setUploadError("Error uploading file, this may be bad connection or wrong file format, please try again");
-      setTimeout(() => {
-        setUploadError(null);
-      }, 10000);
     }
   };
 

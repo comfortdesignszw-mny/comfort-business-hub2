@@ -128,10 +128,38 @@ export default function App() {
         setIsGuest(false);
         localStorage.removeItem('guest_profile');
         const userPath = `users/${firebaseUser.uid}`;
+
+        // 1. Instantly restore from local cache for blazing fast load!
+        try {
+          const cachedProfile = localStorage.getItem(`profile_cache_${firebaseUser.uid}`);
+          if (cachedProfile) {
+            const data = JSON.parse(cachedProfile);
+            setProfile(data);
+            setUser(firebaseUser);
+            if (localStorage.getItem(`has_store_${firebaseUser.uid}`) === 'true') {
+              setHasStore(true);
+            }
+            setLoading(false); // unblock UI immediately
+          }
+        } catch(e) {}
+
+        // Immediate sync termination for the 30-sec rule enforcement
+        if (!localStorage.getItem('sync_cleared_30s_rule_v2')) {
+          import('./lib/db').then(({ localDB }) => {
+             localDB.outbox.clear().then(() => {
+               localStorage.setItem('sync_cleared_30s_rule_v2', 'true');
+               console.log('[Sync] Forcefully terminated all active syncing and cleared queue.');
+             });
+          });
+        }
+
         try {
           const docSnap = await getDoc(doc(db, 'users', firebaseUser.uid));
           if (docSnap.exists()) {
             const profileData = docSnap.data() as UserProfile;
+            
+            // Update cache
+            localStorage.setItem(`profile_cache_${firebaseUser.uid}`, JSON.stringify(profileData));
             
             if (profileData.status === 'suspended') {
               localStorage.setItem('quarantine_temp', JSON.stringify({
@@ -148,6 +176,7 @@ export default function App() {
           setUser(firebaseUser);
           if (docSnap.exists()) {
             const profileData = docSnap.data() as UserProfile;
+            setProfile(profileData); // update with fresh data
             
             // Sync verification status and profile info with Firebase Auth
             let needsUpdate = false;
@@ -183,7 +212,13 @@ export default function App() {
             if (profileData.currentRole === 'supplier') {
               const { collection, query, where, getDocs } = await import('firebase/firestore');
               const storeRes = await getDocs(query(collection(db, 'stores'), where('ownerId', '==', firebaseUser.uid)));
-              setHasStore(!storeRes.empty);
+              const userHasStore = !storeRes.empty;
+              setHasStore(userHasStore);
+              if (userHasStore) {
+                localStorage.setItem(`has_store_${firebaseUser.uid}`, 'true');
+              } else {
+                localStorage.setItem(`has_store_${firebaseUser.uid}`, 'false');
+              }
             }
           } else {
             setProfile(null);

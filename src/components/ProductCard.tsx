@@ -184,7 +184,10 @@ export default function ProductCard({
   return (
     <>
       <motion.div 
+        layout
         whileTap={{ scale: 0.98 }}
+        whileHover={{ scale: 1.01, y: -2 }}
+        transition={{ type: "spring", stiffness: 400, damping: 25 }}
         onClick={() => navigate(`/product/${product.id}`, { 
           state: { 
             product, 

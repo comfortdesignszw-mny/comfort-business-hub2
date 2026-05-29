@@ -344,7 +344,7 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
     let isCompleted = false;
     let uploadTask: any = null;
 
-    // Start 5-minute timeout timer (300,000 milliseconds)
+    // Start 30-second timeout timer
     const timeoutTimer = setTimeout(() => {
       if (!isCompleted) {
         if (uploadTask) {
@@ -360,7 +360,7 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
           setFileUploadError(null);
         }, 10000);
       }
-    }, 5 * 60 * 1000);
+    }, 30 * 1000);
 
     try {
       let finalFile = file;

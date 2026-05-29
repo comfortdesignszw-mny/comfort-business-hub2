@@ -10,23 +10,33 @@ export async function uploadAndCompressImage(
   path: string, 
   options: { maxWidth?: number; maxHeight?: number; quality?: number } = {}
 ): Promise<string> {
-  // 1. Validate
-  const error = validateImage(file);
-  if (error) throw new Error(error);
+  const uploadPromise = async () => {
+    // 1. Validate
+    const error = validateImage(file);
+    if (error) throw new Error(error);
 
-  // 2. Compress
-  const compressedBlob = await compressImage(file, {
-    maxWidth: options.maxWidth || 800,
-    maxHeight: options.maxHeight || 800,
-    quality: options.quality || 0.7
+    // 2. Compress
+    const compressedBlob = await compressImage(file, {
+      maxWidth: options.maxWidth || 800,
+      maxHeight: options.maxHeight || 800,
+      quality: options.quality || 0.7
+    });
+
+    // 3. Upload
+    const storageRef = ref(storage, path);
+    await uploadBytes(storageRef, compressedBlob, {
+      contentType: 'image/jpeg'
+    });
+
+    // 4. Get URL
+    return await getDownloadURL(storageRef);
+  };
+
+  const timeoutPromise = new Promise<never>((_, reject) => {
+    setTimeout(() => {
+      reject(new Error("Upload timed out after 30 seconds. Please check your connection and try again."));
+    }, 30000);
   });
 
-  // 3. Upload
-  const storageRef = ref(storage, path);
-  await uploadBytes(storageRef, compressedBlob, {
-    contentType: 'image/jpeg'
-  });
-
-  // 4. Get URL
-  return await getDownloadURL(storageRef);
+  return Promise.race([uploadPromise(), timeoutPromise]);
 }

@@ -271,6 +271,14 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
       return;
     }
     
+    if (
+      (storeEditData.logoUrl && (storeEditData.logoUrl.startsWith('blob:') || storeEditData.logoUrl.startsWith('data:'))) ||
+      (storeEditData.coverImage && (storeEditData.coverImage.startsWith('blob:') || storeEditData.coverImage.startsWith('data:')))
+    ) {
+      alert("Please wait for store images to finish securely syncing to the cloud before saving.");
+      return;
+    }
+    
     setIsSavingStore(true);
     try {
       let data = {
@@ -355,6 +363,11 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
     
     if (!profile.isVerified) {
       alert("CRITICAL SECURITY LOCK: Identity verification required for production writes. Please verify your email.");
+      return;
+    }
+    
+    if (formData.images.some(img => img.startsWith('blob:') || img.startsWith('data:'))) {
+      alert("Please wait for your images to finish securely syncing to the cloud before saving. It should take a few seconds.");
       return;
     }
     
@@ -874,7 +887,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
         </div>
 
         <div className="space-y-4">
-          {products.map((product, index) => (
+          {Array.from(new Map(products.map(p => [p.id, p])).values()).map((product, index) => (
             <motion.div 
               key={product.id}
               initial={{ opacity: 0, y: 20 }}

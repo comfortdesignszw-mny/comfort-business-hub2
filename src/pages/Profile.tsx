@@ -4,10 +4,11 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   User, Store, Phone, MapPin, Shield, LogOut, ChevronRight, Wallet, 
   Bell, Zap, Image as ImageIcon, X, Check, CreditCard, 
-  Navigation, Crosshair, Save, Loader2, Megaphone, Trash2, Calendar, FileText, Plus, Users, MessageSquare, Share
+  Navigation, Crosshair, Save, Loader2, Megaphone, Trash2, Calendar, FileText, Plus, Users, MessageSquare, Share, RefreshCw
 } from 'lucide-react';
 import { UserProfile, Role, Spotlight, Product, Connection } from '../types';
 import { auth, db, handleFirestoreError, OperationType, syncPublicProfile } from '../lib/firebase';
+import { localDB } from '../lib/db';
 import { offlineResilientWrite } from '../lib/sync';
 import { geohashForLocation } from 'geofire-common';
 import { doc, updateDoc, collection, addDoc, query, where, getDocs, deleteDoc, orderBy, serverTimestamp, limit, onSnapshot } from 'firebase/firestore';
@@ -114,6 +115,19 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
       handleFirestoreError(e, OperationType.UPDATE, path);
     } finally {
       setLoading(false);
+    }
+  };
+
+  const handleForceRefresh = async () => {
+    try {
+      await localDB.outbox.clear();
+      triggerFeedback('Sync Terminated', 'All background data tasks cleared. Refreshing system...', 'success');
+      setTimeout(() => {
+        window.location.reload();
+      }, 1000);
+    } catch (e) {
+      console.error(e);
+      window.location.reload();
     }
   };
 
@@ -247,6 +261,14 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
   const handleSaveProfile = async () => {
     if (!profile || Object.keys(editData).length === 0) {
       setIsEditing(false);
+      return;
+    }
+    
+    if (
+      (editData.avatar && (editData.avatar.startsWith('blob:') || editData.avatar.startsWith('data:'))) ||
+      (editData.bannerImage && (editData.bannerImage.startsWith('blob:') || editData.bannerImage.startsWith('data:')))
+    ) {
+      alert("Please wait for your images to finish securely syncing to the cloud before saving.");
       return;
     }
     
@@ -724,7 +746,14 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
         <MenuButton icon={User} label="Identity Uplink" detail="Modify Profile Details" onClick={() => setIsEditing(true)} />
       </section>
 
-      <div className="pt-6 pb-20 space-y-8">
+      <div className="pt-6 pb-20 space-y-4">
+        <button 
+          onClick={handleForceRefresh}
+          className="w-full flex items-center justify-center gap-3 py-5 text-gray-500 font-black uppercase tracking-widest text-[10px] bg-white/5 rounded-2xl border border-white/5 hover:bg-neon-green/10 hover:text-neon-green hover:border-neon-green/30 transition-all active:scale-95 group"
+        >
+          <RefreshCw size={16} className="group-hover:rotate-180 transition-transform duration-500" /> Refresh the Software
+        </button>
+
         <button 
           onClick={handleLogout}
           className="w-full flex items-center justify-center gap-3 py-5 text-gray-500 font-black uppercase tracking-widest text-[10px] bg-white/5 rounded-2xl border border-white/5 hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/20 transition-all active:scale-95 group"
@@ -1344,7 +1373,7 @@ function SupplierInventoryPreview({ profile }: { profile: UserProfile }) {
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        {products.map((p) => (
+        {Array.from(new Map(products.map(p => [p.id, p])).values()).map((p) => (
             <ProductCard 
               key={p.id}
               product={p}

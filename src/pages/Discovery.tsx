@@ -9,6 +9,7 @@ import {
 import { UserProfile, Product, Store as StoreType, Message, Spotlight, PublicProfile } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { localDB } from '../lib/db';
 import { collection, query, limit, getDocs, where, addDoc, serverTimestamp, setDoc, doc, getDoc, orderBy, onSnapshot, getCountFromServer, startAt, endAt } from 'firebase/firestore';
 import { BUSINESS_CATEGORIES, PRODUCT_CATEGORIES } from '../constants';
 import ProductCard from '../components/ProductCard';
@@ -123,16 +124,33 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
   }, [searchTerm, activeCategory, nearbyDeals, nearbyStores, sharedProductId, nearbyOnly, userLocation, storesMap]);
 
   useEffect(() => {
-    setLoading(true);
-    
-    // Real-time listener for products
+    // Phase 1: Fast Loading from Local Cache
+    const tryLoadFromCache = async () => {
+      try {
+        const cachedProductsDoc = await localDB.cache.where('collection').equals('products').toArray();
+        if (cachedProductsDoc.length > 0) {
+          const cachedProducts = cachedProductsDoc.map(c => c.data as Product);
+          const activeOnly = cachedProducts.filter(p => p.isActive !== false);
+          activeOnly.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          setNearbyDeals(activeOnly);
+          setProductsLoading(false);
+          setLoading(false);
+        }
+      } catch (err) {
+        console.warn('Failed to load local DB cache for products', err);
+      }
+    };
+
+    tryLoadFromCache();
+
+    // Phase 2: Real-time listener for products
     const pq = query(
       collection(db, 'products'),
       where('isActive', '==', true),
       limit(100)
     );
     
-    const unsubscribeProducts = onSnapshot(pq, (snapshot) => {
+    const unsubscribeProducts = onSnapshot(pq, async (snapshot) => {
       const allProducts = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
@@ -140,6 +158,15 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
       
       setNearbyDeals(allProducts);
       setProductsLoading(false);
+      
+      // Update local cache for next time
+      try {
+        for (const p of allProducts) {
+          await localDB.cache.put({ id: `products:${p.id}`, collection: 'products', docId: p.id, data: p, updatedAt: Date.now() });
+        }
+      } catch (e) {
+        console.error('Cache update failed', e);
+      }
 
       if (profile?.currentRole === 'customer' && profile.requiredProducts) {
         const matched = allProducts.filter(p => 
@@ -155,14 +182,35 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
       handleFirestoreError(error, OperationType.GET, 'products-feed');
     });
 
+    // Start Stores Loading
+    const loadStores = async () => {
+      try {
+        const cachedStoresDoc = await localDB.cache.where('collection').equals('stores').toArray();
+        if (cachedStoresDoc.length > 0) {
+          const cachedStores = cachedStoresDoc.map(c => c.data as StoreType);
+          cachedStores.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          setNearbyStores(cachedStores);
+          setStoresLoading(false);
+        }
+      } catch (err) {}
+    };
+    loadStores();
+
     const sq = query(collection(db, 'stores'), limit(150));
-    const unsubscribeStores = onSnapshot(sq, (snapshot) => {
+    const unsubscribeStores = onSnapshot(sq, async (snapshot) => {
       const allStores = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       } as StoreType)).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      
       setNearbyStores(allStores);
       setStoresLoading(false);
+
+      try {
+        for (const s of allStores) {
+          await localDB.cache.put({ id: `stores:${s.id}`, collection: 'stores', docId: s.id, data: s, updatedAt: Date.now() });
+        }
+      } catch (e) {}
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, 'stores-feed');
       setStoresLoading(false);
@@ -796,7 +844,7 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
           </div>
         ) : filteredDeals.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 px-1">
-            {filteredDeals.map((product) => (
+            {Array.from(new Map(filteredDeals.map(p => [p.id, p])).values()).map((product) => (
               <div key={product.id} id={`product-${product.id}`} className={cn("contents", sharedProductId === product.id && "ring-2 ring-primary ring-offset-4 ring-offset-[#05070a] rounded-3xl")}>
                 <AuthGuard
                   title="Access Detailed Intelligence"
