@@ -55,14 +55,15 @@ export default function ImageInput({ value, onChange, label, className, aspectRa
 
     // Instantly provide local preview for snappy UI
     const localPreviewUrl = URL.createObjectURL(file);
-    onChange(localPreviewUrl); // Show preview instantly
+    setLocalUrl(localPreviewUrl); // Show preview instantly without destroying component state
+    // We do NOT call onChange(localPreviewUrl) because it would unmount us from array lists!
 
     // Setup 30-second timeout for robust sync and upload
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     timeoutRef.current = setTimeout(() => {
       if (!isCompleted) {
         setIsProcessing(false);
-        onChange(''); // revert
+        setLocalUrl(''); // revert local preview
         if (e.target) e.target.value = '';
         setUploadError("Error uploading file, this may be bad connection or wrong file format, please try again");
         setTimeout(() => {
@@ -82,6 +83,7 @@ export default function ImageInput({ value, onChange, label, className, aspectRa
       isCompleted = true;
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       
+      setLocalUrl(''); // clear local preview
       onChange(downloadURL); // Pass the final Firebase URL
       setIsProcessing(false);
 
@@ -92,7 +94,7 @@ export default function ImageInput({ value, onChange, label, className, aspectRa
         if (timeoutRef.current) clearTimeout(timeoutRef.current);
         
         setIsProcessing(false);
-        onChange('');
+        setLocalUrl(''); // revert local preview
         if (e.target) e.target.value = '';
         setUploadError("Error uploading file, this may be bad connection or wrong file format, please try again");
         setTimeout(() => setUploadError(null), 10000);
@@ -113,7 +115,7 @@ export default function ImageInput({ value, onChange, label, className, aspectRa
   };
 
   return (
-    <div className={cn("space-y-2", className)}>
+    <div className={cn("space-y-2", className)} data-uploading={isProcessing}>
       {label && <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">{label}</label>}
       
       <div className="flex bg-white/5 p-1 rounded-xl border border-white/5 mb-2">
@@ -152,17 +154,17 @@ export default function ImageInput({ value, onChange, label, className, aspectRa
         "relative rounded-2xl border-2 border-dashed border-white/10 overflow-hidden bg-black/20 group hover:border-primary/30 transition-colors",
         aspectClasses[aspectRatio]
       )}>
-        {value ? (
+        {value || localUrl ? (
           <>
             <img 
-              src={value} 
+              src={value || localUrl} 
               alt="Preview" 
               className="w-full h-full object-cover" 
               referrerPolicy="no-referrer"
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
                 target.src = "https://images.unsplash.com/photo-1541701494587-cb58502866ab?q=80&w=400&auto=format&fit=crop"; // Minimalist abstract placeholder
-                console.error("Image failed to load, placeholder applied:", value);
+                console.error("Image failed to load, placeholder applied:", value || localUrl);
               }}
             />
             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">

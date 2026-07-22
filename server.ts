@@ -89,6 +89,62 @@ async function startServer() {
     }
   });
 
+  // Mock or structural Notification Trigger Endpoint
+  // This demonstrates the priority payload configuration required by the prompt
+  app.post('/api/notifications/send', async (req, res) => {
+    try {
+      const { userId, type, title, body, url } = req.body;
+      
+      // Determine priority based on type
+      const isHighPriority = type === 'order' || type === 'message' || type === 'purchase';
+      
+      const payload = {
+        token: 'USER_DEVICE_TOKEN_PLACEHOLDER', // In a real app, fetch from DB
+        notification: {
+          title,
+          body,
+        },
+        data: {
+          url: url || '/',
+          type: type || 'general',
+          priority: isHighPriority ? 'high' : 'normal'
+        },
+        android: {
+          priority: isHighPriority ? 'high' : 'normal',
+          notification: {
+            channelId: isHighPriority ? 'high_priority_alerts' : 'default_alerts',
+            defaultSound: true,
+            defaultVibrateTimings: true,
+          }
+        },
+        apns: {
+          headers: {
+            'apns-priority': isHighPriority ? '10' : '5',
+          },
+          payload: {
+            aps: {
+              sound: isHighPriority ? 'default' : undefined,
+              badge: 1
+            }
+          }
+        },
+        webpush: {
+          headers: {
+            Urgency: isHighPriority ? 'high' : 'normal'
+          }
+        }
+      };
+
+      console.log(`[Notification Engine] Dispatched ${isHighPriority ? 'HIGH' : 'NORMAL'} priority push to user ${userId}`);
+      
+      // In production: await admin.messaging().send(payload);
+      res.json({ success: true, priority: isHighPriority ? 'high' : 'normal', payload });
+    } catch (error: any) {
+      console.error('Push notification error:', error);
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Health check
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', api_configured: !!ai });

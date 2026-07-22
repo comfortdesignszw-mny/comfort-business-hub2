@@ -67,7 +67,7 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
       }
     }, (err) => {
       handleFirestoreError(err, OperationType.GET, `product-realtime-${id}`);
-      setError("Error syncing inventory stream");
+      setError("Something went wrong on our end. We're retrying automatically.");
       setLoading(false);
     });
 
@@ -164,7 +164,7 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
     return (
       <div className="flex flex-col items-center justify-center h-[60vh] gap-4">
         <Loader2 className="animate-spin text-primary" size={32} />
-        <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest animate-pulse">Syncing Inventory Matrix...</p>
+        <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest animate-pulse">Loading details...</p>
       </div>
     );
   }
@@ -310,7 +310,7 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
             <div className="flex gap-1 flex-1 justify-end">
               <AuthGuard 
                 title="Establish Communication" 
-                message="Authenticate to initiate a secure signal stream with the inventory node operator."
+                message="Sign in to send a private message to this seller."
                 profile={profile}
               >
                 <button 
@@ -398,7 +398,7 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
               {/* Post Experience Signal form (made extra compact inline) */}
               <AuthGuard
                 title="Log Feedback Signal"
-                message="Secure authentication is required to contribute to the overall trust consensus."
+                message="Sign in to interact with this item."
                 profile={profile}
               >
                 <div className="p-2.5 bg-white/5 border border-white/5 rounded-xl space-y-1.5">

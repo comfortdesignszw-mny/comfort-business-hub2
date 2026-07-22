@@ -584,7 +584,7 @@ export default function StoreDetail({ profile, onGuestLogin }: { profile: UserPr
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-4">
         <Loader2 className="animate-spin text-primary" size={32} />
-        <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest animate-pulse">Syncing Store Node...</p>
+        <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest animate-pulse">Loading store details...</p>
       </div>
     );
   }

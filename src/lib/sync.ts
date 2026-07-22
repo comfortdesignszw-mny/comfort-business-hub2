@@ -26,6 +26,8 @@ export async function addToOutbox(item: Omit<OutboxItem, 'createdAt'>) {
 }
 
 let syncInProgress = false;
+let retryCount = 0;
+let backoffTimer: NodeJS.Timeout | null = null;
 
 export async function triggerSync() {
   if (syncInProgress || !navigator.onLine) return;
@@ -33,25 +35,41 @@ export async function triggerSync() {
 
   try {
     const items = await localDB.outbox.orderBy('createdAt').toArray();
-    if (items.length === 0) return;
+    if (items.length === 0) {
+      retryCount = 0;
+      return;
+    }
 
     console.log(`[Sync] Attempting to synchronize ${items.length} queued operations...`);
     
+    let allSucceeded = true;
+
     for (const item of items) {
-      if (!navigator.onLine) break;
+      if (!navigator.onLine) {
+        allSucceeded = false;
+        break;
+      }
 
       try {
         const docRef = doc(db, item.collection, item.docId);
         
         if (item.action === 'create' || item.action === 'update') {
           // Use Timestamp.now() for server sync time
-          await setDoc(docRef, {
+          const setDocPromise = setDoc(docRef, {
             ...item.payload,
             updatedAt: Timestamp.now(),
             _syncedAt: Timestamp.now() // Flag for tracking
           }, { merge: true });
+          
+          await Promise.race([
+            setDocPromise,
+            new Promise((_, reject) => setTimeout(() => reject(new Error("sync_timeout")), 30000))
+          ]);
         } else if (item.action === 'delete') {
-          await deleteDoc(docRef);
+          await Promise.race([
+            deleteDoc(docRef),
+            new Promise((_, reject) => setTimeout(() => reject(new Error("sync_timeout")), 30000))
+          ]);
         }
 
         // Successfully synced, remove from outbox
@@ -59,18 +77,36 @@ export async function triggerSync() {
         console.log(`[Sync] Synchronized ${item.collection}/${item.docId}`);
       } catch (error) {
         console.error('[Sync] Failed to sync item:', item, error);
-        // If it's a permission error, we might want to discard it or notify user
-        // But for network errors, we break and retry later
-        if (error instanceof Error && !error.message.includes('permission')) {
-          break; 
+        allSucceeded = false;
+        
+        // Unrecoverable permission error => drop it
+        if (error instanceof Error && error.message.toLowerCase().includes('permission')) {
+          if (item.id) await localDB.outbox.delete(item.id);
+        } else {
+          break; // Stop and retry later for network errors
         }
-        // If permission error, maybe mark as failed/abandoned
       }
     }
+
+    if (!allSucceeded && navigator.onLine) {
+      // Exponential backoff
+      retryCount++;
+      const delay = Math.min(1000 * Math.pow(2, retryCount), 60000); // Max 1 minute
+      console.warn(`[Sync] Sync incomplete. Retrying in ${delay}ms... (Attempt ${retryCount})`);
+      if (backoffTimer) clearTimeout(backoffTimer);
+      backoffTimer = setTimeout(() => {
+        triggerSync();
+      }, delay);
+    } else if (allSucceeded) {
+      retryCount = 0;
+    }
+
   } finally {
     syncInProgress = false;
   }
 }
+
+export const processOutbox = triggerSync;
 
 /**
  * Universal wrapper for writes that handles offline state gracefully.
@@ -99,9 +135,15 @@ export async function offlineResilientWrite(
     try {
       const docRef = doc(db, collectionName, docId);
       if (action === 'create' || action === 'update') {
-        await setDoc(docRef, { ...payload, updatedAt: Timestamp.now() }, { merge: true });
+        await Promise.race([
+          setDoc(docRef, { ...payload, updatedAt: Timestamp.now() }, { merge: true }),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("sync_timeout")), 30000))
+        ]);
       } else {
-        await deleteDoc(docRef);
+        await Promise.race([
+          deleteDoc(docRef),
+          new Promise((_, reject) => setTimeout(() => reject(new Error("sync_timeout")), 30000))
+        ]);
       }
       return; // Success
     } catch (error) {

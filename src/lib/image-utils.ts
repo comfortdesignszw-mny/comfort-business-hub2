@@ -14,9 +14,9 @@ export interface CompressionOptions {
  */
 export async function compressImage(file: File, options: CompressionOptions = {}): Promise<Blob> {
   const {
-    maxWidth = 800,
-    maxHeight = 800,
-    quality = 0.5,
+    maxWidth = 1920,
+    maxHeight = 1080,
+    quality = 0.6,
     type = 'image/jpeg'
   } = options;
 

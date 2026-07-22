@@ -7,7 +7,6 @@ import { cn } from '../lib/utils';
 export default function SyncIndicator() {
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [pendingCount, setPendingCount] = useState(0);
-  const [isSyncing, setIsSyncing] = useState(false);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);
@@ -16,12 +15,9 @@ export default function SyncIndicator() {
     window.addEventListener('online', handleOnline);
     window.addEventListener('offline', handleOffline);
 
-    // Poll for outbox count
     const interval = setInterval(async () => {
       const count = await localDB.outbox.count();
       setPendingCount(count);
-      // We assume if count is decreasing, syncing is happening
-      // But we can also check the triggerSync state if we had a global signal
     }, 2000);
 
     return () => {
@@ -30,6 +26,8 @@ export default function SyncIndicator() {
       clearInterval(interval);
     };
   }, []);
+
+  if (isOnline && pendingCount === 0) return null; // Very subtle, only show when needed
 
   return (
     <div className="flex items-center gap-2 px-3 py-1.5 bg-white/5 rounded-full border border-white/5 transition-all">
@@ -40,10 +38,12 @@ export default function SyncIndicator() {
             initial={{ opacity: 0, scale: 0.8 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.8 }}
-            className="flex items-center gap-1.5 text-red-400"
+            className="flex items-center gap-1.5 text-yellow-400"
           >
             <CloudOff size={12} />
-            <span className="text-[8px] font-black uppercase tracking-widest">Offline</span>
+            <span className="text-[8px] font-black uppercase tracking-widest">
+              {pendingCount > 0 ? "Saved offline — will sync when connected" : "No internet connection"}
+            </span>
           </motion.div>
         ) : pendingCount > 0 ? (
           <motion.div 
@@ -54,20 +54,9 @@ export default function SyncIndicator() {
             className="flex items-center gap-1.5 text-primary"
           >
             <RefreshCw size={12} className="animate-spin" />
-            <span className="text-[8px] font-black uppercase tracking-widest">Syncing ({pendingCount})</span>
+            <span className="text-[8px] font-black uppercase tracking-widest">Saving changes ({pendingCount})</span>
           </motion.div>
-        ) : (
-          <motion.div 
-            key="online"
-            initial={{ opacity: 0, scale: 0.8 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.8 }}
-            className="flex items-center gap-1.5 text-neon-green"
-          >
-            <CheckCircle2 size={12} />
-            <span className="text-[8px] font-black uppercase tracking-widest">Synced</span>
-          </motion.div>
-        )}
+        ) : null}
       </AnimatePresence>
     </div>
   );

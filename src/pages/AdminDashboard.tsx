@@ -444,7 +444,7 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
                           className="px-4 py-2 bg-red-500/10 border border-red-500/30 text-red-500 text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-red-500 hover:text-white transition-all flex items-center gap-2"
                         >
                            {isProcessing === user.uid ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={14} />}
-                           Purge Access
+                           Remove Access
                         </button>
                       </>
                     )}
@@ -603,7 +603,7 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
                     <AlertTriangle size={20} />
                   </div>
                   <div>
-                    <h3 className="text-sm font-black text-white uppercase italic tracking-tighter text-red-500">Purge Node Protocol</h3>
+                    <h3 className="text-sm font-black text-white uppercase italic tracking-tighter text-red-500">Delete User</h3>
                     <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">{purgeUser.name}</p>
                   </div>
                 </div>
@@ -640,7 +640,7 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
                   onClick={() => setPurgeUser(null)}
                   className="flex-1 py-3 bg-white/5 border border-white/10 rounded-xl text-gray-400 hover:text-white text-[10px] font-black uppercase tracking-widest transition-colors"
                 >
-                  Abort Purge
+                  Cancel
                 </button>
                 <button
                   onClick={() => handleWipeUser(purgeUser.uid)}

@@ -367,7 +367,7 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
         >
           <AuthGuard 
             title="Access Hub Matrix" 
-            message="Secure authentication is required to view the full neural network of supply chain partners."
+            message="Sign in to view all suppliers and partners."
             profile={profile}
           >
             <div onClick={openUserList} className="flex items-center gap-2">
@@ -419,7 +419,7 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
           <div className="relative flex items-center bg-[#0d1117] border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
             <input 
               type="text"
-              placeholder="Search authenticated nodes, inventory or supply patterns..."
+              placeholder="Search signed in suppliers, items or supply patterns..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
               className="w-full py-4 pl-12 pr-12 text-xs font-medium text-white placeholder:text-gray-600 outline-none transition-all bg-transparent"
@@ -613,7 +613,7 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
             </button>
             <AuthGuard 
               title="Matrix View Restricted" 
-              message="Join the Network Hub to browse the full matrix of authenticated suppliers and partners."
+              message="Join the Network Hub to browse the full matrix of signed in suppliers and partners."
               profile={profile}
             >
               <button 
@@ -809,7 +809,7 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
                   <div key={store.id} className="min-w-[240px] snap-center contents">
                     <AuthGuard
                       title="Access Node Infrastructure"
-                      message="Secure authentication is required to audit this supplier's complete storefront and inventory matrix."
+                      message="Sign in to view this supplier's store and items."
                       profile={profile}
                       allowGuest={true}
                       onGuestContinue={onGuestLogin}
@@ -844,7 +844,7 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
           </div>
         ) : filteredDeals.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 px-1">
-            {Array.from(new Map(filteredDeals.map(p => [p.id, p])).values()).map((product) => (
+            {Array.from(new Map(filteredDeals.map(p => [p.id, p])).values()).map((product: any) => (
               <div key={product.id} id={`product-${product.id}`} className={cn("contents", sharedProductId === product.id && "ring-2 ring-primary ring-offset-4 ring-offset-[#05070a] rounded-3xl")}>
                 <AuthGuard
                   title="Access Detailed Intelligence"

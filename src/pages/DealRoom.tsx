@@ -164,7 +164,7 @@ export default function DealRoom({ profile }: { profile: UserProfile | null }) {
         {loading ? (
           <div className="flex flex-col items-center py-20 gap-4">
             <Loader2 className="animate-spin text-primary" size={32} />
-            <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest animate-pulse">Syncing Blockchain...</p>
+            <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest animate-pulse">Saving changes...</p>
           </div>
         ) : activeTab === 'notifications' ? (
           engagements.length > 0 ? (

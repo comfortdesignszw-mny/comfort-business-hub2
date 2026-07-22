@@ -36,6 +36,12 @@ export interface UserProfile {
   whatsappUrl?: string;
   requiredProducts?: string[];
   fcmToken?: string;
+  notificationPrefs?: {
+    purchases: boolean;
+    messages: boolean;
+    social: boolean;
+    highPriority: boolean;
+  };
   location?: {
     city?: string;
     coordinates?: { lat: number; lng: number };

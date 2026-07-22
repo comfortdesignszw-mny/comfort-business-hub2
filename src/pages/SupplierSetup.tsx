@@ -60,11 +60,8 @@ export default function SupplierSetup({ profile, onComplete, existingStore }: { 
       return;
     }
     
-    if (
-      (logoUrl && (logoUrl.startsWith('blob:') || logoUrl.startsWith('data:'))) ||
-      (coverImage && (coverImage.startsWith('blob:') || coverImage.startsWith('data:')))
-    ) {
-      alert("Please wait for your images to finish securely syncing to the cloud before saving.");
+    if (document.querySelectorAll('[data-uploading="true"]').length > 0) {
+      alert("Please wait for your images to finish saving before saving.");
       return;
     }
     

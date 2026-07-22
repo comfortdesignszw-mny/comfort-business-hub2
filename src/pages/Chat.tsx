@@ -129,7 +129,7 @@ export default function Chat({ profile }: { profile: UserProfile | null }) {
       {loading ? (
         <div className="flex flex-col items-center justify-center py-20 space-y-4">
           <Loader2 className="animate-spin text-primary" size={32} />
-          <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest italic">Syncing Privacy Channels...</p>
+          <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest italic">Loading Private Messages...</p>
         </div>
       ) : (
         <div className="space-y-4 custom-scrollbar">

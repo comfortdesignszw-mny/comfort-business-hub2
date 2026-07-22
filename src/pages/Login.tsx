@@ -48,7 +48,7 @@ export default function Login() {
         }
       } catch (err: any) {
         console.error('Redirect login error:', err);
-        setError(err.message || "Failed to resume authentication sequence.");
+        setError(err.message || "We couldn't sign you in.");
       } finally {
         setLoading(false);
       }
@@ -136,7 +136,7 @@ export default function Login() {
           setError("Direct uplink failed. Please open this app in a new tab using the top-right button.");
         }
       } else if (err.code === 'auth/popup-closed-by-user') {
-        setError("Uplink sequence aborted. Please keep the authentication window open until complete.");
+        setError("Sign in cancelled. Please keep the window open until complete.");
       } else if (err.code === 'auth/internal-error' || err.code === 'auth/network-request-failed') {
         setError("Network connectivity issues or unauthorized terminal. Ensure your domain is allowlisted.");
       } else {
@@ -183,14 +183,14 @@ export default function Login() {
               <div className="space-y-4">
                 <div className="flex items-center gap-3 p-4 bg-white/5 rounded-2xl border border-white/10 italic">
                   <Shield size={20} className="text-primary shrink-0" />
-                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Authentication Protocol Required</p>
+                  <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider">Sign in Required</p>
                 </div>
                 
                 {quarantineInfo ? (
                   <div className="space-y-4">
                     <div className="p-3 bg-red-500/10 border border-red-500/20 rounded-xl text-red-500 text-[10px] font-bold uppercase tracking-wider text-center flex items-center justify-center gap-2">
                       <AlertTriangle size={14} className="shrink-0 text-red-500" />
-                      <span>Uplink sequence aborted, please keep the authentication window open until complete</span>
+                      <span>Sign in cancelled. Please keep the window open until complete.</span>
                     </div>
                     <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-amber-400 text-[10px] font-bold uppercase tracking-wider text-center flex flex-col items-center justify-center gap-2">
                       <AlertTriangle size={24} className="shrink-0 text-amber-500" />

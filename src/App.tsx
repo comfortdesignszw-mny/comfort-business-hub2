@@ -107,6 +107,27 @@ export default function App() {
 
   const [showSidebar, setShowSidebar] = useState(false);
 
+  useEffect(() => {
+    if ('serviceWorker' in navigator) {
+      navigator.serviceWorker.addEventListener('message', (event) => {
+        if (event.data && event.data.type === 'SYNC_TRIGGERED') {
+          console.log('[Background Sync] Triggered via SW', event.data.tag);
+          import('./lib/sync').then(({ processOutbox }) => {
+            processOutbox();
+          });
+        }
+      });
+      
+      // Attempt to register sync if online
+      navigator.serviceWorker.ready.then((registration) => {
+        if ('sync' in registration) {
+          // @ts-ignore
+          registration.sync.register('sync-data-mutations').catch(console.error);
+        }
+      });
+    }
+  }, []);
+
   // Profile completion check
   const isProfileIncomplete = profile?.currentRole === 'customer' && (!profile.requiredProducts || profile.requiredProducts.length === 0);
 

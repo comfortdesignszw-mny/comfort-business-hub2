@@ -198,7 +198,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
     
     const productsQuery = query(collection(db, 'products'), where('storeId', '==', activeStore.id));
     
-    // 1. Instantly pull and render from local cache for super fast, zero-delay preview!
+    // 1. Instantly pull and render from saved app files for super fast, zero-delay preview!
     localDB.cache
       .where('collection')
       .equals('products')
@@ -271,11 +271,8 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
       return;
     }
     
-    if (
-      (storeEditData.logoUrl && (storeEditData.logoUrl.startsWith('blob:') || storeEditData.logoUrl.startsWith('data:'))) ||
-      (storeEditData.coverImage && (storeEditData.coverImage.startsWith('blob:') || storeEditData.coverImage.startsWith('data:')))
-    ) {
-      alert("Please wait for store images to finish securely syncing to the cloud before saving.");
+    if (document.querySelectorAll('[data-uploading="true"]').length > 0) {
+      alert("Please wait for store images to finish saving before saving.");
       return;
     }
     
@@ -325,7 +322,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
       }
     } else {
       setEditingProduct(null);
-      // Auto-load product creation draft from local storage cache if available
+      // Auto-load product creation draft from saved app files if available
       const cachedDraft = localStorage.getItem('supplier_product_form_draft');
       if (cachedDraft) {
         try {
@@ -333,7 +330,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
           if (parsed.formData) {
             setFormData(parsed.formData);
             setCustomCategory(parsed.customCategory || '');
-            triggerFeedback('Draft Restored', 'Unsaved product parameters resumed from local cache.', 'message');
+            triggerFeedback('Draft Restored', 'Unsaved product parameters resumed from saved app files.', 'message');
           } else {
             setFormData(initialForm);
             setCustomCategory('');
@@ -366,8 +363,8 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
       return;
     }
     
-    if (formData.images.some(img => img.startsWith('blob:') || img.startsWith('data:'))) {
-      alert("Please wait for your images to finish securely syncing to the cloud before saving. It should take a few seconds.");
+    if (document.querySelectorAll('[data-uploading="true"]').length > 0) {
+      alert("Please wait for your images to finish saving before saving. It should take a few seconds.");
       return;
     }
     
@@ -1351,7 +1348,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
               <div className="space-y-2">
                 <h3 className="text-xl font-black text-white italic uppercase tracking-tighter">Decommission Entity?</h3>
                 <p className="text-[10px] text-red-400 font-bold uppercase tracking-widest leading-relaxed">
-                  Warning: This action is irreversible. The listing <span className="text-white italic">"{productToDelete.name}"</span> will be completely purged from the operational matrix.
+                  Warning: This action is irreversible. The listing <span className="text-white italic">"{productToDelete.name}"</span> will be completely permanently deleted.
                 </p>
               </div>
 

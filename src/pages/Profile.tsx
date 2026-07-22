@@ -28,7 +28,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
   const { triggerFeedback } = useNotifications();
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(false);
-  const [activeModal, setActiveModal] = useState<'gateway' | 'location' | 'spotlights' | 'delete' | 'connections' | null>(null);
+  const [activeModal, setActiveModal] = useState<'gateway' | 'location' | 'spotlights' | 'delete' | 'connections' | 'notifications' | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [editData, setEditData] = useState<Partial<UserProfile>>({});
   const [engagementStats, setEngagementStats] = useState({ engaged: 0, volume: 0 });
@@ -141,7 +141,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
     
     // Immediate UI feedback and lock
     setIsDeleting(true);
-    triggerFeedback('Initializing Purge Protocol', 'Securely erasing all nodes and identity footprints from the Matrix...', 'notification');
+    triggerFeedback('Deleting your account...', 'Removing all your data...', 'notification');
 
     try {
       const uid = profile.uid;
@@ -217,7 +217,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
       }
       
       // 5. Hard Reset & Redirection
-      triggerFeedback('Identity Purged', 'All node data has been securely erased. Connection closed.', 'success');
+      triggerFeedback('Account Deleted', 'All your data has been permanently removed.', 'success');
       
       // Clear local state immediately
       setProfile(null as any);
@@ -228,7 +228,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
       setTimeout(() => window.location.reload(), 500); 
     } catch (e) {
       console.error("TOTAL NODE PURGE FAILURE:", e);
-      triggerFeedback('Purge Error', 'Fatal error during identity erasure. Partial data may exist.', 'error');
+      triggerFeedback('Account Deletion Error', "Something went wrong on our end. We're retrying automatically.", 'error');
       
       await auth.signOut();
       navigate('/login', { replace: true });
@@ -264,11 +264,8 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
       return;
     }
     
-    if (
-      (editData.avatar && (editData.avatar.startsWith('blob:') || editData.avatar.startsWith('data:'))) ||
-      (editData.bannerImage && (editData.bannerImage.startsWith('blob:') || editData.bannerImage.startsWith('data:')))
-    ) {
-      alert("Please wait for your images to finish securely syncing to the cloud before saving.");
+    if (document.querySelectorAll('[data-uploading="true"]').length > 0) {
+      alert("Please wait for your images to finish saving before saving.");
       return;
     }
     
@@ -338,7 +335,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
     return (
       <div className="min-h-[50vh] flex flex-col items-center justify-center gap-4 text-center p-6">
         <Loader2 className="animate-spin text-primary" size={32} />
-        <p className="text-xs font-black text-gray-500 uppercase tracking-[0.2em] animate-pulse">Syncing Public Profile Frame...</p>
+        <p className="text-xs font-black text-gray-500 uppercase tracking-[0.2em] animate-pulse">Loading public profile...</p>
       </div>
     );
   }
@@ -353,7 +350,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
           <div className="space-y-2">
             <h3 className="text-md font-black text-white uppercase italic tracking-tighter">Null Profile Identifier</h3>
             <p className="text-[10px] text-gray-400 font-medium leading-relaxed">
-              This node identifier footprint does not reside on the active network matrix directory. It may have been purged or relocated.
+              This user could not be found. They may have deleted their account.
             </p>
           </div>
           <button 
@@ -744,6 +741,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
           />
         )}
         <MenuButton icon={User} label="Identity Uplink" detail="Modify Profile Details" onClick={() => setIsEditing(true)} />
+        <MenuButton icon={Bell} label="Notification Settings" detail="Manage your alerts" onClick={() => setActiveModal('notifications')} />
       </section>
 
       <div className="pt-6 pb-20 space-y-4">
@@ -769,7 +767,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
               <h4 className="text-xs font-black uppercase tracking-widest italic">Identity Danger Zone</h4>
             </div>
             <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest leading-relaxed">
-              Initiating an account wipe will permanently purge your identity and all associated inventory nodes from the Hub matrix. This cannot be reversed.
+              Deleting your account will permanently remove all your data. This cannot be undone.
             </p>
             <button 
               onClick={() => setActiveModal('delete')}
@@ -822,6 +820,9 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
               {activeModal === 'connections' && (
                 <ConnectionManager profile={profile} />
               )}
+              {activeModal === 'notifications' && (
+                <NotificationSettings profile={profile} onSave={(p) => { handleUpdateProfile(p); setActiveModal(null); }} />
+              )}
               {activeModal === 'delete' && (
                 <div className="space-y-8 text-center py-4">
                   <div className="w-20 h-20 bg-red-500/20 rounded-3xl flex items-center justify-center text-red-500 mx-auto shadow-[0_0_30px_rgba(239,68,68,0.2)]">
@@ -841,7 +842,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
                       className="w-full py-5 bg-red-600 hover:bg-red-500 text-white rounded-2xl font-black uppercase text-xs tracking-[0.2em] shadow-[0_10px_30px_rgba(220,38,38,0.3)] transition-all active:scale-95 flex items-center justify-center gap-3"
                     >
                       {isDeleting ? <Loader2 className="animate-spin" size={18} /> : <Shield size={18} />}
-                      Execute Purge Protocol
+                      Delete Account
                     </button>
                     <button 
                       onClick={() => setActiveModal(null)}
@@ -951,7 +952,7 @@ function SpotlightManager({ profile }: { profile: UserProfile }) {
   };
 
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to purge this broadcast from the matrix?')) return;
+    if (!confirm('Are you sure you want to delete this post?')) return;
     try {
       await deleteDoc(doc(db, 'spotlights', id));
     } catch (err) {
@@ -1173,11 +1174,11 @@ function SpotlightManager({ profile }: { profile: UserProfile }) {
                         onClick={() => handleDelete(s.id)}
                         className="px-4 py-2 bg-red-500/5 rounded-xl border border-red-500/10 text-[9px] font-black text-red-500/60 uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all active:scale-95 flex items-center gap-2"
                       >
-                        <Trash2 size={12} /> Purge
+                        <Trash2 size={12} /> Delete
                       </button>
                     </div>
                     <div className="text-[8px] font-black text-gray-700 uppercase tracking-widest">
-                      {s.createdAt ? new Date(s.createdAt?.toDate?.() || s.createdAt).toLocaleDateString() : 'Syncing...'}
+                      {s.createdAt ? new Date(s.createdAt?.toDate?.() || s.createdAt).toLocaleDateString() : 'Saving changes...'}
                     </div>
                   </div>
                 </motion.div>
@@ -1522,6 +1523,83 @@ function MenuButton({ icon: Icon, label, detail, onClick }: { icon: any, label: 
       </div>
       <ChevronRight size={18} className="text-gray-700 group-hover:text-primary transition-all group-hover:translate-x-2" />
     </motion.button>
+  );
+}
+
+function NotificationSettings({ profile, onSave }: { profile: UserProfile, onSave: (p: Partial<UserProfile>) => void }) {
+  const [prefs, setPrefs] = useState({
+    purchases: profile.notificationPrefs?.purchases ?? true,
+    messages: profile.notificationPrefs?.messages ?? true,
+    social: profile.notificationPrefs?.social ?? false,
+    highPriority: profile.notificationPrefs?.highPriority ?? true
+  });
+  
+  const [permission, setPermission] = useState(Notification.permission);
+
+  const requestPermission = async () => {
+    const p = await Notification.requestPermission();
+    setPermission(p);
+  };
+
+  const handleToggle = (key: keyof typeof prefs) => {
+    setPrefs(prev => ({ ...prev, [key]: !prev[key] }));
+  };
+
+  const save = () => {
+    onSave({ notificationPrefs: prefs });
+  };
+
+  return (
+    <div className="space-y-8">
+      <div>
+        <h3 className="text-xl font-black text-white italic uppercase tracking-tighter">Notification Settings</h3>
+        <p className="text-xs text-gray-500 font-bold uppercase tracking-widest mt-1">Manage your alerts</p>
+      </div>
+
+      {permission !== 'granted' && (
+        <div className="bg-yellow-500/10 border border-yellow-500/20 p-4 rounded-2xl flex items-start gap-4">
+          <Bell className="text-yellow-500 shrink-0 mt-1" size={20} />
+          <div>
+            <p className="text-sm font-bold text-yellow-500">Alerts are turned off in your browser settings</p>
+            <p className="text-xs text-yellow-500/70 mt-1">Turn on notifications to receive important updates.</p>
+            <button 
+              onClick={requestPermission}
+              className="mt-3 bg-yellow-500 text-black px-4 py-2 rounded-xl text-xs font-black uppercase tracking-widest hover:bg-yellow-400 transition-colors"
+            >
+              Enable Notifications
+            </button>
+          </div>
+        </div>
+      )}
+
+      <div className="space-y-4">
+        {[
+          { key: 'highPriority', label: 'High Priority Alerts', desc: 'Wake device & immediate alert for urgent events', icon: Zap, color: 'text-neon-green' },
+          { key: 'purchases', label: 'Purchases & Orders', desc: 'Alerts for new orders and status changes', icon: Wallet, color: 'text-primary' },
+          { key: 'messages', label: 'Private Messages', desc: 'Direct messages from buyers or sellers', icon: MessageSquare, color: 'text-blue-400' },
+          { key: 'social', label: 'Social Activity', desc: 'New followers, likes, and engagement', icon: Users, color: 'text-purple-400' },
+        ].map(({ key, label, desc, icon: Icon, color }) => (
+          <div key={key} className="flex items-center justify-between p-4 bg-white/5 border border-white/5 rounded-2xl cursor-pointer hover:bg-white/10 transition-colors" onClick={() => handleToggle(key as keyof typeof prefs)}>
+            <div className="flex items-center gap-4">
+              <div className={`w-10 h-10 rounded-full flex items-center justify-center bg-white/5 ${color}`}>
+                <Icon size={18} />
+              </div>
+              <div>
+                <h4 className="text-sm font-bold text-white">{label}</h4>
+                <p className="text-xs text-gray-500">{desc}</p>
+              </div>
+            </div>
+            <div className={`w-12 h-6 rounded-full p-1 transition-colors ${prefs[key as keyof typeof prefs] ? 'bg-primary' : 'bg-gray-700'}`}>
+              <div className={`w-4 h-4 bg-white rounded-full transition-transform ${prefs[key as keyof typeof prefs] ? 'translate-x-6' : 'translate-x-0'}`} />
+            </div>
+          </div>
+        ))}
+      </div>
+
+      <button onClick={save} className="w-full bg-primary text-black font-black uppercase tracking-widest py-4 rounded-2xl hover:bg-white transition-colors">
+        Save Preferences
+      </button>
+    </div>
   );
 }
 

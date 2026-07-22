@@ -17,9 +17,9 @@ export async function uploadAndCompressImage(
 
     // 2. Compress
     const compressedBlob = await compressImage(file, {
-      maxWidth: options.maxWidth || 800,
-      maxHeight: options.maxHeight || 800,
-      quality: options.quality || 0.7
+      maxWidth: options.maxWidth || 1920,
+      maxHeight: options.maxHeight || 1080,
+      quality: options.quality || 0.6
     });
 
     // 3. Upload
