@@ -61,7 +61,7 @@ export default function CustomerSetup({ profile }: { profile: UserProfile }) {
           </div>
           <h1 className="text-2xl font-black text-white italic uppercase tracking-tighter">Profile Initialization</h1>
         </div>
-        <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">Register your node to begin matching with regional suppliers</p>
+        <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">Complete your profile to start finding suppliers</p>
       </header>
 
       <form onSubmit={handleSubmit} className="space-y-6">
@@ -99,7 +99,7 @@ export default function CustomerSetup({ profile }: { profile: UserProfile }) {
 
             <div className="space-y-3">
               <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Required Commodities / Services</label>
-              <p className="text-[8px] text-gray-600 font-bold uppercase tracking-wider mb-2">Our AI will match these with available supplier nodes</p>
+              <p className="text-[8px] text-gray-600 font-bold uppercase tracking-wider mb-2">Our AI will match these with available suppliers</p>
               {needs.map((need, i) => (
                 <div key={i} className="flex gap-2">
                   <div className="relative flex-1">

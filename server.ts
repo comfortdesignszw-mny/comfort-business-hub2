@@ -273,7 +273,7 @@ async function startServer() {
         if (profileData) {
           const roleLabel = profileData.currentRole === 'supplier' ? 'Supplier Node' : 'Network Member';
           title = `${profileData.name} (${roleLabel}) | Comfort Business Hub`;
-          desc = `Establish direct comms and mutual supply lines. Node footprint: ${profileData.uid?.slice(0, 8)}. Powered by Comfort Business Hub.`;
+          desc = `Establish direct comms and mutual supply lines. Account ID: ${profileData.uid?.slice(0, 8)}. Powered by Comfort Business Hub.`;
           image = profileData.avatar || image;
         }
       }

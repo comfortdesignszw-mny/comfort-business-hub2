@@ -58,18 +58,18 @@ export default function Chat({ profile }: { profile: UserProfile | null }) {
         const unreadSnap = await getDocs(unreadQ);
         const unreadCount = unreadSnap.size;
 
-        let otherName = 'Secure Node';
+        let otherName = 'User';
         if (otherId) {
           try {
             const userSnap = await getDoc(doc(db, 'public_profiles', otherId));
             if (userSnap.exists()) {
-              otherName = userSnap.data().name || 'Secure Node';
+              otherName = userSnap.data().name || 'User';
             } else {
               // Fallback check on full profile (for legacy or if they are the same user)
               try {
                 const legacySnap = await getDoc(doc(db, 'users', otherId));
                 if (legacySnap.exists()) {
-                  otherName = legacySnap.data().name || legacySnap.data().businessName || 'Secure Node';
+                  otherName = legacySnap.data().name || legacySnap.data().businessName || 'User';
                 }
               } catch (e) {}
             }
@@ -224,13 +224,13 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
               try {
                 const userSnap = await getDoc(doc(db, 'public_profiles', otherId));
                 if (userSnap.exists()) {
-                  setParticipantInfo({ name: userSnap.data().name || 'Secure Node' });
+                  setParticipantInfo({ name: userSnap.data().name || 'User' });
                 } else {
                   // Fallback
                   try {
                     const legacySnap = await getDoc(doc(db, 'users', otherId));
                     if (legacySnap.exists()) {
-                      setParticipantInfo({ name: legacySnap.data().name || legacySnap.data().businessName || 'Secure Node' });
+                      setParticipantInfo({ name: legacySnap.data().name || legacySnap.data().businessName || 'User' });
                     }
                   } catch (e) {}
                 }
@@ -459,9 +459,9 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
     // Simulated contact share for now
     setShowAttachmentMenu(false);
     await sendAttachment(convo.id, 'contact', {
-      name: "Business Node",
+      name: "Business",
       phone: "+263 XXX XXX XXX",
-      vcard: "BEGIN:VCARD\nVERSION:3.0\nFN:Business Node\nTEL:+263\nEND:VCARD"
+      vcard: "BEGIN:VCARD\nVERSION:3.0\nFN:Business\nTEL:+263\nEND:VCARD"
     });
     
     setTimeout(() => {
@@ -536,11 +536,11 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
               {participantInfo?.name?.charAt(0) || 'S'}
             </div>
             <div>
-              <h4 className="text-sm font-black text-white uppercase tracking-widest">{participantInfo?.name || 'Secure Node'}</h4>
+              <h4 className="text-sm font-black text-white uppercase tracking-widest">{participantInfo?.name || 'User'}</h4>
               <div className="flex items-center gap-1.5">
                 <div className="w-1.5 h-1.5 bg-neon-green rounded-full shadow-[0_0_5px_#39FF14]"></div>
                 <p className="text-[9px] text-gray-500 font-black uppercase tracking-widest flex items-center gap-1">
-                   Secure Uplink Active
+                   Secure Connection Active
                 </p>
               </div>
             </div>
@@ -555,8 +555,8 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
         <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-6 custom-scrollbar pb-32">
           <div className="flex flex-col items-center gap-2 py-8">
             <ShieldCheck size={32} className="text-primary/20" />
-            <span className="glass-pill !text-[8px] uppercase tracking-[0.3em] font-black !border-primary/10">Privacy Matrix Established</span>
-            <p className="text-[7px] text-gray-700 font-bold uppercase tracking-widest max-w-[200px] text-center">Protocol: End-to-End Node Restriction. Only participants can access this stream.</p>
+            <span className="glass-pill !text-[8px] uppercase tracking-[0.3em] font-black !border-primary/10">Privacy Established</span>
+            <p className="text-[7px] text-gray-700 font-bold uppercase tracking-widest max-w-[200px] text-center">End-to-End Encryption. Only participants can view messages.</p>
           </div>
           
           {loading ? (
@@ -615,7 +615,7 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
                           <div className="w-[200px] aspect-video bg-white/5 rounded-xl flex flex-col items-center justify-center border border-white/10 relative overflow-hidden">
                              <Video size={32} className="text-gray-700 mb-2" />
                              <div className="absolute bottom-0 left-0 h-1 bg-primary/50" style={{ width: `${msg.progress || 0}%` }} />
-                             <span className="text-[8px] font-black text-gray-500 uppercase tracking-widest text-center px-4">Processing Node... {Math.round(msg.progress || 0)}%</span>
+                             <span className="text-[8px] font-black text-gray-500 uppercase tracking-widest text-center px-4">Processing... {Math.round(msg.progress || 0)}%</span>
                           </div>
                         ) : (
                           <video 
@@ -784,7 +784,7 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
             </button>
           </div>
         </form>
-        <p className="text-center text-[7px] text-gray-600 font-bold uppercase tracking-[0.2em] mt-3">Advanced Privacy Protocol Active • Node ID: {profile?.uid?.slice(0, 8)}</p>
+        <p className="text-center text-[7px] text-gray-600 font-bold uppercase tracking-[0.2em] mt-3">Advanced Privacy Active • Account ID: {profile?.uid?.slice(0, 8)}</p>
       </div>
     </motion.div>
   );

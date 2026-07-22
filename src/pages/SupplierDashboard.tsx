@@ -494,7 +494,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
       <div className="flex flex-col items-center justify-center h-64 space-y-4">
         <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>
         <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
-          {isWaitingForSync ? 'Synchronizing Node with Network...' : 'Decrypting Dashboard...'}
+          {isWaitingForSync ? 'Loading...' : 'Loading Dashboard...'}
         </p>
       </div>
     );
@@ -516,7 +516,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
               if (newId) setWaitingForId(newId);
               setIsWaitingForSync(true);
               setShowStoreSetup(false);
-              triggerFeedback('Uplink Synchronized', 'Your node data is being propagated through the network hub.', 'connect_accept');
+              triggerFeedback('Store Updated', 'Your store details have been saved.', 'connect_accept');
             }} 
           />
         </div>
@@ -528,14 +528,14 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
           <StoreIcon size={40} />
         </div>
         <div className="space-y-2">
-          <p className="text-sm font-black text-white uppercase tracking-widest">No Node Profiles Detected</p>
-          <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Initialize your first supply chain node to start trading</p>
+          <p className="text-sm font-black text-white uppercase tracking-widest">No Stores Found</p>
+          <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Create your first store to start selling</p>
         </div>
         <button 
           onClick={() => setShowStoreSetup(true)}
           className="btn-neon px-8 py-4 text-xs"
         >
-          Initialize Matrix Node
+          Create Store
         </button>
       </div>
     );
@@ -553,7 +553,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
           <div className="flex-1 text-center md:text-left space-y-1">
             <h3 className="text-xs font-black text-white uppercase tracking-widest italic">Identity Verification Required</h3>
             <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-relaxed">
-              Your supply chain node is in <span className="text-red-500">Read-Only mode</span>. Verify your email in the Matrix console to unlock production-grade inventory writes and trading protocols.
+              Your account is in <span className="text-red-500">Read-Only mode</span>. Verify your email in the email to unlock production-grade inventory writes and trading protocols.
             </p>
           </div>
           <button 
@@ -568,12 +568,12 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
       {/* Store Selection & Multiple Stores Support */}
       <section className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
-          <h2 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">Operational Nodes ({stores.length})</h2>
+          <h2 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">Your Stores ({stores.length})</h2>
           <button 
             onClick={() => setShowStoreSetup(true)}
             className="flex items-center gap-2 text-primary text-[10px] font-black uppercase tracking-widest hover:opacity-80 transition-opacity"
           >
-            <Plus size={14} /> New Node
+            <Plus size={14} /> New Store
           </button>
         </div>
         <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
@@ -621,7 +621,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
                   onChange={(val) => setStoreEditData(prev => ({ ...prev, logo: val }))}
                   aspectRatio="square"
                   className="w-full h-full border-primary/20"
-                  label="Node Logo"
+                  label="Store Logo"
                 />
               </div>
               <div className="flex-1 w-full">
@@ -629,7 +629,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
                   value={storeEditData.coverPhoto ?? activeStore.coverPhoto ?? ''} 
                   onChange={(val) => setStoreEditData(prev => ({ ...prev, coverPhoto: val }))}
                   aspectRatio="video"
-                  label="Matrix Cover Area"
+                  label="Store Cover Image"
                   className="w-full border-primary/20"
                 />
               </div>
@@ -637,7 +637,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
             <div className="flex-1 space-y-4">
                 <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div className="space-y-1">
-                    <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">Node Identifier</label>
+                    <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">Store Name</label>
                     <input 
                       type="text"
                       value={storeEditData.name ?? activeStore.name}
@@ -676,7 +676,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
                       onClick={() => setIsEditingLocation(!isEditingLocation)}
                       className="text-[9px] font-black text-primary uppercase tracking-widest flex items-center gap-1.5"
                      >
-                       {isEditingLocation ? 'Lock Node' : 'Update Node Position'}
+                       {isEditingLocation ? 'Save Location' : 'Update Location'}
                      </button>
                    </div>
                    
@@ -709,7 +709,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
               <button 
                 onClick={() => {
                   if (!profile.isVerified) {
-                    alert("Security Lock: Email verification required to modify Node parameters.");
+                    alert("Security Lock: Email verification required to modify Account parameters.");
                     return;
                   }
                   handleSaveStore();
@@ -722,7 +722,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
                     : "bg-red-500/10 border border-red-500/20 text-red-500 opacity-50 cursor-not-allowed"
                 )}
               >
-                {isSavingStore ? <Loader2 className="animate-spin" size={14} /> : <Check size={14} />} Commit Node Changes
+                {isSavingStore ? <Loader2 className="animate-spin" size={14} /> : <Check size={14} />} Save Changes
               </button>
             </div>
           </div>
@@ -781,7 +781,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
                     <Sparkles size={8} /> Live Explorer
                   </div>
                   <div className="flex items-center gap-1.5 text-[8px] text-gray-300 font-bold uppercase tracking-widest bg-black/40 px-2.5 py-1 rounded-lg border border-white/5 leading-none">
-                    <MapPin size={10} className="text-primary" /> {activeStore.address || 'Distributed Hub Node'}
+                    <MapPin size={10} className="text-primary" /> {activeStore.address || 'No location set'}
                   </div>
                 </div>
               </div>
@@ -847,7 +847,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
       <section className="space-y-6">
         <div className="flex items-center justify-between px-1">
           <div className="flex items-center gap-2">
-            <h2 className="font-black text-white uppercase tracking-tighter text-lg">Inventory Matrix</h2>
+            <h2 className="font-black text-white uppercase tracking-tighter text-lg">Inventory</h2>
             <span className="px-2 py-0.5 bg-primary/10 text-primary text-[8px] font-black rounded border border-primary/20 uppercase tracking-widest">{products.length} Items</span>
           </div>
           <div className="flex items-center gap-2">
@@ -884,7 +884,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
         </div>
 
         <div className="space-y-4">
-          {Array.from(new Map(products.map(p => [p.id, p])).values()).map((product, index) => (
+          {Array.from(new Map<string, Product>(products.map(p => [p.id, p])).values()).map((product, index) => (
             <motion.div 
               key={product.id}
               initial={{ opacity: 0, y: 20 }}
@@ -960,7 +960,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
               </div>
               <div className="space-y-1">
                 <p className="text-xs font-black text-white/50 uppercase tracking-widest">No Items Identified</p>
-                <p className="text-[10px] text-gray-600">Start populating your supply matrix</p>
+                <p className="text-[10px] text-gray-600">Start populating your inventory</p>
               </div>
             </div>
           )}
@@ -1015,7 +1015,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
                 <div className="p-6 border-b border-white/5 relative z-10 bg-[#0d1117]/80 backdrop-blur-md flex justify-between items-start">
                   <header className="space-y-1">
                     <h3 className="text-xl font-black text-white italic uppercase tracking-tighter">
-                      {editingProduct ? 'Edit Entity' : 'New Matrix Entry'}
+                      {editingProduct ? 'Edit Entity' : 'New Product'}
                     </h3>
                     <p className="text-[9px] text-primary/60 font-bold uppercase tracking-widest">Operational Parameters Identification</p>
                   </header>
@@ -1031,10 +1031,10 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
                 <div className="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar scroll-smooth overscroll-behavior-contain">
                   <form id="product-form" onSubmit={handleSubmit} className="space-y-6">
                     <div className="space-y-6">
-                      {/* Image Matrix Upload */}
+                      {/* Image Upload */}
                       <div className="space-y-4">
                         <div className="flex items-center justify-between ml-1">
-                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Visual Matrix ({formData.images.length}/5)</label>
+                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Images ({formData.images.length}/5)</label>
                         </div>
                         
                         <div className="grid grid-cols-2 gap-4">
@@ -1184,7 +1184,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
 
                         {formData.buyButtonType === 'link' && (
                           <div className="space-y-2">
-                            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">External Matrix Link</label>
+                            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">External Link</label>
                             <input 
                               type="url"
                               className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-white outline-none focus:border-primary/50 text-xs font-mono transition-all"
@@ -1227,7 +1227,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
                     ) : (
                       <>
                         {editingProduct ? <Check size={20} /> : <Plus size={20} />}
-                        {editingProduct ? 'Update Listing' : 'Initialize Matrix Entry'}
+                        {editingProduct ? 'Update Listing' : 'Create Product'}
                       </>
                     )}
                   </button>
@@ -1262,7 +1262,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
                     </div>
                     <h3 className="text-xl font-black text-white italic uppercase tracking-tighter">WhatsApp Linker</h3>
                   </div>
-                  <p className="text-[9px] text-gray-500 font-bold uppercase tracking-widest">Hydrate your matrix from external catalogues</p>
+                  <p className="text-[9px] text-gray-500 font-bold uppercase tracking-widest">Import products from external catalog</p>
                 </header>
                 <button onClick={() => setShowWhatsAppModal(false)} className="text-gray-500 hover:text-white"><X size={20} /></button>
               </div>
@@ -1270,7 +1270,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
               {waImportedProducts.length === 0 ? (
                 <div className="space-y-4">
                   <div className="space-y-2">
-                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Catalogue URL Uplink</label>
+                    <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Catalog URL</label>
                     <input 
                       type="url"
                       placeholder="https://wa.me/c/..."

@@ -204,7 +204,7 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
             )}
           >
             <Users size={14} />
-            Node Management
+            Store Management
           </button>
         </div>
       </header>
@@ -214,7 +214,7 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
         {[
           { label: 'Total Conflicts', value: reports.length, icon: ShieldAlert, color: 'text-red-500' },
           { label: 'Pending Dispatch', value: reports.filter(r => r.status === 'pending').length, icon: AlertCircle, color: 'text-amber-500' },
-          { label: 'Node Network', value: users.length, icon: Users, color: 'text-primary' },
+          { label: 'Users', value: users.length, icon: Users, color: 'text-primary' },
           { label: 'Quarantined', value: users.filter(u => u.status !== 'active' && u.status !== undefined).length, icon: XCircle, color: 'text-gray-500' }
         ].map((stat, i) => (
           <div key={i} className="neon-card p-4 space-y-2 border-white/5 bg-[#0d1117]">
@@ -234,7 +234,7 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-red-500 transition-colors" size={18} />
             <input 
               type="text" 
-              placeholder={activeTab === 'reports' ? "Search conflicts..." : "Search node registry..."}
+              placeholder={activeTab === 'reports' ? "Search conflicts..." : "Search users..."}
               className="w-full bg-[#0d1117] border border-white/5 rounded-2xl pl-12 pr-4 py-4 text-white text-xs font-black uppercase tracking-tight outline-none focus:border-red-500/30 transition-all"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -408,7 +408,7 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
                   <div className="flex flex-wrap gap-2">
                     {user.isAdmin || user.email === 'comfort.designszw@gmail.com' ? (
                       <span className="text-[8px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl border bg-primary/10 border-primary/35 text-primary shadow-[0_0_15px_rgba(255,0,212,0.1)]">
-                        Immutable Node (System Admin)
+                        Admin Account
                       </span>
                     ) : user.status === 'suspended' ? (
                       <button 
@@ -426,7 +426,7 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
                         className="px-4 py-2 bg-neon-green/10 border border-neon-green/30 text-neon-green text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-neon-green hover:text-black transition-all flex items-center gap-2"
                       >
                          {isProcessing === user.uid ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle size={14} />}
-                         Reactivate Node
+                         Reactivate Account
                       </button>
                     ) : (
                       <>
@@ -462,7 +462,7 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
           <AlertCircle size={16} /> Automation Protocol Sigma
         </div>
         <p className="text-[9px] text-gray-500 leading-relaxed uppercase tracking-widest">
-          Any operational node or data-point reported <span className="text-white">3 times</span> within a solar cycle (month) is automatically transitioned to <span className="text-amber-500">Quarantine Phase</span> for a duration of 14 units. Command overrides are permitted via this console.
+          Any user or item reported <span className="text-white">3 times</span> within a solar cycle (month) is automatically transitioned to <span className="text-amber-500">Quarantine Phase</span> for a duration of 14 units. Command overrides are permitted via this console.
         </p>
       </footer>
 
@@ -490,7 +490,7 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
                     <Pause size={20} />
                   </div>
                   <div>
-                    <h3 className="text-sm font-black text-white uppercase italic tracking-tighter">Quarantine Node</h3>
+                    <h3 className="text-sm font-black text-white uppercase italic tracking-tighter">Suspend Account</h3>
                     <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">{quarantineUser.name}</p>
                   </div>
                 </div>
@@ -504,7 +504,7 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
 
               <div className="space-y-4">
                 <p className="text-[10px] text-gray-400 font-bold uppercase tracking-wider leading-relaxed">
-                  Select the suspension duration metrics for this node operator. The operator will be locked out and receive a warning prompt upon synchronization attempts.
+                  Select the suspension duration metrics for this user. The operator will be locked out and receive a warning prompt upon synchronization attempts.
                 </p>
 
                 <div className="grid grid-cols-1 gap-2">
@@ -568,7 +568,7 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
                         ) : (
                           <Pause size={14} className="fill-current" />
                         )}
-                        Quarantine the Node
+                        Suspend Account
                       </button>
                     </motion.div>
                   )}
@@ -621,12 +621,12 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
                   <div className="space-y-1">
                     <p className="text-[10px] font-black uppercase tracking-wider">CRITICAL WAR ROOM ACTION REQUIRED</p>
                     <p className="text-[9px] text-red-400 font-medium leading-relaxed uppercase">
-                      This action will completely wipe all node traces from the Comfort Business Hub including:
+                      This action will completely wipe all traces of this user from the system including:
                     </p>
                     <ul className="list-disc pl-4 text-[9px] text-red-300 font-medium uppercase space-y-0.5 mt-1">
                       <li>User Profile Registry</li>
-                      <li>Matrix Public Profile Metadata</li>
-                      <li>Active Stores and Node Assets</li>
+                      <li>Public Profile Details</li>
+                      <li>Active Stores and Products</li>
                       <li>All listed Products and Inventory Feed</li>
                     </ul>
                   </div>

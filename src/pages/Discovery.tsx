@@ -339,7 +339,7 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
           <div className="flex items-center gap-3">
             <Sparkles className="text-primary" size={20} />
             <div>
-              <p className="text-[10px] font-black text-primary uppercase tracking-widest">Shared Node Uplink</p>
+              <p className="text-[10px] font-black text-primary uppercase tracking-widest">Shared Link</p>
               <p className="text-[9px] text-gray-400 font-medium">Viewing specific item from secure network link</p>
             </div>
           </div>
@@ -366,7 +366,7 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
           className="flex items-center justify-center gap-2 py-1 cursor-pointer group"
         >
           <AuthGuard 
-            title="Access Hub Matrix" 
+            title="Access Hub" 
             message="Sign in to view all suppliers and partners."
             profile={profile}
           >
@@ -406,7 +406,7 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
             <div className="space-y-0.5">
               <h2 className="text-xl sm:text-2xl font-black text-white italic tracking-tighter uppercase leading-none">
                 {profile ? 'Synchronized' : 'Guest'}<br/>
-                <span className="text-primary drop-shadow-[0_0_8px_rgba(0,242,254,0.3)]">Discovery Matrix</span>
+                <span className="text-primary drop-shadow-[0_0_8px_rgba(0,242,254,0.3)]">Discover</span>
               </h2>
             </div>
           </div>
@@ -465,9 +465,9 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
                 <MapPin size={14} className="text-primary group-hover:scale-110 transition-transform" />
               </div>
               <div className="min-w-0">
-                <p className="text-[9px] sm:text-[10px] text-gray-500 font-bold uppercase tracking-wider leading-none">Active Hub Node</p>
+                <p className="text-[9px] sm:text-[10px] text-gray-500 font-bold uppercase tracking-wider leading-none">Your Location</p>
                 <p className="text-xs sm:text-sm font-bold text-white group-hover:text-primary transition-colors truncate">
-                  {userLocation ? `Detected: ${userLocation[0].toFixed(4)}, ${userLocation[1].toFixed(4)}` : (profile?.location?.city ? profile.location.city.toUpperCase() : (profile?.geohash ? `Node: ${profile.geohash}` : 'Harare CBD, ZW'))}
+                  {userLocation ? `Detected: ${userLocation[0].toFixed(4)}, ${userLocation[1].toFixed(4)}` : (profile?.location?.city ? profile.location.city.toUpperCase() : (profile?.geohash ? `Location: ${profile.geohash}` : 'Harare CBD, ZW'))}
                 </p>
               </div>
             </div>
@@ -580,7 +580,7 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
                 </div>
                 <div className="min-w-0">
                   <p className="text-[9px] text-gray-500 font-black uppercase tracking-widest leading-none">Spatial Search</p>
-                  <p className="text-[10px] text-white font-bold truncate">Showing {nearbyStores.filter(s => s.lat && s.lng).length} active supply nodes on map</p>
+                  <p className="text-[10px] text-white font-bold truncate">Showing {nearbyStores.filter(s => s.lat && s.lng).length} active stores on map</p>
                 </div>
               </div>
             </div>
@@ -588,7 +588,7 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
         )}
       </AnimatePresence>
 
-      {/* Neural Member Matrix Section */}
+      {/* Members Section */}
       {profile && !profile.isGuest && (
         <section className="space-y-6 pt-2">
         <div className="flex items-center justify-between px-1">
@@ -597,7 +597,7 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
             <div className="space-y-0.5">
               <h2 className="text-[10px] sm:text-xs font-black text-white uppercase tracking-[0.15em] sm:tracking-[0.2em] italic">Neural Member Network</h2>
               <p className="text-[7px] sm:text-[8px] text-gray-500 font-bold uppercase tracking-widest leading-none">
-                <span className="text-primary font-black">{userCount || '0'}</span> nodes synced
+                <span className="text-primary font-black">{userCount || '0'}</span> users
               </p>
             </div>
           </div>
@@ -612,15 +612,15 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
               <MapIcon size={10} /> {nearbyOnly ? 'Nearby Mode: Active' : 'Filter by Proximity'}
             </button>
             <AuthGuard 
-              title="Matrix View Restricted" 
-              message="Join the Network Hub to browse the full matrix of signed in suppliers and partners."
+              title="View Restricted" 
+              message="Join the Network Hub to browse all signed in users."
               profile={profile}
             >
               <button 
                 onClick={openUserList}
                 className="text-[8px] sm:text-[9px] font-black text-primary uppercase tracking-widest hover:text-white transition-colors flex items-center gap-1.5 sm:gap-2 bg-primary/5 py-1.5 px-3 rounded-full border border-primary/10"
               >
-                Matrix <ExternalLink size={8} />
+                Directory <ExternalLink size={8} />
               </button>
             </AuthGuard>
           </div>
@@ -669,8 +669,8 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
           </div>
         ))}
           <AuthGuard 
-            title="Full Matrix Access" 
-            message="Sign in to explore the complete directory of synchronized business nodes."
+            title="View All Members" 
+            message="Sign in to explore the complete member directory."
             profile={profile}
           >
             <motion.div
@@ -682,8 +682,8 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
                 <Users size={20} />
               </div>
               <div className="space-y-1">
-                <p className="text-[9px] font-black text-primary uppercase tracking-widest">Full Matrix</p>
-                <p className="text-[7px] text-gray-500 font-bold uppercase tracking-widest leading-tight">Connect with {userCount || 'All'} Nodes</p>
+                <p className="text-[9px] font-black text-primary uppercase tracking-widest">All Members</p>
+                <p className="text-[7px] text-gray-500 font-bold uppercase tracking-widest leading-tight">Connect with {userCount || 'All'} Members</p>
               </div>
             </motion.div>
           </AuthGuard>
@@ -792,7 +792,7 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
           <section className="space-y-6">
             <div className="flex items-center justify-between px-1">
               <div className="flex items-center gap-2">
-                <h2 className="font-black text-white uppercase tracking-tighter text-lg">Active Supply Nodes</h2>
+                <h2 className="font-black text-white uppercase tracking-tighter text-lg">Active Stores</h2>
                 <div className="px-1.5 py-0.5 bg-primary/10 text-primary text-[8px] font-black rounded border border-primary/20 uppercase tracking-widest">Network</div>
               </div>
             </div>
@@ -808,7 +808,7 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
                 {filteredStores.map((store) => (
                   <div key={store.id} className="min-w-[240px] snap-center contents">
                     <AuthGuard
-                      title="Access Node Infrastructure"
+                      title="Access Features"
                       message="Sign in to view this supplier's store and items."
                       profile={profile}
                       allowGuest={true}
@@ -822,7 +822,7 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
             ) : (
               <div className="bg-white/5 border border-white/5 rounded-3xl p-8 text-center">
                 <Building2 className="mx-auto text-gray-700 mb-2" size={24} />
-                <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">No active nodes detected nearby</p>
+                <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">No stores found nearby</p>
               </div>
             )}
           </section>
@@ -844,11 +844,11 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
           </div>
         ) : filteredDeals.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 px-1">
-            {Array.from(new Map(filteredDeals.map(p => [p.id, p])).values()).map((product: any) => (
+            {Array.from(new Map<string, Product>(filteredDeals.map(p => [p.id, p])).values()).map((product: any) => (
               <div key={product.id} id={`product-${product.id}`} className={cn("contents", sharedProductId === product.id && "ring-2 ring-primary ring-offset-4 ring-offset-[#05070a] rounded-3xl")}>
                 <AuthGuard
                   title="Access Detailed Intelligence"
-                  message="Sign in to view full technical specifications, verified ratings, and secure procurement options for this node."
+                  message="Sign in to view full technical specifications, verified ratings, and secure purchasing options for this store."
                   profile={profile}
                   allowGuest={true}
                   onGuestContinue={onGuestLogin}
@@ -891,7 +891,7 @@ function StoreCard({ store, profile, onSelect }: { store: StoreType, profile: Us
     }
     try {
       await interactionService.followStore(store.id, store.ownerId, profile);
-      triggerFeedback('Success', `You are now following ${store.name}'s node`, 'follow');
+      triggerFeedback('Success', `You are now following ${store.name}`, 'follow');
     } catch (err) {
       console.error(err);
     }
@@ -922,7 +922,7 @@ function StoreCard({ store, profile, onSelect }: { store: StoreType, profile: Us
         <div className="absolute top-2 right-2 flex gap-1 z-10 opacity-0 group-hover:opacity-100 transition-opacity">
           <AuthGuard 
             title="Follow this Storefront" 
-            message="Sign in to follow this node and receive real-time inventory updates and market signals."
+            message="Sign in to follow this store and receive updates on their products."
             profile={profile}
           >
             <button 
@@ -977,7 +977,7 @@ function StoreCard({ store, profile, onSelect }: { store: StoreType, profile: Us
           <span className="text-[8px] text-gray-600 font-black ml-1">({store.reviewCount})</span>
         </div>
         <div className="flex items-center gap-1 text-[8px] text-primary font-black uppercase tracking-widest group-hover:translate-x-1 transition-transform">
-          Enter Node <ArrowRight size={10} />
+          Visit Store <ArrowRight size={10} />
         </div>
       </div>
     </motion.div>

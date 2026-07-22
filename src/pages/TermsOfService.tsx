@@ -16,7 +16,7 @@ export default function TermsOfService() {
           className="flex items-center gap-2 text-gray-500 hover:text-primary transition-colors mb-8 group"
         >
           <ChevronLeft size={20} className="group-hover:-translate-x-1 transition-transform" />
-          <span className="text-xs font-black uppercase tracking-widest italic">Return to Matrix</span>
+          <span className="text-xs font-black uppercase tracking-widest italic">Return Home</span>
         </motion.button>
 
         <motion.div 
@@ -61,7 +61,7 @@ export default function TermsOfService() {
               </p>
               <div className="h-px bg-white/10 w-full relative z-10" />
               <p className="text-xs text-gray-500 relative z-10 leading-relaxed italic">
-                <span className="text-white font-bold uppercase tracking-wider not-italic">Guest & Anonymous Modes:</span> In addition to full node membership, the Platform supports Guest Browsing and Guest Access modes. Anonymous explorers can browse public inventories and share nodes, while user-activated Guest Sessions allow users to register a local temporary identifier and test transactions (e.g., placing inquiries via the "Talk" option or submitting purchase intents via "Order Now" commands) to preview the system seamlessly.
+                <span className="text-white font-bold uppercase tracking-wider not-italic">Guest & Anonymous Modes:</span> In addition to full membership, the Platform supports Guest Browsing and Guest Access modes. Anonymous explorers can browse public inventories and share nodes, while user-activated Guest Sessions allow users to register a local temporary identifier and test transactions (e.g., placing inquiries via the "Talk" option or submitting purchase intents via "Order Now" commands) to preview the system seamlessly.
               </p>
             </section>
 

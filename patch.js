@@ -1,23 +1,6 @@
-import tailwindcss from '@tailwindcss/vite';
-import react from '@vitejs/plugin-react';
-import path from 'path';
-import {defineConfig, loadEnv} from 'vite';
-import { VitePWA } from 'vite-plugin-pwa';
-
-export default defineConfig(({mode}) => {
-  const env = loadEnv(mode, '.', '');
-  return {
-    plugins: [
-      react(), 
-      tailwindcss(),
-      VitePWA({
-        strategies: 'injectManifest',
-        srcDir: 'src',
-        filename: 'sw.ts',
-        registerType: 'autoUpdate',
-        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'masked-icon.svg'],
-        manifest: {
-          name: 'Comfort Business Hub',
+const fs = require('fs');
+let code = fs.readFileSync('vite.config.ts', 'utf8');
+code = code.replace(/name: 'Comfort Business Hub',[\s\S]*icons: \[\s*{[\s\S]*?}\s*\]\s*}/, `name: 'Comfort Business Hub',
           short_name: 'ComfortHub',
           description: 'Manage your business, messaging, products, and sales seamlessly offline and online.',
           theme_color: '#000000',
@@ -86,24 +69,5 @@ export default defineConfig(({mode}) => {
               purpose: 'maskable'
             }
           ]
-        },
-        injectManifest: {
-          globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-        }
-      })
-    ],
-    define: {
-      'process.env.GEMINI_API_KEY': JSON.stringify(env.GEMINI_API_KEY),
-    },
-    resolve: {
-      alias: {
-        '@': path.resolve(__dirname, '.'),
-      },
-    },
-    server: {
-      // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
-      hmr: process.env.DISABLE_HMR !== 'true',
-    },
-  };
-});
+        }`);
+fs.writeFileSync('vite.config.ts', code);

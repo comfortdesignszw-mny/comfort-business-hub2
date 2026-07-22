@@ -69,7 +69,7 @@ export default function StoresHub({ profile }: { profile: UserProfile | null }) 
             Stores <span className="text-outline-white">Hub</span>
           </h1>
           <p className="text-gray-500 text-xs sm:text-sm font-medium max-w-md">
-            Verified local supply nodes integrated within the Comfort Enterprise Matrix.
+            Verified local suppliers integrated within the Comfort Business Hub.
           </p>
         </div>
 
@@ -103,13 +103,13 @@ export default function StoresHub({ profile }: { profile: UserProfile | null }) 
         <SupplierDashboard profile={profile} />
       ) : (
         <div className="space-y-12">
-          {/* Featured Nodes */}
+          {/* Featured Stores */}
           {!loading && stores.length > 0 && (
             <section className="space-y-6">
               <div className="flex items-center justify-between px-1">
                 <div className="flex items-center gap-2">
                   <Sparkles size={18} className="text-primary" />
-                  <h2 className="text-sm font-black text-white uppercase tracking-widest italic">Vanguard Nodes</h2>
+                  <h2 className="text-sm font-black text-white uppercase tracking-widest italic">Featured Stores</h2>
                 </div>
               </div>
               <div className="flex gap-6 overflow-x-auto no-scrollbar pb-4 -mx-1 px-1">
@@ -141,7 +141,7 @@ export default function StoresHub({ profile }: { profile: UserProfile | null }) 
               <Search className="absolute left-6 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-primary transition-colors" size={20} />
               <input 
                 type="text" 
-                placeholder="Search nodes by name, identifier or sector..."
+                placeholder="Search stores..."
                 className="w-full pl-16 pr-6 py-6 bg-white/[0.02] border border-white/5 rounded-[2rem] text-white placeholder-gray-600 outline-none focus:border-primary/30 transition-all font-medium text-lg"
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
@@ -184,7 +184,7 @@ export default function StoresHub({ profile }: { profile: UserProfile | null }) 
                 <div className="space-y-2">
                   <p className="text-xl font-bold text-white italic uppercase tracking-tight">No match detected</p>
                   <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest italic leading-relaxed">
-                    Zero active nodes in <span className="text-primary">{activeCategory}</span> sector matching "{searchTerm}"
+                    No stores found in <span className="text-primary">{activeCategory}</span> sector matching "{searchTerm}"
                   </p>
                 </div>
               </div>
@@ -223,7 +223,7 @@ function StoreCard({ store, profile }: StoreCardProps) {
         {/* Verification Status */}
         <div className="absolute top-4 left-4 flex items-center gap-2 px-3 py-1 bg-black/60 backdrop-blur-md rounded-full border border-white/10">
           <div className="w-1.5 h-1.5 rounded-full bg-neon-green shadow-[0_0_8px_#39FF14]"></div>
-          <span className="text-[8px] font-black text-white uppercase tracking-widest">Active Node</span>
+          <span className="text-[8px] font-black text-white uppercase tracking-widest">Active Store</span>
         </div>
 
         {/* Rating Floating Badge */}
@@ -246,7 +246,7 @@ function StoreCard({ store, profile }: StoreCardProps) {
                    {store.category}
                  </span>
                  <span className="text-[8px] text-gray-500 font-bold uppercase tracking-wider flex items-center gap-1">
-                   <MapPin size={8} /> {store.address || 'Local Matrix'}
+                   <MapPin size={8} /> {store.address || 'Local Area'}
                  </span>
               </div>
             </div>

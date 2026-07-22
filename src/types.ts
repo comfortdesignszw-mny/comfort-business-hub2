@@ -127,7 +127,7 @@ export interface Review {
   createdAt: any;
 }
 
-export type DealStatus = 'pending' | 'quoted' | 'accepted' | 'delivered' | 'cancelled';
+export type DealStatus = 'pending' | 'quoted' | 'accepted' | 'shipped' | 'delivered' | 'cancelled';
 
 export interface Deal {
   id: string;

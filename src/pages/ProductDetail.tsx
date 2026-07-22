@@ -339,7 +339,7 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
               </AuthGuard>
             </div>
           ) : (
-            <div className="text-[8px] sm:text-[10px] text-primary font-black uppercase tracking-widest pr-1.5">Your Node</div>
+            <div className="text-[8px] sm:text-[10px] text-primary font-black uppercase tracking-widest pr-1.5">Your Product</div>
           )}
         </div>
       </section>
@@ -355,7 +355,7 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
               : "text-gray-500 border-transparent hover:text-white"
           )}
         >
-          Node Insight
+          Details
         </button>
         <button
           onClick={() => setActiveTab('feedback')}
@@ -383,7 +383,7 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
             >
               <div className="p-3 bg-white/5 border border-white/5 rounded-2xl">
                 <p className="text-gray-300 text-[10px] sm:text-[11px] leading-relaxed font-semibold">
-                  {product.description || "No tactical details provided for this inventory node."}
+                  {product.description || "No tactical details provided for this product."}
                 </p>
               </div>
             </motion.div>

@@ -133,14 +133,14 @@ export default function Login() {
         try {
           await signInWithRedirect(auth, provider);
         } catch (redirectErr: any) {
-          setError("Direct uplink failed. Please open this app in a new tab using the top-right button.");
+          setError("Sign in failed. Please open this app in a new tab using the top-right button.");
         }
       } else if (err.code === 'auth/popup-closed-by-user') {
         setError("Sign in cancelled. Please keep the window open until complete.");
       } else if (err.code === 'auth/internal-error' || err.code === 'auth/network-request-failed') {
-        setError("Network connectivity issues or unauthorized terminal. Ensure your domain is allowlisted.");
+        setError("Network connectivity issues. Please try again.");
       } else {
-        setError(err.message || "Failed to establish uplink.");
+        setError(err.message || "We couldn't sign you in.");
       }
     } finally {
       setLoading(false);
@@ -220,7 +220,7 @@ export default function Login() {
                   ) : (
                     <>
                       <LogIn size={20} />
-                      Uplink via Google
+                      Sign in using Google
                     </>
                   )}
                 </button>
@@ -229,9 +229,9 @@ export default function Login() {
                 <div className="p-6 bg-white/[0.02] rounded-2xl border border-white/5 space-y-4">
                   <div className="flex items-center gap-2">
                     <Globe size={14} className="text-primary" />
-                    <span className="text-[9px] font-black uppercase text-white tracking-widest">Global Node Access</span>
+                    <span className="text-[9px] font-black uppercase text-white tracking-widest">Access your account</span>
                   </div>
-                  <p className="text-[10px] text-gray-500 leading-relaxed font-medium">By connecting, you authorize the Comfort Business Hub to synchronize your trade data across regional nodes.</p>
+                  <p className="text-[10px] text-gray-500 leading-relaxed font-medium">By connecting, you authorize the Comfort Business Hub to store your account details safely.</p>
                   
                   <div className="flex justify-center gap-6 pt-2 border-t border-white/5">
                     <Link to="/terms" className="text-[9px] font-black text-gray-600 uppercase tracking-widest hover:text-primary transition-colors">Terms of Service</Link>
@@ -255,7 +255,7 @@ export default function Login() {
             </div>
             <div className="flex items-center gap-2 opacity-40">
               <div className="w-1.5 h-1.5 bg-neon-green rounded-full shadow-[0_0_5px_#39FF14]"></div>
-              <span className="text-[8px] font-black uppercase text-white tracking-widest">Node Verified</span>
+              <span className="text-[8px] font-black uppercase text-white tracking-widest">Verified Users</span>
             </div>
           </div>
         </section>

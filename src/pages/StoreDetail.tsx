@@ -81,7 +81,7 @@ export function StoreDetailContent({ store, profile, onGuestLogin, showMap = tru
       name: store.name, 
       avatar: store.logo 
     });
-    triggerFeedback('Uplink Initialized', `Connection request sent to ${store.name}`, 'connect_request');
+    triggerFeedback('Connection Request Sent', `Connection request sent to ${store.name}`, 'connect_request');
   };
 
   const handleFollow = async () => {
@@ -91,7 +91,7 @@ export function StoreDetailContent({ store, profile, onGuestLogin, showMap = tru
     }
     try {
       await interactionService.followStore(store.id, store.ownerId, profile);
-      triggerFeedback('Success', `You are now following ${store.name}'s node`, 'follow');
+      triggerFeedback('Success', `You are now following ${store.name}`, 'follow');
     } catch (err) {
       console.error(err);
     }
@@ -191,13 +191,13 @@ export function StoreDetailContent({ store, profile, onGuestLogin, showMap = tru
     const shareUrl = `${window.location.origin}/store/${store.id}`;
     if (navigator.share) {
       await safeShare({
-        title: store.name || 'Comfort Node',
+        title: store.name || 'User Profile',
         text: `Check out ${store.name} on Comfort Business Hub!`,
         url: shareUrl,
       });
     } else {
       navigator.clipboard.writeText(shareUrl);
-      triggerFeedback('Link Copied', 'Node Link Copied to Clipboard!', 'message');
+      triggerFeedback('Link Copied', 'Link Copied to Clipboard!', 'message');
     }
   };
 
@@ -273,7 +273,7 @@ export function StoreDetailContent({ store, profile, onGuestLogin, showMap = tru
                     }}
                     className="flex items-center gap-2 bg-black/40 backdrop-blur-md px-4 py-2 rounded-xl text-[10px] font-black uppercase tracking-widest text-white border border-white/10 hover:bg-primary hover:text-black transition-all"
                   >
-                    <Camera size={14} /> Adjust Matrix Cover
+                    <Camera size={14} /> Edit Cover Image
                   </button>
                 )}
               </>
@@ -309,7 +309,7 @@ export function StoreDetailContent({ store, profile, onGuestLogin, showMap = tru
                    <label className="text-[8px] font-black text-primary uppercase tracking-[0.2em] block mb-1">Entity Name</label>
                    <input 
                     type="text"
-                    placeholder="Node Identifier"
+                    placeholder="Store Name"
                     value={editData.name ?? store.name}
                     onChange={e => setEditData(prev => ({ ...prev, name: e.target.value }))}
                     className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-center font-black italic uppercase tracking-tighter outline-none focus:border-primary/40"
@@ -343,7 +343,7 @@ export function StoreDetailContent({ store, profile, onGuestLogin, showMap = tru
             </div>
             {profile?.uid !== store.ownerId && (
               <AuthGuard
-                title="Establish Node Interlock"
+                title="Connect"
                 message="Secure identity is required to establish a direct business partnership and private channel access."
                 profile={profile}
               >
@@ -360,14 +360,14 @@ export function StoreDetailContent({ store, profile, onGuestLogin, showMap = tru
                   )}
                 >
                   <Users size={10} className="sm:w-3 sm:h-3" /> 
-                  {connection?.status === 'accepted' ? 'Trusted Partner' : connection?.status === 'pending' ? 'Request Sent' : 'Connect Node'}
+                  {connection?.status === 'accepted' ? 'Trusted Partner' : connection?.status === 'pending' ? 'Request Sent' : 'Connect'}
                 </button>
               </AuthGuard>
             )}
             {profile?.uid !== store.ownerId && (
               <AuthGuard
                 title="Follow Strategic Feed"
-                message="Join the Network Hub to follow this node and receive real-time supply chain updates."
+                message="Sign in to follow this store and receive updates."
                 profile={profile}
               >
                 <button 
@@ -396,14 +396,14 @@ export function StoreDetailContent({ store, profile, onGuestLogin, showMap = tru
               onClick={handleShare}
               className="glass-pill hover:bg-white/10 flex items-center gap-1.5 text-[9px] sm:text-xs no-auth-guard"
             >
-              <Share2 size={10} className="sm:w-3 sm:h-3" /> Share Node
+              <Share2 size={10} className="sm:w-3 sm:h-3" /> Share Store
             </button>
             {!isOwner && profile && (
               <button 
                 onClick={() => setShowReportModal(true)}
                 className="glass-pill border-red-500/30 text-red-500 bg-red-500/5 hover:bg-red-500/10 hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] flex items-center gap-1.5 text-[9px] sm:text-xs transition-all"
               >
-                <ShieldAlert size={10} className="sm:w-3 sm:h-3" /> Report Node
+                <ShieldAlert size={10} className="sm:w-3 sm:h-3" /> Report Store
               </button>
             )}
           </div>
@@ -425,7 +425,7 @@ export function StoreDetailContent({ store, profile, onGuestLogin, showMap = tru
       {!profile && (
         <section className="p-6 neon-card bg-gradient-to-br from-primary/10 to-accent/10 border-primary/30 text-center space-y-4">
           <Zap className="mx-auto text-primary animate-pulse" size={28} />
-          <h3 className="text-lg font-black text-white italic uppercase tracking-tighter">Join the Enterprise Matrix</h3>
+          <h3 className="text-lg font-black text-white italic uppercase tracking-tighter">Create an Account</h3>
           <p className="text-[11px] text-gray-300 leading-relaxed max-w-xs mx-auto">
             You're browsing this store's inventory as a quest. <span className="text-primary font-black">Comfort Business Hub</span> members get direct supplier channels, lower rates, and unified checkouts.
           </p>
@@ -444,12 +444,12 @@ export function StoreDetailContent({ store, profile, onGuestLogin, showMap = tru
         </section>
       )}
       
-      {/* Store Location Node */}
+      {/* Store Location */}
       {showMap && (
         <section className="space-y-4">
           <div className="flex items-center gap-2 px-2">
             <MapPin size={20} className="text-primary" />
-            <h3 className="font-black text-white uppercase tracking-tighter text-xl italic uppercase">Geographic Hub Node</h3>
+            <h3 className="font-black text-white uppercase tracking-tighter text-xl italic uppercase">Location</h3>
           </div>
           <div className="neon-card p-4 space-y-4 overflow-hidden">
             <div className="h-48 sm:h-64 rounded-2xl overflow-hidden border border-white/5 shadow-inner">
@@ -482,7 +482,7 @@ export function StoreDetailContent({ store, profile, onGuestLogin, showMap = tru
               </div>
               <div className="space-y-0.5">
                 <p className="text-[10px] text-gray-500 font-black uppercase tracking-widest">Physical Manifestation</p>
-                <p className="text-sm font-bold text-white italic">{store.address || 'Distributed Network Node'}</p>
+                <p className="text-sm font-bold text-white italic">{store.address || 'No location set'}</p>
               </div>
             </div>
           </div>
@@ -493,7 +493,7 @@ export function StoreDetailContent({ store, profile, onGuestLogin, showMap = tru
         <div className="flex items-center justify-between px-2">
           <h3 className="font-black text-white uppercase tracking-tighter text-xl italic flex items-center gap-2">
             <ShoppingBag size={20} className="text-primary" />
-            Inventory Node
+            Inventory
           </h3>
           <div className="flex items-center gap-4">
             <span className="text-[9px] font-black text-neon-green uppercase tracking-widest">{products.length} Items Live</span>
@@ -516,7 +516,7 @@ export function StoreDetailContent({ store, profile, onGuestLogin, showMap = tru
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {products.length > 0 ? (
-              Array.from(new Map(products.map(p => [p.id, p])).values()).map((p) => (
+              Array.from(new Map<string, Product>(products.map(p => [p.id, p])).values()).map((p) => (
                 <ProductCard 
                   key={p.id} 
                   product={p} 
@@ -528,7 +528,7 @@ export function StoreDetailContent({ store, profile, onGuestLogin, showMap = tru
             ) : (
               <div className="col-span-full py-20 text-center space-y-4 bg-white/5 rounded-3xl border border-white/5">
                 <Info size={32} className="mx-auto text-gray-700" />
-                <p className="text-xs font-black text-gray-500 uppercase tracking-widest">No active items found in this node</p>
+                <p className="text-xs font-black text-gray-500 uppercase tracking-widest">No items found</p>
               </div>
             )}
           </div>
@@ -568,12 +568,12 @@ export default function StoreDetail({ profile, onGuestLogin }: { profile: UserPr
       if (snap.exists()) {
         setStore({ id: snap.id, ...snap.data() } as StoreType);
       } else {
-        setError("Node not found in local subspace");
+        setError("Store not found");
       }
       setLoading(false);
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, `store-realtime-${id}`);
-      setError("Error synchronizing with store node");
+      setError("Error loading store");
       setLoading(false);
     });
 
@@ -593,7 +593,7 @@ export default function StoreDetail({ profile, onGuestLogin }: { profile: UserPr
     return (
       <div className="p-8 text-center space-y-4">
         <Building2 className="mx-auto text-gray-700" size={48} />
-        <h3 className="text-lg font-black text-white italic uppercase">{error || "Node Offline"}</h3>
+        <h3 className="text-lg font-black text-white italic uppercase">{error || "Store Unavailable"}</h3>
         <button onClick={() => navigate('/')} className="btn-neon px-8 py-3 text-[10px] font-black uppercase">Return to Hub</button>
       </div>
     );

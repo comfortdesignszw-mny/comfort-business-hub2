@@ -1,3 +1,4 @@
+import OrderTimeline from "../components/OrderTimeline";
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Zap, Clock, CheckCircle2, ChevronRight, DollarSign, MessageCircle, AlertCircle, ShoppingCart, Loader2, Sparkles, MessageSquare, ShoppingBag } from 'lucide-react';
@@ -177,7 +178,7 @@ export default function DealRoom({ profile }: { profile: UserProfile | null }) {
                 <Sparkles size={32} />
               </div>
               <p className="text-white font-black uppercase tracking-widest text-xs">No active engagement signals</p>
-              <p className="text-[10px] text-gray-500">Your supply nodes are currently waiting for uplink.</p>
+              <p className="text-[10px] text-gray-500">You have no incoming orders yet.</p>
             </div>
           )
         ) : deals.length > 0 ? (
@@ -260,11 +261,11 @@ function EngagementCard({ engagement }: { engagement: Engagement, key?: React.Ke
             {isEngaged ? ' engaged you on ' : ' interested to buy '}
             <span className="text-white italic">{engagement.productName}</span>
           </h4>
-          <p className="text-[9px] text-gray-500 font-medium">Node Interaction detected in real-time matrix feed.</p>
+          <p className="text-[9px] text-gray-500 font-medium">Customer has shown interest.</p>
         </div>
       </div>
       <button className="px-4 py-2 bg-white/5 border border-white/10 rounded-xl text-[9px] font-black text-gray-400 uppercase tracking-widest flex items-center gap-2 group-hover:bg-primary group-hover:text-[#05070a] group-hover:border-primary transition-all">
-        Open Signal <ChevronRight size={10} />
+        View Details <ChevronRight size={10} />
       </button>
     </motion.div>
   );
@@ -295,6 +296,7 @@ function DealCard({ deal }: { deal: Deal, key?: React.Key }) {
     pending: { color: 'text-amber-400', glow: 'shadow-[0_0_10px_rgba(251,191,36,0.3)]', icon: Clock, label: 'ENQUIRED', border: 'rgba(251,191,36,0.4)', shadow: '0 0 20px rgba(251,191,36,0.1)' },
     quoted: { color: 'text-blue-400', glow: 'shadow-[0_0_10px_rgba(96,165,250,0.3)]', icon: DollarSign, label: 'QUOTED', border: 'rgba(96,165,250,0.4)', shadow: '0 0 20px rgba(96,165,250,0.1)' },
     accepted: { color: 'text-neon-green', glow: 'shadow-[0_0_10px_rgba(57,255,20,0.3)]', icon: CheckCircle2, label: 'ENGAGED', border: 'rgba(57,255,20,0.4)', shadow: '0 0 20px rgba(57,255,20,0.1)' },
+    shipped: { color: 'text-purple-400', glow: 'shadow-[0_0_10px_rgba(168,85,247,0.3)]', icon: Clock, label: 'SHIPPED', border: 'rgba(168,85,247,0.4)', shadow: '0 0 20px rgba(168,85,247,0.1)' },
     delivered: { color: 'text-primary', glow: 'shadow-[0_0_10px_rgba(0,242,254,0.3)]', icon: Zap, label: 'CLOSED', border: 'rgba(0,242,254,0.4)', shadow: '0 0 20px rgba(0,242,254,0.1)' },
     cancelled: { color: 'text-red-400', glow: 'shadow-[0_0_10px_rgba(248,113,113,0.3)]', icon: AlertCircle, label: 'ABORTED', border: 'rgba(248,113,113,0.4)', shadow: '0 0 20px rgba(248,113,113,0.1)' }
   };
@@ -338,12 +340,12 @@ function DealCard({ deal }: { deal: Deal, key?: React.Key }) {
               {product?.name || 'Unknown Entity'}
             </h4>
             <div className="flex items-center gap-2">
-              <span className="text-[9px] text-gray-500 font-black uppercase tracking-widest">Protocol Index:</span>
+              <span className="text-[9px] text-gray-500 font-black uppercase tracking-widest">Order ID:</span>
               <span className="text-[9px] text-primary font-mono font-bold tracking-widest truncate max-w-[80px]">{deal.id.substring(0, 8).toUpperCase()}</span>
             </div>
             <div className="flex items-center gap-1.5 mt-1">
               <div className="w-1.5 h-1.5 bg-neon-green rounded-full"></div>
-              <p className="text-[8px] text-gray-500 font-bold uppercase tracking-widest">Signal Locked</p>
+              <p className="text-[8px] text-gray-500 font-bold uppercase tracking-widest">Connection Secure</p>
             </div>
           </div>
         </div>
@@ -359,18 +361,22 @@ function DealCard({ deal }: { deal: Deal, key?: React.Key }) {
 
       <div className="grid grid-cols-2 gap-4 p-4 bg-black/40 rounded-2xl border border-white/5 relative z-10 hover:border-white/10 transition-colors">
         <div className="space-y-1">
-          <p className="text-[8px] text-gray-500 font-black uppercase tracking-widest ml-1">Asset Value</p>
+          <p className="text-[8px] text-gray-500 font-black uppercase tracking-widest ml-1">Price</p>
           <p className="text-xl font-black text-white tracking-tighter italic">
             {formatCurrency(deal.agreedPrice, product?.currency || 'USD')}
           </p>
         </div>
         <div className="space-y-1 text-right">
-          <p className="text-[8px] text-gray-500 font-black uppercase tracking-widest mr-1">Last Handshake</p>
+          <p className="text-[8px] text-gray-500 font-black uppercase tracking-widest mr-1">Last Updated</p>
           <div className="flex items-center justify-end gap-1.5">
             <Clock size={10} className="text-primary" />
-            <p className="text-[9px] font-bold text-gray-400 italic">Recently Synchronized</p>
+            <p className="text-[9px] font-bold text-gray-400 italic">Just now</p>
           </div>
         </div>
+      </div>
+
+      <div className="relative z-10">
+        <OrderTimeline status={deal.status} />
       </div>
 
       <div className="flex gap-3 relative z-10">

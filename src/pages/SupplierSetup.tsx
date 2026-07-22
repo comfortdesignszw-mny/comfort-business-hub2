@@ -56,7 +56,7 @@ export default function SupplierSetup({ profile, onComplete, existingStore }: { 
     if (!profile) return;
     
     if (!profile.isVerified) {
-      alert("CRITICAL: Identity verification required to register new supply chain nodes. Please check your email and verify your identity.");
+      alert("CRITICAL: Identity verification required to register a new store. Please check your email and verify your identity.");
       return;
     }
     
@@ -135,7 +135,7 @@ export default function SupplierSetup({ profile, onComplete, existingStore }: { 
           </h1>
         </div>
         <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">
-          {existingStore ? 'Update your operational parameters' : 'Connect your node to the regional trade network'}
+          {existingStore ? 'Update your store details' : 'Create your store to start selling'}
         </p>
       </header>
 
@@ -187,7 +187,7 @@ export default function SupplierSetup({ profile, onComplete, existingStore }: { 
 
             <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
               <div className="space-y-2">
-                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Uplink Email</label>
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Email Address</label>
                 <div className="relative">
                   <Mail size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-600" />
                   <input 
@@ -307,7 +307,7 @@ export default function SupplierSetup({ profile, onComplete, existingStore }: { 
           ) : (
             <>
               {existingStore ? <Plus size={20} className="rotate-45" /> : <Sparkles size={20} />}
-              {existingStore ? 'Commit Node Updates' : 'Transmit Storefront Data'}
+              {existingStore ? 'Update Store' : 'Create Store'}
               {!profile.isVerified && <span className="text-[8px] font-black block ml-2">(Verification Required)</span>}
             </>
           )}

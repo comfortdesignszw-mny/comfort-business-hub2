@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   User, Store, Phone, MapPin, Shield, LogOut, ChevronRight, Wallet, 
   Bell, Zap, Image as ImageIcon, X, Check, CreditCard, 
-  Navigation, Crosshair, Save, Loader2, Megaphone, Trash2, Calendar, FileText, Plus, Users, MessageSquare, Share, RefreshCw
+  Navigation, Crosshair, Save, Loader2, Megaphone, Trash2, Calendar, FileText, Plus, Users, MessageSquare, Share, RefreshCw, Download
 } from 'lucide-react';
 import { UserProfile, Role, Spotlight, Product, Connection } from '../types';
 import { auth, db, handleFirestoreError, OperationType, syncPublicProfile } from '../lib/firebase';
@@ -131,6 +131,16 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
     }
   };
 
+  const handleDownloadData = () => {
+    const data = JSON.stringify(profile, null, 2);
+    const blob = new Blob([data], { type: 'text/plain' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'my-information.txt';
+    a.click();
+    URL.revokeObjectURL(url);
+  };
   const handleLogout = () => {
     auth.signOut();
     navigate('/login');
@@ -194,7 +204,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
             await Promise.all(msgSnap.docs.map(m => deleteDoc(doc(db, 'conversations', convoDoc.id, 'messages', m.id))));
             await deleteDoc(doc(db, 'conversations', convoDoc.id));
           } catch (err) {
-            console.error(`Conversation node wipe failure (${convoDoc.id}):`, err);
+            console.error(`Conversation delete failure (${convoDoc.id}):`, err);
           }
         }));
       } catch (e) {
@@ -205,7 +215,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
       try {
         await deleteDoc(doc(db, 'users', uid));
       } catch (e) {
-        console.error("Root identity node failed to purge:", e);
+        console.error("Failed to delete root account:", e);
       }
 
       // 4. Auth Account Removal
@@ -227,7 +237,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
       navigate('/login', { replace: true });
       setTimeout(() => window.location.reload(), 500); 
     } catch (e) {
-      console.error("TOTAL NODE PURGE FAILURE:", e);
+      console.error("TOTAL ACCOUNT DELETION FAILURE:", e);
       triggerFeedback('Account Deletion Error', "Something went wrong on our end. We're retrying automatically.", 'error');
       
       await auth.signOut();
@@ -299,8 +309,8 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
     if (navigator.share) {
       try {
         await navigator.share({
-          title: profile?.name || 'Comfort Node',
-          text: `Check out ${profile?.name || 'Comfort Node'}'s profile on Comfort Business Hub!`,
+          title: profile?.name || 'User Profile',
+          text: `Check out ${profile?.name || 'User Profile'}'s profile on Comfort Business Hub!`,
           url: shareUrl,
         });
       } catch (err) {
@@ -399,7 +409,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
                         <div className="w-1.5 h-1.5 bg-gray-700 rounded-full"></div>
                       </>
                     )}
-                    <p className="text-[10px] text-primary font-black uppercase tracking-widest">Operator Node: {observedProfile.uid.slice(0, 8)}</p>
+                    <p className="text-[10px] text-primary font-black uppercase tracking-widest">User ID: {observedProfile.uid.slice(0, 8)}</p>
                   </div>
                 </div>
 
@@ -417,7 +427,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
                     onClick={handleShareObservedProfile}
                     className="flex items-center gap-2 px-4 py-2 bg-primary/15 hover:bg-primary/25 text-primary rounded-xl border border-primary/20 text-[9px] font-black uppercase tracking-widest transition-all no-auth-guard"
                   >
-                    <Share size={12} /> Share Operator Node
+                    <Share size={12} /> Share Profile
                   </button>
                   {profile && profile.uid !== observedProfile.uid && (
                     <button 
@@ -435,7 +445,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
 
         {observedProfile.currentRole === 'supplier' && (
           <section className="space-y-6">
-            <h3 className="text-sm font-black text-white uppercase tracking-widest text-center">Managed Storefront Nodes</h3>
+            <h3 className="text-sm font-black text-white uppercase tracking-widest text-center">Your Stores</h3>
             
             {observedStores.length === 0 ? (
               <div className="text-center p-8 bg-white/5 rounded-3xl border border-white/5 space-y-2">
@@ -511,7 +521,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
                 </div>
                 
                 <div className="flex-1 text-left space-y-2">
-                  <label className="text-[10px] font-black text-primary uppercase tracking-[0.2em] ml-1">Avatar Uplink</label>
+                  <label className="text-[10px] font-black text-primary uppercase tracking-[0.2em] ml-1">Profile Picture</label>
                   <ImageInput 
                     value={editData.avatar ?? profile.avatar ?? ''} 
                     onChange={(val) => setEditData(prev => ({ ...prev, avatar: val }))}
@@ -594,7 +604,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
                   <div className="flex items-center justify-center gap-3">
                     <p className="text-xs text-gray-500 font-black uppercase tracking-widest">{profile.phone}</p>
                     <div className="w-1.5 h-1.5 bg-gray-700 rounded-full"></div>
-                    <p className="text-[10px] text-primary font-black uppercase tracking-widest">Node ID: {profile.uid.slice(0, 8)}</p>
+                    <p className="text-[10px] text-primary font-black uppercase tracking-widest">Profile ID: {profile.uid.slice(0, 8)}</p>
                   </div>
                 </div>
                 <div className="flex justify-center gap-3">
@@ -616,7 +626,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
                     onClick={handleShareProfile}
                     className="flex items-center gap-2 px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-xl border border-primary/20 text-[9px] font-black uppercase tracking-widest transition-all no-auth-guard"
                   >
-                    <Share size={12} /> Share Hub Node
+                    <Share size={12} /> Share Profile
                   </button>
                 </div>
               </div>
@@ -632,7 +642,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
         <div className="flex items-center justify-between mb-8">
           <div className="space-y-1 text-left">
             <h3 className="text-sm font-black text-white uppercase tracking-widest">Active Link</h3>
-            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Switch between Hub Personas</p>
+            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Switch Account Type</p>
           </div>
           <div className="flex items-center gap-2 p-1.5 bg-white/5 rounded-2xl border border-white/5 relative z-10">
             <button 
@@ -688,7 +698,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
               </div>
               <div className="bg-white/5 p-4 rounded-2xl border border-white/5 space-y-2">
                 <p className="text-[8px] text-gray-400 font-black uppercase tracking-widest">Active Leads</p>
-                <p className="text-xl font-black text-primary">{engagementStats.engaged} Nodes</p>
+                <p className="text-xl font-black text-primary">{engagementStats.engaged} Connections</p>
               </div>
             </div>
             
@@ -728,7 +738,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
         />
         <MenuButton 
           icon={MapPin} 
-          label="Geographic Nodes" 
+          label="Geographic Connections" 
           detail={profile.location?.city ? `${profile.location.city} Operational` : "Manage Operational Areas"} 
           onClick={() => setActiveModal('location')}
         />
@@ -740,8 +750,9 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
             onClick={() => setActiveModal('spotlights')}
           />
         )}
-        <MenuButton icon={User} label="Identity Uplink" detail="Modify Profile Details" onClick={() => setIsEditing(true)} />
+        <MenuButton icon={User} label="My Profile" detail="Modify Profile Details" onClick={() => setIsEditing(true)} />
         <MenuButton icon={Bell} label="Notification Settings" detail="Manage your alerts" onClick={() => setActiveModal('notifications')} />
+        <MenuButton icon={Download} label="My Information" detail="Download my data" onClick={handleDownloadData} />
       </section>
 
       <div className="pt-6 pb-20 space-y-4">
@@ -756,7 +767,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
           onClick={handleLogout}
           className="w-full flex items-center justify-center gap-3 py-5 text-gray-500 font-black uppercase tracking-widest text-[10px] bg-white/5 rounded-2xl border border-white/5 hover:bg-red-500/10 hover:text-red-500 hover:border-red-500/20 transition-all active:scale-95 group"
         >
-          <LogOut size={16} className="group-hover:translate-x-1 transition-transform" /> Sign Out from Node
+          <LogOut size={16} className="group-hover:translate-x-1 transition-transform" /> Sign Out
         </button>
 
         {/* Danger Zone */}
@@ -773,7 +784,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
               onClick={() => setActiveModal('delete')}
               className="w-full py-4 bg-red-500/10 hover:bg-red-500 text-red-500 hover:text-white rounded-2xl text-[10px] font-black uppercase tracking-widest border border-red-500/20 transition-all active:scale-95 shadow-lg shadow-red-500/5 font-black"
             >
-              Initialize Deletion Protocol
+              Delete Account
             </button>
           </div>
         </div>
@@ -990,7 +1001,7 @@ function SpotlightManager({ profile }: { profile: UserProfile }) {
           
           <div className="flex justify-between items-center mb-2">
             <label className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">
-              {editingSpotlight ? 'Modify Broadcast Node' : 'Initialize New Feed'}
+              {editingSpotlight ? 'Edit Spotlight' : 'Create Spotlight'}
             </label>
             <div className="flex items-center gap-2">
               <span className="text-[9px] text-gray-500 font-black uppercase">Active</span>
@@ -1075,7 +1086,7 @@ function SpotlightManager({ profile }: { profile: UserProfile }) {
             </div>
 
             <div className="space-y-1">
-              <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">Cover Uplink</label>
+              <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">Cover Image</label>
               <ImageInput 
                 value={formData.image || ''}
                 onChange={(val) => setFormData(prev => ({ ...prev, image: val }))}
@@ -1190,14 +1201,14 @@ function SpotlightManager({ profile }: { profile: UserProfile }) {
                 <Megaphone size={32} />
               </div>
               <div>
-                <p className="text-xs font-black text-gray-500 uppercase tracking-widest">No Active Matrix Broadcasts</p>
-                <p className="text-[10px] text-gray-700 mt-1 max-w-[200px] mx-auto font-medium">Post updates, events and spotlight news to the Discovery Matrix.</p>
+                <p className="text-xs font-black text-gray-500 uppercase tracking-widest">No Spotlights Yet</p>
+                <p className="text-[10px] text-gray-700 mt-1 max-w-[200px] mx-auto font-medium">Post updates, events and spotlight news to the Discovery Page.</p>
               </div>
               <button 
                 onClick={() => setIsAdding(true)}
                 className="mt-6 btn-neon px-8 py-3 text-[9px] font-black uppercase tracking-[0.2em]"
               >
-                Establish Uplink
+                Save Changes
               </button>
             </div>
           )}
@@ -1214,8 +1225,8 @@ function GatewayConfig({ profile, onSave }: { profile: UserProfile, onSave: (g: 
   return (
     <div className="space-y-8">
       <header className="space-y-2">
-        <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter">Finance Hub</h3>
-        <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Matrix currency routing parameters</p>
+        <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter">Payment Settings</h3>
+        <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Configure how you receive payments</p>
       </header>
 
       <div className="space-y-6">
@@ -1293,13 +1304,13 @@ function LocationConfig({ profile, onSave }: { profile: UserProfile, onSave: (l:
   return (
     <div className="space-y-8">
       <header className="space-y-2">
-        <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter">Geo-Matrix Node</h3>
+        <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter">Location Settings</h3>
         <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Pinpoint your operational coordinate</p>
       </header>
 
       <div className="space-y-6">
         <div className="space-y-2">
-          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Base Operation Node (City)</label>
+          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">City</label>
           <input 
             type="text"
             value={city}
@@ -1364,17 +1375,17 @@ function SupplierInventoryPreview({ profile }: { profile: UserProfile }) {
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between px-2">
-        <h3 className="text-sm font-black text-white uppercase tracking-widest italic">Live Inventory Node</h3>
+        <h3 className="text-sm font-black text-white uppercase tracking-widest italic">Live Inventory</h3>
         <button 
           onClick={() => navigate('/stores?tab=manage')}
           className="text-[9px] font-black text-primary uppercase tracking-widest hover:underline"
         >
-          View All Nodes
+          View All Connections
         </button>
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        {Array.from(new Map(products.map(p => [p.id, p])).values()).map((p) => (
+        {Array.from(new Map<string, Product>(products.map(p => [p.id, p])).values()).map((p) => (
             <ProductCard 
               key={p.id}
               product={p}
@@ -1444,8 +1455,8 @@ function ConnectionManager({ profile }: { profile: UserProfile }) {
       <header className="space-y-2">
         <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter">Trusted Network</h3>
         <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-relaxed">
-          Connections within the Enterprise Matrix. 
-          {profile.currentRole === 'supplier' ? ' Trusted customers and partner nodes.' : ' Trusted suppliers and partner nodes.'}
+          Your Connections 
+          {profile.currentRole === 'supplier' ? ' Trusted customers and partners.' : ' Trusted suppliers and partners.'}
         </p>
       </header>
 

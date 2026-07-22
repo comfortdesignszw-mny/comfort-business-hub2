@@ -115,7 +115,7 @@ export default function PrivacyPolicy() {
               <div className="grid gap-4 sm:grid-cols-2">
                 {[
                   "Maintain Platform Access",
-                  "Facilitate Node Comms",
+                  "Facilitate Communications",
                   "Improve Service Logic",
                   "Security & Safety Protocols",
                   "Compliance with Law",
@@ -140,7 +140,7 @@ export default function PrivacyPolicy() {
                   </div>
                   <div className="space-y-1">
                     <h3 className="text-xs font-black text-white uppercase tracking-wider italic">Public Visibility</h3>
-                    <p className="text-xs">Your business storefront (Name, Phone, Listings) will be visible to potential buyers in the Zimbabwe marketplace matrix.</p>
+                    <p className="text-xs">Your business storefront (Name, Phone, Listings) will be visible to potential buyers in the Zimbabwe marketplace.</p>
                   </div>
                 </div>
                 <div className="flex gap-4">
@@ -160,7 +160,7 @@ export default function PrivacyPolicy() {
                 <span className="text-red-500 text-2xl">04.</span> Automated Enforcement
               </h2>
               <p className="text-sm">
-                To protect our community, we use automated logic to process reports. If a node is reported three (3) times within a month for verified abuse, the system will automatically suspend the account to prevent further harm. High-level admin review is maintained for all such actions.
+                To protect our community, we use automated logic to process reports. If an account is reported three (3) times within a month for verified abuse, the system will automatically suspend the account to prevent further harm. High-level admin review is maintained for all such actions.
               </p>
             </section>
 
@@ -211,7 +211,7 @@ export default function PrivacyPolicy() {
             <section className="mt-12 p-8 bg-gradient-to-br from-[#0d1117] to-[#05070a] rounded-[3rem] border border-white/5 flex flex-col sm:flex-row justify-between items-center gap-8">
               <div className="space-y-2 text-center sm:text-left">
                 <h2 className="text-xl font-black text-white italic uppercase tracking-tighter">Privacy Support</h2>
-                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-[0.2em]">Contact our privacy node</p>
+                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-[0.2em]">Contact our privacy team</p>
               </div>
               <div className="flex flex-col gap-4">
                 <a href="mailto:comfort.designszw@gmail.com" className="flex items-center gap-3 text-xs font-black text-white uppercase tracking-widest hover:text-primary transition-colors">
