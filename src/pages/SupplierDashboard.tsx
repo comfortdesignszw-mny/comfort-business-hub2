@@ -444,7 +444,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ url: waUrl })
       });
-      const data = await resp.json();
+      const data: any = await resp.json();
       if (data.error) throw new Error(data.error);
       setWaImportedProducts(data.products || []);
     } catch (err: any) {
