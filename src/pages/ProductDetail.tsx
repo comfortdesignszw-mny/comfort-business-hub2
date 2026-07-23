@@ -189,12 +189,12 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
     >
       {/* Product Image Slider */}
       <section className="relative px-1 pt-1 flex-shrink-0">
-        <div className="relative aspect-[21/9] sm:aspect-[16/10] md:aspect-video rounded-2xl overflow-hidden neon-card group h-[18vh] sm:h-[25vh] md:h-[35vh]">
+        <div className="relative w-full aspect-square md:aspect-video rounded-2xl overflow-hidden neon-card group bg-black/20 flex items-center justify-center">
           <AnimatePresence mode="wait">
             <motion.img 
               key={currentImageIndex}
               src={images[currentImageIndex]} 
-              className="w-full h-full object-cover"
+              className="w-full h-full object-contain md:object-cover"
               initial={{ opacity: 0, scale: 1.05 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}

@@ -32,12 +32,14 @@ const MessagingContext = createContext<MessagingContextType>({
 
 export const useMessaging = () => useContext(MessagingContext);
 
+const globalOngoingSyncs = new Set<number>();
+
 export const MessagingProvider: React.FC<{ children: React.ReactNode, profile: UserProfile | null }> = ({ children, profile }) => {
   const [token, setToken] = useState<string | null>(null);
   const [notification, setNotification] = useState<any>(null);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
   const [unreadMessagesCount, setUnreadMessagesCount] = useState(0);
-  const ongoingSyncs = React.useRef(new Set<number>());
+  
   
   const queuedMessages = useLiveQuery(
     () => localDB.queuedMessages.orderBy('createdAt').toArray(),
@@ -93,12 +95,17 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode, profile: U
         const readyToSync = queuedMessages.filter(m => m.status === 'pending');
         
         for (const msg of readyToSync) {
-          if (ongoingSyncs.current.has(msg.id!)) continue;
-          ongoingSyncs.current.add(msg.id!);
+          if (globalOngoingSyncs.has(msg.id!)) continue;
+          globalOngoingSyncs.add(msg.id!);
 
           try {
             // Mark as uploading in DB as well
-            await localDB.queuedMessages.update(msg.id!, { status: 'uploading' });
+            const updatedCount = await localDB.queuedMessages
+              .where('id').equals(msg.id!)
+              .filter(m => m.status === 'pending')
+              .modify({ status: 'uploading' });
+            if (updatedCount === 0) continue; // Already processed by another tab or instance
+
 
             // Determine text for history/notification
             let displayText = msg.text;
@@ -158,7 +165,7 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode, profile: U
                await localDB.queuedMessages.update(msg.id!, { status: 'pending' });
             }
           } finally {
-            ongoingSyncs.current.delete(msg.id!);
+            globalOngoingSyncs.delete(msg.id!);
           }
         }
       };

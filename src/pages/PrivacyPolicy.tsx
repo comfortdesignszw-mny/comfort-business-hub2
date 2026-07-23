@@ -50,6 +50,19 @@ export default function PrivacyPolicy() {
             </section>
 
             <section className="space-y-6">
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-6 md:p-8 space-y-4 shadow-[inset_0_0_20px_rgba(255,255,255,0.02)] relative overflow-hidden group hover:primary/30 transition-colors">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-primary/20 transition-all pointer-events-none"></div>
+              <div className="flex items-center gap-3 mb-6 relative z-10">
+                <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-[0_0_10px_rgba(0,242,254,0.2)]">
+                  <ShieldAlert size={16} />
+                </div>
+                <h2 className="text-xl font-black text-white italic uppercase tracking-tighter">Recent Data Updates (July 2026)</h2>
+              </div>
+              <ul className="space-y-3 text-sm text-gray-400 font-medium leading-relaxed relative z-10 list-disc list-inside">
+                <li><strong className="text-white">Location & Geo-Targeting:</strong> We collect and process location data, including default geographic approximations during login, to enhance product discovery and deliver relevant "Classified Ads" or "Spotlights". This data is encrypted and not shared with third-party data brokers.</li>
+                <li><strong className="text-white">Neural Member Network:</strong> Profile visibility within the Neural Member Network directory is public among registered users to facilitate B2B and B2C connections.</li>
+              </ul>
+            </div>
               <h2 className="text-lg font-black text-white italic uppercase tracking-tighter flex items-center gap-3">
                 <span className="text-primary text-2xl">01.</span> Information We Collect
               </h2>

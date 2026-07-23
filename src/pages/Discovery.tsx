@@ -45,8 +45,6 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
   const [spotlightsLoading, setSpotlightsLoading] = useState(true);
   const [nearbyDeals, setNearbyDeals] = useState<Product[]>([]);
   const [nearbyStores, setNearbyStores] = useState<StoreType[]>([]);
-  const [userCount, setUserCount] = useState<number | null>(null);
-  const [displayedUsers, setDisplayedUsers] = useState<PublicProfile[]>([]);
   const [spotlights, setSpotlights] = useState<Spotlight[]>([]);
   const [activeSpotlightIndex, setActiveSpotlightIndex] = useState(0);
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
@@ -239,26 +237,7 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
     };
   }, [profile]);
 
-  useEffect(() => {
-    let isMounted = true;
-    const fetchUserCount = async () => {
-      try {
-        const snapshot = await getCountFromServer(collection(db, 'public_profiles'));
-        if (isMounted) setUserCount(snapshot.data().count);
-        const usersSnap = await getDocs(query(collection(db, 'public_profiles'), limit(10)));
-        if (isMounted) setDisplayedUsers(usersSnap.docs.map(d => ({ uid: d.id, ...d.data() } as PublicProfile)));
-      } catch (err) {
-        if (isMounted) {
-          console.warn("Signal: User count temporarily unavailable.");
-          setUserCount(null);
-        }
-      }
-    };
-    const timer = setTimeout(fetchUserCount, 1000);
-    return () => { isMounted = false; clearTimeout(timer); };
-  }, []);
-
-  useEffect(() => {
+useEffect(() => {
     if (viewMode === 'map' && !userLocation) {
       handleGetLocation();
     }
@@ -356,55 +335,13 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
         </motion.div>
       )}
 
-      {/* User Count Notification */}
-      {profile && !profile.isGuest && userCount !== null && (
-        <motion.div 
-          initial={{ opacity: 0, y: 10 }}
-          animate={{ opacity: 1, y: 0 }}
-          whileHover={{ scale: 1.02 }}
-          whileTap={{ scale: 0.98 }}
-          className="flex items-center justify-center gap-2 py-1 cursor-pointer group"
-        >
-          <AuthGuard 
-            title="Access Hub" 
-            message="Sign in to view all suppliers and partners."
-            profile={profile}
-          >
-            <div onClick={openUserList} className="flex items-center gap-2">
-              <div className="flex -space-x-1.5">
-                {displayedUsers.slice(0, 3).map((u, i) => (
-                  <div 
-                    key={u.uid} 
-                    className="w-5 h-5 rounded-full border border-[#05070a] bg-[#0d1117] flex items-center justify-center overflow-hidden ring-1 ring-white/10"
-                  >
-                    {u.avatar ? (
-                      <img src={u.avatar} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                    ) : (
-                      <span className="text-[6px] font-black text-primary">{u.name.charAt(0)}</span>
-                    )}
-                  </div>
-                ))}
-                {userCount && userCount > 3 && (
-                  <div className="w-5 h-5 rounded-full border border-[#05070a] bg-primary/20 flex items-center justify-center text-[6px] font-black text-primary ring-1 ring-primary/20">
-                    +{userCount - 3}
-                  </div>
-                )}
-              </div>
-              <p className="text-[9px] font-black text-primary uppercase tracking-[0.15em] group-hover:text-white transition-colors">
-                <span className="text-white group-hover:text-primary transition-colors">{userCount}</span> members synchronized with the Hub
-              </p>
-            </div>
-          </AuthGuard>
-        </motion.div>
-      )}
-
       {/* Search Bar Section */}
       <section className="space-y-6 pt-2">
         <div className="flex items-center justify-between px-1">
           <div className="flex items-center gap-3">
-            <div className="w-1.5 h-6 bg-primary rounded-full shadow-[0_0_15px_rgba(0,242,254,0.5)]" />
+            <div className="w-1 h-4 bg-primary rounded-full shadow-[0_0_10px_rgba(0,242,254,0.5)]" />
             <div className="space-y-0.5">
-              <h2 className="text-xl sm:text-2xl font-black text-white italic tracking-tighter uppercase leading-none">
+              <h2 className="text-sm sm:text-base font-black text-white italic tracking-tighter uppercase leading-none">
                 {profile ? 'Synchronized' : 'Guest'}<br/>
                 <span className="text-primary drop-shadow-[0_0_8px_rgba(0,242,254,0.3)]">Discover</span>
               </h2>
@@ -413,8 +350,8 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
         </div>
 
         <div className="relative group px-1">
-          <div className="absolute inset-y-0 left-5 flex items-center pointer-events-none text-primary/40 group-focus-within:text-primary transition-colors">
-            <Search size={18} />
+          <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-primary/40 group-focus-within:text-primary transition-colors">
+            <Search size={14} />
           </div>
           <div className="relative flex items-center bg-[#0d1117] border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
             <input 
@@ -422,14 +359,14 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
               placeholder="Search signed in suppliers, items or supply patterns..."
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full py-4 pl-12 pr-12 text-xs font-medium text-white placeholder:text-gray-600 outline-none transition-all bg-transparent"
+              className="w-full py-2 pl-10 pr-10 text-[10px] font-medium text-white placeholder:text-gray-600 outline-none transition-all bg-transparent"
             />
             {profile && (
               <button 
                 onClick={() => setViewMode(viewMode === 'list' ? 'map' : 'list')}
-                className="absolute right-2 w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center text-gray-500 hover:text-white transition-colors border border-white/5"
+                className="absolute right-1.5 w-7 h-7 bg-white/5 rounded-lg flex items-center justify-center text-gray-500 hover:text-white transition-colors border border-white/5"
               >
-                <SlidersHorizontal size={16} />
+                <SlidersHorizontal size={12} />
               </button>
             )}
           </div>
@@ -442,7 +379,7 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
                 key={cat}
                 onClick={() => setActiveCategory(cat)}
                 className={cn(
-                  "whitespace-nowrap px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border",
+                  "whitespace-nowrap px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all border",
                   activeCategory === cat 
                     ? "bg-primary text-[#05070a] border-primary shadow-[0_0_15px_rgba(0,242,254,0.3)]" 
                     : "bg-white/5 text-gray-500 border-white/5 hover:bg-white/10 hover:text-white"
@@ -493,6 +430,18 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
                   <MapIcon size={16} />
                 </button>
               </div>
+
+              <button 
+                onClick={() => setNearbyOnly(!nearbyOnly)}
+                className={cn(
+                  "p-2 rounded-lg transition-all ml-2",
+                  nearbyOnly ? "bg-primary text-[#05070a]" : "text-gray-500 bg-[#0d1117] border border-white/5 hover:text-white"
+                )}
+                title={nearbyOnly ? 'Nearby Mode: Active' : 'Filter by Proximity'}
+              >
+                <MapIcon size={16} />
+              </button>
+
             </div>
           </>
         )}
@@ -587,109 +536,6 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
           </motion.section>
         )}
       </AnimatePresence>
-
-      {/* Members Section */}
-      {profile && !profile.isGuest && (
-        <section className="space-y-6 pt-2">
-        <div className="flex items-center justify-between px-1">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="w-1 h-5 sm:w-1.5 sm:h-6 bg-primary rounded-full shadow-[0_0_10px_rgba(0,242,254,0.5)]" />
-            <div className="space-y-0.5">
-              <h2 className="text-[10px] sm:text-xs font-black text-white uppercase tracking-[0.15em] sm:tracking-[0.2em] italic">Neural Member Network</h2>
-              <p className="text-[7px] sm:text-[8px] text-gray-500 font-bold uppercase tracking-widest leading-none">
-                <span className="text-primary font-black">{userCount || '0'}</span> users
-              </p>
-            </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <button 
-              onClick={() => setNearbyOnly(!nearbyOnly)}
-              className={cn(
-                "text-[8px] sm:text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 sm:gap-2 py-1.5 px-3 rounded-full border transition-all",
-                nearbyOnly ? "bg-primary text-[#05070a] border-primary" : "bg-primary/5 text-primary border-primary/10 hover:bg-primary/10"
-              )}
-            >
-              <MapIcon size={10} /> {nearbyOnly ? 'Nearby Mode: Active' : 'Filter by Proximity'}
-            </button>
-            <AuthGuard 
-              title="View Restricted" 
-              message="Join the Network Hub to browse all signed in users."
-              profile={profile}
-            >
-              <button 
-                onClick={openUserList}
-                className="text-[8px] sm:text-[9px] font-black text-primary uppercase tracking-widest hover:text-white transition-colors flex items-center gap-1.5 sm:gap-2 bg-primary/5 py-1.5 px-3 rounded-full border border-primary/10"
-              >
-                Directory <ExternalLink size={8} />
-              </button>
-            </AuthGuard>
-          </div>
-        </div>
-
-        <div className="flex gap-4 overflow-x-auto pb-4 pt-2 -mx-2 px-2 custom-scrollbar snap-x no-scrollbar">
-          {displayedUsers.map((user) => (
-            <div key={`matrix-${user.uid}`} className="contents">
-              <AuthGuard 
-                title="View Partner Profile"
-                message="Enter the Hub network to connect with registered partners and view tactical intelligence."
-                profile={profile}
-              >
-                <motion.div
-                  whileHover={{ y: -5, scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => openUserProfile(user.uid)}
-                  className="flex-shrink-0 w-32 sm:w-36 bg-white/5 border border-white/5 rounded-[1.5rem] sm:rounded-[2rem] p-3 sm:p-4 flex flex-col items-center text-center space-y-2 sm:space-y-3 cursor-pointer group hover:border-primary/20 transition-all snap-start"
-                >
-                <div className="relative">
-                  <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-accent/20 rounded-full blur opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <div className="relative w-14 h-14 sm:w-16 sm:h-16 bg-[#0d1117] rounded-full border-2 border-white/5 flex items-center justify-center text-primary font-black overflow-hidden group-hover:border-primary/30 transition-all">
-                    {user.avatar ? (
-                      <img src={user.avatar} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                    ) : user.name.charAt(0)}
-                  </div>
-                  {user.isVerified && (
-                    <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 sm:w-6 sm:h-6 bg-neon-green rounded-full flex items-center justify-center text-[#05070a] border-2 border-[#05070a] shadow-lg">
-                      <Shield size={8} className="fill-current sm:w-[10px] sm:h-[10px]" />
-                    </div>
-                  )}
-                </div>
-                <div className="space-y-1 w-full">
-                  <h3 className="text-[9px] sm:text-[10px] font-black text-white uppercase tracking-tight truncate group-hover:text-primary transition-colors">{user.name}</h3>
-                  <div className="flex items-center justify-center gap-1.5 pt-0.5 sm:pt-1">
-                    <span className={cn(
-                      "text-[6px] sm:text-[7px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full border",
-                      user.currentRole === 'supplier' ? "bg-accent/10 border-accent/20 text-accent" : "bg-primary/10 border-primary/20 text-primary"
-                    )}>
-                      {user.currentRole === 'supplier' ? 'Supplier' : 'Partner'}
-                    </span>
-                  </div>
-                </div>
-              </motion.div>
-            </AuthGuard>
-          </div>
-        ))}
-          <AuthGuard 
-            title="View All Members" 
-            message="Sign in to explore the complete member directory."
-            profile={profile}
-          >
-            <motion.div
-              whileHover={{ scale: 1.02 }}
-              onClick={openUserList}
-              className="flex-shrink-0 w-36 bg-primary/5 border border-primary/10 rounded-[2rem] p-4 flex flex-col items-center justify-center text-center space-y-3 cursor-pointer group hover:bg-primary/10 transition-all snap-start border-dashed"
-            >
-              <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-primary">
-                <Users size={20} />
-              </div>
-              <div className="space-y-1">
-                <p className="text-[9px] font-black text-primary uppercase tracking-widest">All Members</p>
-                <p className="text-[7px] text-gray-500 font-bold uppercase tracking-widest leading-tight">Connect with {userCount || 'All'} Members</p>
-              </div>
-            </motion.div>
-          </AuthGuard>
-        </div>
-      </section>
-      )}
 
       {/* Featured Promo / Spotlight */}
       <section className="relative overflow-hidden rounded-[2.5rem]">

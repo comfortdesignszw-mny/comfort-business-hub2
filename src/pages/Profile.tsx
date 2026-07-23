@@ -5,18 +5,20 @@ import {
   User, Store, Phone, MapPin, Shield, LogOut, ChevronRight, Wallet, 
   Bell, Zap, Image as ImageIcon, X, Check, CreditCard, 
   Navigation, Crosshair, Save, Loader2, Megaphone, Trash2, Calendar, FileText, Plus, Users, MessageSquare, Share, RefreshCw, Download
-} from 'lucide-react';
+, Network, ExternalLink } from 'lucide-react';
 import { UserProfile, Role, Spotlight, Product, Connection } from '../types';
 import { auth, db, handleFirestoreError, OperationType, syncPublicProfile } from '../lib/firebase';
 import { localDB } from '../lib/db';
 import { offlineResilientWrite } from '../lib/sync';
 import { geohashForLocation } from 'geofire-common';
-import { doc, updateDoc, collection, addDoc, query, where, getDocs, deleteDoc, orderBy, serverTimestamp, limit, onSnapshot } from 'firebase/firestore';
+import { doc, updateDoc, collection, addDoc, query, where, getDocs, deleteDoc, orderBy, serverTimestamp, limit, onSnapshot , getCountFromServer } from 'firebase/firestore';
 import { cn, formatCurrency } from '../lib/utils';
 import { useNotifications } from '../components/NotificationProvider';
 import ImageInput from '../components/ImageInput';
 import LocationPicker from '../components/LocationPicker';
 import ProductCard from '../components/ProductCard';
+import AuthGuard from '../components/AuthGuard';
+import UserListModal from '../components/UserListModal';
 
 export default function Profile({ profile, setProfile }: { profile: UserProfile | null, setProfile: (p: UserProfile) => void }) {
   const { id: routeId } = useParams<{ id?: string }>();
@@ -27,11 +29,33 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
 
   const { triggerFeedback } = useNotifications();
   const [isEditing, setIsEditing] = useState(false);
+  const [userCount, setUserCount] = useState<number | null>(null);
+  const [displayedUsers, setDisplayedUsers] = useState<any[]>([]);
+  const [isUserListOpen, setIsUserListOpen] = useState(false);
   const [loading, setLoading] = useState(false);
   const [activeModal, setActiveModal] = useState<'gateway' | 'location' | 'spotlights' | 'delete' | 'connections' | 'notifications' | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [editData, setEditData] = useState<Partial<UserProfile>>({});
   const [engagementStats, setEngagementStats] = useState({ engaged: 0, volume: 0 });
+
+  useEffect(() => {
+    let isMounted = true;
+    const fetchUserCount = async () => {
+      try {
+        const snapshot = await getCountFromServer(collection(db, 'public_profiles'));
+        if (isMounted) setUserCount(snapshot.data().count);
+        const usersSnap = await getDocs(query(collection(db, 'public_profiles'), limit(10)));
+        if (isMounted) setDisplayedUsers(usersSnap.docs.map(d => ({ uid: d.id, ...d.data() } as any)));
+      } catch (err) {
+        if (isMounted) {
+          console.warn("Signal: User count temporarily unavailable.");
+          setUserCount(null);
+        }
+      }
+    };
+    fetchUserCount();
+    return () => { isMounted = false; };
+  }, []);
 
   useEffect(() => {
     if (!isObserved) {
@@ -722,6 +746,98 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
         <SupplierInventoryPreview profile={profile} />
       )}
 
+      
+      {/* Neural Member Network */}
+      <section className="space-y-6 pt-2">
+        <div className="flex items-center justify-between px-1">
+          <div className="flex items-center gap-2 sm:gap-3">
+            <div className="w-1 h-5 sm:w-1.5 sm:h-6 bg-primary rounded-full shadow-[0_0_10px_rgba(0,242,254,0.5)]" />
+            <div className="space-y-0.5">
+              <h2 className="text-[10px] sm:text-xs font-black text-white uppercase tracking-[0.15em] sm:tracking-[0.2em] italic">Neural Member Network</h2>
+              <p className="text-[7px] sm:text-[8px] text-gray-500 font-bold uppercase tracking-widest leading-none">
+                <span className="text-primary font-black">{userCount || '0'}</span> users
+              </p>
+            </div>
+          </div>
+          <div className="flex items-center gap-2">
+            <AuthGuard 
+              title="View Restricted" 
+              message="Join the Network Hub to browse all signed in users."
+              profile={profile}
+            >
+              <button 
+                onClick={() => setIsUserListOpen(true)}
+                className="text-[8px] sm:text-[9px] font-black text-primary uppercase tracking-widest hover:text-white transition-colors flex items-center gap-1.5 sm:gap-2 bg-primary/5 py-1.5 px-3 rounded-full border border-primary/10"
+              >
+                Directory <ExternalLink size={8} />
+              </button>
+            </AuthGuard>
+          </div>
+        </div>
+        <div className="flex gap-4 overflow-x-auto pb-4 pt-2 -mx-2 px-2 custom-scrollbar snap-x no-scrollbar">
+          {displayedUsers.map((user) => (
+            <div key={`matrix-${user.uid}`} className="contents">
+              <AuthGuard 
+                title="View Partner Profile"
+                message="Enter the Hub network to connect with registered partners and view tactical intelligence."
+                profile={profile}
+              >
+                <motion.div
+                  whileHover={{ y: -5, scale: 1.02 }}
+                  whileTap={{ scale: 0.98 }}
+                  onClick={() => handleNavigate(`/profile/${user.uid}`)}
+                  className="flex-shrink-0 w-32 sm:w-36 bg-white/5 border border-white/5 rounded-[1.5rem] sm:rounded-[2rem] p-3 sm:p-4 flex flex-col items-center text-center space-y-2 sm:space-y-3 cursor-pointer group hover:border-primary/20 transition-all snap-start"
+                >
+                <div className="relative">
+                  <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-accent/20 rounded-full blur opacity-0 group-hover:opacity-100 transition-opacity" />
+                  <div className="relative w-14 h-14 sm:w-16 sm:h-16 bg-[#0d1117] rounded-full border-2 border-white/5 flex items-center justify-center text-primary font-black overflow-hidden group-hover:border-primary/30 transition-all">
+                    {user.avatar ? (
+                      <img src={user.avatar} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                    ) : user.name.charAt(0)}
+                  </div>
+                  {user.isVerified && (
+                    <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 sm:w-6 sm:h-6 bg-neon-green rounded-full flex items-center justify-center text-[#05070a] border-2 border-[#05070a] shadow-lg">
+                      <Shield size={8} className="fill-current sm:w-[10px] sm:h-[10px]" />
+                    </div>
+                  )}
+                </div>
+                <div className="space-y-1 w-full">
+                  <h3 className="text-[9px] sm:text-[10px] font-black text-white uppercase tracking-tight truncate group-hover:text-primary transition-colors">{user.name}</h3>
+                  <div className="flex items-center justify-center gap-1.5 pt-0.5 sm:pt-1">
+                    <span className={cn(
+                      "text-[6px] sm:text-[7px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full border",
+                      user.currentRole === 'supplier' ? "bg-accent/10 border-accent/20 text-accent" : "bg-primary/10 border-primary/20 text-primary"
+                    )}>
+                      {user.currentRole === 'supplier' ? 'Supplier' : 'Partner'}
+                    </span>
+                  </div>
+                </div>
+              </motion.div>
+            </AuthGuard>
+          </div>
+        ))}
+          <AuthGuard 
+            title="View All Members" 
+            message="Sign in to explore the complete member directory."
+            profile={profile}
+          >
+            <motion.div
+              whileHover={{ scale: 1.02 }}
+              onClick={() => setIsUserListOpen(true)}
+              className="flex-shrink-0 w-36 bg-primary/5 border border-primary/10 rounded-[2rem] p-4 flex flex-col items-center justify-center text-center space-y-3 cursor-pointer group hover:bg-primary/10 transition-all snap-start border-dashed"
+            >
+              <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-primary">
+                <Users size={20} />
+              </div>
+              <div className="space-y-1">
+                <p className="text-[9px] font-black text-primary uppercase tracking-widest">All Members</p>
+                <p className="text-[7px] text-gray-500 font-bold uppercase tracking-widest leading-tight">Connect with {userCount || 'All'} Members</p>
+              </div>
+            </motion.div>
+          </AuthGuard>
+        </div>
+      </section>
+
       {/* Menu Links */}
       <section className="space-y-4">
         <MenuButton 
@@ -867,6 +983,9 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
               )}
             </motion.div>
           </div>
+        )}
+        {isUserListOpen && (
+          <UserListModal isOpen={isUserListOpen} onClose={() => setIsUserListOpen(false)} onUserClick={(uid) => { setIsUserListOpen(false); handleNavigate(`/profile/${uid}`); }} />
         )}
       </AnimatePresence>
     </motion.div>

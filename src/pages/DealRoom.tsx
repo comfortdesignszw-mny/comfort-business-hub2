@@ -10,7 +10,7 @@ import { useLocation, useNavigate } from 'react-router-dom';
 import { offlineResilientWrite } from '../lib/sync';
 
 export default function DealRoom({ profile }: { profile: UserProfile | null }) {
-  const [activeTab, setActiveTab] = useState<'buying' | 'selling' | 'notifications'>('buying');
+  const [activeTab, setActiveTab] = useState<'buying' | 'selling' | 'notifications'>(profile?.currentRole === 'supplier' ? 'notifications' : 'buying');
   const [deals, setDeals] = useState<Deal[]>([]);
   const [engagements, setEngagements] = useState<Engagement[]>([]);
   const [loading, setLoading] = useState(true);
@@ -124,6 +124,21 @@ export default function DealRoom({ profile }: { profile: UserProfile | null }) {
 
       {/* Role Switcher in Tabs */}
       <div className="flex bg-white/5 p-1.5 rounded-2xl border border-white/5 shadow-inner backdrop-blur-md">
+        {profile?.currentRole === 'supplier' && (
+          <button 
+            onClick={() => setActiveTab('notifications')}
+            className={cn(
+              "flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all duration-300 flex items-center justify-center gap-2 relative",
+              activeTab === 'notifications' ? "bg-accent text-white shadow-[0_0_15px_rgba(240,147,251,0.3)]" : "text-gray-500 hover:text-gray-300"
+            )}
+          >
+            <Sparkles size={14} />
+            Network Feed
+            {engagements.length > 0 && activeTab !== 'notifications' && (
+              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full animate-ping"></span>
+            )}
+          </button>
+        )}
         <button 
           onClick={() => setActiveTab('buying')}
           className={cn(
@@ -144,22 +159,7 @@ export default function DealRoom({ profile }: { profile: UserProfile | null }) {
           <Zap size={14} />
           Outbound
         </button>
-        {profile?.currentRole === 'supplier' && (
-          <button 
-            onClick={() => setActiveTab('notifications')}
-            className={cn(
-              "flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all duration-300 flex items-center justify-center gap-2 relative",
-              activeTab === 'notifications' ? "bg-accent text-white shadow-[0_0_15px_rgba(240,147,251,0.3)]" : "text-gray-500 hover:text-gray-300"
-            )}
-          >
-            <Sparkles size={14} />
-            Network Feed
-            {engagements.length > 0 && activeTab !== 'notifications' && (
-              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full animate-ping"></span>
-            )}
-          </button>
-        )}
-      </div>
+  </div>
 
       <div className="space-y-6">
         {loading ? (

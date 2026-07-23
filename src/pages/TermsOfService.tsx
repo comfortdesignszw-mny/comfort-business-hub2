@@ -66,6 +66,21 @@ export default function TermsOfService() {
             </section>
 
             <section className="space-y-6">
+            <div className="bg-white/5 border border-white/10 rounded-2xl p-6 md:p-8 space-y-4 shadow-[inset_0_0_20px_rgba(255,255,255,0.02)] relative overflow-hidden group hover:border-primary/30 transition-colors">
+              <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 rounded-full blur-3xl -mr-16 -mt-16 group-hover:bg-primary/20 transition-all pointer-events-none"></div>
+              <div className="flex items-center gap-3 mb-6 relative z-10">
+                <div className="w-8 h-8 rounded-xl bg-primary/10 flex items-center justify-center text-primary shadow-[0_0_10px_rgba(0,242,254,0.2)]">
+                  <ShieldAlert size={16} />
+                </div>
+                <h2 className="text-xl font-black text-white italic uppercase tracking-tighter">Recent Updates (July 2026)</h2>
+              </div>
+              <ul className="space-y-3 text-sm text-gray-400 font-medium leading-relaxed relative z-10 list-disc list-inside">
+                <li><strong className="text-white">Verified Operator Accounts:</strong> The platform now grants Verified Operator status (indicated by a green shield) to recognized partners. This status is granted at the sole discretion of the Administration team.</li>
+                <li><strong className="text-white">Location Services:</strong> We use location data (including default geographic approximation at login) to suggest locally relevant products and services.</li>
+                <li><strong className="text-white">Classified Ads:</strong> Users are entitled to a maximum of 5 Spotlight Classified Ads per month. These ads remain active for up to 30 days and are subject to community guidelines.</li>
+                <li><strong className="text-white">Image Uploads:</strong> Local image uploads for product catalogs are restricted to 2 assets to preserve bandwidth, while external URL assets support up to 5 images per product.</li>
+              </ul>
+            </div>
               <h2 className="text-lg font-black text-white italic uppercase tracking-tighter flex items-center gap-3">
                 <span className="text-primary text-2xl">02.</span> Account Registration & Security
               </h2>
