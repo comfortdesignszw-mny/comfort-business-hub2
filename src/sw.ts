@@ -6,6 +6,18 @@ import { registerRoute } from 'workbox-routing';
 import { StaleWhileRevalidate, NetworkFirst, CacheFirst } from 'workbox-strategies';
 import { ExpirationPlugin } from 'workbox-expiration';
 import { BackgroundSyncPlugin } from 'workbox-background-sync';
+import { clientsClaim } from 'workbox-core';
+
+// Ensure new deployments take effect immediately across Cloudflare Pages & browsers
+self.skipWaiting();
+clientsClaim();
+
+// Listen for explicit SW control messages
+self.addEventListener('message', (event) => {
+  if (event.data && event.data.type === 'SKIP_WAITING') {
+    self.skipWaiting();
+  }
+});
 
 // Precache static assets
 cleanupOutdatedCaches();

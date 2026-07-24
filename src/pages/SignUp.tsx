@@ -210,7 +210,7 @@ export default function SignUp() {
             className="w-20 h-20 bg-white/5 rounded-3xl flex items-center justify-center shadow-[0_0_40px_rgba(0,242,254,0.15)] relative group overflow-hidden border border-white/10"
           >
             <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-accent/5 opacity-50"></div>
-            <img src="/icon.png" alt="Comfort Hub" className="w-12 h-12 object-contain relative z-10 drop-shadow-[0_0_12px_rgba(0,242,254,0.5)]" />
+            <img src="/icon.png" alt="Comfort Hub" className="w-12 h-12 object-contain relative z-10 drop-shadow-[0_0_12px_rgba(0,242,254,0.5)]" referrerPolicy="no-referrer" />
           </motion.div>
           
           <div className="space-y-1">

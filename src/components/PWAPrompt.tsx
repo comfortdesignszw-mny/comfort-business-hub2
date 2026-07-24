@@ -126,7 +126,7 @@ export default function PWAPrompt() {
               <div className="flex justify-between items-start mb-5">
                 <div className="flex items-center gap-3">
                   <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center overflow-hidden border border-primary/20">
-                    <img src="/icon.png" alt="Comfort Hub" className="w-full h-full object-cover" />
+                    <img src="/icon.png" alt="Comfort Hub" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
                   </div>
                   <div>
                     <h4 className="text-sm font-black text-white uppercase tracking-wider italic">Comfort Business Hub</h4>
