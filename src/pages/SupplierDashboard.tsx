@@ -1034,42 +1034,52 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
                       {/* Image Upload */}
                       <div className="space-y-4">
                         <div className="flex items-center justify-between ml-1">
-                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">Images ({formData.images.length}/5)</label>
+                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
+                            Product Images ({formData.images.length}/5 max total • Max 2 local uploads)
+                          </label>
                         </div>
                         
                         <div className="grid grid-cols-2 gap-4">
-                          {formData.images.map((img, idx) => (
-                            <div key={idx} className="relative">
-                              <ImageInput 
-                                value={img} 
-                                onChange={(val) => {
-                                  const newImages = [...formData.images];
-                                  if (val) {
-                                    newImages[idx] = val;
-                                  } else {
-                                    newImages.splice(idx, 1);
-                                  }
-                                  setFormData({ ...formData, images: newImages });
-                                }} 
-                                aspectRatio="square"
-                              />
-                            </div>
-                          ))}
+                          {formData.images.map((img, idx) => {
+                            const localUploads = formData.images.filter((i, iIdx) => iIdx !== idx && (i.startsWith('data:') || i.startsWith('blob:') || i.includes('firebasestorage'))).length;
+                            return (
+                              <div key={idx} className="relative">
+                                <ImageInput 
+                                  value={img} 
+                                  allowLocalUpload={localUploads < 2}
+                                  onChange={(val) => {
+                                    const newImages = [...formData.images];
+                                    if (val) {
+                                      newImages[idx] = val;
+                                    } else {
+                                      newImages.splice(idx, 1);
+                                    }
+                                    setFormData({ ...formData, images: newImages });
+                                  }} 
+                                  aspectRatio="square"
+                                />
+                              </div>
+                            );
+                          })}
                           
-                          {formData.images.length < 5 && (
-                            <div className="relative">
-                              <ImageInput 
-                                value="" 
-                                onChange={(val) => {
-                                  if (val) {
-                                    setFormData({ ...formData, images: [...formData.images, val] });
-                                  }
-                                }} 
-                                aspectRatio="square"
-                                label="Add Asset"
-                              />
-                            </div>
-                          )}
+                          {formData.images.length < 5 && (() => {
+                            const currentLocalCount = formData.images.filter(i => i.startsWith('data:') || i.startsWith('blob:') || i.includes('firebasestorage')).length;
+                            return (
+                              <div className="relative">
+                                <ImageInput 
+                                  value="" 
+                                  allowLocalUpload={currentLocalCount < 2}
+                                  onChange={(val) => {
+                                    if (val) {
+                                      setFormData({ ...formData, images: [...formData.images, val] });
+                                    }
+                                  }} 
+                                  aspectRatio="square"
+                                  label="Add Asset"
+                                />
+                              </div>
+                            );
+                          })()}
                         </div>
                       </div>
 

@@ -10,9 +10,10 @@ interface ImageInputProps {
   label?: string;
   className?: string;
   aspectRatio?: 'square' | 'video' | 'portrait';
+  allowLocalUpload?: boolean;
 }
 
-export default function ImageInput({ value, onChange, label, className, aspectRatio = 'square' }: ImageInputProps) {
+export default function ImageInput({ value, onChange, label, className, aspectRatio = 'square', allowLocalUpload = true }: ImageInputProps) {
   const [mode, setMode] = useState<'upload' | 'url'>(value && value.startsWith('data:') ? 'upload' : 'url');
   const [isProcessing, setIsProcessing] = useState(false);
   const [localUrl, setLocalUrl] = useState('');
@@ -38,6 +39,13 @@ export default function ImageInput({ value, onChange, label, className, aspectRa
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
     if (!file) return;
+
+    if (!allowLocalUpload) {
+      setUploadError("Local upload limit reached (max 2 local uploads). Please enter image URL for additional images.");
+      if (e.target) e.target.value = '';
+      setTimeout(() => setUploadError(null), 8000);
+      return;
+    }
 
     // Validate if it is actually an image / supported file format
     if (!file.type || !file.type.startsWith('image/')) {
