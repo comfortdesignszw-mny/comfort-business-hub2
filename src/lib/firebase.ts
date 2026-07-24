@@ -1,14 +1,19 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { getFirestore, doc, getDocFromServer } from 'firebase/firestore';
+import { initializeFirestore, doc, getDocFromServer, CACHE_SIZE_UNLIMITED, persistentLocalCache } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
 import { getMessaging, getToken, onMessage } from 'firebase/messaging';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
 
-// Standard Firestore initialization for maximum compatibility
-export const db = getFirestore(app, firebaseConfig.firestoreDatabaseId);
+// Modern Firestore initialization with persistent cache settings and long polling for reliability behind proxies
+export const db = initializeFirestore(app, {
+  experimentalForceLongPolling: true,
+  localCache: persistentLocalCache({
+    cacheSizeBytes: CACHE_SIZE_UNLIMITED,
+  })
+}, firebaseConfig.firestoreDatabaseId);
 
 export const auth = getAuth(app);
 export const storage = getStorage(app);

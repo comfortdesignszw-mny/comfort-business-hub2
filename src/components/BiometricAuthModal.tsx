@@ -103,12 +103,12 @@ export default function BiometricAuthModal({
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+      <div className="fixed inset-0 z-[100] flex items-start sm:items-center justify-center p-4 pt-24 sm:pt-4 bg-black/80 backdrop-blur-md overflow-y-auto">
         <motion.div
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
-          className="relative w-full max-w-md bg-[#0d1117] border border-primary/30 rounded-3xl p-6 sm:p-8 shadow-[0_0_60px_rgba(0,242,254,0.15)] overflow-hidden space-y-6"
+          initial={{ opacity: 0, scale: 0.95, y: -20 }}
+          animate={{ opacity: 1, scale: 1, y: 0 }}
+          exit={{ opacity: 0, scale: 0.95, y: -20 }}
+          className="relative w-full max-w-md my-auto bg-[#0d1117] border border-primary/30 rounded-3xl p-6 sm:p-8 shadow-[0_0_60px_rgba(0,242,254,0.15)] overflow-hidden space-y-6"
         >
           {/* Background Ambient Glow */}
           <div className="absolute top-0 right-0 w-48 h-48 bg-primary/10 rounded-full blur-[80px] pointer-events-none" />
