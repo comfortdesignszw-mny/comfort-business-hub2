@@ -29,6 +29,11 @@ export default function PWAPrompt() {
 
     window.addEventListener('beforeinstallprompt', handler);
 
+    const triggerHandler = () => {
+      setIsVisible(true);
+    };
+    window.addEventListener('pwa-prompt-install', triggerHandler);
+
     // For iOS, we check if it's already in standalone mode
     const isStandalone = window.matchMedia('(display-mode: standalone)').matches || (window.navigator as any).standalone;
     
@@ -41,7 +46,10 @@ export default function PWAPrompt() {
       setIsVisible(false);
     }
 
-    return () => window.removeEventListener('beforeinstallprompt', handler);
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handler);
+      window.removeEventListener('pwa-prompt-install', triggerHandler);
+    };
   }, []);
 
   const handleInstall = async () => {

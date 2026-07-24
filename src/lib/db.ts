@@ -35,19 +35,46 @@ export interface QueuedMessage {
   progress?: number;
 }
 
+export interface LocalStore {
+  id: string;
+  data: any;
+  updatedAt: number;
+}
+
+export interface LocalProduct {
+  id: string;
+  storeId?: string;
+  data: any;
+  updatedAt: number;
+}
+
+export interface LocalDeal {
+  id: string;
+  supplierId?: string;
+  customerId?: string;
+  data: any;
+  updatedAt: number;
+}
+
 export class ComfortOfflineDB extends Dexie {
   users!: Table<LocalUser>;
   outbox!: Table<OutboxItem>;
   cache!: Table<CachedDoc>;
   queuedMessages!: Table<QueuedMessage>;
+  stores!: Table<LocalStore>;
+  products!: Table<LocalProduct>;
+  deals!: Table<LocalDeal>;
 
   constructor() {
     super('ComfortBusinessHubDB');
-    this.version(2).stores({
+    this.version(3).stores({
       users: 'id',
       outbox: '++id, collection, action, createdAt',
       cache: 'id, collection, docId, updatedAt',
-      queuedMessages: '++id, convoId, senderId, createdAt'
+      queuedMessages: '++id, convoId, senderId, createdAt',
+      stores: 'id, updatedAt',
+      products: 'id, storeId, updatedAt',
+      deals: 'id, supplierId, customerId, updatedAt'
     });
   }
 }

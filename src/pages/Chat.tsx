@@ -415,7 +415,7 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
             name: file.name,
             size: finalFile.size,
             mimeType: file.type
-          }, localId);
+          });
           
           setTimeout(() => {
             scrollRef.current?.scrollTo({ top: scrollRef.current.scrollHeight, behavior: 'smooth' });

@@ -11,7 +11,7 @@ import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firest
 import { 
   Search, ShoppingBag, MessageSquare, User as UserIcon, Store, LayoutGrid, 
   Zap, Menu, Bell, ArrowLeft, X, Heart, Star, UserPlus, Check, Loader2, Users, ShieldAlert,
-  LogIn
+  LogIn, Download
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile, Role, AppNotification } from './types';
@@ -22,6 +22,7 @@ import { ModalProvider } from './context/ModalContext';
 import SyncIndicator from './components/SyncIndicator';
 import { interactionService } from './services/interactionService';
 import PWAPrompt from './components/PWAPrompt';
+import { ErrorBoundary } from './components/ErrorBoundary';
 import { useMobileHeight } from './hooks/useMobileHeight';
 
 // Lazy loaded pages for performance
@@ -309,86 +310,88 @@ export default function App() {
   }
 
   return (
-    <Router>
-      <ScrollToTop />
-      <div className="flex flex-col h-screen-mobile bg-[#05070a] relative shadow-2xl">
-        <AnimatePresence mode="wait">
-          <Suspense fallback={<PageLoader />}>
-            <Routes>
-              <Route path="/*" element={
-                <NotificationProvider profile={profile}>
-                  <MessagingProvider profile={profile}>
-                    <ModalProvider profile={profile}>
-                      <Header profile={profile} onMenuClick={() => setShowSidebar(true)} onLogout={handleLogout} />
-                      <AnimatePresence>
-                        {showSidebar && (
-                          <Sidebar 
-                            profile={profile} 
-                            onClose={() => setShowSidebar(false)} 
-                            onLogout={handleLogout}
-                          />
-                        )}
-                      </AnimatePresence>
-                      <main className="flex-1 overflow-y-auto custom-scrollbar pb-24">
-                        <div className="max-w-7xl mx-auto w-full min-h-full flex flex-col">
-                          <div className="flex-1">
-                            <AnimatePresence mode="wait">
-                              <Suspense fallback={<PageLoader />}>
-                                <Routes>
-                                  {/* Public Routes */}
-                                  <Route path="/" element={<Discovery profile={profile} setProfile={setProfile} onGuestLogin={handleGuestLogin} />} />
-                                  <Route path="/store/:id" element={<StoreDetail profile={profile} onGuestLogin={handleGuestLogin} />} />
-                                  <Route path="/product/:id" element={<ProductDetail profile={profile} onGuestLogin={handleGuestLogin} />} />
-                                  <Route path="/profile/:id" element={<Profile profile={profile} setProfile={setProfile} />} />
-                                  <Route path="/terms" element={<TermsOfService />} />
-                                  <Route path="/privacy" element={<PrivacyPolicy />} />
-                                  <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
-                                  <Route path="/signup" element={user ? <Navigate to="/" replace /> : <SignUp />} />
+    <ErrorBoundary>
+      <Router>
+        <ScrollToTop />
+        <div className="flex flex-col h-screen-mobile bg-[#05070a] relative shadow-2xl">
+          <AnimatePresence mode="wait">
+            <Suspense fallback={<PageLoader />}>
+              <Routes>
+                <Route path="/*" element={
+                  <NotificationProvider profile={profile}>
+                    <MessagingProvider profile={profile}>
+                      <ModalProvider profile={profile}>
+                        <Header profile={profile} onMenuClick={() => setShowSidebar(true)} onLogout={handleLogout} />
+                        <AnimatePresence>
+                          {showSidebar && (
+                            <Sidebar 
+                              profile={profile} 
+                              onClose={() => setShowSidebar(false)} 
+                              onLogout={handleLogout}
+                            />
+                          )}
+                        </AnimatePresence>
+                        <main className="flex-1 overflow-y-auto custom-scrollbar pb-24">
+                          <div className="max-w-7xl mx-auto w-full min-h-full flex flex-col">
+                            <div className="flex-1">
+                              <AnimatePresence mode="wait">
+                                <Suspense fallback={<PageLoader />}>
+                                  <Routes>
+                                    {/* Public Routes */}
+                                    <Route path="/" element={<Discovery profile={profile} setProfile={setProfile} onGuestLogin={handleGuestLogin} />} />
+                                    <Route path="/store/:id" element={<StoreDetail profile={profile} onGuestLogin={handleGuestLogin} />} />
+                                    <Route path="/product/:id" element={<ProductDetail profile={profile} onGuestLogin={handleGuestLogin} />} />
+                                    <Route path="/profile/:id" element={<Profile profile={profile} setProfile={setProfile} />} />
+                                    <Route path="/terms" element={<TermsOfService />} />
+                                    <Route path="/privacy" element={<PrivacyPolicy />} />
+                                    <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
+                                    <Route path="/signup" element={user ? <Navigate to="/" replace /> : <SignUp />} />
 
-                                  {/* Protected Content */}
-                                  {!user ? (
-                                    <Route path="*" element={<Navigate to="/login" replace />} />
-                                  ) : (
-                                    <>
-                                      {isProfileIncomplete ? (
-                                        <Route path="*" element={<CustomerSetup profile={profile!} />} />
-                                      ) : (
-                                        <>
-                                          <Route 
-                                            path="/stores" 
-                                            element={
-                                              profile?.currentRole === 'supplier' 
-                                                ? <StoresHub profile={profile} /> 
-                                                : <Navigate to="/" replace />
-                                            } 
-                                          />
-                                          <Route path="/deals" element={<DealRoom profile={profile} />} />
-                                          <Route path="/chat" element={<Chat profile={profile} />} />
-                                          <Route path="/admin" element={<AdminDashboard profile={profile} />} />
-                                          <Route path="/profile" element={<Profile profile={profile} setProfile={setProfile} />} />
-                                          <Route path="*" element={<Navigate to="/" replace />} />
-                                        </>
-                                      )}
-                                    </>
-                                  )}
-                                </Routes>
-                              </Suspense>
-                            </AnimatePresence>
+                                    {/* Protected Content */}
+                                    {!user ? (
+                                      <Route path="*" element={<Navigate to="/login" replace />} />
+                                    ) : (
+                                      <>
+                                        {isProfileIncomplete ? (
+                                          <Route path="*" element={<CustomerSetup profile={profile!} />} />
+                                        ) : (
+                                          <>
+                                            <Route 
+                                              path="/stores" 
+                                              element={
+                                                profile?.currentRole === 'supplier' 
+                                                  ? <StoresHub profile={profile} /> 
+                                                  : <Navigate to="/" replace />
+                                              } 
+                                            />
+                                            <Route path="/deals" element={<DealRoom profile={profile} />} />
+                                            <Route path="/chat" element={<Chat profile={profile} />} />
+                                            <Route path="/admin" element={<AdminDashboard profile={profile} />} />
+                                            <Route path="/profile" element={<Profile profile={profile} setProfile={setProfile} />} />
+                                            <Route path="*" element={<Navigate to="/" replace />} />
+                                          </>
+                                        )}
+                                      </>
+                                    )}
+                                  </Routes>
+                                </Suspense>
+                              </AnimatePresence>
+                            </div>
+                            <Footer />
                           </div>
-                          <Footer />
-                        </div>
-                      </main>
-                      <Navigation profile={profile} />
-                      <PWAPrompt />
-                    </ModalProvider>
-                  </MessagingProvider>
-                </NotificationProvider>
-              } />
-            </Routes>
-          </Suspense>
-        </AnimatePresence>
-      </div>
-    </Router>
+                        </main>
+                        <Navigation profile={profile} />
+                        <PWAPrompt />
+                      </ModalProvider>
+                    </MessagingProvider>
+                  </NotificationProvider>
+                } />
+              </Routes>
+            </Suspense>
+          </AnimatePresence>
+        </div>
+      </Router>
+    </ErrorBoundary>
   );
 }
 
@@ -431,6 +434,15 @@ function Header({ profile, onMenuClick, onLogout }: { profile: UserProfile | nul
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => window.dispatchEvent(new CustomEvent('pwa-prompt-install'))}
+            className="hidden sm:flex items-center gap-1.5 px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-[0_0_12px_rgba(0,242,254,0.15)]"
+            title="Install Native Application"
+          >
+            <Download size={13} />
+            <span className="hidden md:inline">Install App</span>
+          </button>
+
           {profile ? (
             <>
               <button 
@@ -565,6 +577,17 @@ function Sidebar({ profile, onClose, onLogout }: { profile: UserProfile | null, 
         </div>
 
         <div className="p-6 border-t border-white/5 bg-white/5 space-y-4">
+          <button
+            onClick={() => {
+              onClose();
+              window.dispatchEvent(new CustomEvent('pwa-prompt-install'));
+            }}
+            className="w-full py-2.5 bg-primary/10 border border-primary/30 text-primary rounded-xl text-[9px] font-black uppercase tracking-widest hover:bg-primary hover:text-black transition-all flex items-center justify-center gap-2"
+          >
+            <Download size={14} />
+            Install Native App
+          </button>
+
           <div className="flex items-center gap-3">
             <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary font-bold overflow-hidden border border-primary/20">
               {profile?.name?.charAt(0).toUpperCase() || <UserIcon size={18} />}

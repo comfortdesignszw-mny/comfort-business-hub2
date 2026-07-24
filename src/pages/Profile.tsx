@@ -145,7 +145,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
   const handleForceRefresh = async () => {
     try {
       await localDB.outbox.clear();
-      triggerFeedback('Sync Terminated', 'All background data tasks cleared. Refreshing system...', 'success');
+      triggerFeedback('Sync Terminated', 'All background data tasks cleared. Refreshing system...', 'engage');
       setTimeout(() => {
         window.location.reload();
       }, 1000);
@@ -175,7 +175,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
     
     // Immediate UI feedback and lock
     setIsDeleting(true);
-    triggerFeedback('Deleting your account...', 'Removing all your data...', 'notification');
+    triggerFeedback('Deleting your account...', 'Removing all your data...', 'engage');
 
     try {
       const uid = profile.uid;
@@ -251,7 +251,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
       }
       
       // 5. Hard Reset & Redirection
-      triggerFeedback('Account Deleted', 'All your data has been permanently removed.', 'success');
+      triggerFeedback('Account Deleted', 'All your data has been permanently removed.', 'engage');
       
       // Clear local state immediately
       setProfile(null as any);
@@ -262,7 +262,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
       setTimeout(() => window.location.reload(), 500); 
     } catch (e) {
       console.error("TOTAL ACCOUNT DELETION FAILURE:", e);
-      triggerFeedback('Account Deletion Error', "Something went wrong on our end. We're retrying automatically.", 'error');
+      triggerFeedback('Account Deletion Error', "Something went wrong on our end. We're retrying automatically.", 'engage');
       
       await auth.signOut();
       navigate('/login', { replace: true });

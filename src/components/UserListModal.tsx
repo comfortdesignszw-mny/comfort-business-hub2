@@ -37,7 +37,7 @@ export default function UserListModal({ isOpen, onClose, onUserClick }: UserList
 
   const filteredUsers = users.filter(user => 
     user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-    user.businessName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
+    (user as any).businessName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
     user.currentRole.toLowerCase().includes(searchTerm.toLowerCase())
   );
 
