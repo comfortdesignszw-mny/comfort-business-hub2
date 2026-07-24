@@ -20,6 +20,7 @@ import {
   checkPhoneExistsInFirestore, 
   getFriendlyAuthErrorMessage 
 } from '../lib/authUtils';
+import CountryCodeSelector from '../components/CountryCodeSelector';
 
 export default function SignUp() {
   const navigate = useNavigate();
@@ -313,17 +314,10 @@ export default function SignUp() {
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Mobile Phone Number</label>
                 <div className="flex gap-2">
-                  <select 
+                  <CountryCodeSelector 
                     value={countryCode}
-                    onChange={(e) => setCountryCode(e.target.value)}
-                    className="bg-black/40 border border-white/10 rounded-2xl px-3 py-3 text-xs text-white font-bold focus:outline-none focus:border-primary transition-all shrink-0 cursor-pointer"
-                  >
-                    {COUNTRY_CODES.map(c => (
-                      <option key={c.code} value={c.code} className="bg-gray-900 text-white">
-                        {c.flag} {c.code} ({c.name})
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setCountryCode}
+                  />
                   <input 
                     type="tel"
                     inputMode="tel"
@@ -352,7 +346,8 @@ export default function SignUp() {
                   <button 
                     type="button"
                     onClick={() => setShowPassword(!showPassword)}
-                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors"
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors p-1"
                   >
                     {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
                   </button>
@@ -361,15 +356,25 @@ export default function SignUp() {
 
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Confirm Password</label>
-                <input 
-                  type={showPassword ? "text" : "password"}
-                  required
-                  minLength={6}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Re-enter password"
-                  className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-primary transition-all font-medium"
-                />
+                <div className="relative">
+                  <input 
+                    type={showPassword ? "text" : "password"}
+                    required
+                    minLength={6}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Re-enter password"
+                    className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-primary transition-all pr-10 font-medium"
+                  />
+                  <button 
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors p-1"
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
               </div>
 
               <button 
@@ -439,15 +444,25 @@ export default function SignUp() {
 
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Confirm Password</label>
-                <input 
-                  type={showPassword ? "text" : "password"}
-                  required
-                  minLength={6}
-                  value={confirmPassword}
-                  onChange={(e) => setConfirmPassword(e.target.value)}
-                  placeholder="Re-enter password"
-                  className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-primary transition-all font-medium"
-                />
+                <div className="relative">
+                  <input 
+                    type={showPassword ? "text" : "password"}
+                    required
+                    minLength={6}
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    placeholder="Re-enter password"
+                    className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-primary transition-all pr-10 font-medium"
+                  />
+                  <button 
+                    type="button"
+                    onClick={() => setShowPassword(!showPassword)}
+                    aria-label={showPassword ? "Hide password" : "Show password"}
+                    className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-500 hover:text-white transition-colors p-1"
+                  >
+                    {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+                  </button>
+                </div>
               </div>
 
               <button 

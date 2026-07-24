@@ -20,6 +20,7 @@ import {
   phoneToSyntheticEmail, 
   getFriendlyAuthErrorMessage 
 } from '../lib/authUtils';
+import CountryCodeSelector from '../components/CountryCodeSelector';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -361,17 +362,10 @@ export default function Login() {
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Mobile Phone Number</label>
                 <div className="flex gap-2">
-                  <select 
+                  <CountryCodeSelector 
                     value={countryCode}
-                    onChange={(e) => setCountryCode(e.target.value)}
-                    className="bg-black/40 border border-white/10 rounded-2xl px-3 py-3 text-xs text-white font-bold focus:outline-none focus:border-primary transition-all shrink-0 cursor-pointer"
-                  >
-                    {COUNTRY_CODES.map(c => (
-                      <option key={c.code} value={c.code} className="bg-gray-900 text-white">
-                        {c.flag} {c.code} ({c.name})
-                      </option>
-                    ))}
-                  </select>
+                    onChange={setCountryCode}
+                  />
                   <input 
                     type="tel"
                     inputMode="tel"
