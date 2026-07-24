@@ -85,20 +85,26 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
 
 // Sync utility for splitting PII from public-facing profiles
 export async function syncPublicProfile(profile: any) {
+  if (!profile || !profile.uid) return;
+  // Verify that an active auth user exists and matches profile UID before writing to Firestore
+  if (!auth.currentUser || auth.currentUser.uid !== profile.uid) {
+    console.warn('syncPublicProfile skipped: auth currentUser does not match profile uid');
+    return;
+  }
   try {
     const { setDoc, doc, serverTimestamp } = await import('firebase/firestore');
-    const publicProfile = {
+    const publicProfile: Record<string, any> = {
       uid: profile.uid,
-      name: profile.name,
+      name: profile.name || 'User',
       avatar: profile.avatar || '',
-      currentRole: profile.currentRole,
-      location: profile.location ? { city: profile.location.city } : null,
-      isVerified: profile.isVerified || false,
+      currentRole: profile.currentRole || 'customer',
+      location: profile.location ? { city: profile.location.city || '' } : null,
+      isVerified: Boolean(profile.isVerified),
       gateway: profile.gateway || null,
       updatedAt: serverTimestamp()
     };
     
-    await setDoc(doc(db, 'public_profiles', profile.uid), publicProfile);
+    await setDoc(doc(db, 'public_profiles', profile.uid), publicProfile, { merge: true });
   } catch (err) {
     console.error('Failed to sync public profile:', err);
   }

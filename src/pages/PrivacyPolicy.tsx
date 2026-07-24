@@ -1,6 +1,6 @@
 import React from 'react';
 import { motion } from 'motion/react';
-import { Shield, ChevronLeft, Mail, Phone, Lock, Eye, Share2, Database, Trash2, Globe } from 'lucide-react';
+import { Shield, ShieldAlert, ChevronLeft, Mail, Phone, Lock, Eye, Share2, Database, Trash2, Globe } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
 export default function PrivacyPolicy() {

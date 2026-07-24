@@ -35,10 +35,11 @@ export default function ProductCard({
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const { startConversation } = useMessaging();
   const { openUserProfile } = useModals();
-  const [storeData, setStoreData] = useState<{ name: string; rating: number; reviewCount: number }>({
+  const [storeData, setStoreData] = useState<{ name: string; rating: number; reviewCount: number; isVerified?: boolean }>({
     name: initialStore?.name || 'Verified Node',
     rating: initialStore?.rating || 5.0,
-    reviewCount: initialStore?.reviewCount || 0
+    reviewCount: initialStore?.reviewCount || 0,
+    isVerified: initialStore?.isVerified
   });
   const [isStoreLoading, setIsStoreLoading] = useState(!initialStore);
   const [isEngaging, setIsEngaging] = useState(false);
@@ -53,7 +54,8 @@ export default function ProductCard({
       setStoreData({
         name: initialStore.name,
         rating: initialStore.rating,
-        reviewCount: initialStore.reviewCount
+        reviewCount: initialStore.reviewCount,
+        isVerified: initialStore.isVerified
       });
       setIsStoreLoading(false);
       return;
@@ -67,7 +69,8 @@ export default function ProductCard({
           setStoreData({
             name: data.name || 'Verified Node',
             rating: data.rating || 5.0,
-            reviewCount: data.reviewCount || 0
+            reviewCount: data.reviewCount || 0,
+            isVerified: data.isVerified
           });
         }
       } catch (err) {
@@ -260,7 +263,14 @@ export default function ProductCard({
         <div className="p-3.5 sm:p-5 space-y-3 sm:space-y-4 relative">
           <div className="flex justify-between items-start gap-2 sm:gap-4">
             <div className="space-y-0.5 sm:space-y-1 flex-1 min-w-0">
-              <h3 className="font-black text-white italic uppercase tracking-tighter text-base sm:text-lg leading-none truncate group-hover:text-primary transition-colors">{product.name}</h3>
+              <div className="flex items-center gap-1.5 flex-wrap">
+                <h3 className="font-black text-white italic uppercase tracking-tighter text-base sm:text-lg leading-none truncate group-hover:text-primary transition-colors">{product.name}</h3>
+                {(product.isVerified || (product as any).verified) && (
+                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/50 text-emerald-400 text-[7px] sm:text-[8px] font-black uppercase tracking-wider shadow-[0_0_10px_rgba(16,185,129,0.5)] shrink-0">
+                    <Check size={8} className="stroke-[3] text-emerald-400" /> Verified
+                  </span>
+                )}
+              </div>
               <p className="text-[8px] sm:text-[10px] text-gray-500 font-bold uppercase tracking-widest truncate">{product.category}</p>
             </div>
             <div className="text-right">
@@ -294,7 +304,14 @@ export default function ProductCard({
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-[9px] sm:text-[10px] text-white font-black uppercase tracking-tight truncate group-hover/store:text-primary transition-colors">{storeData.name}</p>
+                <div className="flex items-center gap-1.5 min-w-0">
+                  <p className="text-[9px] sm:text-[10px] text-white font-black uppercase tracking-tight truncate group-hover/store:text-primary transition-colors">{storeData.name}</p>
+                  {storeData.isVerified && (
+                    <span className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded bg-emerald-500/20 border border-emerald-400/50 text-emerald-400 text-[6.5px] sm:text-[7.5px] font-black uppercase tracking-wider shadow-[0_0_6px_rgba(16,185,129,0.4)] shrink-0" title="Verified Store">
+                      <Check size={7} className="stroke-[3]" /> Verified
+                    </span>
+                  )}
+                </div>
                 <div className="flex items-center gap-1">
                   <Star size={7} className="fill-primary text-primary" />
                   <span className="text-[7px] sm:text-[8px] font-bold text-gray-400 group-hover/store:text-white transition-colors">{storeData.rating.toFixed(1)} Node</span>

@@ -332,7 +332,15 @@ export function StoreDetailContent({ store, profile, onGuestLogin, showMap = tru
                 onClick={() => openUserProfile(store.ownerId)}
               >
                 <h2 className="text-xl sm:text-3xl font-black text-white italic uppercase tracking-tighter leading-tight group-hover/title:text-primary transition-colors">{store.name}</h2>
-                <p className="text-[8px] sm:text-[9px] text-primary font-black uppercase tracking-[0.2em] mt-1 bg-primary/10 w-fit px-2 py-0.5 rounded border border-primary/20 mx-auto transition-all">{store.category} Sector Hub</p>
+                <div className="flex items-center justify-center gap-2 mt-1 flex-wrap">
+                  <p className="text-[8px] sm:text-[9px] text-primary font-black uppercase tracking-[0.2em] bg-primary/10 px-2 py-0.5 rounded border border-primary/20 transition-all">{store.category} Sector Hub</p>
+                  {(store.isVerified || (store as any).verified) && (
+                    <span className="inline-flex items-center gap-1 px-2.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/50 text-emerald-400 text-[8px] sm:text-[9px] font-black uppercase tracking-wider shadow-[0_0_12px_rgba(16,185,129,0.5)]">
+                      <Check size={10} className="stroke-[3] text-emerald-400" />
+                      Verified Store
+                    </span>
+                  )}
+                </div>
               </div>
             )}
           </div>

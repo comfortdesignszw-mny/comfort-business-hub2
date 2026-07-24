@@ -358,11 +358,6 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
     e.preventDefault();
     if (!activeStore || !profile) return;
     
-    if (!profile.isVerified) {
-      alert("CRITICAL SECURITY LOCK: Identity verification required for production writes. Please verify your email.");
-      return;
-    }
-    
     if (document.querySelectorAll('[data-uploading="true"]').length > 0) {
       alert("Please wait for your images to finish saving before saving. It should take a few seconds.");
       return;
@@ -543,25 +538,22 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
 
   return (
     <div className="p-6 space-y-8 pb-32">
-      {/* Identity Verification Warning */}
+      {/* Identity Verification Notice */}
       {!profile.isVerified && (
-        <section className="bg-red-500/10 border border-red-500/20 rounded-[2rem] p-6 flex flex-col md:flex-row items-center gap-6 relative overflow-hidden group">
-          <div className="absolute top-0 right-0 w-32 h-32 bg-red-500/5 blur-3xl -mr-16 -mt-16 pointer-events-none group-hover:bg-red-500/10 transition-colors"></div>
-          <div className="w-14 h-14 bg-red-500/20 rounded-2xl flex items-center justify-center text-red-500 flex-shrink-0 animate-pulse shadow-[0_0_20px_rgba(239,68,68,0.2)]">
+        <section className="bg-emerald-500/10 border border-emerald-500/20 rounded-[2rem] p-6 flex flex-col md:flex-row items-center gap-6 relative overflow-hidden group">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-emerald-500/5 blur-3xl -mr-16 -mt-16 pointer-events-none group-hover:bg-emerald-500/10 transition-colors"></div>
+          <div className="w-14 h-14 bg-emerald-500/20 rounded-2xl flex items-center justify-center text-emerald-400 flex-shrink-0 animate-pulse shadow-[0_0_20px_rgba(16,185,129,0.2)]">
             <Shield size={28} />
           </div>
           <div className="flex-1 text-center md:text-left space-y-1">
-            <h3 className="text-xs font-black text-white uppercase tracking-widest italic">Identity Verification Required</h3>
-            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-relaxed">
-              Your account is in <span className="text-red-500">Read-Only mode</span>. Verify your email in the email to unlock production-grade inventory writes and trading protocols.
+            <h3 className="text-xs font-black text-white uppercase tracking-widest italic">Store & Inventory Live</h3>
+            <p className="text-[10px] text-gray-300 font-bold uppercase tracking-widest leading-relaxed">
+              Your store, profile, and products are <span className="text-emerald-400 font-black">Live and functional</span> on the Discovery Network immediately. An Admin will review your profile to issue your <span className="text-emerald-400 font-black">Green Neon Verified Badge</span>.
             </p>
           </div>
-          <button 
-            onClick={() => window.open('https://mail.google.com', '_blank')}
-            className="px-6 py-3 bg-red-500 hover:bg-red-400 text-white text-[9px] font-black uppercase tracking-[0.2em] rounded-xl transition-all active:scale-95 shadow-lg shadow-red-500/20"
-          >
-            Check Signals
-          </button>
+          <div className="px-5 py-2.5 bg-emerald-500/20 border border-emerald-400/40 text-emerald-400 text-[9px] font-black uppercase tracking-[0.2em] rounded-xl flex items-center gap-2 shadow-lg shadow-emerald-500/10 shrink-0">
+            <Sparkles size={14} /> Pending Verification Badge
+          </div>
         </section>
       )}
 
@@ -707,20 +699,9 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
                 Cancel
               </button>
               <button 
-                onClick={() => {
-                  if (!profile.isVerified) {
-                    alert("Security Lock: Email verification required to modify Account parameters.");
-                    return;
-                  }
-                  handleSaveStore();
-                }}
+                onClick={() => handleSaveStore()}
                 disabled={isSavingStore}
-                className={cn(
-                  "px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all",
-                  profile.isVerified
-                    ? "btn-neon shadow-lg shadow-primary/20"
-                    : "bg-red-500/10 border border-red-500/20 text-red-500 opacity-50 cursor-not-allowed"
-                )}
+                className="px-8 py-3 rounded-xl text-[10px] font-black uppercase tracking-widest flex items-center gap-2 transition-all btn-neon shadow-lg shadow-primary/20"
               >
                 {isSavingStore ? <Loader2 className="animate-spin" size={14} /> : <Check size={14} />} Save Changes
               </button>
@@ -852,31 +833,14 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
           </div>
           <div className="flex items-center gap-2">
             <button 
-              onClick={() => {
-                if (!profile.isVerified) {
-                  alert("Security Lock Active: Email verification required to import listings.");
-                  return;
-                }
-                setShowWhatsAppModal(true);
-              }}
+              onClick={() => setShowWhatsAppModal(true)}
               className="flex items-center gap-2 bg-neon-green/10 border border-neon-green/20 text-neon-green px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-neon-green/20 transition-all shadow-lg shadow-neon-green/5"
             >
               <Phone size={14} /> Import from WA
             </button>
             <button 
-              onClick={() => {
-                if (!profile.isVerified) {
-                  alert("Security Lock Active: Email verification required to add inventory items.");
-                  return;
-                }
-                handleOpenForm();
-              }}
-              className={cn(
-                "w-10 h-10 rounded-xl border flex items-center justify-center transition-all",
-                profile.isVerified 
-                  ? "bg-primary/20 border-primary/20 text-primary hover:bg-primary hover:text-[#05070a]" 
-                  : "bg-red-500/10 border-red-500/20 text-red-500 opacity-50 cursor-not-allowed"
-              )}
+              onClick={() => handleOpenForm()}
+              className="w-10 h-10 rounded-xl border flex items-center justify-center transition-all bg-primary/20 border-primary/20 text-primary hover:bg-primary hover:text-[#05070a]"
             >
               <Plus size={20} />
             </button>
@@ -926,25 +890,13 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
               </div>
               <div className="flex items-center gap-2 opacity-50 group-hover:opacity-100 transition-opacity">
                 <button 
-                  onClick={() => {
-                    if (!profile.isVerified) {
-                      alert("Security Lock: Email verification required for inventory modifications.");
-                      return;
-                    }
-                    handleOpenForm(product);
-                  }}
+                  onClick={() => handleOpenForm(product)}
                   className="p-2 hover:text-primary transition-colors"
                 >
                   <Edit3 size={16} />
                 </button>
                 <button 
-                  onClick={() => {
-                    if (!profile.isVerified) {
-                      alert("Security Lock: Email verification required for inventory deletions.");
-                      return;
-                    }
-                    setProductToDelete(product);
-                  }}
+                  onClick={() => setProductToDelete(product)}
                   className="p-2 hover:text-red-500 transition-colors"
                 >
                   <Trash2 size={16} />

@@ -29,6 +29,36 @@ async function startServer() {
     });
   }
 
+  // Helper function to call Gemini with retry and model fallback
+  async function generateContentWithRetry(params: any) {
+    if (!ai) throw new Error('Gemini AI client is not initialized');
+    
+    // Primary model according to guidelines: gemini-3.6-flash
+    const models = ['gemini-3.6-flash', 'gemini-3.1-pro-preview', 'gemini-3.1-flash-lite', 'gemini-flash-latest'];
+    let lastError: any = null;
+
+    for (const model of models) {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          console.log(`Calling Gemini model ${model} (attempt ${attempt + 1})...`);
+          const response = await ai.models.generateContent({
+            ...params,
+            model,
+          });
+          if (response && response.text) {
+            return response;
+          }
+        } catch (err: any) {
+          console.warn(`Gemini call to ${model} failed (attempt ${attempt + 1}):`, err?.message || err);
+          lastError = err;
+          // Wait 1s before retrying or switching model
+          await new Promise((resolve) => setTimeout(resolve, 1000));
+        }
+      }
+    }
+    throw lastError || new Error('All model attempts failed.');
+  }
+
   // API Route for WhatsApp Parsing
   app.post('/api/import/whatsapp', async (req, res) => {
     try {
@@ -45,8 +75,7 @@ async function startServer() {
 
       console.log('Attempting to parse WhatsApp catalogue:', url);
 
-      const response = await ai.models.generateContent({
-        model: "gemini-3-flash-preview",
+      const response = await generateContentWithRetry({
         contents: `Analyze the WhatsApp Business Catalogue link: ${url}. 
         Extract a list of products with their names, descriptions, prices, and currencies.
         If image URLs are present in the catalogue content, include them. 
@@ -85,7 +114,11 @@ async function startServer() {
       res.json(data);
     } catch (error: any) {
       console.error('WhatsApp Import error:', error);
-      res.status(500).json({ error: error.message || 'Failed to process the URL.' });
+      const isHighDemand = error?.message?.includes('503') || error?.message?.includes('high demand') || error?.status === 503;
+      const userMessage = isHighDemand
+        ? 'The AI Scanner service is currently experiencing high demand. Please try again in a moment.'
+        : (error.message || 'Failed to process the URL.');
+      res.status(500).json({ error: userMessage });
     }
   });
 

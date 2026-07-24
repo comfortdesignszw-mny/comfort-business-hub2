@@ -341,9 +341,17 @@ function StoreCard({ store, profile }: StoreCardProps) {
         <div className="absolute inset-0 bg-gradient-to-t from-[#0d1117] via-[#0d1117]/20 to-transparent"></div>
         
         {/* Verification Status */}
-        <div className="absolute top-4 left-4 flex items-center gap-2 px-3 py-1 bg-black/60 backdrop-blur-md rounded-full border border-white/10">
-          <div className="w-1.5 h-1.5 rounded-full bg-neon-green shadow-[0_0_8px_#39FF14]"></div>
-          <span className="text-[8px] font-black text-white uppercase tracking-widest">Active Store</span>
+        <div className="absolute top-4 left-4 flex items-center gap-2">
+          <div className="flex items-center gap-2 px-3 py-1 bg-black/60 backdrop-blur-md rounded-full border border-white/10">
+            <div className="w-1.5 h-1.5 rounded-full bg-neon-green shadow-[0_0_8px_#39FF14]"></div>
+            <span className="text-[8px] font-black text-white uppercase tracking-widest">Active Store</span>
+          </div>
+          {(store.isVerified || (store as any).verified) && (
+            <div className="flex items-center gap-1 px-2.5 py-1 bg-emerald-500/20 backdrop-blur-md rounded-full border border-emerald-400/50 text-emerald-400 shadow-[0_0_12px_rgba(16,185,129,0.5)]">
+              <Check size={9} className="stroke-[3]" />
+              <span className="text-[8px] font-black uppercase tracking-widest">Verified</span>
+            </div>
+          )}
         </div>
 
         {/* Rating Floating Badge */}

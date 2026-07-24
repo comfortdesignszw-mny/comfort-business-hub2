@@ -3,19 +3,21 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   ShieldAlert, Users, Search, Filter, CheckCircle, Info, XCircle, ArrowRight, 
   Trash2, Pause, Play, AlertCircle, Calendar, Hash, Tag, User as UserIcon, Store, ShoppingBag, ExternalLink, Loader2,
-  X, AlertTriangle, Shield
+  X, AlertTriangle, Shield, Check
 } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { collection, query, orderBy, onSnapshot, doc, updateDoc, getDocs, where, writeBatch, serverTimestamp } from 'firebase/firestore';
-import { Report, UserProfile, Role } from '../types';
+import { Report, UserProfile, Role, Store as StoreType, Product } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
 import { useNavigate } from 'react-router-dom';
 
 export default function AdminDashboard({ profile }: { profile: UserProfile | null }) {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'reports' | 'users'>('reports');
+  const [activeTab, setActiveTab] = useState<'users' | 'stores' | 'products' | 'reports'>('users');
   const [reports, setReports] = useState<Report[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
+  const [stores, setStores] = useState<StoreType[]>([]);
+  const [products, setProducts] = useState<Product[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'resolved' | 'dismissed'>('all');
@@ -63,9 +65,23 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
       setUsers(snap.docs.map(d => ({ uid: d.id, ...d.data() } as UserProfile)));
     });
 
+    // Listen for stores
+    const storesQuery = query(collection(db, 'stores'), orderBy('updatedAt', 'desc'));
+    const unsubscribeStores = onSnapshot(storesQuery, (snap) => {
+      setStores(snap.docs.map(d => ({ id: d.id, ...d.data() } as StoreType)));
+    });
+
+    // Listen for products
+    const productsQuery = query(collection(db, 'products'), orderBy('updatedAt', 'desc'));
+    const unsubscribeProducts = onSnapshot(productsQuery, (snap) => {
+      setProducts(snap.docs.map(d => ({ id: d.id, ...d.data() } as Product)));
+    });
+
     return () => {
       unsubscribeReports();
       unsubscribeUsers();
+      unsubscribeStores();
+      unsubscribeProducts();
     };
   }, []);
 
@@ -86,6 +102,30 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
       await updateDoc(doc(db, 'users', userId), { isVerified, updatedAt: serverTimestamp() });
       await updateDoc(doc(db, 'public_profiles', userId), { isVerified, updatedAt: serverTimestamp() });
       setUsers(prev => prev.map(u => u.uid === userId ? { ...u, isVerified } : u));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsProcessing(null);
+    }
+  };
+
+  const handleStoreVerification = async (storeId: string, isVerified: boolean) => {
+    setIsProcessing(storeId);
+    try {
+      await updateDoc(doc(db, 'stores', storeId), { isVerified, updatedAt: new Date().toISOString() });
+      setStores(prev => prev.map(s => s.id === storeId ? { ...s, isVerified } : s));
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsProcessing(null);
+    }
+  };
+
+  const handleProductVerification = async (productId: string, isVerified: boolean) => {
+    setIsProcessing(productId);
+    try {
+      await updateDoc(doc(db, 'products', productId), { isVerified, updatedAt: new Date().toISOString() });
+      setProducts(prev => prev.map(p => p.id === productId ? { ...p, isVerified } : p));
     } catch (err) {
       console.error(err);
     } finally {
@@ -174,6 +214,22 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
            u.businessName?.toLowerCase().includes(search);
   });
 
+  const filteredStores = stores.filter(s => {
+    const search = searchTerm.toLowerCase();
+    return s.name?.toLowerCase().includes(search) ||
+           s.category?.toLowerCase().includes(search) ||
+           s.ownerId?.toLowerCase().includes(search) ||
+           s.address?.toLowerCase().includes(search);
+  });
+
+  const filteredProducts = products.filter(p => {
+    const search = searchTerm.toLowerCase();
+    return p.name?.toLowerCase().includes(search) ||
+           p.category?.toLowerCase().includes(search) ||
+           p.ownerId?.toLowerCase().includes(search) ||
+           p.description?.toLowerCase().includes(search);
+  });
+
   return (
     <motion.div 
       initial={{ opacity: 0 }}
@@ -195,29 +251,49 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
           </div>
         </div>
 
-        <div className="flex bg-[#0d1117] border border-white/5 p-1 rounded-2xl">
-          <button 
-            onClick={() => setActiveTab('reports')}
-            className={cn(
-              "px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all gap-2 flex items-center",
-              activeTab === 'reports' ? "bg-red-500 text-white shadow-lg shadow-red-500/20" : "text-gray-500 hover:text-white"
-            )}
-          >
-            <ShieldAlert size={14} />
-            Abuse Feed
-            {reports.filter(r => r.status === 'pending').length > 0 && (
-              <span className="bg-white text-red-500 px-1.5 py-0.5 rounded-full text-[8px]">{reports.filter(r => r.status === 'pending').length}</span>
-            )}
-          </button>
+        <div className="flex bg-[#0d1117] border border-white/5 p-1 rounded-2xl flex-wrap gap-1">
           <button 
             onClick={() => setActiveTab('users')}
             className={cn(
-              "px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all gap-2 flex items-center",
+              "px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all gap-1.5 flex items-center",
               activeTab === 'users' ? "bg-red-500 text-white shadow-lg shadow-red-500/20" : "text-gray-500 hover:text-white"
             )}
           >
             <Users size={14} />
-            Store Management
+            Users
+          </button>
+          <button 
+            onClick={() => setActiveTab('stores')}
+            className={cn(
+              "px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all gap-1.5 flex items-center",
+              activeTab === 'stores' ? "bg-red-500 text-white shadow-lg shadow-red-500/20" : "text-gray-500 hover:text-white"
+            )}
+          >
+            <Store size={14} />
+            Stores ({stores.length})
+          </button>
+          <button 
+            onClick={() => setActiveTab('products')}
+            className={cn(
+              "px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all gap-1.5 flex items-center",
+              activeTab === 'products' ? "bg-red-500 text-white shadow-lg shadow-red-500/20" : "text-gray-500 hover:text-white"
+            )}
+          >
+            <ShoppingBag size={14} />
+            Products ({products.length})
+          </button>
+          <button 
+            onClick={() => setActiveTab('reports')}
+            className={cn(
+              "px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all gap-1.5 flex items-center",
+              activeTab === 'reports' ? "bg-red-500 text-white shadow-lg shadow-red-500/20" : "text-gray-500 hover:text-white"
+            )}
+          >
+            <ShieldAlert size={14} />
+            Abuse
+            {reports.filter(r => r.status === 'pending').length > 0 && (
+              <span className="bg-white text-red-500 px-1.5 py-0.5 rounded-full text-[8px] font-bold">{reports.filter(r => r.status === 'pending').length}</span>
+            )}
           </button>
         </div>
       </header>
@@ -225,10 +301,10 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
       {/* Stats Bar */}
       <section className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: 'Total Conflicts', value: reports.length, icon: ShieldAlert, color: 'text-red-500' },
-          { label: 'Pending Dispatch', value: reports.filter(r => r.status === 'pending').length, icon: AlertCircle, color: 'text-amber-500' },
-          { label: 'Users', value: users.length, icon: Users, color: 'text-primary' },
-          { label: 'Quarantined', value: users.filter(u => u.status !== 'active' && u.status !== undefined).length, icon: XCircle, color: 'text-gray-500' }
+          { label: 'Total Users', value: users.length, icon: Users, color: 'text-primary' },
+          { label: 'Active Stores', value: stores.length, icon: Store, color: 'text-neon-green' },
+          { label: 'Listings / Products', value: products.length, icon: ShoppingBag, color: 'text-cyan-400' },
+          { label: 'Active Conflicts', value: reports.filter(r => r.status === 'pending').length, icon: ShieldAlert, color: 'text-red-500' }
         ].map((stat, i) => (
           <div key={i} className="neon-card p-4 space-y-2 border-white/5 bg-[#0d1117]">
             <div className="flex items-center justify-between">
@@ -247,7 +323,12 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-gray-500 group-focus-within:text-red-500 transition-colors" size={18} />
             <input 
               type="text" 
-              placeholder={activeTab === 'reports' ? "Search conflicts..." : "Search users..."}
+              placeholder={
+                activeTab === 'reports' ? "Search conflicts..." : 
+                activeTab === 'stores' ? "Search stores by name, category, or owner..." :
+                activeTab === 'products' ? "Search products by name, category, or owner..." :
+                "Search users..."
+              }
               className="w-full bg-[#0d1117] border border-white/5 rounded-2xl pl-12 pr-4 py-4 text-white text-xs font-black uppercase tracking-tight outline-none focus:border-red-500/30 transition-all"
               value={searchTerm}
               onChange={(e) => setSearchTerm(e.target.value)}
@@ -378,7 +459,7 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
                 </div>
               )}
             </motion.div>
-          ) : (
+          ) : activeTab === 'users' ? (
             <motion.div 
               key="users-grid"
               initial={{ opacity: 0, y: 20 }}
@@ -485,6 +566,132 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
                   </div>
                 </div>
               ))}
+              {filteredUsers.length === 0 && (
+                <div className="py-16 text-center space-y-3">
+                  <Users size={32} className="mx-auto text-gray-600" />
+                  <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">No Users Located</p>
+                </div>
+              )}
+            </motion.div>
+          ) : activeTab === 'stores' ? (
+            <motion.div 
+              key="stores-grid"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="grid gap-4"
+            >
+              {filteredStores.map((store) => (
+                <div key={store.id} className="neon-card p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-white/5">
+                  <div className="flex items-center gap-4">
+                    <div className="w-12 h-12 rounded-2xl border border-white/10 bg-white/5 overflow-hidden flex items-center justify-center text-primary font-black shrink-0">
+                      {store.logo ? <img src={store.logo} className="w-full h-full object-cover" /> : <Store size={20} />}
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-black text-white uppercase italic tracking-tighter">{store.name}</h3>
+                        <span className="text-[7.5px] font-black uppercase tracking-widest px-2 py-0.5 rounded border bg-primary/10 border-primary/20 text-primary">
+                          {store.category} Sector
+                        </span>
+                        {store.isVerified && (
+                          <span className="text-[7.5px] font-black uppercase tracking-widest px-2 py-0.5 rounded border bg-emerald-500/20 border-emerald-400/50 text-emerald-400 flex items-center gap-1 shadow-[0_0_12px_rgba(16,185,129,0.3)]">
+                            <Check size={10} className="stroke-[3]" /> Verified Store
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-[10px] text-gray-400 font-medium">{store.address || 'No location set'}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => navigate(`/store/${store.id}`)}
+                      className="px-3 py-2 bg-white/5 hover:bg-white/10 text-white text-[9px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-1 border border-white/10"
+                    >
+                      <ExternalLink size={12} /> View Store
+                    </button>
+                    <button 
+                      onClick={() => handleStoreVerification(store.id, !store.isVerified)}
+                      disabled={!!isProcessing}
+                      className={cn(
+                        "px-4 py-2 border text-[9px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-2",
+                        store.isVerified 
+                          ? "bg-white/5 border-white/10 text-gray-400 hover:text-white" 
+                          : "bg-emerald-500/20 border-emerald-400/50 text-emerald-400 hover:bg-emerald-500 hover:text-black shadow-[0_0_15px_rgba(16,185,129,0.25)]"
+                      )}
+                    >
+                      {isProcessing === store.id ? <Loader2 size={12} className="animate-spin" /> : <Shield size={14} className={store.isVerified ? "" : "fill-current"} />}
+                      {store.isVerified ? 'Revoke Store Badge' : 'Verify Store Badge'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {filteredStores.length === 0 && (
+                <div className="py-16 text-center space-y-3">
+                  <Store size={32} className="mx-auto text-gray-600" />
+                  <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">No Stores Located</p>
+                </div>
+              )}
+            </motion.div>
+          ) : (
+            <motion.div 
+              key="products-grid"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="grid gap-4"
+            >
+              {filteredProducts.map((product) => (
+                <div key={product.id} className="neon-card p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-white/5">
+                  <div className="flex items-center gap-4">
+                    <div className="w-14 h-14 rounded-2xl border border-white/10 bg-white/5 overflow-hidden shrink-0">
+                      <img src={product.images[0]} className="w-full h-full object-cover" alt={product.name} />
+                    </div>
+                    <div>
+                      <div className="flex items-center gap-2 flex-wrap">
+                        <h3 className="font-black text-white uppercase italic tracking-tighter">{product.name}</h3>
+                        <span className="text-[7.5px] font-black uppercase tracking-widest px-2 py-0.5 rounded border bg-primary/10 border-primary/20 text-primary">
+                          {product.category}
+                        </span>
+                        {product.isVerified && (
+                          <span className="text-[7.5px] font-black uppercase tracking-widest px-2 py-0.5 rounded border bg-emerald-500/20 border-emerald-400/50 text-emerald-400 flex items-center gap-1 shadow-[0_0_12px_rgba(16,185,129,0.3)]">
+                            <Check size={10} className="stroke-[3]" /> Verified Product
+                          </span>
+                        )}
+                      </div>
+                      <p className="text-xs font-black text-primary tracking-tight mt-0.5">{formatCurrency(product.price, product.currency)}</p>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2">
+                    <button 
+                      onClick={() => navigate(`/product/${product.id}`)}
+                      className="px-3 py-2 bg-white/5 hover:bg-white/10 text-white text-[9px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-1 border border-white/10"
+                    >
+                      <ExternalLink size={12} /> Inspect Item
+                    </button>
+                    <button 
+                      onClick={() => handleProductVerification(product.id, !product.isVerified)}
+                      disabled={!!isProcessing}
+                      className={cn(
+                        "px-4 py-2 border text-[9px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-2",
+                        product.isVerified 
+                          ? "bg-white/5 border-white/10 text-gray-400 hover:text-white" 
+                          : "bg-emerald-500/20 border-emerald-400/50 text-emerald-400 hover:bg-emerald-500 hover:text-black shadow-[0_0_15px_rgba(16,185,129,0.25)]"
+                      )}
+                    >
+                      {isProcessing === product.id ? <Loader2 size={12} className="animate-spin" /> : <Shield size={14} className={product.isVerified ? "" : "fill-current"} />}
+                      {product.isVerified ? 'Revoke Product Badge' : 'Verify Product Badge'}
+                    </button>
+                  </div>
+                </div>
+              ))}
+              {filteredProducts.length === 0 && (
+                <div className="py-16 text-center space-y-3">
+                  <ShoppingBag size={32} className="mx-auto text-gray-600" />
+                  <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">No Products/Services Identified</p>
+                </div>
+              )}
             </motion.div>
           )}
         </AnimatePresence>

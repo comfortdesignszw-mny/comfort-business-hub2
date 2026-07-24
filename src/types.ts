@@ -79,6 +79,7 @@ export interface Store {
   reviewCount: number;
   followerCount?: number;
   likeCount?: number;
+  isVerified?: boolean;
   statsResetAt?: string;
   createdAt: any;
   updatedAt?: any;
@@ -103,6 +104,7 @@ export interface Product {
   reviewCount?: number;
   followerCount?: number;
   likeCount?: number;
+  isVerified?: boolean;
   isActive: boolean;
   createdAt: any;
   updatedAt?: any;

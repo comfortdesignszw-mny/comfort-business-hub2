@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Star, MessageSquare, ArrowLeft, Share2, Info, Loader2, Sparkles, ShoppingBag, 
-  ChevronLeft, ChevronRight, Zap, Store as StoreIcon, ShieldCheck, Clock, Send, Heart
+  ChevronLeft, ChevronRight, Zap, Store as StoreIcon, ShieldCheck, Clock, Send, Heart, Check
 } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { 
@@ -261,6 +261,12 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
                 <Zap size={8} className="fill-primary" />
                 <span>{product.category}</span>
               </div>
+              {(product.isVerified || (product as any).verified || store?.isVerified) && (
+                <div className="inline-flex items-center gap-1 py-0.5 px-2.5 rounded-full bg-emerald-500/20 border border-emerald-400/50 text-emerald-400 text-[8px] sm:text-[9px] font-black uppercase tracking-wider shadow-[0_0_12px_rgba(16,185,129,0.5)]">
+                  <Check size={9} className="stroke-[3] text-emerald-400" />
+                  <span>Verified Node</span>
+                </div>
+              )}
               <div className="flex items-center gap-1 bg-white/5 py-0.5 px-2 rounded-full border border-white/5 text-[8px] sm:text-[9px] font-black">
                 <Star size={8} className="fill-primary text-primary" />
                 <span className="text-white">{product.rating?.toFixed(1) || 'N/A'}</span>

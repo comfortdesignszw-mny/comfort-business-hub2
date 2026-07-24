@@ -55,11 +55,6 @@ export default function SupplierSetup({ profile, onComplete, existingStore }: { 
     e.preventDefault();
     if (!profile) return;
     
-    if (!profile.isVerified) {
-      alert("CRITICAL: Identity verification required to register a new store. Please check your email and verify your identity.");
-      return;
-    }
-    
     if (document.querySelectorAll('[data-uploading="true"]').length > 0) {
       alert("Please wait for your images to finish saving before saving.");
       return;
@@ -85,6 +80,7 @@ export default function SupplierSetup({ profile, onComplete, existingStore }: { 
           lng: location.lng,
           geohash: hash,
           address: location.address,
+          isVerified: existingStore ? (existingStore.isVerified || false) : Boolean(profile.isVerified),
           updatedAt: new Date().toISOString()
       };
 
@@ -295,12 +291,7 @@ export default function SupplierSetup({ profile, onComplete, existingStore }: { 
         <button 
           type="submit"
           disabled={loading}
-          className={cn(
-            "w-full py-5 text-sm uppercase tracking-[0.2em] italic flex items-center justify-center gap-3 transition-all",
-            profile.isVerified 
-              ? "btn-neon" 
-              : "bg-red-500/10 border border-red-500/20 text-red-500 opacity-50 cursor-not-allowed"
-          )}
+          className="w-full py-5 text-sm uppercase tracking-[0.2em] italic flex items-center justify-center gap-3 transition-all btn-neon"
         >
           {loading ? (
             <Loader2 className="animate-spin" size={20} />
@@ -308,7 +299,6 @@ export default function SupplierSetup({ profile, onComplete, existingStore }: { 
             <>
               {existingStore ? <Plus size={20} className="rotate-45" /> : <Sparkles size={20} />}
               {existingStore ? 'Update Store' : 'Create Store'}
-              {!profile.isVerified && <span className="text-[8px] font-black block ml-2">(Verification Required)</span>}
             </>
           )}
         </button>
