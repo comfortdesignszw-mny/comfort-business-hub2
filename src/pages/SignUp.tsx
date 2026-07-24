@@ -1,122 +1,73 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import { 
-  signInWithEmailAndPassword,
+  createUserWithEmailAndPassword,
   signInWithPopup, 
   signInWithRedirect,
-  getRedirectResult,
-  sendPasswordResetEmail,
   GoogleAuthProvider, 
-  browserPopupRedirectResolver 
+  browserPopupRedirectResolver,
+  updateProfile
 } from 'firebase/auth';
 import { auth, db, handleFirestoreError, OperationType, syncPublicProfile } from '../lib/firebase';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'motion/react';
-import { LogIn, Shield, Globe, Cpu, AlertTriangle, Phone, Mail, Chrome, Eye, EyeOff, Loader2, CheckCircle2, KeyRound } from 'lucide-react';
+import { LogIn, Shield, Globe, Cpu, AlertTriangle, UserPlus, Phone, Mail, Chrome, CheckCircle2, Eye, EyeOff, Loader2, ArrowLeft } from 'lucide-react';
 import { Link, useNavigate } from 'react-router-dom';
 import { UserProfile } from '../types';
 import { 
   COUNTRY_CODES, 
   normalizePhoneNumber, 
   phoneToSyntheticEmail, 
+  checkPhoneExistsInFirestore, 
   getFriendlyAuthErrorMessage 
 } from '../lib/authUtils';
 
-export default function Login() {
+export default function SignUp() {
   const navigate = useNavigate();
   const [method, setMethod] = useState<'google' | 'email' | 'phone'>('phone');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMsg, setSuccessMsg] = useState<string | null>(null);
-  const [quarantineInfo, setQuarantineInfo] = useState<{ duration: string } | null>(null);
 
   // Form Fields
+  const [displayName, setDisplayName] = useState('');
   const [email, setEmail] = useState('');
   const [countryCode, setCountryCode] = useState('+263');
   const [phoneInput, setPhoneInput] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
 
-  // Password reset state
-  const [showForgotPassword, setShowForgotPassword] = useState(false);
-  const [resetEmail, setResetEmail] = useState('');
-  const [resetLoading, setResetLoading] = useState(false);
-
-  useEffect(() => {
-    const checkQuarantine = () => {
-      const temp = localStorage.getItem('quarantine_temp');
-      if (temp) {
-        try {
-          const parsed = JSON.parse(temp);
-          setQuarantineInfo(parsed);
-          localStorage.removeItem('quarantine_temp');
-        } catch (err) {
-          console.error(err);
-        }
-      }
-    };
-
-    checkQuarantine();
-    const interval = setInterval(checkQuarantine, 300);
-    return () => clearInterval(interval);
-  }, []);
-
-  // Handle redirect result on mount (Google SSO redirect flow)
-  useEffect(() => {
-    const checkRedirect = async () => {
-      try {
-        const result = await getRedirectResult(auth);
-        if (result) {
-          setLoading(true);
-          await finishLogin(result.user, 'google');
-        }
-      } catch (err: any) {
-        console.error('Redirect login error:', err);
-        setError(getFriendlyAuthErrorMessage(err.code, err.message));
-      } finally {
-        setLoading(false);
-      }
-    };
-    checkRedirect();
-  }, []);
-
-  const finishLogin = async (user: any, authMethod: 'google' | 'email' | 'phone') => {
+  const handleFinishSignUp = async (user: any, authMethod: 'google' | 'email' | 'phone', extraDetails: { displayName?: string; phoneNumber?: string; email?: string }) => {
     const userPath = `users/${user.uid}`;
+    
+    // Check if doc exists
     let docSnap;
     try {
       docSnap = await getDoc(doc(db, 'users', user.uid));
     } catch (e) {
-      handleFirestoreError(e, OperationType.GET, userPath);
-      return;
+      console.warn("Check user existence warning:", e);
     }
 
-    if (docSnap && docSnap.exists()) {
-      const existingProfile = docSnap.data() as UserProfile;
-      if (existingProfile.status === 'suspended') {
-        const durationText = existingProfile.suspensionDuration || '14 days';
-        await auth.signOut();
-        setQuarantineInfo({ duration: durationText });
-        setLoading(false);
-        return;
-      }
-    }
+    const finalName = extraDetails.displayName || user.displayName || displayName || 'New Operator';
+    const finalPhone = extraDetails.phoneNumber || user.phoneNumber || (authMethod === 'phone' ? extraDetails.phoneNumber : 'Unlinked');
+    const finalEmail = authMethod === 'email' ? (extraDetails.email || email) : (authMethod === 'google' ? user.email : null);
 
-    const profileData: Partial<UserProfile> = {
+    const newProfile: UserProfile = {
       uid: user.uid,
-      name: user.displayName || (docSnap?.exists() ? (docSnap.data() as UserProfile).name : 'Operator'),
-      email: user.email || undefined,
-      avatar: user.photoURL || undefined,
-      isVerified: user.emailVerified || false,
+      name: finalName,
+      displayName: finalName,
       authMethod,
+      email: finalEmail,
+      phoneNumber: authMethod === 'phone' ? finalPhone : null,
+      phone: finalPhone || 'Unlinked',
+      phoneVerified: false,
+      currentRole: 'customer',
+      isVerified: user.emailVerified || false,
+      createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
     };
 
     if (!docSnap || !docSnap.exists()) {
-      const newProfile: UserProfile = {
-        ...profileData,
-        phone: user.phoneNumber || 'Unlinked',
-        currentRole: 'customer',
-      } as UserProfile;
-      
       try {
         await setDoc(doc(db, 'users', user.uid), newProfile);
         await syncPublicProfile(newProfile);
@@ -124,50 +75,63 @@ export default function Login() {
         handleFirestoreError(e, OperationType.WRITE, userPath);
         return;
       }
-    } else {
-      try {
-        await setDoc(doc(db, 'users', user.uid), profileData, { merge: true });
-        const existingProfile = docSnap.data() as UserProfile;
-        await syncPublicProfile({ ...existingProfile, ...profileData });
-      } catch (e) {
-        handleFirestoreError(e, OperationType.UPDATE, userPath);
-        return;
-      }
     }
-    
+
+    // Try updating display name on Firebase Auth user object
+    try {
+      if (user && finalName) {
+        await updateProfile(user, { displayName: finalName });
+      }
+    } catch (e) {
+      console.warn("Could not update auth profile name:", e);
+    }
+
     window.location.reload();
   };
 
-  const handleEmailLogin = async (e: React.FormEvent) => {
+  const handleEmailSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccessMsg(null);
 
-    if (!email.trim()) {
-      setError("Please enter your email address.");
+    if (!displayName.trim()) {
+      setError("Please enter your full name or display name.");
       return;
     }
-    if (!password) {
-      setError("Please enter your password.");
+    if (!email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email.trim())) {
+      setError("Please enter a valid email address.");
+      return;
+    }
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters long.");
+      return;
+    }
+    if (password !== confirmPassword) {
+      setError("Passwords do not match. Please re-enter.");
       return;
     }
 
     setLoading(true);
     try {
-      const cred = await signInWithEmailAndPassword(auth, email.trim(), password);
-      await finishLogin(cred.user, 'email');
+      const cred = await createUserWithEmailAndPassword(auth, email.trim(), password);
+      await handleFinishSignUp(cred.user, 'email', { displayName: displayName.trim(), email: email.trim() });
     } catch (err: any) {
-      console.error("Email Login Error:", err);
+      console.error("Email SignUp Error:", err);
       setError(getFriendlyAuthErrorMessage(err.code, err.message));
     } finally {
       setLoading(false);
     }
   };
 
-  const handlePhoneLogin = async (e: React.FormEvent) => {
+  const handlePhoneSignUp = async (e: React.FormEvent) => {
     e.preventDefault();
     setError(null);
     setSuccessMsg(null);
+
+    if (!displayName.trim()) {
+      setError("Please enter your full name or display name.");
+      return;
+    }
 
     const cleanDigits = phoneInput.replace(/\D/g, '');
     if (cleanDigits.length < 7) {
@@ -175,44 +139,53 @@ export default function Login() {
       return;
     }
 
-    if (!password) {
-      setError("Please enter your password.");
+    if (password.length < 6) {
+      setError("Password must be at least 6 characters long.");
+      return;
+    }
+
+    if (password !== confirmPassword) {
+      setError("Passwords do not match. Please re-enter.");
       return;
     }
 
     const normalizedPhone = normalizePhoneNumber(countryCode, phoneInput);
-    const syntheticEmail = phoneToSyntheticEmail(normalizedPhone);
 
     setLoading(true);
     try {
-      const cred = await signInWithEmailAndPassword(auth, syntheticEmail, password);
-      await finishLogin(cred.user, 'phone');
-    } catch (err: any) {
-      console.error("Phone Login Error:", err);
-      if (err.code === 'auth/user-not-found' || err.code === 'auth/invalid-credential' || err.code === 'auth/wrong-password') {
-        setError("No account found with this phone number or incorrect password. Please check or Sign Up.");
-      } else {
-        setError(getFriendlyAuthErrorMessage(err.code, err.message));
+      // Check phone uniqueness in Firestore first
+      const exists = await checkPhoneExistsInFirestore(normalizedPhone);
+      if (exists) {
+        setError("An account with this phone number already exists. Try logging in instead.");
+        setLoading(false);
+        return;
       }
+
+      const syntheticEmail = phoneToSyntheticEmail(normalizedPhone);
+      const cred = await createUserWithEmailAndPassword(auth, syntheticEmail, password);
+      await handleFinishSignUp(cred.user, 'phone', { displayName: displayName.trim(), phoneNumber: normalizedPhone });
+    } catch (err: any) {
+      console.error("Phone SignUp Error:", err);
+      setError(getFriendlyAuthErrorMessage(err.code, err.message));
     } finally {
       setLoading(false);
     }
   };
 
-  const handleGoogleLogin = async () => {
+  const handleGoogleSignUp = async () => {
     setLoading(true);
     setError(null);
     const provider = new GoogleAuthProvider();
-    
+
     try {
       const { user } = await signInWithPopup(auth, provider, browserPopupRedirectResolver);
-      await finishLogin(user, 'google');
+      await handleFinishSignUp(user, 'google', { displayName: user.displayName || 'Operator' });
     } catch (err: any) {
-      console.error('Login Error:', err);
+      console.error("Google SignUp Error:", err);
       if (err.code === 'auth/popup-blocked' || err.code === 'auth/cancelled-popup-request') {
         try {
           await signInWithRedirect(auth, provider);
-        } catch (redirectErr: any) {
+        } catch (rErr: any) {
           setError("Sign in failed. Please open this app in a new tab using the top-right button.");
         }
       } else {
@@ -220,29 +193,6 @@ export default function Login() {
       }
     } finally {
       setLoading(false);
-    }
-  };
-
-  const handlePasswordReset = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!resetEmail.trim()) {
-      setError("Please enter your registered email address.");
-      return;
-    }
-
-    setResetLoading(true);
-    setError(null);
-    setSuccessMsg(null);
-
-    try {
-      await sendPasswordResetEmail(auth, resetEmail.trim());
-      setSuccessMsg("Password reset email sent! Check your inbox.");
-      setShowForgotPassword(false);
-    } catch (err: any) {
-      console.error("Password reset error:", err);
-      setError(getFriendlyAuthErrorMessage(err.code, err.message));
-    } finally {
-      setResetLoading(false);
     }
   };
 
@@ -264,9 +214,9 @@ export default function Login() {
           
           <div className="space-y-1">
             <h1 className="text-3xl font-black text-white italic tracking-tighter uppercase leading-none">
-              Comfort <span className="text-primary drop-shadow-[0_0_10px_rgba(0,242,254,0.5)]">Business Hub</span>
+              Create <span className="text-primary drop-shadow-[0_0_10px_rgba(0,242,254,0.5)]">Account</span>
             </h1>
-            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-[0.25em]">The Future of Zimbabwe Commerce</p>
+            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-[0.25em]">Comfort Business Hub Zimbabwe</p>
           </div>
         </header>
 
@@ -275,13 +225,13 @@ export default function Login() {
           layout
           className="neon-card p-6 sm:p-8 space-y-6 relative overflow-hidden"
         >
-          <div className="absolute top-0 left-0 w-32 h-32 bg-primary/5 blur-3xl -ml-16 -mt-16"></div>
+          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl -mr-16 -mt-16"></div>
 
           {/* Auth Method Selector */}
           <div className="grid grid-cols-3 gap-2 p-1.5 bg-white/5 rounded-2xl border border-white/10">
             <button
               type="button"
-              onClick={() => { setMethod('phone'); setError(null); setShowForgotPassword(false); }}
+              onClick={() => { setMethod('phone'); setError(null); }}
               className={`py-2.5 px-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${
                 method === 'phone' 
                   ? 'bg-primary text-black shadow-[0_0_15px_rgba(0,242,254,0.4)]' 
@@ -294,7 +244,7 @@ export default function Login() {
 
             <button
               type="button"
-              onClick={() => { setMethod('email'); setError(null); setShowForgotPassword(false); }}
+              onClick={() => { setMethod('email'); setError(null); }}
               className={`py-2.5 px-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${
                 method === 'email' 
                   ? 'bg-primary text-black shadow-[0_0_15px_rgba(0,242,254,0.4)]' 
@@ -307,7 +257,7 @@ export default function Login() {
 
             <button
               type="button"
-              onClick={() => { setMethod('google'); setError(null); setShowForgotPassword(false); }}
+              onClick={() => { setMethod('google'); setError(null); }}
               className={`py-2.5 px-2 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-1.5 ${
                 method === 'google' 
                   ? 'bg-primary text-black shadow-[0_0_15px_rgba(0,242,254,0.4)]' 
@@ -319,17 +269,7 @@ export default function Login() {
             </button>
           </div>
 
-          {/* Quarantine Banner */}
-          {quarantineInfo && (
-            <div className="p-4 bg-amber-500/10 border border-amber-500/30 rounded-2xl text-amber-400 text-[10px] font-bold uppercase tracking-wider text-center flex flex-col items-center justify-center gap-2">
-              <AlertTriangle size={24} className="shrink-0 text-amber-500" />
-              <p className="leading-relaxed">
-                Your account has been suspended by System Admin for <span className="underline font-black">{quarantineInfo.duration}</span>.
-              </p>
-            </div>
-          )}
-
-          {/* Error & Success Banner */}
+          {/* Error Banner */}
           <AnimatePresence>
             {error && (
               <motion.div 
@@ -355,9 +295,21 @@ export default function Login() {
             )}
           </AnimatePresence>
 
-          {/* PHONE LOGIN FORM */}
+          {/* PHONE FORM */}
           {method === 'phone' && (
-            <form onSubmit={handlePhoneLogin} className="space-y-4">
+            <form onSubmit={handlePhoneSignUp} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Full Name / Business Name</label>
+                <input 
+                  type="text"
+                  required
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="e.g. Tendai Moyo"
+                  className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-primary transition-all font-medium"
+                />
+              </div>
+
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Mobile Phone Number</label>
                 <div className="flex gap-2">
@@ -382,17 +334,19 @@ export default function Login() {
                     className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-primary transition-all font-medium"
                   />
                 </div>
+                <p className="text-[9px] text-gray-500 font-medium ml-1">No email required! Enter mobile digits without spaces.</p>
               </div>
 
               <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Password</label>
+                <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Create Password</label>
                 <div className="relative">
                   <input 
                     type={showPassword ? "text" : "password"}
                     required
+                    minLength={6}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter your password"
+                    placeholder="At least 6 characters"
                     className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-primary transition-all pr-10 font-medium"
                   />
                   <button 
@@ -405,6 +359,19 @@ export default function Login() {
                 </div>
               </div>
 
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Confirm Password</label>
+                <input 
+                  type={showPassword ? "text" : "password"}
+                  required
+                  minLength={6}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Re-enter password"
+                  className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-primary transition-all font-medium"
+                />
+              </div>
+
               <button 
                 type="submit"
                 disabled={loading}
@@ -412,17 +379,29 @@ export default function Login() {
               >
                 {loading ? <Loader2 className="animate-spin" size={18} /> : (
                   <>
-                    <LogIn size={18} />
-                    Log In with Phone
+                    <UserPlus size={18} />
+                    Create Account with Phone
                   </>
                 )}
               </button>
             </form>
           )}
 
-          {/* EMAIL LOGIN FORM */}
-          {method === 'email' && !showForgotPassword && (
-            <form onSubmit={handleEmailLogin} className="space-y-4">
+          {/* EMAIL FORM */}
+          {method === 'email' && (
+            <form onSubmit={handleEmailSignUp} className="space-y-4">
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Full Name / Business Name</label>
+                <input 
+                  type="text"
+                  required
+                  value={displayName}
+                  onChange={(e) => setDisplayName(e.target.value)}
+                  placeholder="e.g. Chipo Mutasa"
+                  className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-primary transition-all font-medium"
+                />
+              </div>
+
               <div className="space-y-1">
                 <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Email Address</label>
                 <input 
@@ -437,23 +416,15 @@ export default function Login() {
               </div>
 
               <div className="space-y-1">
-                <div className="flex items-center justify-between">
-                  <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Password</label>
-                  <button 
-                    type="button"
-                    onClick={() => { setShowForgotPassword(true); setResetEmail(email); setError(null); }}
-                    className="text-[9px] font-black text-primary uppercase tracking-wider hover:underline"
-                  >
-                    Forgot Password?
-                  </button>
-                </div>
+                <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Create Password</label>
                 <div className="relative">
                   <input 
                     type={showPassword ? "text" : "password"}
                     required
+                    minLength={6}
                     value={password}
                     onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Enter password"
+                    placeholder="At least 6 characters"
                     className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-primary transition-all pr-10 font-medium"
                   />
                   <button 
@@ -466,6 +437,19 @@ export default function Login() {
                 </div>
               </div>
 
+              <div className="space-y-1">
+                <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Confirm Password</label>
+                <input 
+                  type={showPassword ? "text" : "password"}
+                  required
+                  minLength={6}
+                  value={confirmPassword}
+                  onChange={(e) => setConfirmPassword(e.target.value)}
+                  placeholder="Re-enter password"
+                  className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-primary transition-all font-medium"
+                />
+              </div>
+
               <button 
                 type="submit"
                 disabled={loading}
@@ -473,89 +457,50 @@ export default function Login() {
               >
                 {loading ? <Loader2 className="animate-spin" size={18} /> : (
                   <>
-                    <LogIn size={18} />
-                    Log In with Email
+                    <UserPlus size={18} />
+                    Create Account with Email
                   </>
                 )}
               </button>
             </form>
           )}
 
-          {/* FORGOT PASSWORD FORM */}
-          {method === 'email' && showForgotPassword && (
-            <form onSubmit={handlePasswordReset} className="space-y-4">
-              <div className="flex items-center justify-between">
-                <span className="text-[10px] font-black uppercase text-primary tracking-widest flex items-center gap-1.5">
-                  <KeyRound size={12} /> Reset Password
-                </span>
-                <button 
-                  type="button" 
-                  onClick={() => setShowForgotPassword(false)}
-                  className="text-[9px] text-gray-400 hover:text-white font-bold uppercase tracking-wider"
-                >
-                  Back to Login
-                </button>
-              </div>
-
-              <div className="space-y-1">
-                <label className="text-[10px] font-black uppercase text-gray-400 tracking-wider">Your Email Address</label>
-                <input 
-                  type="email"
-                  inputMode="email"
-                  required
-                  value={resetEmail}
-                  onChange={(e) => setResetEmail(e.target.value)}
-                  placeholder="you@example.com"
-                  className="w-full bg-black/40 border border-white/10 rounded-2xl px-4 py-3 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-primary transition-all font-medium"
-                />
-              </div>
-
-              <button 
-                type="submit"
-                disabled={resetLoading}
-                className="w-full btn-neon py-3.5 text-xs font-black uppercase tracking-[0.2em] italic flex items-center justify-center gap-2"
-              >
-                {resetLoading ? <Loader2 className="animate-spin" size={18} /> : "Send Reset Email"}
-              </button>
-            </form>
-          )}
-
-          {/* GOOGLE LOGIN FORM */}
+          {/* GOOGLE FORM */}
           {method === 'google' && (
             <div className="space-y-4 py-2">
               <div className="p-4 bg-white/5 rounded-2xl border border-white/10 text-center space-y-2">
                 <Chrome size={32} className="text-primary mx-auto animate-pulse" />
-                <h3 className="text-xs font-black uppercase text-white tracking-widest">Sign In with Google</h3>
+                <h3 className="text-xs font-black uppercase text-white tracking-widest">Instant Sign Up with Google</h3>
                 <p className="text-[10px] text-gray-400 leading-relaxed font-medium">
-                  Connect quickly and securely using your existing Google account.
+                  Use your Google Account for fast, secure authentication without setting passwords.
                 </p>
               </div>
 
               <button 
                 type="button"
-                onClick={handleGoogleLogin}
+                onClick={handleGoogleSignUp}
                 disabled={loading}
                 className="w-full btn-neon py-4 text-xs font-black uppercase tracking-[0.2em] italic flex items-center justify-center gap-2"
               >
                 {loading ? <Loader2 className="animate-spin" size={18} /> : (
                   <>
                     <LogIn size={18} />
-                    Continue with Google
+                    Sign Up using Google
                   </>
                 )}
               </button>
             </div>
           )}
 
-          {/* Redirect to Sign Up Link */}
+          {/* Redirect to Login Link */}
           <div className="pt-4 border-t border-white/10 text-center">
             <p className="text-xs text-gray-400 font-medium">
-              Don't have an account?{' '}
+              Already have an account?{' '}
               <Link 
-                to="/signup" 
+                to="/login" 
                 className="text-primary font-black uppercase tracking-wider hover:underline italic ml-1"
               >
-                Sign Up Here
+                Log In Here
               </Link>
             </p>
           </div>

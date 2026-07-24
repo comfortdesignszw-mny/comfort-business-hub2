@@ -30,6 +30,7 @@ const DealRoom = lazy(() => import('./pages/DealRoom'));
 const Chat = lazy(() => import('./pages/Chat'));
 const Profile = lazy(() => import('./pages/Profile'));
 import Login from './pages/Login';
+import SignUp from './pages/SignUp';
 const SupplierSetup = lazy(() => import('./pages/SupplierSetup'));
 const SupplierDashboard = lazy(() => import('./pages/SupplierDashboard'));
 const CustomerSetup = lazy(() => import('./pages/CustomerSetup'));
@@ -342,6 +343,7 @@ export default function App() {
                                   <Route path="/terms" element={<TermsOfService />} />
                                   <Route path="/privacy" element={<PrivacyPolicy />} />
                                   <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
+                                  <Route path="/signup" element={user ? <Navigate to="/" replace /> : <SignUp />} />
 
                                   {/* Protected Content */}
                                   {!user ? (

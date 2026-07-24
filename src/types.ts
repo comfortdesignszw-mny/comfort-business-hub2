@@ -18,8 +18,12 @@ export interface UserProfile {
   uid: string;
   isGuest?: boolean;
   name: string;
-  email?: string;
+  displayName?: string;
+  authMethod?: 'google' | 'email' | 'phone';
+  email?: string | null;
   phone: string;
+  phoneNumber?: string | null;
+  phoneVerified?: boolean;
   avatar?: string;
   currentRole: Role;
   geohash?: string;
@@ -52,6 +56,7 @@ export interface UserProfile {
     details: string;
     isActive: boolean;
   };
+  createdAt?: any;
   updatedAt?: any;
 }
 
