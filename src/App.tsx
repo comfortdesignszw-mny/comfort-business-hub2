@@ -11,8 +11,9 @@ import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firest
 import { 
   Search, ShoppingBag, MessageSquare, User as UserIcon, Store, LayoutGrid, 
   Zap, Menu, Bell, ArrowLeft, X, Heart, Star, UserPlus, Check, Loader2, Users, ShieldAlert,
-  LogIn, Download
+  LogIn, Download, Fingerprint
 } from 'lucide-react';
+import BiometricAuthModal from './components/BiometricAuthModal';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile, Role, AppNotification } from './types';
 import { cn } from './lib/utils';
@@ -401,6 +402,7 @@ function Header({ profile, onMenuClick, onLogout }: { profile: UserProfile | nul
   const isHome = location.pathname === '/' || location.pathname === '';
   const { unreadCount } = useNotifications();
   const [showNotifications, setShowNotifications] = useState(false);
+  const [showBiometricModal, setShowBiometricModal] = useState(false);
 
   return (
     <header className="bg-white/5 backdrop-blur-xl border-b border-white/5 p-4 sticky top-0 z-20">
@@ -445,6 +447,14 @@ function Header({ profile, onMenuClick, onLogout }: { profile: UserProfile | nul
 
           {profile ? (
             <>
+              <button
+                onClick={() => setShowBiometricModal(true)}
+                className="w-10 h-10 bg-primary/10 border border-primary/20 rounded-xl flex items-center justify-center text-primary hover:bg-primary hover:text-black transition-all shadow-[0_0_12px_rgba(0,242,254,0.15)]"
+                title="Biometric Hardware Unlock (Touch ID / Face ID)"
+              >
+                <Fingerprint size={18} />
+              </button>
+
               <button 
                 onClick={() => setShowNotifications(true)}
                 className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center text-gray-400 hover:text-primary transition-all relative group"
@@ -462,6 +472,13 @@ function Header({ profile, onMenuClick, onLogout }: { profile: UserProfile | nul
                   <NotificationsModal profile={profile} onClose={() => setShowNotifications(false)} />
                 )}
               </AnimatePresence>
+
+              <BiometricAuthModal 
+                isOpen={showBiometricModal} 
+                onClose={() => setShowBiometricModal(false)} 
+                profile={profile} 
+                mode="unlock" 
+              />
 
               <Link to="/profile" className="w-10 h-10 rounded-xl overflow-hidden border border-white/10 hover:border-primary/50 transition-colors text-primary font-bold">
                 <div className="w-full h-full bg-primary/20 flex items-center justify-center overflow-hidden">

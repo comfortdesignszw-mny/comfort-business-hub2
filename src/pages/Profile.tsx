@@ -5,7 +5,8 @@ import {
   User, Store, Phone, MapPin, Shield, LogOut, ChevronRight, Wallet, 
   Bell, Zap, Image as ImageIcon, X, Check, CreditCard, 
   Navigation, Crosshair, Save, Loader2, Megaphone, Trash2, Calendar, FileText, Plus, Users, MessageSquare, Share, RefreshCw, Download
-, Network, ExternalLink } from 'lucide-react';
+, Network, ExternalLink, Fingerprint } from 'lucide-react';
+import BiometricAuthModal from '../components/BiometricAuthModal';
 import { UserProfile, Role, Spotlight, Product, Connection } from '../types';
 import { auth, db, handleFirestoreError, OperationType, syncPublicProfile } from '../lib/firebase';
 import { localDB } from '../lib/db';
@@ -35,6 +36,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
   const [loading, setLoading] = useState(false);
   const [activeModal, setActiveModal] = useState<'gateway' | 'location' | 'spotlights' | 'delete' | 'connections' | 'notifications' | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [isBiometricModalOpen, setIsBiometricModalOpen] = useState(false);
   const [editData, setEditData] = useState<Partial<UserProfile>>({});
   const [engagementStats, setEngagementStats] = useState({ engaged: 0, volume: 0 });
 
@@ -867,9 +869,23 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
           />
         )}
         <MenuButton icon={User} label="My Profile" detail="Modify Profile Details" onClick={() => setIsEditing(true)} />
+        <MenuButton 
+          icon={Fingerprint} 
+          label="Biometric Vault" 
+          detail="Touch ID / Face ID Session Unlock" 
+          onClick={() => setIsBiometricModalOpen(true)} 
+        />
         <MenuButton icon={Bell} label="Notification Settings" detail="Manage your alerts" onClick={() => setActiveModal('notifications')} />
         <MenuButton icon={Download} label="My Information" detail="Download my data" onClick={handleDownloadData} />
       </section>
+
+      {/* Biometric Hardware Vault Modal */}
+      <BiometricAuthModal 
+        isOpen={isBiometricModalOpen} 
+        onClose={() => setIsBiometricModalOpen(false)} 
+        profile={profile} 
+        mode="settings" 
+      />
 
       <div className="pt-6 pb-20 space-y-4">
         <button 

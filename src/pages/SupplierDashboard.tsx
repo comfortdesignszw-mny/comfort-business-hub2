@@ -48,6 +48,7 @@ import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
 import { useLocation } from 'react-router-dom';
+import MarketTrendsChart from '../components/MarketTrendsChart';
 
 // Fix for default marker icon in Leaflet
 const DefaultIcon = L.icon({
@@ -822,6 +823,11 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
             <p className="text-xl font-black text-white italic tracking-tighter">{engagementStats.interested}</p>
           </div>
         </div>
+      </section>
+
+      {/* Market Trends Analytics Section */}
+      <section>
+        <MarketTrendsChart userCategory={activeStore?.category} />
       </section>
 
       {/* Product List */}
