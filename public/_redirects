@@ -1,0 +1,2 @@
+# SPA fallback only — do not add rules that strip .html or /index, this causes Cloudflare redirect loops (error 100324)
+/*  /index.html  200
