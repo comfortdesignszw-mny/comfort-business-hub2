@@ -45,6 +45,14 @@ export default function PWAPrompt() {
     if (isStandalone) {
       setIsVisible(false);
     }
+    
+    // Check if the event already fired before React mounted
+    if ((window as any).deferredPWAInstallPrompt) {
+      setDeferredPrompt((window as any).deferredPWAInstallPrompt);
+      if (!isIos) {
+        setTimeout(() => setIsVisible(true), 2000);
+      }
+    }
 
     return () => {
       window.removeEventListener('beforeinstallprompt', handler);

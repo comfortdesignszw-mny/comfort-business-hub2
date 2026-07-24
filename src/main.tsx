@@ -38,6 +38,12 @@ if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
   });
 }
 
+// Capture install prompt early
+window.addEventListener('beforeinstallprompt', (e) => {
+  e.preventDefault();
+  (window as any).deferredPWAInstallPrompt = e;
+});
+
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
