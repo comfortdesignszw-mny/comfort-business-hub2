@@ -15,7 +15,8 @@ export default defineConfig(({mode}) => {
         srcDir: 'src',
         filename: 'sw.ts',
         registerType: 'autoUpdate',
-        includeAssets: ['favicon.png', 'apple-touch-icon.png', 'icon.png', 'manifest.json', 'manifest.webmanifest'],
+        manifestFilename: 'manifest.json',
+        includeAssets: ['favicon.png', 'apple-touch-icon.png', 'icon.png', 'manifest.json', 'manifest.webmanifest', 'icons/*.png'],
         manifest: {
           name: 'Comfort Business Hub',
           short_name: 'ComfortHub',
@@ -23,6 +24,7 @@ export default defineConfig(({mode}) => {
           theme_color: '#0d1117',
           background_color: '#05070a',
           display: 'standalone',
+          display_override: ['standalone', 'window-controls-overlay', "minimal-ui"],
           orientation: 'any',
           start_url: '/?source=pwa',
           scope: '/',
@@ -68,10 +70,22 @@ export default defineConfig(({mode}) => {
               purpose: 'any'
             },
             {
+              src: '/icons/icon-192x192.png',
+              sizes: '192x192',
+              type: 'image/png',
+              purpose: 'maskable'
+            },
+            {
               src: '/icons/icon-512x512.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'any'
+            },
+            {
+              src: '/icons/icon-512x512.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'maskable'
             },
             {
               src: '/icons/icon-maskable-192x192.png',

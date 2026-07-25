@@ -23,6 +23,20 @@ self.addEventListener('message', (event) => {
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
 
+// SPA Navigation Fallback for Offline Capability
+registerRoute(
+  ({ request }) => request.mode === 'navigate',
+  new NetworkFirst({
+    cacheName: 'spa-navigation-cache',
+    plugins: [
+      new ExpirationPlugin({
+        maxEntries: 20,
+        maxAgeSeconds: 24 * 60 * 60, // 24 hours
+      })
+    ]
+  })
+);
+
 // Background Sync for standard fetch requests (if any)
 const bgSyncPlugin = new BackgroundSyncPlugin('comfort-queue', {
   maxRetentionTime: 24 * 60 // Retry for max of 24 Hours
