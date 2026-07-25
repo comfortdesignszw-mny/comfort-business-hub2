@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { createPortal } from 'react-dom';
 import { motion } from 'motion/react';
 import { 
   Bell, X, MessageSquare, ShoppingBag, Heart, Store as StoreIcon, 
@@ -42,21 +43,21 @@ export default function PushNotificationSettingsModal({
     setTimeout(() => setTestSuccessMsg(null), 4000);
   };
 
-  return (
-    <div className="fixed inset-0 z-[150] flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+  const modalContent = (
+    <div className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
       <motion.div 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="absolute inset-0 bg-[#05070a]/90 backdrop-blur-xl"
+        className="fixed inset-0 bg-[#05070a]/90 backdrop-blur-xl"
         onClick={onClose}
       />
 
       <motion.div 
-        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+        initial={{ scale: 0.95, opacity: 0, y: 10 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 0.9, opacity: 0, y: 20 }}
-        className="relative w-full max-w-lg bg-[#0d1117] border border-white/10 rounded-3xl shadow-2xl overflow-hidden flex flex-col max-h-[85vh]"
+        exit={{ scale: 0.95, opacity: 0, y: 10 }}
+        className="relative z-10 w-full max-w-lg bg-[#0d1117] border border-white/10 rounded-3xl shadow-2xl overflow-hidden flex flex-col my-auto max-h-[85vh] shrink-0"
       >
         {/* Header */}
         <div className="p-5 sm:p-6 border-b border-white/10 bg-white/5 flex justify-between items-center">
@@ -247,4 +248,6 @@ export default function PushNotificationSettingsModal({
       </motion.div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : null;
 }

@@ -1,4 +1,5 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
+import { createPortal } from 'react-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   X, Compass, Search, Heart, UserPlus, Share2, ShieldAlert, Zap, 
@@ -183,12 +184,35 @@ export default function AppTutorialModal({
 }) {
   const [currentStep, setCurrentStep] = useState(0);
   const [dontShowAgain, setDontShowAgain] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+  const bodyRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
     if (isOpen) {
       setCurrentStep(0);
+      window.scrollTo(0, 0);
+      const main = document.querySelector('main');
+      if (main) {
+        main.scrollTo(0, 0);
+        main.scrollTop = 0;
+      }
+      if (containerRef.current) {
+        containerRef.current.scrollTo(0, 0);
+        containerRef.current.scrollTop = 0;
+      }
+      if (bodyRef.current) {
+        bodyRef.current.scrollTo(0, 0);
+        bodyRef.current.scrollTop = 0;
+      }
     }
   }, [isOpen]);
+
+  useEffect(() => {
+    if (bodyRef.current) {
+      bodyRef.current.scrollTo(0, 0);
+      bodyRef.current.scrollTop = 0;
+    }
+  }, [currentStep]);
 
   const handleFinish = () => {
     if (dontShowAgain) {
@@ -202,21 +226,21 @@ export default function AppTutorialModal({
   const step = TUTORIAL_STEPS[currentStep];
   const StepIcon = step.icon;
 
-  return (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center p-4 sm:p-6 overflow-y-auto">
+  const modalContent = (
+    <div ref={containerRef} className="fixed inset-0 z-[99999] flex items-center justify-center p-3 sm:p-6 overflow-y-auto">
       <motion.div 
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
         exit={{ opacity: 0 }}
-        className="absolute inset-0 bg-[#05070a]/90 backdrop-blur-xl"
+        className="fixed inset-0 bg-[#05070a]/90 backdrop-blur-xl"
         onClick={onClose}
       />
 
       <motion.div 
-        initial={{ scale: 0.9, opacity: 0, y: 20 }}
+        initial={{ scale: 0.95, opacity: 0, y: 10 }}
         animate={{ scale: 1, opacity: 1, y: 0 }}
-        exit={{ scale: 0.9, opacity: 0, y: 20 }}
-        className="relative w-full max-w-xl bg-[#0d1117] border border-primary/30 rounded-3xl shadow-[0_0_50px_rgba(0,242,254,0.15)] overflow-hidden flex flex-col max-h-[90vh]"
+        exit={{ scale: 0.95, opacity: 0, y: 10 }}
+        className="relative z-10 w-full max-w-xl bg-[#0d1117] border border-primary/30 rounded-3xl shadow-[0_0_50px_rgba(0,242,254,0.3)] overflow-hidden flex flex-col my-auto max-h-[85vh] shrink-0"
       >
         {/* Header Bar */}
         <div className="p-5 sm:p-6 border-b border-white/10 bg-white/5 flex justify-between items-center relative">
@@ -255,7 +279,7 @@ export default function AppTutorialModal({
         </div>
 
         {/* Content Body */}
-        <div className="p-6 sm:p-8 overflow-y-auto space-y-6 custom-scrollbar flex-1">
+        <div ref={bodyRef} className="p-5 sm:p-8 overflow-y-auto space-y-6 custom-scrollbar flex-1">
           <div className="flex items-start gap-4 p-4 bg-primary/10 border border-primary/20 rounded-2xl">
             <div className="w-12 h-12 rounded-2xl bg-primary/20 border border-primary/40 flex items-center justify-center text-primary shrink-0 shadow-lg">
               <StepIcon size={24} />
@@ -336,4 +360,6 @@ export default function AppTutorialModal({
       </motion.div>
     </div>
   );
+
+  return typeof document !== 'undefined' ? createPortal(modalContent, document.body) : null;
 }
