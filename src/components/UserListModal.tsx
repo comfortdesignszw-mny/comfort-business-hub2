@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   X, Search, Users, Shield, MapPin, Store as StoreIcon, Phone, ExternalLink, Loader2
@@ -18,6 +18,17 @@ export default function UserListModal({ isOpen, onClose, onUserClick }: UserList
   const [users, setUsers] = useState<PublicProfile[]>([]);
   const [searchTerm, setSearchTerm] = useState('');
   const [loading, setLoading] = useState(true);
+  const listRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      window.scrollTo(0, 0);
+      if (listRef.current) {
+        listRef.current.scrollTo(0, 0);
+        listRef.current.scrollTop = 0;
+      }
+    }
+  }, [isOpen]);
 
   useEffect(() => {
     if (!isOpen) return;
@@ -93,7 +104,7 @@ export default function UserListModal({ isOpen, onClose, onUserClick }: UserList
             </div>
 
             {/* List */}
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-8">
+            <div ref={listRef} className="flex-1 overflow-y-auto custom-scrollbar p-4 sm:p-8">
               {loading ? (
                 <div className="flex flex-col items-center justify-center py-20 space-y-4">
                   <Loader2 className="animate-spin text-primary" size={32} />

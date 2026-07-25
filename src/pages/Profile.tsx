@@ -39,6 +39,26 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
   const [isBiometricModalOpen, setIsBiometricModalOpen] = useState(false);
   const [editData, setEditData] = useState<Partial<UserProfile>>({});
   const [engagementStats, setEngagementStats] = useState({ engaged: 0, volume: 0 });
+  const modalContainerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    // Whenever an item is clicked in Profile (modal opened, edit mode toggled, biometric modal or user list opened)
+    window.scrollTo(0, 0);
+    const main = document.querySelector('main');
+    if (main) {
+      main.scrollTo(0, 0);
+      main.scrollTop = 0;
+    }
+    if (modalContainerRef.current) {
+      modalContainerRef.current.scrollTo(0, 0);
+      modalContainerRef.current.scrollTop = 0;
+    }
+    const scrollableOverlays = document.querySelectorAll('.fixed .overflow-y-auto, .fixed.overflow-y-auto');
+    scrollableOverlays.forEach((el) => {
+      el.scrollTo(0, 0);
+      el.scrollTop = 0;
+    });
+  }, [activeModal, isEditing, isBiometricModalOpen, isUserListOpen, routeId]);
 
   useEffect(() => {
     let isMounted = true;
@@ -930,7 +950,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
       {/* Modals */}
       <AnimatePresence>
         {activeModal && (
-          <div className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-12 md:pt-20 overflow-y-auto">
+          <div ref={modalContainerRef} className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-12 md:pt-20 overflow-y-auto">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}

@@ -41,6 +41,12 @@ export default function BiometricAuthModal({
       }
     }
     if (isOpen) {
+      window.scrollTo(0, 0);
+      const main = document.querySelector('main');
+      if (main) {
+        main.scrollTo(0, 0);
+        main.scrollTop = 0;
+      }
       checkSupport();
       setErrorMsg(null);
       setSuccessMsg(null);

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   X, User, Shield, MapPin, MessageSquare, Users, Check, Loader2, Star, Building2, Store as StoreIcon, ShieldAlert
@@ -28,6 +28,17 @@ export default function UserProfileModal({ userId, isOpen, onClose, currentUserP
   const [showReportModal, setShowReportModal] = useState(false);
   const navigate = useNavigate();
   const { triggerFeedback } = useNotifications();
+  const modalContentRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (isOpen) {
+      window.scrollTo(0, 0);
+      if (modalContentRef.current) {
+        modalContentRef.current.scrollTo(0, 0);
+        modalContentRef.current.scrollTop = 0;
+      }
+    }
+  }, [isOpen, userId]);
 
   useEffect(() => {
     if (!isOpen || !userId) return;
@@ -140,7 +151,7 @@ export default function UserProfileModal({ userId, isOpen, onClose, currentUserP
               </button>
             </div>
 
-            <div className="flex-1 overflow-y-auto custom-scrollbar p-6 pt-12 sm:pt-16 sm:p-10">
+            <div ref={modalContentRef} className="flex-1 overflow-y-auto custom-scrollbar p-6 pt-12 sm:pt-16 sm:p-10">
               {loading ? (
                 <div className="flex flex-col items-center justify-center py-20 space-y-4">
                   <div className="w-12 h-12 border-4 border-primary/20 border-t-primary rounded-full animate-spin"></div>

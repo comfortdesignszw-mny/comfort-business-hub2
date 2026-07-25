@@ -60,7 +60,7 @@ const PageLoader = () => (
 
 // Global Scroll To Top component
 const ScrollToTop = () => {
-  const { pathname } = useLocation();
+  const location = useLocation();
 
   useEffect(() => {
     // Explicitly set browser scroll restoration to manual so standard browser history navigation does not battle our reset
@@ -82,6 +82,13 @@ const ScrollToTop = () => {
       window.scrollTo(0, 0);
       if (document.documentElement) document.documentElement.scrollTop = 0;
       if (document.body) document.body.scrollTop = 0;
+
+      // Scroll any active modal / overlay containers
+      const scrollableElements = document.querySelectorAll('.overflow-y-auto, .overflow-auto');
+      scrollableElements.forEach((el) => {
+        el.scrollTo(0, 0);
+        el.scrollTop = 0;
+      });
     };
 
     // Reset scroll immediately
@@ -89,13 +96,13 @@ const ScrollToTop = () => {
 
     // Defer a tiny bit to run clean-ups after React finishes its layout cycles and content gets painted
     const animationFrameId = requestAnimationFrame(performScrollReset);
-    const timeoutId = setTimeout(performScrollReset, 0);
+    const timeoutId = setTimeout(performScrollReset, 20);
 
     return () => {
       cancelAnimationFrame(animationFrameId);
       clearTimeout(timeoutId);
     };
-  }, [pathname]);
+  }, [location.pathname, location.search, location.hash]);
 
   return null;
 };

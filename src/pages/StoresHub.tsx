@@ -39,6 +39,15 @@ export default function StoresHub({ profile }: { profile: UserProfile | null }) 
   }, [searchParams]);
 
   useEffect(() => {
+    window.scrollTo(0, 0);
+    const main = document.querySelector('main');
+    if (main) {
+      main.scrollTo(0, 0);
+      main.scrollTop = 0;
+    }
+  }, [activeTab, activeCategory]);
+
+  useEffect(() => {
     setLoading(true);
     const sq = query(collection(db, 'stores'), limit(50));
     const unsubscribe = onSnapshot(sq, (snapshot) => {
