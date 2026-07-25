@@ -16,7 +16,7 @@ export default defineConfig(({mode}) => {
         filename: 'sw.ts',
         registerType: 'autoUpdate',
         manifestFilename: 'manifest.json',
-        includeAssets: ['favicon.ico', 'manifest.json', 'manifest.webmanifest', 'icons/*.png'],
+        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'manifest.json', 'icons/*.png', 'icons/*.ico'],
         manifest: {
           name: 'Comfort Business Hub',
           short_name: 'ComfortHub',
@@ -44,22 +44,6 @@ export default defineConfig(({mode}) => {
               description: 'View active deal rooms',
               url: '/chat',
               icons: [{ src: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' }]
-            }
-          ],
-          screenshots: [
-            {
-              src: 'https://images.unsplash.com/photo-1557683316-973673baf926?w=1080&h=1920&q=80&fit=crop',
-              sizes: '1080x1920',
-              type: 'image/png',
-              form_factor: 'narrow',
-              label: 'Neural Marketplace'
-            },
-            {
-              src: 'https://images.unsplash.com/photo-1451187580459-43490279c0fa?w=1920&h=1080&q=80&fit=crop',
-              sizes: '1920x1080',
-              type: 'image/png',
-              form_factor: 'wide',
-              label: 'Supply Chain Command'
             }
           ],
           icons: [
