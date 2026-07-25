@@ -16,7 +16,7 @@ export default defineConfig(({mode}) => {
         filename: 'sw.ts',
         registerType: 'autoUpdate',
         manifestFilename: 'manifest.json',
-        includeAssets: ['favicon.png', 'apple-touch-icon.png', 'icon.png', 'manifest.json', 'manifest.webmanifest', 'icons/*.png'],
+        includeAssets: ['favicon.ico', 'manifest.json', 'manifest.webmanifest', 'icons/*.png'],
         manifest: {
           name: 'Comfort Business Hub',
           short_name: 'ComfortHub',
