@@ -11,9 +11,11 @@ import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firest
 import { 
   Search, ShoppingBag, MessageSquare, User as UserIcon, Store, LayoutGrid, 
   Zap, Menu, Bell, ArrowLeft, X, Heart, Star, UserPlus, Check, Loader2, Users, ShieldAlert,
-  LogIn, Download, Fingerprint
+  LogIn, Download, Fingerprint, Compass, Settings, HelpCircle
 } from 'lucide-react';
 import BiometricAuthModal from './components/BiometricAuthModal';
+import AppTutorialModal from './components/AppTutorialModal';
+import PushNotificationSettingsModal from './components/PushNotificationSettingsModal';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile, Role, AppNotification } from './types';
 import { cn } from './lib/utils';
@@ -410,6 +412,7 @@ function Header({ profile, onMenuClick, onLogout }: { profile: UserProfile | nul
   const { unreadCount } = useNotifications();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showBiometricModal, setShowBiometricModal] = useState(false);
+  const [showTutorial, setShowTutorial] = useState(false);
 
   return (
     <header className="bg-white/5 backdrop-blur-xl border-b border-white/5 p-4 sticky top-0 z-20">
@@ -443,6 +446,15 @@ function Header({ profile, onMenuClick, onLogout }: { profile: UserProfile | nul
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={() => setShowTutorial(true)}
+            className="flex items-center gap-1.5 px-2.5 py-2 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all"
+            title="How To Navigate App Tutorial"
+          >
+            <Compass size={14} className="text-primary animate-spin-slow" />
+            <span className="hidden md:inline">Tutorial</span>
+          </button>
+
           <button
             onClick={() => window.dispatchEvent(new CustomEvent('pwa-prompt-install'))}
             className="flex items-center gap-1.5 px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-[0_0_12px_rgba(0,242,254,0.15)]"
@@ -485,6 +497,11 @@ function Header({ profile, onMenuClick, onLogout }: { profile: UserProfile | nul
                 onClose={() => setShowBiometricModal(false)} 
                 profile={profile} 
                 mode="unlock" 
+              />
+
+              <AppTutorialModal 
+                isOpen={showTutorial} 
+                onClose={() => setShowTutorial(false)} 
               />
 
               <Link to="/profile" className="w-10 h-10 rounded-xl overflow-hidden border border-white/10 hover:border-primary/50 transition-colors text-primary font-bold">
@@ -645,6 +662,7 @@ function Sidebar({ profile, onClose, onLogout }: { profile: UserProfile | null, 
 function NotificationsModal({ profile, onClose }: { profile: UserProfile | null, onClose: () => void }) {
   const { notifications, markAsRead, markAllAsRead } = useNotifications();
   const navigate = useNavigate();
+  const [showSettings, setShowSettings] = useState(false);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-start justify-center p-4 sm:p-6 md:p-8 pt-20 sm:pt-24 pointer-events-none">
@@ -666,7 +684,16 @@ function NotificationsModal({ profile, onClose }: { profile: UserProfile | null,
             <h3 className="text-lg font-black text-white italic uppercase tracking-tighter">Event Streams</h3>
             <p className="text-[9px] text-gray-500 font-black uppercase tracking-widest leading-none">System Alerts & Interlocks</p>
           </div>
-          <button onClick={onClose} className="text-gray-500 hover:text-white"><X size={20} /></button>
+          <div className="flex items-center gap-2">
+            <button 
+              onClick={() => setShowSettings(true)}
+              className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-primary transition-all border border-white/5"
+              title="Push Notification Settings"
+            >
+              <Settings size={18} />
+            </button>
+            <button onClick={onClose} className="text-gray-500 hover:text-white p-1"><X size={20} /></button>
+          </div>
         </div>
 
         <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar scroll-smooth">
@@ -730,6 +757,11 @@ function NotificationsModal({ profile, onClose }: { profile: UserProfile | null,
             Mark all read
           </button>
         </div>
+
+        <PushNotificationSettingsModal 
+          isOpen={showSettings} 
+          onClose={() => setShowSettings(false)} 
+        />
       </motion.div>
     </div>
   );
@@ -833,6 +865,8 @@ function getNotificationIcon(type: AppNotification['type']) {
     case 'connect_request': return <Users size={18} />;
     case 'connect_accept': return <Check size={18} className="text-neon-green" />;
     case 'message': return <MessageSquare size={18} />;
+    case 'reminder': return <Store size={18} className="text-neon-green" />;
+    case 'report': return <ShieldAlert size={18} className="text-red-500" />;
     default: return <Bell size={18} />;
   }
 }

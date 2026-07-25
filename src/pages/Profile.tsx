@@ -5,8 +5,10 @@ import {
   User, Store, Phone, MapPin, Shield, LogOut, ChevronRight, Wallet, 
   Bell, Zap, Image as ImageIcon, X, Check, CreditCard, 
   Navigation, Crosshair, Save, Loader2, Megaphone, Trash2, Calendar, FileText, Plus, Users, MessageSquare, Share, RefreshCw, Download
-, Network, ExternalLink, Fingerprint } from 'lucide-react';
+, Network, ExternalLink, Fingerprint, Compass, BellRing } from 'lucide-react';
 import BiometricAuthModal from '../components/BiometricAuthModal';
+import AppTutorialModal from '../components/AppTutorialModal';
+import PushNotificationSettingsModal from '../components/PushNotificationSettingsModal';
 import { UserProfile, Role, Spotlight, Product, Connection } from '../types';
 import { auth, db, handleFirestoreError, OperationType, syncPublicProfile } from '../lib/firebase';
 import { localDB } from '../lib/db';
@@ -37,6 +39,8 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
   const [activeModal, setActiveModal] = useState<'gateway' | 'location' | 'spotlights' | 'delete' | 'connections' | 'notifications' | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [isBiometricModalOpen, setIsBiometricModalOpen] = useState(false);
+  const [showTutorialModal, setShowTutorialModal] = useState(false);
+  const [showPushModal, setShowPushModal] = useState(false);
   const [editData, setEditData] = useState<Partial<UserProfile>>({});
   const [engagementStats, setEngagementStats] = useState({ engaged: 0, volume: 0 });
   const modalContainerRef = useRef<HTMLDivElement>(null);
@@ -661,7 +665,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
                   )}
                   <div className="glass-pill">Beta Access</div>
                 </div>
-                <div className="flex justify-center gap-2">
+                <div className="flex flex-wrap justify-center gap-2">
                   <button 
                     onClick={() => setIsEditing(true)}
                     className="flex items-center gap-2 px-3 py-2 bg-white/5 rounded-xl border border-white/10 text-[9px] font-black text-gray-400 uppercase tracking-widest hover:text-primary transition-all"
@@ -673,6 +677,18 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
                     className="flex items-center gap-2 px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-xl border border-primary/20 text-[9px] font-black uppercase tracking-widest transition-all no-auth-guard"
                   >
                     <Share size={12} /> Share Profile
+                  </button>
+                  <button 
+                    onClick={() => setShowTutorialModal(true)}
+                    className="flex items-center gap-2 px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-xl border border-primary/30 text-[9px] font-black uppercase tracking-widest transition-all shadow-[0_0_12px_rgba(0,242,254,0.15)]"
+                  >
+                    <Compass size={12} className="animate-spin-slow" /> How To Navigate
+                  </button>
+                  <button 
+                    onClick={() => setShowPushModal(true)}
+                    className="flex items-center gap-2 px-3 py-2 bg-neon-green/10 hover:bg-neon-green/20 text-neon-green rounded-xl border border-neon-green/30 text-[9px] font-black uppercase tracking-widest transition-all shadow-[0_0_12px_rgba(57,255,20,0.15)]"
+                  >
+                    <BellRing size={12} /> Push Alert Protocol
                   </button>
                 </div>
               </div>
@@ -1023,6 +1039,8 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
         {isUserListOpen && (
           <UserListModal isOpen={isUserListOpen} onClose={() => setIsUserListOpen(false)} onUserClick={(uid) => { setIsUserListOpen(false); handleNavigate(`/profile/${uid}`); }} />
         )}
+        <AppTutorialModal isOpen={showTutorialModal} onClose={() => setShowTutorialModal(false)} />
+        <PushNotificationSettingsModal isOpen={showPushModal} onClose={() => setShowPushModal(false)} />
       </AnimatePresence>
     </motion.div>
   );

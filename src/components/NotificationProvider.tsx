@@ -1,9 +1,9 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { collection, query, where, orderBy, onSnapshot, doc, updateDoc } from 'firebase/firestore';
+import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
-import { UserProfile, AppNotification } from '../types';
+import { UserProfile, AppNotification, PushNotificationSettings } from '../types';
 import { AnimatePresence, motion } from 'motion/react';
-import { Bell, X, Info, Star, ShoppingBag, Zap, Heart, UserPlus, MessageSquare } from 'lucide-react';
+import { Bell, X, Info, Star, ShoppingBag, Zap, Heart, UserPlus, MessageSquare, Store as StoreIcon, ShieldAlert } from 'lucide-react';
 
 interface NotificationContextType {
   notifications: AppNotification[];
@@ -11,13 +11,148 @@ interface NotificationContextType {
   markAsRead: (id: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
   triggerFeedback: (title: string, message: string, type: AppNotification['type']) => void;
+  pushSettings: PushNotificationSettings;
+  updatePushSettings: (newSettings: Partial<PushNotificationSettings>) => void;
+  requestPushPermission: () => Promise<void>;
+  triggerTestPushNotification: (type: 'message' | 'buy' | 'like_product' | 'reminder') => void;
+  sendWeeklySupplierReminder: () => Promise<void>;
 }
+
+const DEFAULT_SETTINGS: PushNotificationSettings = {
+  messagesEnabled: true,
+  dealsEnabled: true,
+  engagementsEnabled: true,
+  weeklyRemindersEnabled: true,
+  lastWeeklyReminder: 0
+};
 
 const NotificationContext = createContext<NotificationContextType | undefined>(undefined);
 
 export function NotificationProvider({ children, profile }: { children: React.ReactNode, profile: UserProfile | null }) {
   const [notifications, setNotifications] = useState<AppNotification[]>([]);
   const [showToast, setShowToast] = useState<{title: string, message: string, type: AppNotification['type']} | null>(null);
+  
+  const [pushSettings, setPushSettings] = useState<PushNotificationSettings>(() => {
+    try {
+      const saved = localStorage.getItem('cbh_push_settings');
+      return saved ? { ...DEFAULT_SETTINGS, ...JSON.parse(saved) } : DEFAULT_SETTINGS;
+    } catch {
+      return DEFAULT_SETTINGS;
+    }
+  });
+
+  const updatePushSettings = (newSettings: Partial<PushNotificationSettings>) => {
+    setPushSettings(prev => {
+      const updated = { ...prev, ...newSettings };
+      localStorage.setItem('cbh_push_settings', JSON.stringify(updated));
+      return updated;
+    });
+  };
+
+  const requestPushPermission = async () => {
+    if (typeof window !== 'undefined' && 'Notification' in window) {
+      try {
+        await Notification.requestPermission();
+      } catch (e) {
+        console.warn('Push notification permission request failed:', e);
+      }
+    }
+  };
+
+  const triggerFeedback = (title: string, message: string, type: AppNotification['type']) => {
+    setShowToast({ title, message, type });
+    playNotificationSound(type);
+    setTimeout(() => setShowToast(null), 5000);
+  };
+
+  const sendWeeklySupplierReminder = async () => {
+    const title = '📢 Weekly Supplier Discovery Alert';
+    const message = 'Keep your products, services, and storefront updated! Fresh listings rank higher and get 3x more customer inquiries.';
+    
+    // 1. In-app toast & sound
+    triggerFeedback(title, message, 'reminder');
+
+    // 2. Browser Native Push Notification
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+      try {
+        new Notification(title, {
+          body: message,
+          icon: '/icons/icon-192x192.png'
+        });
+      } catch (err) {
+        console.warn('Native notification failed:', err);
+      }
+    }
+
+    // 3. Save notification record in DB if profile exists
+    if (profile?.uid) {
+      try {
+        await addDoc(collection(db, 'notifications'), {
+          userId: profile.uid,
+          type: 'reminder',
+          fromUserId: 'system',
+          fromUserName: 'Comfort Business Hub Engine',
+          title,
+          message,
+          read: false,
+          createdAt: serverTimestamp()
+        });
+      } catch (err) {
+        console.error('Failed to log reminder:', err);
+      }
+    }
+
+    updatePushSettings({ lastWeeklyReminder: Date.now() });
+  };
+
+  const triggerTestPushNotification = (type: 'message' | 'buy' | 'like_product' | 'reminder') => {
+    let title = 'Test Alert';
+    let message = 'This is a test device push notification from Comfort Business Hub.';
+
+    if (type === 'message') {
+      title = '💬 New Comms Signal';
+      message = 'Supplier Node: "Hie, your requested price quotation is ready."';
+    } else if (type === 'buy') {
+      title = '🛍️ Purchase Protocol Initialized';
+      message = 'Customer initialized a Pay On Delivery order for your product!';
+    } else if (type === 'like_product') {
+      title = '❤️ New Social Engagement';
+      message = 'Citizen liked your inventory item and saved it to favorites.';
+    } else if (type === 'reminder') {
+      title = '📢 Weekly Supplier Discovery Alert';
+      message = 'Suppliers: Update your inventory and services today to maintain top marketplace ranking!';
+    }
+
+    triggerFeedback(title, message, type);
+
+    if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+      try {
+        new Notification(title, {
+          body: message,
+          icon: '/icons/icon-192x192.png'
+        });
+      } catch (err) {
+        console.warn('Test push failed:', err);
+      }
+    }
+  };
+
+  // Check weekly reminder schedule for suppliers or store managers
+  useEffect(() => {
+    if (!profile) return;
+
+    if (pushSettings.weeklyRemindersEnabled) {
+      const SEVEN_DAYS_MS = 7 * 24 * 60 * 60 * 1000;
+      const lastRun = pushSettings.lastWeeklyReminder || 0;
+      if (Date.now() - lastRun > SEVEN_DAYS_MS) {
+        // Trigger weekly reminder after a gentle 3-second delay on boot
+        const timer = setTimeout(() => {
+          sendWeeklySupplierReminder();
+        }, 3000);
+        return () => clearTimeout(timer);
+      }
+    }
+  }, [profile?.uid, profile?.currentRole, pushSettings.weeklyRemindersEnabled]);
 
   useEffect(() => {
     if (!profile) {
@@ -25,12 +160,8 @@ export function NotificationProvider({ children, profile }: { children: React.Re
       return;
     }
 
-    // Request browser notification permission
-    if (typeof window !== 'undefined' && 'Notification' in window) {
-      if (Notification.permission === 'default') {
-        Notification.requestPermission();
-      }
-    }
+    // Request browser notification permission automatically
+    requestPushPermission();
 
     const q = query(
       collection(db, 'notifications'),
@@ -44,22 +175,30 @@ export function NotificationProvider({ children, profile }: { children: React.Re
         ...doc.data()
       })) as AppNotification[];
 
-      // Detect new notification for toast, sound and browser alert
       if (newNotifications.length > notifications.length) {
         const latest = newNotifications[0];
         if (latest && !latest.read) {
-          // 1. Show UI Toast
-          triggerFeedback(latest.title, latest.message, latest.type);
+          // Check permission toggles
+          let shouldShow = true;
+          if (latest.type === 'message' && !pushSettings.messagesEnabled) shouldShow = false;
+          if (latest.type === 'buy' && !pushSettings.dealsEnabled) shouldShow = false;
+          if ((latest.type === 'like_product' || latest.type === 'like_store' || latest.type === 'follow' || latest.type === 'connect_request') && !pushSettings.engagementsEnabled) shouldShow = false;
+          if (latest.type === 'reminder' && !pushSettings.weeklyRemindersEnabled) shouldShow = false;
 
-          // 2. Browser Native Notification
-          if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
-            try {
-              new Notification(latest.title, {
-                body: latest.message,
-                icon: '/pwa-192x192.png'
-              });
-            } catch (err) {
-              console.warn('Native Notification construction failed', err);
+          if (shouldShow) {
+            // 1. UI Toast
+            triggerFeedback(latest.title, latest.message, latest.type);
+
+            // 2. Browser Native Notification
+            if (typeof window !== 'undefined' && 'Notification' in window && Notification.permission === 'granted') {
+              try {
+                new Notification(latest.title, {
+                  body: latest.message,
+                  icon: '/icons/icon-192x192.png'
+                });
+              } catch (err) {
+                console.warn('Native Notification construction failed', err);
+              }
             }
           }
         }
@@ -71,13 +210,7 @@ export function NotificationProvider({ children, profile }: { children: React.Re
     });
 
     return () => unsubscribe();
-  }, [profile?.uid, notifications.length]);
-
-  const triggerFeedback = (title: string, message: string, type: AppNotification['type']) => {
-    setShowToast({ title, message, type });
-    playNotificationSound(type);
-    setTimeout(() => setShowToast(null), 5000);
-  };
+  }, [profile?.uid, notifications.length, pushSettings]);
 
   const playNotificationSound = (type: AppNotification['type']) => {
     try {
@@ -88,9 +221,7 @@ export function NotificationProvider({ children, profile }: { children: React.Re
 
       const now = context.currentTime;
 
-      // Optimized "Cyber/Tech" sound design based on type
-      if (type === 'like_product' || type === 'like_store' || type === 'follow') {
-        // High-pitched "blip-bloop" for positive interactions
+      if (type === 'like_product' || type === 'like_store' || type === 'follow' || type === 'share') {
         const osc1 = context.createOscillator();
         const osc2 = context.createOscillator();
         const g1 = context.createGain();
@@ -99,11 +230,11 @@ export function NotificationProvider({ children, profile }: { children: React.Re
         osc1.type = 'sine';
         osc2.type = 'square';
         
-        osc1.frequency.setValueAtTime(880, now); // A5
-        osc1.frequency.exponentialRampToValueAtTime(1760, now + 0.1); // A6
+        osc1.frequency.setValueAtTime(880, now);
+        osc1.frequency.exponentialRampToValueAtTime(1760, now + 0.1);
         
-        osc2.frequency.setValueAtTime(440, now + 0.05); // A4
-        osc2.frequency.exponentialRampToValueAtTime(880, now + 0.15); // A5
+        osc2.frequency.setValueAtTime(440, now + 0.05);
+        osc2.frequency.exponentialRampToValueAtTime(880, now + 0.15);
 
         g1.gain.setValueAtTime(0, now);
         g1.gain.linearRampToValueAtTime(0.2, now + 0.01);
@@ -123,7 +254,6 @@ export function NotificationProvider({ children, profile }: { children: React.Re
         osc2.start(now + 0.05);
         osc2.stop(now + 0.3);
       } else if (type === 'message') {
-        // Soft "ding" for messages
         const osc = context.createOscillator();
         const g = context.createGain();
         osc.type = 'sine';
@@ -137,13 +267,29 @@ export function NotificationProvider({ children, profile }: { children: React.Re
         g.connect(masterGain);
         osc.start(now);
         osc.stop(now + 0.4);
-      } else {
-        // Default tech alert
+      } else if (type === 'reminder') {
+        // Special chime for reminders
         const osc = context.createOscillator();
         const g = context.createGain();
         osc.type = 'triangle';
-        osc.frequency.setValueAtTime(660, now); // E5
-        osc.frequency.exponentialRampToValueAtTime(330, now + 0.3); // E4
+        osc.frequency.setValueAtTime(523.25, now); // C5
+        osc.frequency.setValueAtTime(659.25, now + 0.15); // E5
+        osc.frequency.setValueAtTime(783.99, now + 0.3); // G5
+
+        g.gain.setValueAtTime(0, now);
+        g.gain.linearRampToValueAtTime(0.2, now + 0.01);
+        g.gain.exponentialRampToValueAtTime(0.0001, now + 0.6);
+
+        osc.connect(g);
+        g.connect(masterGain);
+        osc.start(now);
+        osc.stop(now + 0.6);
+      } else {
+        const osc = context.createOscillator();
+        const g = context.createGain();
+        osc.type = 'triangle';
+        osc.frequency.setValueAtTime(660, now);
+        osc.frequency.exponentialRampToValueAtTime(330, now + 0.3);
         
         g.gain.setValueAtTime(0, now);
         g.gain.linearRampToValueAtTime(0.2, now + 0.01);
@@ -180,7 +326,18 @@ export function NotificationProvider({ children, profile }: { children: React.Re
   const unreadCount = notifications.filter(n => !n.read).length;
 
   return (
-    <NotificationContext.Provider value={{ notifications, unreadCount, markAsRead, markAllAsRead, triggerFeedback }}>
+    <NotificationContext.Provider value={{ 
+      notifications, 
+      unreadCount, 
+      markAsRead, 
+      markAllAsRead, 
+      triggerFeedback,
+      pushSettings,
+      updatePushSettings,
+      requestPushPermission,
+      triggerTestPushNotification,
+      sendWeeklySupplierReminder
+    }}>
       {children}
       
       {/* Real-time Toast Component */}
@@ -192,13 +349,13 @@ export function NotificationProvider({ children, profile }: { children: React.Re
             exit={{ opacity: 0, scale: 0.9 }}
             className="fixed bottom-24 left-4 right-4 z-[9999] sm:left-auto sm:right-8 sm:w-96"
           >
-            <div className="bg-[#0d1117]/90 backdrop-blur-xl border border-primary/30 rounded-2xl p-4 shadow-[0_20px_50px_rgba(0,0,0,0.5)] flex items-start gap-4">
-              <div className="w-10 h-10 rounded-xl bg-primary/20 flex items-center justify-center text-primary flex-shrink-0">
+            <div className="bg-[#0d1117]/95 backdrop-blur-xl border border-primary/40 rounded-2xl p-4 shadow-[0_20px_50px_rgba(0,0,0,0.6)] flex items-start gap-4">
+              <div className="w-10 h-10 rounded-xl bg-primary/20 border border-primary/30 flex items-center justify-center text-primary flex-shrink-0 shadow-lg">
                 {getIcon(showToast.type)}
               </div>
               <div className="flex-1 min-w-0">
                 <h4 className="text-xs font-black text-white uppercase tracking-tight truncate">{showToast.title}</h4>
-                <p className="text-[10px] text-gray-400 mt-0.5 line-clamp-2">{showToast.message}</p>
+                <p className="text-[10px] text-gray-300 mt-0.5 line-clamp-2 leading-relaxed">{showToast.message}</p>
               </div>
               <button 
                 onClick={() => setShowToast(null)}
@@ -223,6 +380,8 @@ function getIcon(type: AppNotification['type']) {
     case 'like_store': 
     case 'like_product': return <Heart size={20} />;
     case 'message': return <MessageSquare size={20} />;
+    case 'reminder': return <StoreIcon size={20} className="text-neon-green" />;
+    case 'report': return <ShieldAlert size={20} className="text-red-500" />;
     default: return <Bell size={20} />;
   }
 }

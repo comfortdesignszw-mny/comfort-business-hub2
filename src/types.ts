@@ -113,7 +113,7 @@ export interface Product {
 export interface AppNotification {
   id: string;
   userId: string;
-  type: 'engage' | 'buy' | 'rate' | 'follow' | 'like_store' | 'like_product' | 'connect_request' | 'connect_accept' | 'message';
+  type: 'engage' | 'buy' | 'rate' | 'follow' | 'like_store' | 'like_product' | 'connect_request' | 'connect_accept' | 'message' | 'reminder' | 'deal' | 'share' | 'report';
   fromUserId: string;
   fromUserName: string;
   targetId?: string;
@@ -121,6 +121,14 @@ export interface AppNotification {
   message: string;
   read: boolean;
   createdAt: any;
+}
+
+export interface PushNotificationSettings {
+  messagesEnabled: boolean;
+  dealsEnabled: boolean;
+  engagementsEnabled: boolean;
+  weeklyRemindersEnabled: boolean;
+  lastWeeklyReminder?: number;
 }
 
 export interface Review {
