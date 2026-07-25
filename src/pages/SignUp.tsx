@@ -7,7 +7,7 @@ import {
   browserPopupRedirectResolver,
   updateProfile
 } from 'firebase/auth';
-import { auth, db, handleFirestoreError, OperationType, syncPublicProfile } from '../lib/firebase';
+import { auth, db, handleFirestoreError, OperationType, syncPublicProfile, sanitizeFirestoreData } from '../lib/firebase';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'motion/react';
 import { LogIn, Shield, Globe, Cpu, AlertTriangle, UserPlus, Phone, Mail, Chrome, CheckCircle2, Eye, EyeOff, Loader2, ArrowLeft } from 'lucide-react';
@@ -50,16 +50,17 @@ export default function SignUp() {
     }
 
     const finalName = extraDetails.displayName || user.displayName || displayName || 'New Operator';
-    const finalPhone = extraDetails.phoneNumber || user.phoneNumber || (authMethod === 'phone' ? extraDetails.phoneNumber : 'Unlinked');
-    const finalEmail = authMethod === 'email' ? (extraDetails.email || email) : (authMethod === 'google' ? user.email : null);
+    const finalPhone = extraDetails.phoneNumber || user.phoneNumber || (authMethod === 'phone' ? extraDetails.phoneNumber : null);
+    const finalEmail = authMethod === 'email' ? (extraDetails.email || email) : (authMethod === 'google' ? user.email || null : null);
 
-    const newProfile: UserProfile = {
+    const newProfile: Record<string, any> = {
       uid: user.uid,
       name: finalName,
       displayName: finalName,
       authMethod,
-      email: finalEmail,
-      phoneNumber: authMethod === 'phone' ? finalPhone : null,
+      email: finalEmail || null,
+      avatar: user.photoURL || null,
+      phoneNumber: authMethod === 'phone' ? (finalPhone || null) : null,
       phone: finalPhone || 'Unlinked',
       phoneVerified: false,
       currentRole: 'customer',
@@ -70,8 +71,9 @@ export default function SignUp() {
 
     if (!docSnap || !docSnap.exists()) {
       try {
-        await setDoc(doc(db, 'users', user.uid), newProfile);
-        await syncPublicProfile(newProfile);
+        const cleanProfile = sanitizeFirestoreData(newProfile);
+        await setDoc(doc(db, 'users', user.uid), cleanProfile);
+        await syncPublicProfile(cleanProfile);
       } catch (e) {
         handleFirestoreError(e, OperationType.WRITE, userPath);
         return;

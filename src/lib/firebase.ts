@@ -82,6 +82,36 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   throw new Error(JSON.stringify(errInfo));
 }
 
+/**
+ * Recursively cleans an object by removing keys with `undefined` values,
+ * which cause Firestore setDoc / updateDoc to throw errors.
+ */
+export function sanitizeFirestoreData<T extends Record<string, any>>(data: T): Record<string, any> {
+  if (!data || typeof data !== 'object') return data;
+  const clean: Record<string, any> = {};
+  for (const key of Object.keys(data)) {
+    const value = data[key];
+    if (value !== undefined) {
+      if (
+        value !== null &&
+        typeof value === 'object' &&
+        !Array.isArray(value) &&
+        !(value instanceof Date) &&
+        typeof (value as any).toDate !== 'function'
+      ) {
+        if (value.constructor && (value.constructor.name === 'FieldValue' || value.constructor.name === 'ServerTimestampTransform')) {
+          clean[key] = value;
+        } else {
+          clean[key] = sanitizeFirestoreData(value);
+        }
+      } else {
+        clean[key] = value;
+      }
+    }
+  }
+  return clean;
+}
+
 // Sync utility for splitting PII from public-facing profiles
 export async function syncPublicProfile(profile: any) {
   if (!profile || !profile.uid) return;
@@ -103,7 +133,7 @@ export async function syncPublicProfile(profile: any) {
       updatedAt: serverTimestamp()
     };
     
-    await setDoc(doc(db, 'public_profiles', profile.uid), publicProfile, { merge: true });
+    await setDoc(doc(db, 'public_profiles', profile.uid), sanitizeFirestoreData(publicProfile), { merge: true });
   } catch (err) {
     console.error('Failed to sync public profile:', err);
   }

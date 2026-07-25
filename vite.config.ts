@@ -36,14 +36,14 @@ export default defineConfig(({mode}) => {
               short_name: 'Explore',
               description: 'Access the global supply network',
               url: '/discovery',
-              icons: [{ src: '/icons/icon-192x192.png', sizes: '192x192' }]
+              icons: [{ src: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' }]
             },
             {
               name: 'Orders & Deals',
               short_name: 'Orders',
               description: 'View active deal rooms',
               url: '/chat',
-              icons: [{ src: '/icons/icon-192x192.png', sizes: '192x192' }]
+              icons: [{ src: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' }]
             }
           ],
           screenshots: [
@@ -70,22 +70,10 @@ export default defineConfig(({mode}) => {
               purpose: 'any'
             },
             {
-              src: '/icons/icon-192x192.png',
-              sizes: '192x192',
-              type: 'image/png',
-              purpose: 'maskable'
-            },
-            {
               src: '/icons/icon-512x512.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'any'
-            },
-            {
-              src: '/icons/icon-512x512.png',
-              sizes: '512x512',
-              type: 'image/png',
-              purpose: 'maskable'
             },
             {
               src: '/icons/icon-maskable-192x192.png',

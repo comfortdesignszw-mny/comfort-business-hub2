@@ -8,7 +8,7 @@ import {
   GoogleAuthProvider, 
   browserPopupRedirectResolver 
 } from 'firebase/auth';
-import { auth, db, handleFirestoreError, OperationType, syncPublicProfile } from '../lib/firebase';
+import { auth, db, handleFirestoreError, OperationType, syncPublicProfile, sanitizeFirestoreData } from '../lib/firebase';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'motion/react';
 import { LogIn, Shield, Globe, Cpu, AlertTriangle, Phone, Mail, Chrome, Eye, EyeOff, Loader2, CheckCircle2, KeyRound } from 'lucide-react';
@@ -101,35 +101,37 @@ export default function Login() {
       }
     }
 
-    const profileData: Partial<UserProfile> = {
+    const profileData: Record<string, any> = {
       uid: user.uid,
       name: user.displayName || (docSnap?.exists() ? (docSnap.data() as UserProfile).name : 'Operator'),
-      email: user.email || undefined,
-      avatar: user.photoURL || undefined,
+      email: user.email || null,
+      avatar: user.photoURL || null,
       isVerified: user.emailVerified || false,
       authMethod,
       updatedAt: serverTimestamp()
     };
 
     if (!docSnap || !docSnap.exists()) {
-      const newProfile: UserProfile = {
+      const newProfile = {
         ...profileData,
         phone: user.phoneNumber || 'Unlinked',
         currentRole: 'customer',
-      } as UserProfile;
+      };
       
       try {
-        await setDoc(doc(db, 'users', user.uid), newProfile);
-        await syncPublicProfile(newProfile);
+        const cleanProfile = sanitizeFirestoreData(newProfile);
+        await setDoc(doc(db, 'users', user.uid), cleanProfile);
+        await syncPublicProfile(cleanProfile);
       } catch (e) {
         handleFirestoreError(e, OperationType.WRITE, userPath);
         return;
       }
     } else {
       try {
-        await setDoc(doc(db, 'users', user.uid), profileData, { merge: true });
+        const cleanProfileData = sanitizeFirestoreData(profileData);
+        await setDoc(doc(db, 'users', user.uid), cleanProfileData, { merge: true });
         const existingProfile = docSnap.data() as UserProfile;
-        await syncPublicProfile({ ...existingProfile, ...profileData });
+        await syncPublicProfile({ ...existingProfile, ...cleanProfileData });
       } catch (e) {
         handleFirestoreError(e, OperationType.UPDATE, userPath);
         return;
