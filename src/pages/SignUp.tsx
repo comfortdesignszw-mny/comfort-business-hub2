@@ -197,6 +197,22 @@ export default function SignUp() {
     }
   };
 
+  const handleOfflineGuestSignUp = () => {
+    const guestProfile: UserProfile = {
+      uid: 'guest_' + Date.now(),
+      name: displayName || 'Offline Operator',
+      displayName: displayName || 'Offline Operator',
+      phone: phoneInput ? normalizePhoneNumber(countryCode, phoneInput) : 'Offline',
+      email: email || undefined,
+      currentRole: 'customer',
+      isVerified: false,
+      authMethod: 'phone',
+      createdAt: new Date().toISOString()
+    } as any;
+    localStorage.setItem('guest_profile', JSON.stringify(guestProfile));
+    window.location.href = '/';
+  };
+
   return (
     <div className="flex flex-col min-h-screen bg-[#05070a] p-4 sm:p-8">
       <div className="flex-1 flex flex-col justify-center space-y-8 max-w-md mx-auto w-full py-6">
@@ -277,10 +293,21 @@ export default function SignUp() {
                 initial={{ opacity: 0, y: -10 }}
                 animate={{ opacity: 1, y: 0 }}
                 exit={{ opacity: 0, y: -10 }}
-                className="p-3.5 bg-red-500/10 border border-red-500/30 rounded-2xl text-red-400 text-[11px] font-bold uppercase tracking-wider flex items-center gap-2.5 shadow-[0_0_15px_rgba(239,68,68,0.1)]"
+                className="p-3.5 bg-red-500/10 border border-red-500/30 rounded-2xl text-red-400 text-[11px] font-bold uppercase tracking-wider flex flex-col gap-2.5 shadow-[0_0_15px_rgba(239,68,68,0.1)]"
               >
-                <AlertTriangle size={16} className="shrink-0 text-red-400" />
-                <span className="leading-snug">{error}</span>
+                <div className="flex items-center gap-2.5">
+                  <AlertTriangle size={16} className="shrink-0 text-red-400" />
+                  <span className="leading-snug">{error}</span>
+                </div>
+                {(error.includes('Unable to reach') || error.includes('network') || error.includes('connection')) && (
+                  <button
+                    type="button"
+                    onClick={handleOfflineGuestSignUp}
+                    className="w-full py-2.5 px-3 bg-white/10 hover:bg-white/20 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-white/20 flex items-center justify-center gap-2"
+                  >
+                    <span>Continue in Offline Guest Mode</span>
+                  </button>
+                )}
               </motion.div>
             )}
             {successMsg && (

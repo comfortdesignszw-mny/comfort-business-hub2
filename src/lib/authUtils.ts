@@ -103,27 +103,47 @@ export async function checkPhoneExistsInFirestore(e164Phone: string): Promise<bo
   }
 }
 
-export function getFriendlyAuthErrorMessage(code: string, fallbackMessage?: string): string {
-  switch (code) {
-    case 'auth/email-already-in-use':
-      return 'An account already exists with that email or phone number. Try logging in instead.';
-    case 'auth/invalid-email':
-      return 'Please enter a valid email address.';
-    case 'auth/weak-password':
-      return 'Password should be at least 6 characters long.';
-    case 'auth/user-not-found':
-    case 'auth/wrong-password':
-    case 'auth/invalid-credential':
-      return 'Incorrect login details or account does not exist. Please check your credentials.';
-    case 'auth/too-many-requests':
-      return 'Too many failed attempts. Please wait a moment and try again.';
-    case 'auth/network-request-failed':
-      return 'Network connectivity issue. Please check your internet connection and try again.';
-    case 'auth/popup-blocked':
-      return 'Sign in popup was blocked by browser. Please allow popups or open in a new tab.';
-    case 'auth/popup-closed-by-user':
-      return 'Sign in window was closed before completion. Please try again.';
-    default:
-      return fallbackMessage || 'Authentication failed. Please verify your details and try again.';
+export function getFriendlyAuthErrorMessage(code?: string, fallbackMessage?: string): string {
+  const fullText = `${code || ''} ${fallbackMessage || ''}`.toLowerCase();
+
+  if (
+    fullText.includes('network-request-failed') || 
+    fullText.includes('network error') || 
+    fullText.includes('failed to fetch') ||
+    fullText.includes('offline')
+  ) {
+    return 'Unable to reach authentication servers. Please check your internet connection and try again or use Offline Guest Mode.';
   }
+  if (fullText.includes('email-already-in-use')) {
+    return 'An account already exists with that email or phone number. Try logging in instead.';
+  }
+  if (fullText.includes('invalid-email')) {
+    return 'Please enter a valid email address.';
+  }
+  if (fullText.includes('weak-password')) {
+    return 'Password should be at least 6 characters long.';
+  }
+  if (
+    fullText.includes('user-not-found') || 
+    fullText.includes('wrong-password') || 
+    fullText.includes('invalid-credential')
+  ) {
+    return 'Incorrect login details or account does not exist. Please check your credentials.';
+  }
+  if (fullText.includes('too-many-requests')) {
+    return 'Too many failed attempts. Please wait a moment and try again.';
+  }
+  if (fullText.includes('popup-blocked')) {
+    return 'Sign in popup was blocked by browser. Please allow popups or open in a new tab.';
+  }
+  if (fullText.includes('popup-closed-by-user') || fullText.includes('cancelled-popup-request')) {
+    return 'Sign in window was closed before completion. Please try again.';
+  }
+
+  if (fallbackMessage && fallbackMessage.startsWith('Firebase:')) {
+    const cleaned = fallbackMessage.replace(/^Firebase:\s*/, '').replace(/\(auth\/[^)]+\)\.?/, '').trim();
+    if (cleaned) return cleaned;
+  }
+
+  return fallbackMessage || 'Authentication failed. Please verify your details and try again.';
 }
