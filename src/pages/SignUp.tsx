@@ -182,14 +182,18 @@ export default function SignUp() {
       const { user } = await signInWithPopup(auth, provider, browserPopupRedirectResolver);
       await handleFinishSignUp(user, 'google', { displayName: user.displayName || 'Operator' });
     } catch (err: any) {
-      console.error("Google SignUp Error:", err);
-      if (err.code === 'auth/popup-blocked' || err.code === 'auth/cancelled-popup-request') {
+      if (err.code === 'auth/popup-closed-by-user') {
+        console.info('Google SignUp popup was closed by user or iframe restrictions.');
+        setError("Sign in window was closed. If popups are restricted in preview, please open the app in a new tab.");
+      } else if (err.code === 'auth/popup-blocked' || err.code === 'auth/cancelled-popup-request') {
+        console.warn('Google SignUp popup blocked:', err);
         try {
           await signInWithRedirect(auth, provider);
         } catch (rErr: any) {
-          setError("Sign in failed. Please open this app in a new tab using the top-right button.");
+          setError("Sign in failed due to popup policy. Please open this app in a new tab to sign in with Google.");
         }
       } else {
+        console.error("Google SignUp Error:", err);
         setError(getFriendlyAuthErrorMessage(err.code, err.message));
       }
     } finally {
@@ -307,6 +311,16 @@ export default function SignUp() {
                   >
                     <span>Continue in Offline Guest Mode</span>
                   </button>
+                )}
+                {(error.includes('new tab') || error.includes('popup')) && (
+                  <a
+                    href="/"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    className="w-full py-2.5 px-3 bg-primary/20 hover:bg-primary hover:text-black text-primary rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-primary/40 flex items-center justify-center gap-2"
+                  >
+                    <span>Open App in New Tab for Google Auth</span>
+                  </a>
                 )}
               </motion.div>
             )}

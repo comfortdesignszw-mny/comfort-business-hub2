@@ -15,6 +15,19 @@ export async function isBiometricSupported(): Promise<boolean> {
   if (typeof window === 'undefined' || !window.PublicKeyCredential) {
     return false;
   }
+  if (window.self !== window.top) {
+    if ('featurePolicy' in document && typeof (document as any).featurePolicy.allowsFeature === 'function') {
+      try {
+        const allowed = (document as any).featurePolicy.allowsFeature('publickey-credentials-get');
+        if (!allowed) {
+          console.warn('[Biometrics] publickey-credentials-get is disabled by iframe Permissions Policy');
+          return false;
+        }
+      } catch {
+        // Ignore check errors
+      }
+    }
+  }
   try {
     const isAvailable = await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable();
     return isAvailable;
@@ -103,6 +116,10 @@ export async function registerBiometrics(userId: string, userEmail: string): Pro
     return true;
   } catch (err: any) {
     console.error('[Biometrics] Registration error:', err);
+    const msg = err?.message || '';
+    if (msg.includes('publickey-credentials') || msg.includes('Permissions Policy') || msg.includes('not enabled in this document') || msg.includes('NotAllowedError')) {
+      throw new Error('Biometric authentication is restricted inside this preview frame. Please open the app in a new browser tab or window to use Touch ID / Face ID.');
+    }
     throw new Error(err?.message || 'Biometric registration failed or was canceled.');
   }
 }
@@ -148,6 +165,10 @@ export async function verifyBiometrics(userId: string): Promise<boolean> {
     return false;
   } catch (err: any) {
     console.error('[Biometrics] Verification error:', err);
+    const msg = err?.message || '';
+    if (msg.includes('publickey-credentials') || msg.includes('Permissions Policy') || msg.includes('not enabled in this document') || msg.includes('NotAllowedError')) {
+      throw new Error('Biometric authentication is restricted inside this preview frame. Please open the app in a new browser tab or window to use Touch ID / Face ID.');
+    }
     throw new Error(err?.message || 'Biometric scan failed or was canceled.');
   }
 }

@@ -137,7 +137,7 @@ export function getFriendlyAuthErrorMessage(code?: string, fallbackMessage?: str
     return 'Sign in popup was blocked by browser. Please allow popups or open in a new tab.';
   }
   if (fullText.includes('popup-closed-by-user') || fullText.includes('cancelled-popup-request')) {
-    return 'Sign in window was closed before completion. Please try again.';
+    return 'Sign in window was closed before completion. If popups are blocked in preview, please open the app in a new tab.';
   }
 
   if (fallbackMessage && fallbackMessage.startsWith('Firebase:')) {

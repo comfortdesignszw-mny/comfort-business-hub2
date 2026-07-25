@@ -138,9 +138,21 @@ export default function BiometricAuthModal({
 
           {/* Status Alert Banner */}
           {errorMsg && (
-            <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-2xl flex items-center gap-2.5 text-xs text-red-300 font-medium">
-              <AlertCircle size={16} className="shrink-0 text-red-400" />
-              <span>{errorMsg}</span>
+            <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-2xl flex flex-col gap-2.5 text-xs text-red-300 font-medium">
+              <div className="flex items-center gap-2.5">
+                <AlertCircle size={16} className="shrink-0 text-red-400" />
+                <span>{errorMsg}</span>
+              </div>
+              {(errorMsg.includes('preview frame') || errorMsg.includes('new browser tab') || errorMsg.includes('Permissions Policy')) && (
+                <a
+                  href="/"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="w-full py-2 px-3 bg-primary/20 hover:bg-primary hover:text-black text-primary rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-primary/40 flex items-center justify-center gap-2"
+                >
+                  <span>Open App in New Tab</span>
+                </a>
+              )}
             </div>
           )}
 
