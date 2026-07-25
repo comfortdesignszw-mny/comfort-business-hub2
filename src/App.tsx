@@ -438,11 +438,11 @@ function Header({ profile, onMenuClick, onLogout }: { profile: UserProfile | nul
         <div className="flex items-center gap-2">
           <button
             onClick={() => window.dispatchEvent(new CustomEvent('pwa-prompt-install'))}
-            className="hidden sm:flex items-center gap-1.5 px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-[0_0_12px_rgba(0,242,254,0.15)]"
+            className="flex items-center gap-1.5 px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-[0_0_12px_rgba(0,242,254,0.15)]"
             title="Install Native Application"
           >
             <Download size={13} />
-            <span className="hidden md:inline">Install App</span>
+            <span className="hidden sm:inline">Install App</span>
           </button>
 
           {profile ? (

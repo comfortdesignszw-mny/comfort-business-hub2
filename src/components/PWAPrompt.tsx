@@ -64,11 +64,13 @@ export default function PWAPrompt() {
     if (!deferredPrompt) return;
     
     setIsVisible(false);
-    deferredPrompt.prompt();
-    
-    const { outcome } = await deferredPrompt.userChoice;
-    console.log(`User responded to the install prompt with: ${outcome}`);
-    
+    try {
+      deferredPrompt.prompt();
+      const { outcome } = await deferredPrompt.userChoice;
+      console.log(`User responded to the install prompt with: ${outcome}`);
+    } catch (err) {
+      console.error('Failed to prompt install:', err);
+    }
     setDeferredPrompt(null);
   };
 
@@ -96,22 +98,45 @@ export default function PWAPrompt() {
       );
     }
 
+    if (deferredPrompt) {
+      return (
+        <div className="space-y-3">
+          <div className="flex items-center gap-3 bg-white/5 p-3 rounded-xl border border-white/5">
+            <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center shrink-0">
+              {platform === 'desktop' ? <Monitor size={20} className="text-primary" /> : <Box size={20} className="text-primary" />}
+            </div>
+            <div className="flex-1">
+              <p className="text-[10px] text-gray-300">Fast, secure installation for {platform === 'desktop' ? 'Full Desktop Matrix' : 'Mobile Node'}.</p>
+            </div>
+          </div>
+          <button 
+            onClick={handleInstall}
+            className="w-full bg-primary text-[#05070a] py-3 rounded-xl text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-white transition-all shadow-lg active:scale-95"
+          >
+            <Download size={14} /> Install Application
+          </button>
+        </div>
+      );
+    }
+
     return (
       <div className="space-y-3">
-        <div className="flex items-center gap-3 bg-white/5 p-3 rounded-xl border border-white/5">
-          <div className="w-10 h-10 rounded-lg bg-primary/20 flex items-center justify-center shrink-0">
-            {platform === 'desktop' ? <Monitor size={20} className="text-primary" /> : <Box size={20} className="text-primary" />}
+        <div className="flex items-start gap-3 bg-white/5 p-3 rounded-xl border border-white/5">
+          <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center shrink-0">
+            <Info size={16} className="text-primary" />
           </div>
-          <div className="flex-1">
-            <p className="text-[10px] text-gray-300">Fast, secure installation for {platform === 'desktop' ? 'Full Desktop Matrix' : 'Mobile Node'}.</p>
+          <div className="text-[10px] text-gray-300 font-medium">
+            1. Open the browser menu (⋮) in the top right.
           </div>
         </div>
-        <button 
-          onClick={handleInstall}
-          className="w-full bg-primary text-[#05070a] py-3 rounded-xl text-[11px] font-black uppercase tracking-widest flex items-center justify-center gap-2 hover:bg-white transition-all shadow-lg active:scale-95"
-        >
-          <Download size={14} /> Install Application
-        </button>
+        <div className="flex items-start gap-3 bg-white/5 p-3 rounded-xl border border-white/5">
+          <div className="w-8 h-8 rounded-lg bg-primary/20 flex items-center justify-center shrink-0">
+            <Download size={16} className="text-primary" />
+          </div>
+          <div className="text-[10px] text-gray-300 font-medium">
+            2. Select <span className="text-white font-black">"Install App"</span> or <span className="text-white font-black">"Add to Home screen"</span>.
+          </div>
+        </div>
       </div>
     );
   };
