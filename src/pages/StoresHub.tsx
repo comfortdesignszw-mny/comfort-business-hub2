@@ -168,8 +168,8 @@ export default function StoresHub({ profile }: { profile: UserProfile | null }) 
               </div>
             </div>
             <div className="flex gap-4 overflow-x-auto pb-4 pt-2 -mx-2 px-2 custom-scrollbar snap-x no-scrollbar">
-              {Array.from(new Map(displayedUsers.map(u => [u.uid, u])).values()).map((user) => (
-                <div key={`matrix-${user.uid}`} className="contents">
+              {Array.from(new Map(displayedUsers.filter(u => u && u.uid).map(u => [u.uid, u])).values()).map((user, idx) => (
+                <div key={`sh-user-${user.uid || idx}`} className="contents">
                   <AuthGuard 
                     title="View Partner Profile"
                     message="Enter the Hub network to connect with registered partners and view tactical intelligence."
@@ -242,9 +242,9 @@ export default function StoresHub({ profile }: { profile: UserProfile | null }) 
                 </div>
               </div>
               <div className="flex gap-6 overflow-x-auto no-scrollbar pb-4 -mx-1 px-1">
-                {stores.slice(0, 3).map(store => (
+                {stores.slice(0, 3).map((store, idx) => (
                    <motion.div 
-                    key={`featured-${store.id}`}
+                    key={`sh-featured-${store.id || idx}`}
                     whileHover={{ scale: 1.02 }}
                     className="flex-shrink-0 w-[240px] h-[140px] rounded-[1.5rem] bg-[#0d1117] border border-white/5 overflow-hidden relative group cursor-pointer"
                     onClick={() => navigate(`/store/${store.id}`)}
@@ -277,9 +277,9 @@ export default function StoresHub({ profile }: { profile: UserProfile | null }) 
               />
             </div>
             <div className="lg:col-span-4 flex gap-2 overflow-x-auto no-scrollbar py-2">
-              {['All', ...BUSINESS_CATEGORIES].map(cat => (
+              {['All', ...new Set(BUSINESS_CATEGORIES)].map((cat, idx) => (
                 <button
-                  key={cat}
+                  key={`sh-cat-${cat}-${idx}`}
                   onClick={() => setActiveCategory(cat)}
                   className={cn(
                     "px-6 py-3 rounded-full text-[10px] font-black uppercase tracking-widest whitespace-nowrap transition-all border",
@@ -299,8 +299,8 @@ export default function StoresHub({ profile }: { profile: UserProfile | null }) 
               Array.from({ length: 6 }).map((_, i) => (
                 <div key={i} className="h-64 bg-white/5 rounded-[2.5rem] animate-pulse" />
               ))
-            ) : Array.from(new Map(filteredStores.map(s => [s.id, s])).values()).map(store => (
-              <React.Fragment key={store.id}>
+            ) : Array.from(new Map(filteredStores.filter(s => s && s.id).map(s => [s.id, s])).values()).map((store, idx) => (
+              <React.Fragment key={`sh-store-${store.id || idx}`}>
                 <StoreCard store={store} profile={profile} />
               </React.Fragment>
             ))}

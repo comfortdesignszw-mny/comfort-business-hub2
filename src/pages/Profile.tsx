@@ -504,9 +504,9 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {Array.from(new Map(observedStores.map(s => [s.id, s])).values()).map((store) => (
+                {Array.from(new Map(observedStores.filter(s => s && s.id).map(s => [s.id, s])).values()).map((store, idx) => (
                   <div 
-                    key={store.id}
+                    key={`prof-obs-store-${store.id || idx}`}
                     onClick={() => navigate(`/store/${store.id}`)}
                     className="neon-card p-6 flex items-center gap-4 hover:scale-[1.02] active:scale-[0.98] cursor-pointer transition-all"
                   >
@@ -823,8 +823,8 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
           </div>
         </div>
         <div className="flex gap-4 overflow-x-auto pb-4 pt-2 -mx-2 px-2 custom-scrollbar snap-x no-scrollbar">
-          {Array.from(new Map(displayedUsers.map(u => [u.uid, u])).values()).map((user) => (
-            <div key={`matrix-${user.uid}`} className="contents">
+          {Array.from(new Map(displayedUsers.filter(u => u && u.uid).map(u => [u.uid, u])).values()).map((user, idx) => (
+            <div key={`prof-user-${user.uid || idx}`} className="contents">
               <AuthGuard 
                 title="View Partner Profile"
                 message="Enter the Hub network to connect with registered partners and view tactical intelligence."
@@ -1600,13 +1600,13 @@ function SpotlightManager({ profile }: { profile: UserProfile }) {
             </div>
           ) : spotlights.length > 0 ? (
             <div className="grid gap-4">
-              {Array.from(new Map(spotlights.map(s => [s.id, s])).values()).map((s) => {
+              {Array.from(new Map(spotlights.filter(s => s && s.id).map(s => [s.id, s])).values()).map((s, idx) => {
                 const isClass = s.isClassified || s.type === 'classified';
                 const timeInfo = getTimeLeftText(s.expiresAt);
 
                 return (
                   <motion.div 
-                    key={s.id}
+                    key={`prof-spotlight-${s.id || idx}`}
                     layout
                     className={cn(
                       "p-5 bg-white/5 border rounded-[2rem] transition-all group relative overflow-hidden text-left",
@@ -1901,9 +1901,9 @@ function SupplierInventoryPreview({ profile }: { profile: UserProfile }) {
       </div>
 
       <div className="grid grid-cols-2 gap-4">
-        {Array.from(new Map<string, Product>(products.map(p => [p.id, p])).values()).map((p) => (
+        {Array.from(new Map<string, Product>(products.filter(p => p && p.id).map(p => [p.id, p])).values()).map((p, idx) => (
             <ProductCard 
-              key={p.id}
+              key={`prof-prod-${p.id || idx}`}
               product={p}
               profile={profile}
               isOwner={true}
@@ -1983,9 +1983,9 @@ function ConnectionManager({ profile }: { profile: UserProfile }) {
           </div>
         ) : connections.length > 0 ? (
           <div className="grid gap-3">
-            {Array.from(new Map(connections.map(c => [c.id, c])).values()).map((c) => (
+            {Array.from(new Map(connections.filter(c => c && c.id).map(c => [c.id, c])).values()).map((c, idx) => (
               <div 
-                key={c.id}
+                key={`prof-conn-${c.id || idx}`}
                 className="p-4 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-between group hover:border-primary/30 transition-all font-sans"
               >
                 <div className="flex items-center gap-4">

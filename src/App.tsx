@@ -742,7 +742,7 @@ function NotificationsModal({ profile, onClose }: { profile: UserProfile | null,
                   <>
                     {unread.map((n, idx) => (
                       <NotificationItem 
-                        key={`unread-${n.id || idx}`} 
+                        key={`unread-${n.id ? `${n.id}-${idx}` : idx}`} 
                         n={n} 
                         markAsRead={markAsRead} 
                         onSelect={(item) => setActiveNotification(item)}
@@ -764,7 +764,7 @@ function NotificationsModal({ profile, onClose }: { profile: UserProfile | null,
                     
                     {read.map((n, idx) => (
                       <NotificationItem 
-                        key={`read-${n.id || idx}`} 
+                        key={`read-${n.id ? `${n.id}-${idx}` : idx}`} 
                         n={n} 
                         markAsRead={markAsRead} 
                         onSelect={(item) => setActiveNotification(item)}

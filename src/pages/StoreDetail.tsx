@@ -524,9 +524,9 @@ export function StoreDetailContent({ store, profile, onGuestLogin, showMap = tru
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {products.length > 0 ? (
-              Array.from(new Map<string, Product>(products.map(p => [p.id, p])).values()).map((p) => (
+              Array.from(new Map<string, Product>(products.filter(p => p && p.id).map(p => [p.id, p])).values()).map((p, idx) => (
                 <ProductCard 
-                  key={p.id} 
+                  key={`sd-prod-${p.id || idx}`} 
                   product={p} 
                   profile={profile} 
                   store={store}

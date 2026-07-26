@@ -470,8 +470,8 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
               {/* Reviews List */}
               <div className="space-y-1.5">
                 {reviews.length > 0 ? (
-                  reviews.map((review) => (
-                    <div key={review.id} className="p-2.5 bg-[#0d1117] border border-white/5 rounded-xl space-y-1.5">
+                  reviews.map((review, idx) => (
+                    <div key={`pd-review-${review.id || idx}`} className="p-2.5 bg-[#0d1117] border border-white/5 rounded-xl space-y-1.5">
                       <div className="flex justify-between items-center">
                         <div className="flex items-center gap-1.5">
                           <div className="w-4 h-4 rounded bg-gray-800 flex items-center justify-center text-[7px] font-black text-gray-500 border border-white/10 overflow-hidden shrink-0">

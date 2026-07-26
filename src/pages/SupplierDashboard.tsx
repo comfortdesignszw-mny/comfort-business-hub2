@@ -570,9 +570,9 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
           </button>
         </div>
         <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
-          {Array.from(new Map(stores.map(s => [s.id, s])).values()).map((s) => (
+          {Array.from(new Map(stores.filter(s => s && s.id).map(s => [s.id, s])).values()).map((s, idx) => (
             <button
-              key={s.id}
+              key={`sup-store-${s.id || idx}`}
               onClick={() => switchStore(s)}
               className={cn(
                 "px-5 py-3 rounded-2xl border transition-all flex flex-col items-start gap-1 min-w-[140px]",
@@ -854,9 +854,9 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
         </div>
 
         <div className="space-y-4">
-          {Array.from(new Map<string, Product>(products.map(p => [p.id, p])).values()).map((product, index) => (
+          {Array.from(new Map<string, Product>(products.filter(p => p && p.id).map(p => [p.id, p])).values()).map((product, index) => (
             <motion.div 
-              key={product.id}
+              key={`sup-prod-${product.id || index}`}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
