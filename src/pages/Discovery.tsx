@@ -682,9 +682,9 @@ useEffect(() => {
                   transition={{ duration: 0.4 }}
                   onClick={() => setSelectedSpotlightAd(currentSpotlight)}
                   className={cn(
-                    "relative h-56 sm:h-64 flex flex-col justify-end p-5 sm:p-8 group cursor-pointer overflow-hidden rounded-[2.5rem] border transition-all text-left shadow-2xl",
+                    "relative min-h-[220px] sm:min-h-[240px] flex flex-col justify-between p-5 sm:p-7 group cursor-pointer overflow-hidden rounded-[2.5rem] border transition-all text-left shadow-2xl",
                     isClassified 
-                      ? "border-amber-500/40 shadow-[0_0_40px_rgba(245,158,11,0.2)] bg-gradient-to-br from-[#120d05] via-[#080a0f] to-[#05070a]" 
+                      ? "border-amber-500/40 shadow-[0_0_40px_rgba(245,158,11,0.2)] bg-gradient-to-br from-[#181108] via-[#0d1017] to-[#05070a]" 
                       : "border-primary/30 shadow-[0_0_40px_rgba(0,242,254,0.15)] bg-[#05070a]"
                   )}
                 >
@@ -692,111 +692,116 @@ useEffect(() => {
                   <div className="absolute inset-0 z-0">
                     <OptimizedImage 
                       src={currentSpotlight.image || "https://images.unsplash.com/photo-1540350394557-8d14678e7f91?w=800&q=80"} 
-                      className="w-full h-full object-cover opacity-30 group-hover:scale-105 transition-transform duration-1000" 
+                      className="w-full h-full object-cover opacity-25 group-hover:scale-105 transition-transform duration-1000" 
                       alt="Spotlight Ad" 
                     />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#05070a] via-[#05070a]/70 to-transparent"></div>
+                    <div className="absolute inset-0 bg-gradient-to-t from-[#05070a] via-[#05070a]/80 to-[#05070a]/40"></div>
                   </div>
 
-                  {/* Top Right Prominence Badges */}
-                  <div className="absolute top-4 right-4 sm:top-6 sm:right-6 flex flex-wrap items-center gap-2 z-10">
-                    {currentSpotlight.badge && (
-                      <span className="px-3 py-1 bg-neon-green/20 text-neon-green border border-neon-green/40 rounded-full text-[9px] font-black uppercase tracking-wider shadow-[0_0_15px_#39FF14]">
-                        {currentSpotlight.badge}
-                      </span>
-                    )}
-
-                    {timeInfo && (
-                      <span className={cn(
-                        "px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-wider border flex items-center gap-1 backdrop-blur-md",
-                        timeInfo.expired 
-                          ? "bg-red-500/20 text-red-400 border-red-500/30" 
-                          : "bg-primary/20 text-primary border-primary/30"
-                      )}>
-                        <Clock size={10} /> {timeInfo.text}
-                      </span>
-                    )}
-
-                    <div className="w-8 h-8 sm:w-10 sm:h-10 bg-primary/10 rounded-xl flex items-center justify-center border border-primary/20 text-primary animate-pulse ml-1">
-                      <Zap size={16} />
-                    </div>
-                  </div>
-
-                  {/* Main Content */}
-                  <div className="relative z-10 space-y-2 max-w-xl">
+                  {/* Header Row: Badges, Timer, Type */}
+                  <div className="relative z-10 flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3 mb-2">
                     <div className="flex flex-wrap items-center gap-2">
                       {isClassified ? (
-                        <div className="px-2.5 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1">
-                          <Tag size={10} /> Timeframed Classified Ad
+                        <div className="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1.5 shadow-[0_0_12px_rgba(245,158,11,0.2)]">
+                          <Tag size={11} /> Timeframed Classified Ad
                         </div>
                       ) : (
-                        <div className="glass-pill !text-primary !border-primary/20 flex items-center gap-1 text-[8px] py-0.5">
-                          <Megaphone size={10} className="animate-pulse" /> Market Spotlight
+                        <div className="glass-pill !text-primary !border-primary/30 flex items-center gap-1.5 text-[9px] py-1 px-3">
+                          <Megaphone size={11} className="animate-pulse" /> Market Spotlight
                         </div>
                       )}
 
                       {currentSpotlight.category && (
-                        <span className="text-[8px] font-bold text-gray-400 uppercase tracking-widest px-2 py-0.5 bg-white/5 rounded-full border border-white/10">
+                        <span className="text-[9px] font-bold text-gray-300 uppercase tracking-widest px-2.5 py-1 bg-white/5 rounded-full border border-white/10">
                           {currentSpotlight.category}
                         </span>
                       )}
                     </div>
 
-                    <div className="flex items-baseline gap-3">
-                      <h3 className="text-lg sm:text-2xl font-black text-white italic leading-tight tracking-tighter uppercase break-words line-clamp-2">
+                    <div className="flex items-center gap-2">
+                      {currentSpotlight.badge && (
+                        <span className="px-2.5 py-1 bg-neon-green/20 text-neon-green border border-neon-green/40 rounded-full text-[9px] font-black uppercase tracking-wider shadow-[0_0_12px_#39FF14]">
+                          {currentSpotlight.badge}
+                        </span>
+                      )}
+
+                      {timeInfo && (
+                        <span className={cn(
+                          "px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border flex items-center gap-1 backdrop-blur-md",
+                          timeInfo.expired 
+                            ? "bg-red-500/20 text-red-400 border-red-500/30" 
+                            : "bg-primary/20 text-primary border-primary/30"
+                        )}>
+                          <Clock size={11} /> {timeInfo.text}
+                        </span>
+                      )}
+
+                      <div className="w-7 h-7 bg-primary/10 rounded-lg flex items-center justify-center border border-primary/20 text-primary">
+                        <Zap size={14} />
+                      </div>
+                    </div>
+                  </div>
+
+                  {/* Middle Main Content */}
+                  <div className="relative z-10 space-y-1.5 my-1">
+                    <div className="flex flex-wrap items-baseline justify-between gap-3">
+                      <h3 className="text-base sm:text-xl font-black text-white uppercase tracking-tight leading-snug break-words line-clamp-2 max-w-2xl">
                         {currentSpotlight.title}
                       </h3>
                       {currentSpotlight.price && (
-                        <span className="px-3 py-1 bg-gradient-to-r from-primary to-accent text-[#05070a] font-black text-xs sm:text-sm rounded-xl shadow-[0_0_15px_rgba(0,242,254,0.4)] whitespace-nowrap flex-shrink-0">
+                        <span className="px-3 py-1 bg-gradient-to-r from-primary to-accent text-[#05070a] font-black text-xs sm:text-sm rounded-xl shadow-[0_0_15px_rgba(0,242,254,0.3)] whitespace-nowrap flex-shrink-0">
                           {currentSpotlight.price}
                         </span>
                       )}
                     </div>
 
                     {currentSpotlight.content && (
-                      <p className="text-[10px] sm:text-[11px] text-gray-300 font-medium leading-relaxed line-clamp-2 mt-1">
+                      <p className="text-xs text-gray-300 font-normal leading-relaxed line-clamp-2">
                         {currentSpotlight.content}
                       </p>
                     )}
+                  </div>
 
-                    <div className="flex flex-wrap items-center justify-between gap-2 pt-2">
-                      <div className="flex items-center gap-2">
-                        {currentSpotlight.authorName && (
-                          <div className="flex items-center gap-1 text-[8px] sm:text-[9px] text-primary font-black tracking-widest bg-primary/10 px-2 py-0.5 rounded border border-primary/20">
-                            <Store size={10} /> {currentSpotlight.authorName}
-                          </div>
-                        )}
-                        {currentSpotlight.location && (
-                          <div className="flex items-center gap-1 text-[8px] text-gray-400 font-bold uppercase tracking-widest">
-                            <MapPin size={10} className="text-primary" /> {currentSpotlight.location}
-                          </div>
-                        )}
-                      </div>
+                  {/* Footer Row: Author/Location, Dots & Action Button */}
+                  <div className="relative z-10 flex flex-wrap items-center justify-between gap-3 pt-3 mt-2 border-t border-white/10">
+                    <div className="flex flex-wrap items-center gap-2">
+                      {currentSpotlight.authorName && (
+                        <div className="flex items-center gap-1.5 text-[9px] sm:text-[10px] text-primary font-bold uppercase tracking-wider bg-primary/10 px-2.5 py-1 rounded-lg border border-primary/20">
+                          <Store size={11} /> {currentSpotlight.authorName}
+                        </div>
+                      )}
+                      {currentSpotlight.location && (
+                        <div className="flex items-center gap-1 text-[9px] sm:text-[10px] text-gray-400 font-semibold uppercase tracking-wider bg-white/5 px-2.5 py-1 rounded-lg border border-white/5">
+                          <MapPin size={11} className="text-primary" /> {currentSpotlight.location}
+                        </div>
+                      )}
+                    </div>
 
-                      <button className="px-3 py-1.5 bg-primary/20 hover:bg-primary text-primary hover:text-[#05070a] rounded-xl text-[9px] font-black uppercase tracking-wider border border-primary/30 flex items-center gap-1.5 transition-all">
+                    <div className="flex items-center gap-4 ml-auto">
+                      {/* Carousel Indicators */}
+                      {spotlights.length > 1 && (
+                        <div className="flex gap-1.5 items-center">
+                          {spotlights.map((_, idx) => (
+                            <div 
+                              key={idx} 
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setActiveSpotlightIndex(idx);
+                              }}
+                              className={cn(
+                                "h-1.5 rounded-full transition-all duration-300 cursor-pointer",
+                                idx === activeSpotlightIndex ? "w-5 bg-primary" : "w-1.5 bg-white/30 hover:bg-white/60"
+                              )}
+                            />
+                          ))}
+                        </div>
+                      )}
+
+                      <button className="px-3.5 py-1.5 bg-primary hover:bg-primary/90 text-[#05070a] rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-[0_0_15px_rgba(0,242,254,0.25)] hover:scale-105 transition-all whitespace-nowrap">
                         View Ad Details <ArrowRight size={12} />
                       </button>
                     </div>
                   </div>
-
-                  {/* Carousel Indicators */}
-                  {spotlights.length > 1 && (
-                    <div className="absolute bottom-4 right-6 flex gap-1.5 z-10">
-                      {spotlights.map((_, idx) => (
-                        <div 
-                          key={idx} 
-                          onClick={(e) => {
-                            e.stopPropagation();
-                            setActiveSpotlightIndex(idx);
-                          }}
-                          className={cn(
-                            "h-1.5 rounded-full transition-all duration-500 cursor-pointer",
-                            idx === activeSpotlightIndex ? "w-6 bg-primary" : "w-2 bg-white/30 hover:bg-white/60"
-                          )}
-                        />
-                      ))}
-                    </div>
-                  )}
                 </motion.div>
               );
             })()
