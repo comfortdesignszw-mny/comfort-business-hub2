@@ -564,7 +564,7 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
               <Loader2 className="animate-spin text-primary/40" size={24} />
             </div>
           ) : (
-            allMessages.map((msg) => {
+            Array.from(new Map(allMessages.map(m => [m.id, m])).values()).map((msg) => {
               const isMe = msg.senderId === profile?.uid;
               return (
                 <div 

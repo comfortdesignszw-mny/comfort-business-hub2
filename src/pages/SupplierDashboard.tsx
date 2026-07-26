@@ -570,7 +570,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
           </button>
         </div>
         <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
-          {stores.map((s) => (
+          {Array.from(new Map(stores.map(s => [s.id, s])).values()).map((s) => (
             <button
               key={s.id}
               onClick={() => switchStore(s)}

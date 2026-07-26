@@ -182,7 +182,7 @@ export interface Spotlight {
   id: string;
   authorId: string;
   authorName: string;
-  type: 'news' | 'event' | 'update' | 'spotlight';
+  type: 'news' | 'event' | 'update' | 'spotlight' | 'classified';
   title: string;
   content: string;
   image?: string;
@@ -190,6 +190,19 @@ export interface Spotlight {
   date?: string;
   isActive: boolean;
   createdAt: any;
+
+  // Classified Ads specific properties
+  isClassified?: boolean;
+  category?: string;
+  price?: string;
+  badge?: string;
+  durationHours?: number;
+  expiresAt?: any;
+  contactPhone?: string;
+  whatsappNumber?: string;
+  actionUrl?: string;
+  targetType?: 'chat' | 'whatsapp' | 'call' | 'store' | 'external';
+  tier?: 'standard' | 'featured' | 'vip_banner';
 }
 
 export type EngagementType = 'engaged' | 'interested' | 'order_now';

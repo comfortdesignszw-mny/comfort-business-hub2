@@ -5,7 +5,7 @@ import {
   User, Store, Phone, MapPin, Shield, LogOut, ChevronRight, Wallet, 
   Bell, Zap, Image as ImageIcon, X, Check, CreditCard, 
   Navigation, Crosshair, Save, Loader2, Megaphone, Trash2, Calendar, FileText, Plus, Users, MessageSquare, Share, RefreshCw, Download
-, Network, ExternalLink, Fingerprint, Compass, BellRing } from 'lucide-react';
+, Network, ExternalLink, Fingerprint, Compass, BellRing, Clock, Tag, Flame, Sparkles, DollarSign, Layers, MessageCircle } from 'lucide-react';
 import BiometricAuthModal from '../components/BiometricAuthModal';
 import AppTutorialModal from '../components/AppTutorialModal';
 import PushNotificationSettingsModal from '../components/PushNotificationSettingsModal';
@@ -504,7 +504,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {observedStores.map((store) => (
+                {Array.from(new Map(observedStores.map(s => [s.id, s])).values()).map((store) => (
                   <div 
                     key={store.id}
                     onClick={() => navigate(`/store/${store.id}`)}
@@ -813,7 +813,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
           </div>
         </div>
         <div className="flex gap-4 overflow-x-auto pb-4 pt-2 -mx-2 px-2 custom-scrollbar snap-x no-scrollbar">
-          {displayedUsers.map((user) => (
+          {Array.from(new Map(displayedUsers.map(u => [u.uid, u])).values()).map((user) => (
             <div key={`matrix-${user.uid}`} className="contents">
               <AuthGuard 
                 title="View Partner Profile"
@@ -1053,15 +1053,57 @@ function SpotlightManager({ profile }: { profile: UserProfile }) {
   const [editingSpotlight, setEditingSpotlight] = useState<Spotlight | null>(null);
   const [success, setSuccess] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
+
+  // Form Mode: 'classified' vs 'spotlight'
+  const [postMode, setPostMode] = useState<'classified' | 'spotlight'>('classified');
   const [formData, setFormData] = useState<Partial<Spotlight>>({
-    type: 'news',
+    type: 'classified',
     title: '',
     content: '',
     date: '',
-    location: '',
+    location: profile.location?.city || '',
     image: '',
     isActive: true,
+    isClassified: true,
+    category: 'Electronics & Tech',
+    price: '',
+    badge: '🔥 HOT DEAL',
+    durationHours: 168, // 7 Days
+    contactPhone: profile.phone || '',
+    whatsappNumber: profile.phone || '',
+    actionUrl: '',
+    targetType: 'whatsapp',
+    tier: 'featured',
   });
+
+  const CATEGORIES = [
+    'Electronics & Tech',
+    'Vehicles & Motors',
+    'Real Estate & Housing',
+    'Services & Repairs',
+    'Jobs & Careers',
+    'Fashion & Apparel',
+    'Agriculture & Fresh Produce',
+    'Wholesale & Goods',
+    'General Merchandise'
+  ];
+
+  const BADGES = [
+    '🔥 HOT DEAL',
+    '⚡ URGENT SALE',
+    '⭐ FEATURED AD',
+    '💎 VIP SPOTLIGHT',
+    '🎁 SPECIAL PROMO',
+    '🏷️ CLEARANCE'
+  ];
+
+  const DURATIONS = [
+    { hours: 24, label: '⚡ 24 Hours (Flash Ad)' },
+    { hours: 72, label: '🔥 3 Days (Spotlight)' },
+    { hours: 168, label: '⭐ 7 Days (1 Week)' },
+    { hours: 336, label: '🚀 14 Days (2 Weeks)' },
+    { hours: 720, label: '💎 30 Days (1 Month)' }
+  ];
 
   useEffect(() => {
     const q = query(
@@ -1090,32 +1132,60 @@ function SpotlightManager({ profile }: { profile: UserProfile }) {
   const handleEdit = (s: Spotlight) => {
     setEditingSpotlight(s);
     setIsAdding(false);
+    const isClass = s.isClassified || s.type === 'classified';
+    setPostMode(isClass ? 'classified' : 'spotlight');
     setFormData({
-      type: s.type,
-      title: s.title,
-      content: s.content,
+      type: s.type || 'classified',
+      title: s.title || '',
+      content: s.content || '',
       date: s.date || '',
-      location: s.location || '',
+      location: s.location || profile.location?.city || '',
       image: s.image || '',
-      isActive: s.isActive,
+      isActive: s.isActive ?? true,
+      isClassified: isClass,
+      category: s.category || 'Electronics & Tech',
+      price: s.price || '',
+      badge: s.badge || '🔥 HOT DEAL',
+      durationHours: s.durationHours || 168,
+      contactPhone: s.contactPhone || profile.phone || '',
+      whatsappNumber: s.whatsappNumber || profile.phone || '',
+      actionUrl: s.actionUrl || '',
+      targetType: s.targetType || 'whatsapp',
+      tier: s.tier || 'featured',
     });
+  };
+
+  const calculateExpiresAt = (hours: number) => {
+    const now = new Date();
+    return new Date(now.getTime() + hours * 60 * 60 * 1000).toISOString();
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setLoading(true);
     try {
+      const isClassified = postMode === 'classified';
+      const duration = formData.durationHours || 168;
+      const expiresAt = isClassified ? calculateExpiresAt(duration) : null;
+
+      const payload = {
+        ...formData,
+        type: isClassified ? 'classified' : (formData.type === 'classified' ? 'news' : formData.type || 'news'),
+        isClassified,
+        expiresAt: expiresAt || formData.expiresAt || null,
+        authorId: profile.uid,
+        authorName: profile.businessName || profile.name,
+      };
+
       if (editingSpotlight) {
         const data = {
-          ...formData,
+          ...payload,
           updatedAt: serverTimestamp(),
         };
         await updateDoc(doc(db, 'spotlights', editingSpotlight.id), data);
       } else {
         const data = {
-          ...formData,
-          authorId: profile.uid,
-          authorName: profile.businessName || profile.name,
+          ...payload,
           createdAt: serverTimestamp(),
         };
         await addDoc(collection(db, 'spotlights'), data);
@@ -1126,7 +1196,25 @@ function SpotlightManager({ profile }: { profile: UserProfile }) {
         setIsAdding(false);
         setEditingSpotlight(null);
         setSuccess(false);
-        setFormData({ type: 'news', title: '', content: '', date: '', location: '', image: '', isActive: true });
+        setFormData({
+          type: 'classified',
+          title: '',
+          content: '',
+          date: '',
+          location: profile.location?.city || '',
+          image: '',
+          isActive: true,
+          isClassified: true,
+          category: 'Electronics & Tech',
+          price: '',
+          badge: '🔥 HOT DEAL',
+          durationHours: 168,
+          contactPhone: profile.phone || '',
+          whatsappNumber: profile.phone || '',
+          actionUrl: '',
+          targetType: 'whatsapp',
+          tier: 'featured',
+        });
       }, 1000);
     } catch (err) {
       handleFirestoreError(err, editingSpotlight ? OperationType.UPDATE : OperationType.CREATE, editingSpotlight ? `spotlights/${editingSpotlight.id}` : 'spotlights');
@@ -1135,8 +1223,22 @@ function SpotlightManager({ profile }: { profile: UserProfile }) {
     }
   };
 
+  const handleRenew = async (s: Spotlight) => {
+    try {
+      const duration = s.durationHours || 168;
+      const newExpiry = calculateExpiresAt(duration);
+      await updateDoc(doc(db, 'spotlights', s.id), {
+        expiresAt: newExpiry,
+        isActive: true,
+        updatedAt: serverTimestamp(),
+      });
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `spotlights/${s.id}`);
+    }
+  };
+
   const handleDelete = async (id: string) => {
-    if (!confirm('Are you sure you want to delete this post?')) return;
+    if (!confirm('Are you sure you want to delete this listing?')) return;
     try {
       await deleteDoc(doc(db, 'spotlights', id));
     } catch (err) {
@@ -1144,22 +1246,57 @@ function SpotlightManager({ profile }: { profile: UserProfile }) {
     }
   };
 
+  const getTimeLeftText = (expiresAt: any) => {
+    if (!expiresAt) return null;
+    const expiryDate = new Date(expiresAt?.toDate?.() || expiresAt);
+    const diffMs = expiryDate.getTime() - Date.now();
+    if (diffMs <= 0) return { expired: true, text: 'Expired' };
+
+    const totalHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const days = Math.floor(totalHours / 24);
+    const hours = totalHours % 24;
+    if (days >= 1) return { expired: false, text: `${days}d ${hours}h left` };
+    return { expired: false, text: `${hours}h left` };
+  };
+
   return (
     <div className="space-y-8 pb-12">
       <header className="flex justify-between items-center">
         <div className="space-y-1 text-left">
-          <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter">Market Spotlight</h3>
-          <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Manage your broadcasts & news feeds</p>
+          <div className="flex items-center gap-2">
+            <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter">Market Spotlight & Classifieds</h3>
+            <span className="px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider bg-primary/20 text-primary border border-primary/30">Live Ads</span>
+          </div>
+          <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Create appealing timeframed ads & spotlight broadcasts for Explorer</p>
         </div>
         {(!isAdding && !editingSpotlight) && (
           <button 
             onClick={() => {
               setIsAdding(true);
-              setFormData({ type: 'news', title: '', content: '', date: '', location: '', image: '', isActive: true });
+              setPostMode('classified');
+              setFormData({
+                type: 'classified',
+                title: '',
+                content: '',
+                date: '',
+                location: profile.location?.city || '',
+                image: '',
+                isActive: true,
+                isClassified: true,
+                category: 'Electronics & Tech',
+                price: '',
+                badge: '🔥 HOT DEAL',
+                durationHours: 168,
+                contactPhone: profile.phone || '',
+                whatsappNumber: profile.phone || '',
+                actionUrl: '',
+                targetType: 'whatsapp',
+                tier: 'featured',
+              });
             }}
-            className="w-10 h-10 bg-primary/20 text-primary rounded-xl flex items-center justify-center border border-primary/20 hover:bg-primary hover:text-[#05070a] transition-all shadow-lg active:scale-95"
+            className="px-4 py-2 bg-gradient-to-r from-primary to-accent text-[#05070a] font-black text-[10px] uppercase tracking-wider rounded-xl flex items-center gap-2 shadow-[0_0_20px_rgba(0,242,254,0.3)] hover:scale-105 transition-all active:scale-95"
           >
-            <Plus size={20} />
+            <Plus size={16} /> Post Classified Ad
           </button>
         )}
       </header>
@@ -1168,16 +1305,18 @@ function SpotlightManager({ profile }: { profile: UserProfile }) {
         <form 
           ref={formRef}
           onSubmit={handleSubmit} 
-          className="space-y-6 bg-white/5 p-6 rounded-3xl border border-white/10 shadow-[0_0_50px_rgba(0,0,0,0.5)] relative overflow-hidden"
+          className="space-y-6 bg-white/5 p-6 rounded-3xl border border-primary/30 shadow-[0_0_50px_rgba(0,242,254,0.15)] relative overflow-hidden"
         >
           <div className="absolute top-0 left-0 w-full h-[2px] bg-gradient-to-r from-transparent via-primary to-transparent animate-scan" />
           
           <div className="flex justify-between items-center mb-2">
-            <label className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">
-              {editingSpotlight ? 'Edit Spotlight' : 'Create Spotlight'}
-            </label>
             <div className="flex items-center gap-2">
-              <span className="text-[9px] text-gray-500 font-black uppercase">Active</span>
+              <label className="text-[10px] font-black text-primary uppercase tracking-[0.2em]">
+                {editingSpotlight ? 'Edit Listing' : 'New Listing Creation'}
+              </label>
+            </div>
+            <div className="flex items-center gap-2">
+              <span className="text-[9px] text-gray-400 font-black uppercase">Active Status</span>
               <button
                 type="button"
                 onClick={() => setFormData(prev => ({ ...prev, isActive: !prev.isActive }))}
@@ -1194,82 +1333,222 @@ function SpotlightManager({ profile }: { profile: UserProfile }) {
             </div>
           </div>
 
-          <div className="space-y-4">
-            <div className="grid grid-cols-2 gap-3">
-              {(['news', 'event', 'update', 'spotlight'] as const).map((t) => (
-                <button
-                  key={t}
-                  type="button"
-                  onClick={() => setFormData(prev => ({ ...prev, type: t }))}
-                  className={cn(
-                    "px-3 py-3 rounded-xl border text-[9px] font-black uppercase tracking-widest transition-all text-center",
-                    formData.type === t ? "bg-primary/20 border-primary text-primary shadow-[0_0_15px_rgba(0,242,254,0.15)]" : "bg-white/5 border-white/5 text-gray-500"
-                  )}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
+          {/* Mode Switcher: Classified Ad vs Broadcast Spotlight */}
+          <div className="p-1.5 bg-[#0d1117] rounded-2xl border border-white/10 grid grid-cols-2 gap-2">
+            <button
+              type="button"
+              onClick={() => {
+                setPostMode('classified');
+                setFormData(prev => ({ ...prev, isClassified: true, type: 'classified' }));
+              }}
+              className={cn(
+                "py-3 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2",
+                postMode === 'classified'
+                  ? "bg-gradient-to-r from-primary/30 to-accent/30 text-primary border border-primary/50 shadow-[0_0_15px_rgba(0,242,254,0.2)]"
+                  : "text-gray-400 hover:text-white"
+              )}
+            >
+              <Tag size={14} /> Timeframed Classified Ad
+            </button>
+            <button
+              type="button"
+              onClick={() => {
+                setPostMode('spotlight');
+                setFormData(prev => ({ ...prev, isClassified: false, type: 'news' }));
+              }}
+              className={cn(
+                "py-3 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2",
+                postMode === 'spotlight'
+                  ? "bg-gradient-to-r from-primary/30 to-accent/30 text-primary border border-primary/50 shadow-[0_0_15px_rgba(0,242,254,0.2)]"
+                  : "text-gray-400 hover:text-white"
+              )}
+            >
+              <Megaphone size={14} /> General Spotlight / News
+            </button>
+          </div>
 
-            <div className="space-y-1">
-              <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">Headline</label>
+          <div className="space-y-4">
+            {/* If Classified Ad, show Classified Ad Options */}
+            {postMode === 'classified' && (
+              <div className="p-4 bg-primary/5 border border-primary/20 rounded-2xl space-y-4">
+                <div className="flex items-center gap-2 text-primary font-black text-xs uppercase tracking-wider">
+                  <Flame size={16} /> Classified Ad Specification
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Category */}
+                  <div className="space-y-1 text-left">
+                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Market Category</label>
+                    <select
+                      value={formData.category || 'Electronics & Tech'}
+                      onChange={e => setFormData(prev => ({ ...prev, category: e.target.value }))}
+                      className="w-full bg-[#0d1117] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary/50 text-xs font-bold"
+                    >
+                      {CATEGORIES.map(cat => (
+                        <option key={cat} value={cat} className="bg-[#0d1117] text-white">{cat}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Price Tag */}
+                  <div className="space-y-1 text-left">
+                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Price / Offer Tag</label>
+                    <input 
+                      type="text"
+                      value={formData.price || ''}
+                      onChange={e => setFormData(prev => ({ ...prev, price: e.target.value }))}
+                      placeholder="e.g. $120, Negotiable, or FREE"
+                      className="w-full bg-[#0d1117] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary/50 text-xs font-bold"
+                    />
+                  </div>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  {/* Badge */}
+                  <div className="space-y-1 text-left">
+                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Prominence Badge</label>
+                    <select
+                      value={formData.badge || '🔥 HOT DEAL'}
+                      onChange={e => setFormData(prev => ({ ...prev, badge: e.target.value }))}
+                      className="w-full bg-[#0d1117] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary/50 text-xs font-bold"
+                    >
+                      {BADGES.map(b => (
+                        <option key={b} value={b} className="bg-[#0d1117] text-white">{b}</option>
+                      ))}
+                    </select>
+                  </div>
+
+                  {/* Duration Timeframe */}
+                  <div className="space-y-1 text-left">
+                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Active Timeframe</label>
+                    <select
+                      value={formData.durationHours || 168}
+                      onChange={e => setFormData(prev => ({ ...prev, durationHours: Number(e.target.value) }))}
+                      className="w-full bg-[#0d1117] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary/50 text-xs font-bold"
+                    >
+                      {DURATIONS.map(d => (
+                        <option key={d.hours} value={d.hours} className="bg-[#0d1117] text-white">{d.label}</option>
+                      ))}
+                    </select>
+                  </div>
+                </div>
+
+                {/* Contact CTA options */}
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-1 text-left">
+                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Primary Call-To-Action</label>
+                    <select
+                      value={formData.targetType || 'whatsapp'}
+                      onChange={e => setFormData(prev => ({ ...prev, targetType: e.target.value as any }))}
+                      className="w-full bg-[#0d1117] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary/50 text-xs font-bold"
+                    >
+                      <option value="whatsapp" className="bg-[#0d1117] text-white">📱 WhatsApp Direct Contact</option>
+                      <option value="chat" className="bg-[#0d1117] text-white">💬 In-App Hub Chat</option>
+                      <option value="call" className="bg-[#0d1117] text-white">📞 Direct Phone Call</option>
+                      <option value="store" className="bg-[#0d1117] text-white">🏪 Visit Store Page</option>
+                      <option value="external" className="bg-[#0d1117] text-white">🌐 External Web Link</option>
+                    </select>
+                  </div>
+
+                  <div className="space-y-1 text-left">
+                    <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Contact WhatsApp / Phone</label>
+                    <input 
+                      type="text"
+                      value={formData.whatsappNumber || formData.contactPhone || ''}
+                      onChange={e => setFormData(prev => ({ ...prev, whatsappNumber: e.target.value, contactPhone: e.target.value }))}
+                      placeholder="+263 77 123 4567"
+                      className="w-full bg-[#0d1117] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary/50 text-xs font-bold"
+                    />
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* General Spotlight Type (if spotlight mode) */}
+            {postMode === 'spotlight' && (
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-2">
+                {(['news', 'event', 'update', 'spotlight'] as const).map((t) => (
+                  <button
+                    key={t}
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, type: t }))}
+                    className={cn(
+                      "px-3 py-3 rounded-xl border text-[9px] font-black uppercase tracking-widest transition-all text-center",
+                      formData.type === t ? "bg-primary/20 border-primary text-primary shadow-[0_0_15px_rgba(0,242,254,0.15)]" : "bg-white/5 border-white/5 text-gray-500"
+                    )}
+                  >
+                    {t}
+                  </button>
+                ))}
+              </div>
+            )}
+
+            {/* Headline */}
+            <div className="space-y-1 text-left">
+              <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">
+                {postMode === 'classified' ? 'Ad Title / Item Name' : 'Headline'}
+              </label>
               <input 
                 required
                 type="text"
                 value={formData.title}
                 onChange={e => setFormData(prev => ({ ...prev, title: e.target.value }))}
-                placeholder="Ex: Prime Grade Beef Restocked"
+                placeholder={postMode === 'classified' ? 'e.g., iPhone 15 Pro Max 256GB - Brand New Sealed' : 'e.g., Prime Grade Beef Restocked'}
                 className="w-full bg-[#0d1117] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary/50 text-xs font-bold"
               />
             </div>
 
-            <div className="space-y-1">
-              <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">Content Feed</label>
+            {/* Content Body */}
+            <div className="space-y-1 text-left">
+              <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">
+                {postMode === 'classified' ? 'Ad Description & Specs' : 'Content Details'}
+              </label>
               <textarea 
                 required
                 value={formData.content}
                 onChange={e => setFormData(prev => ({ ...prev, content: e.target.value }))}
                 rows={4}
-                placeholder="Details of the broadcast..."
+                placeholder={postMode === 'classified' ? 'Describe item condition, key features, availability, and delivery options...' : 'Details of the broadcast update...'}
                 className="w-full bg-[#0d1117] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary/50 text-xs font-medium resize-none leading-relaxed"
               />
             </div>
 
-            <div className="grid grid-cols-2 gap-4">
-              <div className="space-y-1">
-                <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">Timeline (Optional)</label>
-                <input 
-                  type="text"
-                  value={formData.date}
-                  onChange={e => setFormData(prev => ({ ...prev, date: e.target.value }))}
-                  placeholder="e.g. Valid thru May 20"
-                  className="w-full bg-[#0d1117] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary/50 text-xs font-bold"
-                />
-              </div>
-              <div className="space-y-1">
-                <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">Sector (Optional)</label>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-1 text-left">
+                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Location / City</label>
                 <input 
                   type="text"
                   value={formData.location}
                   onChange={e => setFormData(prev => ({ ...prev, location: e.target.value }))}
-                  placeholder="e.g. Harare North"
+                  placeholder="e.g. Harare Central / Bulawayo"
+                  className="w-full bg-[#0d1117] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary/50 text-xs font-bold"
+                />
+              </div>
+              <div className="space-y-1 text-left">
+                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Optional External Link</label>
+                <input 
+                  type="url"
+                  value={formData.actionUrl || ''}
+                  onChange={e => setFormData(prev => ({ ...prev, actionUrl: e.target.value }))}
+                  placeholder="https://example.com/item"
                   className="w-full bg-[#0d1117] border border-white/10 rounded-xl px-4 py-3 text-white outline-none focus:border-primary/50 text-xs font-bold"
                 />
               </div>
             </div>
 
-            <div className="space-y-1">
-              <label className="text-[9px] font-black text-gray-500 uppercase tracking-widest ml-1">Cover Image</label>
+            {/* Image upload */}
+            <div className="space-y-1 text-left">
+              <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Cover Image / Media</label>
               <ImageInput 
                 value={formData.image || ''}
                 onChange={(val) => setFormData(prev => ({ ...prev, image: val }))}
-                label="Select Background Media"
+                label="Select Classified Cover Photo"
                 className="!bg-[#0d1117]"
               />
             </div>
           </div>
 
-          <div className="flex gap-3">
+          <div className="flex gap-3 pt-2">
             <button 
               type="button"
               onClick={() => { setIsAdding(false); setEditingSpotlight(null); }}
@@ -1281,21 +1560,21 @@ function SpotlightManager({ profile }: { profile: UserProfile }) {
               type="submit"
               disabled={loading || success}
               className={cn(
-                "flex-[2] py-5 flex items-center justify-center gap-3 text-[11px] font-black uppercase tracking-[0.2em] transition-all",
+                "flex-[2] py-4 flex items-center justify-center gap-3 text-[11px] font-black uppercase tracking-[0.2em] rounded-2xl transition-all",
                 success 
                   ? "bg-neon-green text-[#05070a] shadow-[0_0_30px_#39FF14] scale-105" 
-                  : "bg-primary text-[#05070a] shadow-[0_0_30px_rgba(0,242,254,0.4)] hover:scale-[1.02] active:scale-95"
+                  : "bg-gradient-to-r from-primary to-accent text-[#05070a] shadow-[0_0_30px_rgba(0,242,254,0.4)] hover:scale-[1.02] active:scale-95"
               )}
             >
               {loading ? (
                 <Loader2 className="animate-spin" size={16} />
               ) : success ? (
                 <>
-                  <Check size={18} /> Signal Broadcast
+                  <Check size={18} /> Published to Explorer
                 </>
               ) : (
                 <>
-                  <Megaphone size={18} /> {editingSpotlight ? 'Update Spotlight' : 'Post Broadcast'}
+                  <Sparkles size={18} /> {editingSpotlight ? 'Update Listing' : 'Publish to Market'}
                 </>
               )}
             </button>
@@ -1306,82 +1585,136 @@ function SpotlightManager({ profile }: { profile: UserProfile }) {
           {loading ? (
             <div className="space-y-4">
               {[1, 2].map(i => (
-                <div key={i} className="h-32 bg-white/5 animate-pulse rounded-3xl border border-white/5" />
+                <div key={i} className="h-36 bg-white/5 animate-pulse rounded-3xl border border-white/5" />
               ))}
             </div>
           ) : spotlights.length > 0 ? (
             <div className="grid gap-4">
-              {spotlights.map((s) => (
-                <motion.div 
-                  key={s.id}
-                  layout
-                  className={cn(
-                    "p-5 bg-white/5 border rounded-[2rem] transition-all group relative overflow-hidden",
-                    s.isActive ? "border-white/10" : "border-white/5 opacity-50 gray-scale"
-                  )}
-                >
-                  <div className="flex gap-4 items-start relative z-10">
-                    <div className="w-14 h-14 bg-[#0d1117] rounded-2xl border border-white/5 overflow-hidden flex-shrink-0 flex items-center justify-center text-primary">
-                      {s.image ? (
-                        <img src={s.image} className="w-full h-full object-cover opacity-60" />
-                      ) : (
-                        <Megaphone size={24} />
-                      )}
-                    </div>
-                    <div className="flex-1 min-w-0 text-left">
-                      <div className="flex items-center gap-2 mb-1">
-                        <span className="text-[7px] font-black text-primary uppercase tracking-widest px-1.5 py-0.5 bg-primary/10 rounded border border-primary/20">
-                          {s.type}
-                        </span>
-                        {!s.isActive && (
-                          <span className="text-[7px] font-black text-gray-500 uppercase tracking-widest px-1.5 py-0.5 bg-white/5 rounded border border-white/5">
-                            Inactive
-                          </span>
+              {Array.from(new Map(spotlights.map(s => [s.id, s])).values()).map((s) => {
+                const isClass = s.isClassified || s.type === 'classified';
+                const timeInfo = getTimeLeftText(s.expiresAt);
+
+                return (
+                  <motion.div 
+                    key={s.id}
+                    layout
+                    className={cn(
+                      "p-5 bg-white/5 border rounded-[2rem] transition-all group relative overflow-hidden text-left",
+                      s.isActive && (!timeInfo || !timeInfo.expired)
+                        ? "border-primary/30 shadow-[0_0_20px_rgba(0,242,254,0.05)]" 
+                        : "border-white/5 opacity-60"
+                    )}
+                  >
+                    <div className="flex gap-4 items-start relative z-10">
+                      <div className="w-16 h-16 bg-[#0d1117] rounded-2xl border border-white/10 overflow-hidden flex-shrink-0 flex items-center justify-center text-primary relative">
+                        {s.image ? (
+                          <img src={s.image} className="w-full h-full object-cover" />
+                        ) : (
+                          <Tag size={28} />
+                        )}
+                        {s.price && (
+                          <div className="absolute bottom-0 inset-x-0 bg-primary/90 text-[#05070a] text-[8px] font-black text-center py-0.5 truncate">
+                            {s.price}
+                          </div>
                         )}
                       </div>
-                      <h4 className="text-xs font-black text-white uppercase tracking-tight truncate">{s.title}</h4>
-                      <p className="text-[10px] text-gray-500 font-medium line-clamp-2 mt-1 leading-relaxed">
-                        {s.content}
-                      </p>
-                    </div>
-                  </div>
 
-                  <div className="flex items-center justify-between mt-5 pt-4 border-t border-white/5">
-                    <div className="flex gap-2">
-                       <button 
-                        onClick={() => handleEdit(s)}
-                        className="px-4 py-2 bg-white/5 rounded-xl border border-white/5 text-[9px] font-black text-gray-400 uppercase tracking-widest hover:text-white hover:border-white/20 transition-all active:scale-95 flex items-center gap-2"
-                      >
-                        <Save size={12} /> Edit
-                      </button>
-                      <button 
-                        onClick={() => handleDelete(s.id)}
-                        className="px-4 py-2 bg-red-500/5 rounded-xl border border-red-500/10 text-[9px] font-black text-red-500/60 uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all active:scale-95 flex items-center gap-2"
-                      >
-                        <Trash2 size={12} /> Delete
-                      </button>
+                      <div className="flex-1 min-w-0">
+                        <div className="flex flex-wrap items-center gap-1.5 mb-1.5">
+                          {isClass ? (
+                            <span className="text-[8px] font-black text-amber-300 uppercase tracking-widest px-2 py-0.5 bg-amber-500/10 rounded-full border border-amber-500/30 flex items-center gap-1">
+                              <Tag size={10} /> Classified Ad
+                            </span>
+                          ) : (
+                            <span className="text-[8px] font-black text-primary uppercase tracking-widest px-2 py-0.5 bg-primary/10 rounded-full border border-primary/20">
+                              {s.type}
+                            </span>
+                          )}
+
+                          {s.badge && (
+                            <span className="text-[8px] font-black text-neon-green uppercase tracking-wider px-2 py-0.5 bg-neon-green/10 rounded-full border border-neon-green/20">
+                              {s.badge}
+                            </span>
+                          )}
+
+                          {s.category && (
+                            <span className="text-[8px] font-bold text-gray-400 uppercase px-2 py-0.5 bg-white/5 rounded-full border border-white/5">
+                              {s.category}
+                            </span>
+                          )}
+
+                          {/* Time left countdown badge */}
+                          {timeInfo && (
+                            <span className={cn(
+                              "text-[8px] font-black uppercase tracking-wider px-2 py-0.5 rounded-full border flex items-center gap-1 ml-auto",
+                              timeInfo.expired 
+                                ? "bg-red-500/20 text-red-400 border-red-500/30" 
+                                : "bg-primary/20 text-primary border-primary/30"
+                            )}>
+                              <Clock size={10} /> {timeInfo.text}
+                            </span>
+                          )}
+                        </div>
+
+                        <h4 className="text-sm font-black text-white uppercase tracking-tight truncate">{s.title}</h4>
+                        <p className="text-[11px] text-gray-400 font-medium line-clamp-2 mt-1 leading-relaxed">
+                          {s.content}
+                        </p>
+                      </div>
                     </div>
-                    <div className="text-[8px] font-black text-gray-700 uppercase tracking-widest">
-                      {s.createdAt ? new Date(s.createdAt?.toDate?.() || s.createdAt).toLocaleDateString() : 'Saving changes...'}
+
+                    <div className="flex items-center justify-between mt-5 pt-4 border-t border-white/5">
+                      <div className="flex flex-wrap gap-2">
+                        <button 
+                          onClick={() => handleEdit(s)}
+                          className="px-3 py-1.5 bg-white/5 rounded-xl border border-white/10 text-[9px] font-black text-gray-300 uppercase tracking-widest hover:text-white hover:border-white/20 transition-all active:scale-95 flex items-center gap-1.5"
+                        >
+                          <Save size={12} /> Edit
+                        </button>
+
+                        {/* Renew button if expired or classified */}
+                        {isClass && (
+                          <button 
+                            onClick={() => handleRenew(s)}
+                            className="px-3 py-1.5 bg-primary/10 rounded-xl border border-primary/30 text-[9px] font-black text-primary uppercase tracking-widest hover:bg-primary hover:text-[#05070a] transition-all active:scale-95 flex items-center gap-1.5"
+                          >
+                            <RefreshCw size={12} /> Renew (+7d)
+                          </button>
+                        )}
+
+                        <button 
+                          onClick={() => handleDelete(s.id)}
+                          className="px-3 py-1.5 bg-red-500/10 rounded-xl border border-red-500/20 text-[9px] font-black text-red-400 uppercase tracking-widest hover:bg-red-500 hover:text-white transition-all active:scale-95 flex items-center gap-1.5"
+                        >
+                          <Trash2 size={12} /> Delete
+                        </button>
+                      </div>
+
+                      <div className="text-[8px] font-black text-gray-500 uppercase tracking-widest">
+                        {s.createdAt ? new Date(s.createdAt?.toDate?.() || s.createdAt).toLocaleDateString() : 'Just posted'}
+                      </div>
                     </div>
-                  </div>
-                </motion.div>
-              ))}
+                  </motion.div>
+                );
+              })}
             </div>
           ) : (
-            <div className="text-center py-20 bg-white/5 rounded-[3rem] border border-white/5 space-y-4">
-              <div className="w-16 h-16 bg-white/5 rounded-full flex items-center justify-center mx-auto text-gray-800">
-                <Megaphone size={32} />
+            <div className="text-center py-16 bg-white/5 rounded-[3rem] border border-white/5 space-y-4">
+              <div className="w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mx-auto text-primary border border-primary/20">
+                <Tag size={32} />
               </div>
               <div>
-                <p className="text-xs font-black text-gray-500 uppercase tracking-widest">No Spotlights Yet</p>
-                <p className="text-[10px] text-gray-700 mt-1 max-w-[200px] mx-auto font-medium">Post updates, events and spotlight news to the Discovery Page.</p>
+                <p className="text-xs font-black text-gray-300 uppercase tracking-widest">No Active Spotlights or Classified Ads</p>
+                <p className="text-[10px] text-gray-500 mt-1 max-w-[260px] mx-auto font-medium">Post timeframed deals, hot classified ads, or broadcast news to reach all buyers on the Explorer page.</p>
               </div>
               <button 
-                onClick={() => setIsAdding(true)}
-                className="mt-6 btn-neon px-8 py-3 text-[9px] font-black uppercase tracking-[0.2em]"
+                onClick={() => {
+                  setIsAdding(true);
+                  setPostMode('classified');
+                }}
+                className="px-5 py-2.5 bg-primary text-[#05070a] rounded-xl font-black text-[10px] uppercase tracking-wider shadow-[0_0_20px_rgba(0,242,254,0.3)] hover:scale-105 transition-all"
               >
-                Save Changes
+                Create Your First Classified Ad
               </button>
             </div>
           )}
@@ -1640,7 +1973,7 @@ function ConnectionManager({ profile }: { profile: UserProfile }) {
           </div>
         ) : connections.length > 0 ? (
           <div className="grid gap-3">
-            {connections.map((c) => (
+            {Array.from(new Map(connections.map(c => [c.id, c])).values()).map((c) => (
               <div 
                 key={c.id}
                 className="p-4 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-between group hover:border-primary/30 transition-all font-sans"

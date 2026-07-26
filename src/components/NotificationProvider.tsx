@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useEffect, useState } from 'react';
+import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { UserProfile, AppNotification, PushNotificationSettings } from '../types';
@@ -154,9 +154,14 @@ export function NotificationProvider({ children, profile }: { children: React.Re
     }
   }, [profile?.uid, profile?.currentRole, pushSettings.weeklyRemindersEnabled]);
 
+  const prevCountRef = useRef(0);
+  const pushSettingsRef = useRef(pushSettings);
+  pushSettingsRef.current = pushSettings;
+
   useEffect(() => {
     if (!profile) {
       setNotifications([]);
+      prevCountRef.current = 0;
       return;
     }
 
@@ -170,20 +175,24 @@ export function NotificationProvider({ children, profile }: { children: React.Re
     );
 
     const unsubscribe = onSnapshot(q, (snapshot) => {
-      const newNotifications = snapshot.docs.map(doc => ({
+      const raw = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
       })) as AppNotification[];
 
-      if (newNotifications.length > notifications.length) {
+      // Dedupe by id
+      const newNotifications = Array.from(new Map(raw.map(n => [n.id, n])).values());
+
+      if (newNotifications.length > prevCountRef.current) {
         const latest = newNotifications[0];
+        const currentSettings = pushSettingsRef.current;
         if (latest && !latest.read) {
           // Check permission toggles
           let shouldShow = true;
-          if (latest.type === 'message' && !pushSettings.messagesEnabled) shouldShow = false;
-          if (latest.type === 'buy' && !pushSettings.dealsEnabled) shouldShow = false;
-          if ((latest.type === 'like_product' || latest.type === 'like_store' || latest.type === 'follow' || latest.type === 'connect_request') && !pushSettings.engagementsEnabled) shouldShow = false;
-          if (latest.type === 'reminder' && !pushSettings.weeklyRemindersEnabled) shouldShow = false;
+          if (latest.type === 'message' && !currentSettings.messagesEnabled) shouldShow = false;
+          if (latest.type === 'buy' && !currentSettings.dealsEnabled) shouldShow = false;
+          if ((latest.type === 'like_product' || latest.type === 'like_store' || latest.type === 'follow' || latest.type === 'connect_request') && !currentSettings.engagementsEnabled) shouldShow = false;
+          if (latest.type === 'reminder' && !currentSettings.weeklyRemindersEnabled) shouldShow = false;
 
           if (shouldShow) {
             // 1. UI Toast
@@ -204,13 +213,14 @@ export function NotificationProvider({ children, profile }: { children: React.Re
         }
       }
 
+      prevCountRef.current = newNotifications.length;
       setNotifications(newNotifications);
     }, (err) => {
       handleFirestoreError(err, OperationType.LIST, 'notifications');
     });
 
     return () => unsubscribe();
-  }, [profile?.uid, notifications.length, pushSettings]);
+  }, [profile?.uid]);
 
   const playNotificationSound = (type: AppNotification['type']) => {
     try {

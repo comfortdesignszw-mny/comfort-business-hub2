@@ -168,7 +168,7 @@ export default function StoresHub({ profile }: { profile: UserProfile | null }) 
               </div>
             </div>
             <div className="flex gap-4 overflow-x-auto pb-4 pt-2 -mx-2 px-2 custom-scrollbar snap-x no-scrollbar">
-              {displayedUsers.map((user) => (
+              {Array.from(new Map(displayedUsers.map(u => [u.uid, u])).values()).map((user) => (
                 <div key={`matrix-${user.uid}`} className="contents">
                   <AuthGuard 
                     title="View Partner Profile"
@@ -299,7 +299,7 @@ export default function StoresHub({ profile }: { profile: UserProfile | null }) 
               Array.from({ length: 6 }).map((_, i) => (
                 <div key={i} className="h-64 bg-white/5 rounded-[2.5rem] animate-pulse" />
               ))
-            ) : filteredStores.map(store => (
+            ) : Array.from(new Map(filteredStores.map(s => [s.id, s])).values()).map(store => (
               <React.Fragment key={store.id}>
                 <StoreCard store={store} profile={profile} />
               </React.Fragment>
