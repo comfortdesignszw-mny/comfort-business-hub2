@@ -16,6 +16,7 @@ import {
 import BiometricAuthModal from './components/BiometricAuthModal';
 import AppTutorialModal from './components/AppTutorialModal';
 import PushNotificationSettingsModal from './components/PushNotificationSettingsModal';
+import AppLogo from './components/AppLogo';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile, Role, AppNotification } from './types';
 import { cn } from './lib/utils';
@@ -310,8 +311,8 @@ export default function App() {
           <motion.div 
             className="w-24 h-24 relative z-10 flex items-center justify-center"
           >
-            <div className="w-20 h-20 bg-primary/20 rounded-3xl p-4 shadow-[0_0_20px_rgba(0,242,254,0.3)] animate-pulse">
-              <img src="/icon.png" alt="Comfort Hub" className="w-full h-full object-contain" referrerPolicy="no-referrer" />
+            <div className="p-1 shadow-[0_0_20px_rgba(0,242,254,0.3)] animate-pulse">
+              <AppLogo size="xl" />
             </div>
           </motion.div>
         </div>
@@ -434,9 +435,7 @@ function Header({ profile, onMenuClick, onLogout }: { profile: UserProfile | nul
             </button>
           )}
           <div className="flex items-center gap-2">
-            <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center overflow-hidden border border-white/10 shadow-[0_0_15px_rgba(0,242,254,0.2)]">
-              <img src="/icon.png" alt="Comfort Hub" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-            </div>
+            <AppLogo size="md" />
             <div>
               <h1 className="text-sm font-black text-white uppercase tracking-tighter leading-none italic">Comfort Hub</h1>
               <div className="flex items-center gap-2 mt-1">
@@ -569,9 +568,7 @@ function Sidebar({ profile, onClose, onLogout }: { profile: UserProfile | null, 
       >
         <div className="p-6 border-b border-white/5 flex items-center justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center overflow-hidden border border-white/10">
-              <img src="/icon.png" alt="Comfort Hub" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-            </div>
+            <AppLogo size="md" />
             <h2 className="text-sm font-black text-white uppercase italic">Comfort Hub</h2>
           </div>
           <button onClick={onClose} className="text-gray-500 hover:text-white transition-colors">

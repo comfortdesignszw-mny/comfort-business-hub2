@@ -1,6 +1,7 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
 import { Shield, Mail, Phone, Heart } from 'lucide-react';
+import AppLogo from './AppLogo';
 
 export default function Footer() {
   return (
@@ -9,9 +10,7 @@ export default function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-12 mb-16">
           <div className="space-y-6">
             <div className="flex items-center gap-3">
-              <div className="w-10 h-10 bg-white/5 rounded-xl flex items-center justify-center border border-white/10 shadow-[0_0_15px_rgba(0,242,254,0.15)]">
-                <img src="/icon.png" alt="Comfort Hub" className="w-6 h-6 object-contain" />
-              </div>
+              <AppLogo size="md" />
               <h2 className="text-sm font-black text-white uppercase italic tracking-tighter">Comfort Hub</h2>
             </div>
             <p className="text-[10px] font-medium text-gray-500 uppercase tracking-widest leading-relaxed">

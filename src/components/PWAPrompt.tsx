@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { Download, X, Box, Info, Share, PlusSquare, Monitor, ChevronRight } from 'lucide-react';
+import AppLogo from './AppLogo';
 
 type Platform = 'ios' | 'android' | 'desktop' | 'unknown';
 
@@ -158,9 +159,7 @@ export default function PWAPrompt() {
             <div className="relative">
               <div className="flex justify-between items-start mb-5">
                 <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 bg-primary/10 rounded-xl flex items-center justify-center overflow-hidden border border-primary/20">
-                    <img src="/icon.png" alt="Comfort Hub" className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                  </div>
+                  <AppLogo size="md" />
                   <div>
                     <h4 className="text-sm font-black text-white uppercase tracking-wider italic">Comfort Business Hub</h4>
                     <p className="text-[9px] text-primary font-black uppercase tracking-[0.2em] leading-none">Neural App Matrix</p>
