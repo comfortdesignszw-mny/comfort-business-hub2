@@ -462,325 +462,240 @@ useEffect(() => {
         </motion.div>
       )}
 
-      {/* Search Bar Section */}
-      <section className="space-y-6 pt-2">
-        <div className="flex items-center justify-between px-1">
-          <div className="flex items-center gap-3">
-            <div className="w-1 h-4 bg-primary rounded-full shadow-[0_0_10px_rgba(0,242,254,0.5)]" />
-            <div className="space-y-0.5">
-              <h2 className="text-sm sm:text-base font-black text-white italic tracking-tighter uppercase leading-none">
-                {profile ? 'Synchronized' : 'Guest'}<br/>
-                <span className="text-primary drop-shadow-[0_0_8px_rgba(0,242,254,0.3)]">Discover</span>
-              </h2>
+      {/* Top 3-Column Horizontal Grid layout on Desktop */}
+      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:items-stretch pt-2">
+        
+        {/* 1. Search Bar and Filters Section (Left) */}
+        <section className="lg:col-span-4 bg-[#0d1117]/90 backdrop-blur-md border border-white/10 rounded-[2rem] p-4 flex flex-col justify-between space-y-3 shadow-xl">
+          <div className="space-y-3">
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <div className="w-1 h-4 bg-primary rounded-full shadow-[0_0_10px_rgba(0,242,254,0.5)]" />
+                <h2 className="text-xs sm:text-sm font-black text-white italic tracking-tighter uppercase leading-none">
+                  {profile ? 'Synchronized' : 'Guest'}{' '}
+                  <span className="text-primary drop-shadow-[0_0_8px_rgba(0,242,254,0.3)]">Discover</span>
+                </h2>
+              </div>
+              {profile && !profile.isGuest && (
+                <div className="flex items-center gap-1 bg-[#05070a] border border-white/5 p-1 rounded-xl">
+                  <button 
+                    onClick={() => setViewMode('list')}
+                    className={cn(
+                      "p-1.5 rounded-lg transition-all",
+                      viewMode === 'list' ? "bg-primary text-[#05070a]" : "text-gray-500 hover:text-white"
+                    )}
+                    title="List View"
+                  >
+                    <List size={13} />
+                  </button>
+                  <button 
+                    onClick={() => setViewMode('map')}
+                    className={cn(
+                      "p-1.5 rounded-lg transition-all",
+                      viewMode === 'map' ? "bg-primary text-[#05070a]" : "text-gray-500 hover:text-white"
+                    )}
+                    title="Map View"
+                  >
+                    <MapIcon size={13} />
+                  </button>
+                </div>
+              )}
             </div>
-          </div>
-        </div>
 
-        <div className="relative group px-1">
-          <div className="absolute inset-y-0 left-3 flex items-center pointer-events-none text-primary/40 group-focus-within:text-primary transition-colors">
-            <Search size={14} />
-          </div>
-          <div className="relative flex items-center bg-[#0d1117] border border-white/10 rounded-2xl overflow-hidden shadow-2xl">
-            <input 
-              type="text"
-              placeholder="Search signed in suppliers, items or supply patterns..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="w-full py-2 pl-10 pr-10 text-[10px] font-medium text-white placeholder:text-gray-600 outline-none transition-all bg-transparent"
-            />
+            <div className="relative flex items-center bg-[#05070a] border border-white/10 rounded-2xl overflow-hidden shadow-inner">
+              <Search size={14} className="absolute left-3 text-primary/50 pointer-events-none" />
+              <input 
+                type="text"
+                placeholder="Search suppliers, items or patterns..."
+                value={searchTerm}
+                onChange={(e) => setSearchTerm(e.target.value)}
+                className="w-full py-2 pl-9 pr-8 text-[10px] font-medium text-white placeholder:text-gray-600 outline-none bg-transparent"
+              />
+              {searchTerm && (
+                <button onClick={() => setSearchTerm('')} className="absolute right-2.5 text-gray-500 hover:text-white">
+                  <X size={12} />
+                </button>
+              )}
+            </div>
+
             {profile && (
-              <button 
-                onClick={() => setViewMode(viewMode === 'list' ? 'map' : 'list')}
-                className="absolute right-1.5 w-7 h-7 bg-white/5 rounded-lg flex items-center justify-center text-gray-500 hover:text-white transition-colors border border-white/5"
-              >
-                <SlidersHorizontal size={12} />
-              </button>
+              <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar scroll-smooth">
+                {categories.map((cat) => (
+                  <button
+                    key={cat}
+                    onClick={() => setActiveCategory(cat)}
+                    className={cn(
+                      "whitespace-nowrap px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all border shrink-0",
+                      activeCategory === cat 
+                        ? "bg-primary text-[#05070a] border-primary shadow-[0_0_10px_rgba(0,242,254,0.3)]" 
+                        : "bg-white/5 text-gray-400 border-white/5 hover:bg-white/10 hover:text-white"
+                    )}
+                  >
+                    {cat}
+                  </button>
+                ))}
+              </div>
             )}
           </div>
-        </div>
 
-        {profile && (
-          <div className="flex gap-2 overflow-x-auto pb-2 -mx-2 px-2 no-scrollbar scroll-smooth">
-            {categories.map((cat) => (
-              <button
-                key={cat}
-                onClick={() => setActiveCategory(cat)}
-                className={cn(
-                  "whitespace-nowrap px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-widest transition-all border",
-                  activeCategory === cat 
-                    ? "bg-primary text-[#05070a] border-primary shadow-[0_0_15px_rgba(0,242,254,0.3)]" 
-                    : "bg-white/5 text-gray-500 border-white/5 hover:bg-white/10 hover:text-white"
-                )}
-              >
-                {cat}
-              </button>
-            ))}
-          </div>
-        )}
-
-      <div className="flex items-center justify-between px-2">
-        {profile && !profile.isGuest && (
-          <>
+          {profile && !profile.isGuest && (
             <div 
               onClick={handleGetLocation}
-              className="flex items-center gap-2 group cursor-pointer"
+              className="flex items-center justify-between bg-white/5 border border-white/5 p-2 rounded-xl group cursor-pointer hover:border-primary/30 transition-all text-left mt-auto"
             >
-              <div className="w-8 h-8 rounded-lg bg-primary/10 flex items-center justify-center shrink-0">
-                <MapPin size={14} className="text-primary group-hover:scale-110 transition-transform" />
-              </div>
-              <div className="min-w-0">
-                <p className="text-[9px] sm:text-[10px] text-gray-500 font-bold uppercase tracking-wider leading-none">Your Location</p>
-                <p className="text-xs sm:text-sm font-bold text-white group-hover:text-primary transition-colors truncate">
-                  {userLocation ? `Detected: ${userLocation[0].toFixed(4)}, ${userLocation[1].toFixed(4)}` : (profile?.location?.city ? profile.location.city.toUpperCase() : (profile?.geohash ? `Location: ${profile.geohash}` : 'Harare CBD, ZW'))}
-                </p>
-              </div>
-            </div>
-            
-            <div className="flex items-center gap-2">
-              <div className="bg-[#0d1117] border border-white/5 p-1 rounded-xl flex">
-                <button 
-                  onClick={() => setViewMode('list')}
-                  className={cn(
-                    "p-2 rounded-lg transition-all",
-                    viewMode === 'list' ? "bg-primary text-[#05070a]" : "text-gray-500 hover:text-white"
-                  )}
-                >
-                  <List size={16} />
-                </button>
-                <button 
-                  onClick={() => setViewMode('map')}
-                  className={cn(
-                    "p-2 rounded-lg transition-all",
-                    viewMode === 'map' ? "bg-primary text-[#05070a]" : "text-gray-500 hover:text-white"
-                  )}
-                >
-                  <MapIcon size={16} />
-                </button>
-              </div>
-
-              <button 
-                onClick={() => setNearbyOnly(!nearbyOnly)}
-                className={cn(
-                  "p-2 rounded-lg transition-all ml-2",
-                  nearbyOnly ? "bg-primary text-[#05070a]" : "text-gray-500 bg-[#0d1117] border border-white/5 hover:text-white"
-                )}
-                title={nearbyOnly ? 'Nearby Mode: Active' : 'Filter by Proximity'}
-              >
-                <MapIcon size={16} />
-              </button>
-
-            </div>
-          </>
-        )}
-      </div>
-      </section>
-
-      {/* Map View Integration */}
-      <AnimatePresence mode="wait">
-        {viewMode === 'map' && (
-          <motion.section 
-            initial={{ opacity: 0, height: 0 }}
-            animate={{ opacity: 1, height: '400px' }}
-            exit={{ opacity: 0, height: 0 }}
-            className="relative overflow-hidden rounded-[2.5rem] border border-white/10 shadow-2xl"
-          >
-            <MapContainer 
-              center={mapCenter} 
-              zoom={13} 
-              style={{ height: '100%', width: '100%' }}
-              zoomControl={false}
-              className="z-0"
-            >
-              <TileLayer
-                url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-                attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
-              />
-              <MapController center={mapCenter} isFollowing={isFollowingUser} />
-              
-              {nearbyStores.filter(s => s.lat && s.lng).map(store => (
-                <Marker 
-                  key={`marker-${store.id}`} 
-                  position={[store.lat!, store.lng!]}
-                  icon={L.divIcon({
-                    className: 'custom-div-icon',
-                    html: `
-                      <div class="w-8 h-8 rounded-full border-2 border-primary bg-[#05070a] flex items-center justify-center overflow-hidden shadow-[0_0_15px_rgba(0,242,254,0.5)]">
-                        ${store.logo ? `<img src="${store.logo}" style="width:100%; height:100%; object-fit:cover;" />` : `<span style="color:#00f2fe; font-weight:900; font-size:10px;">${store.name.charAt(0)}</span>`}
-                      </div>
-                    `,
-                    iconSize: [32, 32],
-                    iconAnchor: [16, 32]
-                  })}
-                  eventHandlers={{
-                    click: () => setSelectedStoreId(store.id)
-                  }}
-                >
-                  <Popup className="neon-popup">
-                    <div className="p-2 space-y-1">
-                      <h4 className="text-xs font-black text-white uppercase italic">{store.name}</h4>
-                      <p className="text-[10px] text-primary font-bold">{store.category}</p>
-                    </div>
-                  </Popup>
-                </Marker>
-              ))}
-
-              {profile && userLocation && (
-                <Marker 
-                  position={userLocation}
-                  icon={L.divIcon({
-                    className: 'user-marker',
-                    html: `
-                      <div class="relative flex items-center justify-center">
-                        <div class="absolute w-8 h-8 bg-primary/20 rounded-full animate-ping"></div>
-                        <div class="w-4 h-4 bg-primary rounded-full border-2 border-white shadow-lg"></div>
-                      </div>
-                    `
-                  })}
-                />
-              )}
-            </MapContainer>
-            
-            <div className="absolute top-4 right-4 z-[1000] flex flex-col gap-2">
-              <button 
-                onClick={handleGetLocation}
-                className="w-10 h-10 bg-[#0d1117]/80 backdrop-blur-md border border-white/10 rounded-xl flex items-center justify-center text-primary hover:bg-primary hover:text-[#05070a] transition-all shadow-xl"
-              >
-                <MapPin size={20} />
-              </button>
-            </div>
-            
-            <div className="absolute bottom-6 left-1/2 -translate-x-1/2 z-[1000] w-full max-w-xs px-4">
-              <div className="bg-[#0d1117]/90 backdrop-blur-md border border-white/10 p-3 rounded-2xl flex items-center gap-3 shadow-2xl">
-                <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center text-primary shrink-0">
-                  <MapPinned size={20} />
-                </div>
+              <div className="flex items-center gap-2 min-w-0">
+                <MapPin size={13} className="text-primary shrink-0 group-hover:scale-110 transition-transform" />
                 <div className="min-w-0">
-                  <p className="text-[9px] text-gray-500 font-black uppercase tracking-widest leading-none">Spatial Search</p>
-                  <p className="text-[10px] text-white font-bold truncate">Showing {nearbyStores.filter(s => s.lat && s.lng).length} active stores on map</p>
+                  <p className="text-[8px] text-gray-500 font-bold uppercase tracking-wider leading-none">Your Location</p>
+                  <p className="text-[9px] font-bold text-white group-hover:text-primary transition-colors truncate">
+                    {userLocation ? `${userLocation[0].toFixed(2)}, ${userLocation[1].toFixed(2)}` : (profile?.location?.city ? profile.location.city.toUpperCase() : 'Harare CBD')}
+                  </p>
                 </div>
               </div>
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setNearbyOnly(!nearbyOnly);
+                }}
+                className={cn(
+                  "text-[8px] font-black uppercase tracking-wider px-2 py-1 rounded-lg border transition-all shrink-0 ml-2",
+                  nearbyOnly ? "bg-primary text-[#05070a] border-primary" : "bg-white/5 text-gray-400 border-white/10 hover:text-white"
+                )}
+              >
+                {nearbyOnly ? 'Near Me' : 'All'}
+              </button>
             </div>
-          </motion.section>
-        )}
-      </AnimatePresence>
+          )}
+        </section>
 
-      {/* Featured Promo / Classified Carousel */}
-      <section className="relative overflow-hidden rounded-[2.5rem]">
-        <AnimatePresence mode="wait">
-          {spotlights.length > 0 ? (
-            (() => {
-              const currentSpotlight = spotlights[activeSpotlightIndex];
-              const isClassified = currentSpotlight.isClassified || currentSpotlight.type === 'classified';
-              const timeInfo = getTimeLeftText(currentSpotlight.expiresAt);
+        {/* 2. Active Stores Section (Middle) */}
+        <section className="lg:col-span-4 bg-[#0d1117]/90 backdrop-blur-md border border-white/10 rounded-[2rem] p-4 flex flex-col justify-between space-y-2 shadow-xl overflow-hidden min-h-[220px]">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              <h2 className="font-black text-white uppercase tracking-tighter text-xs sm:text-sm">Active Stores</h2>
+              <div className="px-1.5 py-0.5 bg-primary/10 text-primary text-[8px] font-black rounded border border-primary/20 uppercase tracking-widest">Network</div>
+            </div>
+            <span className="text-[8px] font-black text-gray-500 uppercase tracking-widest">
+              {filteredStores.length} Live
+            </span>
+          </div>
 
-              return (
-                <motion.div 
-                  key={currentSpotlight.id}
-                  initial={{ opacity: 0, scale: 0.98, x: 20 }}
-                  animate={{ opacity: 1, scale: 1, x: 0 }}
-                  exit={{ opacity: 0, scale: 0.98, x: -20 }}
-                  transition={{ duration: 0.4 }}
-                  onClick={() => setSelectedSpotlightAd(currentSpotlight)}
-                  className={cn(
-                    "relative min-h-[220px] sm:min-h-[240px] flex flex-col justify-between p-5 sm:p-7 group cursor-pointer overflow-hidden rounded-[2.5rem] border transition-all text-left shadow-2xl",
-                    isClassified 
-                      ? "border-amber-500/40 shadow-[0_0_40px_rgba(245,158,11,0.2)] bg-gradient-to-br from-[#181108] via-[#0d1017] to-[#05070a]" 
-                      : "border-primary/30 shadow-[0_0_40px_rgba(0,242,254,0.15)] bg-[#05070a]"
-                  )}
-                >
-                  {/* Background Image & Gradient */}
-                  <div className="absolute inset-0 z-0">
-                    <OptimizedImage 
-                      src={currentSpotlight.image || "https://images.unsplash.com/photo-1540350394557-8d14678e7f91?w=800&q=80"} 
-                      className="w-full h-full object-cover opacity-25 group-hover:scale-105 transition-transform duration-1000" 
-                      alt="Spotlight Ad" 
-                    />
-                    <div className="absolute inset-0 bg-gradient-to-t from-[#05070a] via-[#05070a]/80 to-[#05070a]/40"></div>
-                  </div>
+          {storesLoading ? (
+            <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
+              {[1, 2].map(i => (
+                <div key={i} className="min-w-[170px] h-32 bg-white/5 rounded-2xl animate-pulse border border-white/5 shrink-0" />
+              ))}
+            </div>
+          ) : filteredStores.length > 0 ? (
+            <div className="flex gap-2 overflow-x-auto no-scrollbar py-1 snap-x max-w-full">
+              {Array.from(new Map(filteredStores.map(s => [s.id, s])).values()).map((store) => (
+                <div key={store.id} className="min-w-[170px] max-w-[195px] snap-start shrink-0">
+                  <AuthGuard
+                    title="Access Features"
+                    message="Sign in to view this supplier's store and items."
+                    profile={profile}
+                    allowGuest={true}
+                    onGuestContinue={onGuestLogin}
+                  >
+                    <StoreCard store={store} profile={profile} onSelect={setSelectedStoreId} />
+                  </AuthGuard>
+                </div>
+              ))}
+            </div>
+          ) : (
+            <div className="bg-white/5 border border-white/5 rounded-2xl p-6 text-center my-auto">
+              <Building2 className="mx-auto text-gray-700 mb-1" size={20} />
+              <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">No active stores nearby</p>
+            </div>
+          )}
+        </section>
 
-                  {/* Header Row: Badges, Timer, Type */}
-                  <div className="relative z-10 flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-3 mb-2">
-                    <div className="flex flex-wrap items-center gap-2">
-                      {isClassified ? (
-                        <div className="px-3 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1.5 shadow-[0_0_12px_rgba(245,158,11,0.2)]">
-                          <Tag size={11} /> Timeframed Classified Ad
-                        </div>
-                      ) : (
-                        <div className="glass-pill !text-primary !border-primary/30 flex items-center gap-1.5 text-[9px] py-1 px-3">
-                          <Megaphone size={11} className="animate-pulse" /> Market Spotlight
-                        </div>
-                      )}
+        {/* 3. Market Spotlight / Classified Carousel Section (Right) */}
+        <section className="lg:col-span-4 relative overflow-hidden rounded-[2rem] border border-primary/30 shadow-2xl bg-[#05070a] min-h-[220px] flex flex-col">
+          <AnimatePresence mode="wait">
+            {spotlights.length > 0 ? (
+              (() => {
+                const currentSpotlight = spotlights[activeSpotlightIndex];
+                const isClassified = currentSpotlight.isClassified || currentSpotlight.type === 'classified';
+                const timeInfo = getTimeLeftText(currentSpotlight.expiresAt);
 
-                      {currentSpotlight.category && (
-                        <span className="text-[9px] font-bold text-gray-300 uppercase tracking-widest px-2.5 py-1 bg-white/5 rounded-full border border-white/10">
-                          {currentSpotlight.category}
-                        </span>
-                      )}
+                return (
+                  <motion.div 
+                    key={currentSpotlight.id}
+                    initial={{ opacity: 0, scale: 0.98 }}
+                    animate={{ opacity: 1, scale: 1 }}
+                    exit={{ opacity: 0, scale: 0.98 }}
+                    transition={{ duration: 0.3 }}
+                    onClick={() => setSelectedSpotlightAd(currentSpotlight)}
+                    className={cn(
+                      "relative h-full min-h-[220px] flex flex-col justify-between p-4 group cursor-pointer overflow-hidden rounded-[2rem] border transition-all text-left shadow-2xl flex-1",
+                      isClassified 
+                        ? "border-amber-500/40 shadow-[0_0_30px_rgba(245,158,11,0.15)] bg-gradient-to-br from-[#181108] via-[#0d1017] to-[#05070a]" 
+                        : "border-primary/30 shadow-[0_0_30px_rgba(0,242,254,0.12)] bg-[#05070a]"
+                    )}
+                  >
+                    {/* Background Image & Gradient */}
+                    <div className="absolute inset-0 z-0">
+                      <OptimizedImage 
+                        src={currentSpotlight.image || "https://images.unsplash.com/photo-1540350394557-8d14678e7f91?w=800&q=80"} 
+                        className="w-full h-full object-cover opacity-25 group-hover:scale-105 transition-transform duration-1000" 
+                        alt="Spotlight Ad" 
+                      />
+                      <div className="absolute inset-0 bg-gradient-to-t from-[#05070a] via-[#05070a]/80 to-[#05070a]/40"></div>
                     </div>
 
-                    <div className="flex items-center gap-2">
-                      {currentSpotlight.badge && (
-                        <span className="px-2.5 py-1 bg-neon-green/20 text-neon-green border border-neon-green/40 rounded-full text-[9px] font-black uppercase tracking-wider shadow-[0_0_12px_#39FF14]">
-                          {currentSpotlight.badge}
-                        </span>
-                      )}
+                    {/* Header Row: Badges, Timer */}
+                    <div className="relative z-10 flex items-center justify-between gap-1.5 border-b border-white/10 pb-2 mb-1">
+                      <div className="flex items-center gap-1.5 min-w-0">
+                        {isClassified ? (
+                          <div className="px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1 shrink-0">
+                            <Tag size={10} /> Classified Ad
+                          </div>
+                        ) : (
+                          <div className="glass-pill !text-primary !border-primary/30 flex items-center gap-1 text-[8px] py-0.5 px-2">
+                            <Megaphone size={10} className="animate-pulse" /> Spotlight
+                          </div>
+                        )}
+                      </div>
 
-                      {timeInfo && (
-                        <span className={cn(
-                          "px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider border flex items-center gap-1 backdrop-blur-md",
-                          timeInfo.expired 
-                            ? "bg-red-500/20 text-red-400 border-red-500/30" 
-                            : "bg-primary/20 text-primary border-primary/30"
-                        )}>
-                          <Clock size={11} /> {timeInfo.text}
-                        </span>
-                      )}
-
-                      <div className="w-7 h-7 bg-primary/10 rounded-lg flex items-center justify-center border border-primary/20 text-primary">
-                        <Zap size={14} />
+                      <div className="flex items-center gap-1.5 shrink-0">
+                        {timeInfo && (
+                          <span className={cn(
+                            "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider border flex items-center gap-1 backdrop-blur-md",
+                            timeInfo.expired 
+                              ? "bg-red-500/20 text-red-400 border-red-500/30" 
+                              : "bg-primary/20 text-primary border-primary/30"
+                          )}>
+                            <Clock size={10} /> {timeInfo.text}
+                          </span>
+                        )}
                       </div>
                     </div>
-                  </div>
 
-                  {/* Middle Main Content */}
-                  <div className="relative z-10 space-y-1.5 my-1">
-                    <div className="flex flex-wrap items-baseline justify-between gap-3">
-                      <h3 className="text-base sm:text-xl font-black text-white uppercase tracking-tight leading-snug break-words line-clamp-2 max-w-2xl">
-                        {currentSpotlight.title}
-                      </h3>
-                      {currentSpotlight.price && (
-                        <span className="px-3 py-1 bg-gradient-to-r from-primary to-accent text-[#05070a] font-black text-xs sm:text-sm rounded-xl shadow-[0_0_15px_rgba(0,242,254,0.3)] whitespace-nowrap flex-shrink-0">
-                          {currentSpotlight.price}
-                        </span>
+                    {/* Middle Main Content */}
+                    <div className="relative z-10 space-y-1 my-1">
+                      <div className="flex items-baseline justify-between gap-2">
+                        <h3 className="text-xs sm:text-sm font-black text-white uppercase tracking-tight leading-snug line-clamp-2">
+                          {currentSpotlight.title}
+                        </h3>
+                        {currentSpotlight.price && (
+                          <span className="px-2 py-0.5 bg-gradient-to-r from-primary to-accent text-[#05070a] font-black text-[9px] rounded-lg shrink-0">
+                            {currentSpotlight.price}
+                          </span>
+                        )}
+                      </div>
+
+                      {currentSpotlight.content && (
+                        <p className="text-[10px] text-gray-300 font-normal leading-relaxed line-clamp-2">
+                          {currentSpotlight.content}
+                        </p>
                       )}
                     </div>
 
-                    {currentSpotlight.content && (
-                      <p className="text-xs text-gray-300 font-normal leading-relaxed line-clamp-2">
-                        {currentSpotlight.content}
-                      </p>
-                    )}
-                  </div>
-
-                  {/* Footer Row: Author/Location, Dots & Action Button */}
-                  <div className="relative z-10 flex flex-wrap items-center justify-between gap-3 pt-3 mt-2 border-t border-white/10">
-                    <div className="flex flex-wrap items-center gap-2">
-                      {currentSpotlight.authorName && (
-                        <div className="flex items-center gap-1.5 text-[9px] sm:text-[10px] text-primary font-bold uppercase tracking-wider bg-primary/10 px-2.5 py-1 rounded-lg border border-primary/20">
-                          <Store size={11} /> {currentSpotlight.authorName}
-                        </div>
-                      )}
-                      {currentSpotlight.location && (
-                        <div className="flex items-center gap-1 text-[9px] sm:text-[10px] text-gray-400 font-semibold uppercase tracking-wider bg-white/5 px-2.5 py-1 rounded-lg border border-white/5">
-                          <MapPin size={11} className="text-primary" /> {currentSpotlight.location}
-                        </div>
-                      )}
-                    </div>
-
-                    <div className="flex items-center gap-4 ml-auto">
-                      {/* Carousel Indicators */}
+                    {/* Footer Row: Dots & Action Button */}
+                    <div className="relative z-10 flex items-center justify-between gap-2 pt-2 border-t border-white/10">
                       {spotlights.length > 1 && (
-                        <div className="flex gap-1.5 items-center">
+                        <div className="flex gap-1 items-center">
                           {spotlights.map((_, idx) => (
                             <div 
                               key={idx} 
@@ -789,90 +704,38 @@ useEffect(() => {
                                 setActiveSpotlightIndex(idx);
                               }}
                               className={cn(
-                                "h-1.5 rounded-full transition-all duration-300 cursor-pointer",
-                                idx === activeSpotlightIndex ? "w-5 bg-primary" : "w-1.5 bg-white/30 hover:bg-white/60"
+                                "h-1 rounded-full transition-all duration-300 cursor-pointer",
+                                idx === activeSpotlightIndex ? "w-4 bg-primary" : "w-1 bg-white/30 hover:bg-white/60"
                               )}
                             />
                           ))}
                         </div>
                       )}
 
-                      <button className="px-3.5 py-1.5 bg-primary hover:bg-primary/90 text-[#05070a] rounded-xl text-[10px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-[0_0_15px_rgba(0,242,254,0.25)] hover:scale-105 transition-all whitespace-nowrap">
-                        View Ad Details <ArrowRight size={12} />
+                      <button className="px-3 py-1 bg-primary hover:bg-primary/90 text-[#05070a] rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1 shadow-[0_0_12px_rgba(0,242,254,0.25)] hover:scale-105 transition-all ml-auto">
+                        View Ad <ArrowRight size={10} />
                       </button>
                     </div>
-                  </div>
-                </motion.div>
-              );
-            })()
-          ) : (
-            <motion.section 
-              initial={{ opacity: 0 }}
-              animate={{ opacity: 1 }}
-              className="neon-card relative h-48 flex flex-col justify-end p-6 group cursor-pointer"
-            >
-              <div className="absolute inset-0 z-0">
-                <img 
-                  src="https://images.unsplash.com/photo-1540350394557-8d14678e7f91?w=800&q=80" 
-                  className="w-full h-full object-cover opacity-40 group-hover:scale-110 transition-transform duration-1000" 
-                  alt="Featured" 
-                  referrerPolicy="no-referrer" 
-                />
-                <div className="absolute inset-0 bg-gradient-to-t from-[#05070a] via-[#05070a]/40 to-transparent"></div>
+                  </motion.div>
+                );
+              })()
+            ) : (
+              <div className="relative h-full min-h-[220px] flex flex-col justify-end p-5 group cursor-pointer">
+                <div className="relative z-10 space-y-1 text-left">
+                  <div className="glass-pill inline-block mb-1 !text-primary !border-primary/20 text-[8px]">Market Spotlight</div>
+                  <h3 className="text-base font-black text-white italic leading-tight uppercase">Global Network Active</h3>
+                  <p className="text-[9px] text-gray-400 font-medium uppercase tracking-widest">Scanning local news feeds & classified ads...</p>
+                </div>
               </div>
-              <div className="relative z-10 space-y-1 text-left">
-                <div className="glass-pill inline-block mb-2 !text-primary !border-primary/20">Market Spotlight</div>
-                <h3 className="text-2xl font-black text-white italic leading-tight uppercase">Global Network<br/>Active Status</h3>
-                <p className="text-xs text-gray-400 font-medium uppercase tracking-widest">Scanning local news feeds & classified ads...</p>
-              </div>
-            </motion.section>
-          )}
-        </AnimatePresence>
-      </section>
+            )}
+          </AnimatePresence>
+        </section>
+
+      </div>
 
       {/* Discovery Feed */}
       <section className="space-y-6">
-        {profile && (
-          <section className="space-y-6">
-            <div className="flex items-center justify-between px-1">
-              <div className="flex items-center gap-2">
-                <h2 className="font-black text-white uppercase tracking-tighter text-lg">Active Stores</h2>
-                <div className="px-1.5 py-0.5 bg-primary/10 text-primary text-[8px] font-black rounded border border-primary/20 uppercase tracking-widest">Network</div>
-              </div>
-            </div>
-
-            {storesLoading ? (
-              <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4">
-                {[1, 2, 3].map(i => (
-                  <div key={i} className="min-w-[240px] h-40 bg-white/5 rounded-3xl animate-pulse border border-white/5" />
-                ))}
-              </div>
-            ) : filteredStores.length > 0 ? (
-              <div className="flex gap-4 overflow-x-auto no-scrollbar pb-4 snap-x px-1">
-                {Array.from(new Map(filteredStores.map(s => [s.id, s])).values()).map((store) => (
-                  <div key={store.id} className="min-w-[240px] snap-center contents">
-                    <AuthGuard
-                      title="Access Features"
-                      message="Sign in to view this supplier's store and items."
-                      profile={profile}
-                      allowGuest={true}
-                      onGuestContinue={onGuestLogin}
-                    >
-                      <StoreCard store={store} profile={profile} onSelect={setSelectedStoreId} />
-                    </AuthGuard>
-                  </div>
-                ))}
-              </div>
-            ) : (
-              <div className="bg-white/5 border border-white/5 rounded-3xl p-8 text-center">
-                <Building2 className="mx-auto text-gray-700 mb-2" size={24} />
-                <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest">No stores found nearby</p>
-              </div>
-            )}
-          </section>
-        )}
-
-        <div className="flex items-center justify-between px-1 pt-4">
+        <div className="flex items-center justify-between px-1 pt-2">
           <div className="flex items-center gap-2">
             <h2 className="font-black text-white uppercase tracking-tighter text-lg">Local Inventory</h2>
             <div className="px-1.5 py-0.5 bg-neon-green/10 text-neon-green text-[8px] font-black rounded border border-neon-green/20 uppercase tracking-widest">Live</div>

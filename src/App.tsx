@@ -10,7 +10,7 @@ import { auth, db, handleFirestoreError, OperationType, syncPublicProfile } from
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { 
   Search, ShoppingBag, MessageSquare, User as UserIcon, Store, LayoutGrid, 
-  Zap, Menu, Bell, ArrowLeft, X, Heart, Star, UserPlus, Check, Loader2, Users, ShieldAlert,
+  Zap, Menu, Bell, ArrowLeft, ArrowRight, X, Heart, Star, UserPlus, Check, Loader2, Users, ShieldAlert,
   LogIn, Download, Compass, Settings, HelpCircle
 } from 'lucide-react';
 import AppTutorialModal from './components/AppTutorialModal';
@@ -452,15 +452,6 @@ function Header({ profile, onMenuClick, onLogout }: { profile: UserProfile | nul
             <span className="hidden md:inline">Tutorial</span>
           </button>
 
-          <button
-            onClick={() => window.dispatchEvent(new CustomEvent('pwa-prompt-install'))}
-            className="flex items-center gap-1.5 px-3 py-2 bg-primary/10 hover:bg-primary/20 text-primary border border-primary/30 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all active:scale-95 shadow-[0_0_12px_rgba(0,242,254,0.15)]"
-            title="Install Native Application"
-          >
-            <Download size={13} />
-            <span className="hidden sm:inline">Install App</span>
-          </button>
-
           {profile ? (
             <>
               <button 
@@ -643,6 +634,7 @@ function NotificationsModal({ profile, onClose }: { profile: UserProfile | null,
   const { notifications, markAsRead, markAllAsRead } = useNotifications();
   const navigate = useNavigate();
   const [showSettings, setShowSettings] = useState(false);
+  const [activeNotification, setActiveNotification] = useState<AppNotification | null>(null);
 
   return (
     <div className="fixed inset-0 z-[100] flex items-start justify-center p-4 sm:p-6 md:p-8 pt-20 sm:pt-24 pointer-events-none">
@@ -661,70 +653,137 @@ function NotificationsModal({ profile, onClose }: { profile: UserProfile | null,
       >
         <div className="p-6 border-b border-white/5 flex justify-between items-center bg-white/5">
           <div>
-            <h3 className="text-lg font-black text-white italic uppercase tracking-tighter">Event Streams</h3>
-            <p className="text-[9px] text-gray-500 font-black uppercase tracking-widest leading-none">System Alerts & Interlocks</p>
+            <h3 className="text-lg font-black text-white italic uppercase tracking-tighter">
+              {activeNotification ? 'Alert Reader' : 'Event Streams'}
+            </h3>
+            <p className="text-[9px] text-gray-500 font-black uppercase tracking-widest leading-none">
+              {activeNotification ? 'Full Stream Detail' : 'System Alerts & Interlocks'}
+            </p>
           </div>
           <div className="flex items-center gap-2">
-            <button 
-              onClick={() => setShowSettings(true)}
-              className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-primary transition-all border border-white/5"
-              title="Push Notification Settings"
-            >
-              <Settings size={18} />
-            </button>
+            {activeNotification ? (
+              <button 
+                onClick={() => setActiveNotification(null)} 
+                className="px-2.5 py-1 bg-white/5 hover:bg-white/10 rounded-lg text-gray-400 hover:text-white text-[9px] font-black uppercase tracking-wider transition-all border border-white/5"
+              >
+                Back
+              </button>
+            ) : (
+              <button 
+                onClick={() => setShowSettings(true)}
+                className="p-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-primary transition-all border border-white/5"
+                title="Push Notification Settings"
+              >
+                <Settings size={18} />
+              </button>
+            )}
             <button onClick={onClose} className="text-gray-500 hover:text-white p-1"><X size={20} /></button>
           </div>
         </div>
 
-        <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar scroll-smooth">
-          {notifications.length > 0 ? (
-            (() => {
-              const unread = notifications.filter(n => !n.read);
-              const read = notifications.filter(n => n.read);
-              
-              return (
-                <>
-                  {unread.map((n, idx) => (
-                    <NotificationItem 
-                      key={`unread-${n.id || idx}`} 
-                      n={n} 
-                      markAsRead={markAsRead} 
-                      onClose={onClose} 
-                      navigate={navigate} 
-                      profile={profile}
-                    />
-                  ))}
-                  
-                  {read.length > 0 && (
-                    <div className="pt-4 pb-2 px-2">
-                      <div className="flex items-center gap-4">
-                        <div className="h-px flex-1 bg-white/5" />
-                        <span className="text-[8px] font-black text-gray-600 uppercase tracking-[0.2em] whitespace-nowrap">Earlier Streams</span>
-                        <div className="h-px flex-1 bg-white/5" />
-                      </div>
-                    </div>
-                  )}
-                  
-                  {read.map((n, idx) => (
-                    <NotificationItem 
-                      key={`read-${n.id || idx}`} 
-                      n={n} 
-                      markAsRead={markAsRead} 
-                      onClose={onClose} 
-                      navigate={navigate} 
-                      profile={profile}
-                    />
-                  ))}
-                </>
-              );
-            })()
-          ) : (
-            <div className="py-20 text-center space-y-4">
-              <Zap size={32} className="mx-auto text-gray-800" />
-              <p className="text-[10px] font-black text-gray-600 uppercase tracking-widest italic">All systems clear - No events queued</p>
+        {activeNotification ? (
+          <div className="p-6 space-y-5 flex-1 overflow-y-auto custom-scrollbar">
+            <div className="flex items-start gap-3">
+              <div className="w-11 h-11 rounded-2xl bg-primary/20 text-primary border border-primary/30 flex items-center justify-center shrink-0">
+                {getNotificationIcon(activeNotification.type)}
+              </div>
+              <div className="space-y-1 min-w-0 flex-1">
+                <h4 className="text-sm font-black text-white uppercase tracking-tight leading-snug">{activeNotification.title}</h4>
+                <div className="flex items-center gap-2 text-[8px] text-gray-500 font-black uppercase tracking-widest">
+                  <span>{activeNotification.fromUserName || 'Comfort Business Hub'}</span>
+                  <span>•</span>
+                  <span>{activeNotification.createdAt?.toDate ? activeNotification.createdAt.toDate().toLocaleString() : 'Just now'}</span>
+                </div>
+              </div>
             </div>
-          )}
-        </div>
+
+            <div className="p-4 bg-white/5 border border-white/10 rounded-2xl space-y-2">
+              <p className="text-xs text-gray-200 font-medium leading-relaxed whitespace-pre-wrap">
+                {activeNotification.message}
+              </p>
+            </div>
+
+            <div className="pt-2 space-y-2">
+              {activeNotification.targetId && (
+                <button
+                  onClick={async () => {
+                    await markAsRead(activeNotification.id);
+                    if (activeNotification.type === 'like_product' || activeNotification.type === 'rate') navigate(`/product/${activeNotification.targetId}`);
+                    if (activeNotification.type === 'follow' || activeNotification.type === 'like_store') navigate(`/store/${activeNotification.targetId}`);
+                    if (activeNotification.type === 'engage' || activeNotification.type === 'buy') navigate('/chat');
+                    onClose();
+                  }}
+                  className="w-full py-2.5 bg-white/10 hover:bg-white/20 text-white rounded-xl text-[10px] font-black uppercase tracking-widest transition-all border border-white/10 flex items-center justify-center gap-2"
+                >
+                  View Related Content <ArrowRight size={12} />
+                </button>
+              )}
+
+              <button
+                onClick={async () => {
+                  await markAsRead(activeNotification.id);
+                  setActiveNotification(null);
+                  onClose();
+                }}
+                className="w-full py-3 bg-primary hover:bg-white text-[#05070a] rounded-xl text-[10px] font-black uppercase tracking-widest transition-all shadow-[0_0_20px_rgba(0,242,254,0.3)] flex items-center justify-center gap-2"
+              >
+                <Check size={14} /> OK / Close Message
+              </button>
+            </div>
+          </div>
+        ) : (
+          <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar scroll-smooth">
+            {notifications.length > 0 ? (
+              (() => {
+                const unread = notifications.filter(n => !n.read);
+                const read = notifications.filter(n => n.read);
+                
+                return (
+                  <>
+                    {unread.map((n, idx) => (
+                      <NotificationItem 
+                        key={`unread-${n.id || idx}`} 
+                        n={n} 
+                        markAsRead={markAsRead} 
+                        onSelect={(item) => setActiveNotification(item)}
+                        onClose={onClose} 
+                        navigate={navigate} 
+                        profile={profile}
+                      />
+                    ))}
+                    
+                    {read.length > 0 && (
+                      <div className="pt-4 pb-2 px-2">
+                        <div className="flex items-center gap-4">
+                          <div className="h-px flex-1 bg-white/5" />
+                          <span className="text-[8px] font-black text-gray-600 uppercase tracking-[0.2em] whitespace-nowrap">Earlier Streams</span>
+                          <div className="h-px flex-1 bg-white/5" />
+                        </div>
+                      </div>
+                    )}
+                    
+                    {read.map((n, idx) => (
+                      <NotificationItem 
+                        key={`read-${n.id || idx}`} 
+                        n={n} 
+                        markAsRead={markAsRead} 
+                        onSelect={(item) => setActiveNotification(item)}
+                        onClose={onClose} 
+                        navigate={navigate} 
+                        profile={profile}
+                      />
+                    ))}
+                  </>
+                );
+              })()
+            ) : (
+              <div className="py-20 text-center space-y-4">
+                <Zap size={32} className="mx-auto text-gray-800" />
+                <p className="text-[10px] font-black text-gray-600 uppercase tracking-widest italic">All systems clear - No events queued</p>
+              </div>
+            )}
+          </div>
+        )}
 
         <div className="p-4 bg-white/5 border-t border-white/5">
           <button 
@@ -747,7 +806,7 @@ function NotificationsModal({ profile, onClose }: { profile: UserProfile | null,
   );
 }
 
-function NotificationItem({ n, markAsRead, onClose, navigate, profile }: { n: AppNotification, markAsRead: (id: string) => Promise<void>, onClose: () => void, navigate: any, profile: UserProfile | null, key?: string }) {
+function NotificationItem({ n, markAsRead, onSelect, onClose, navigate, profile }: { n: AppNotification, markAsRead: (id: string) => Promise<void>, onSelect?: (item: AppNotification) => void, onClose: () => void, navigate: any, profile: UserProfile | null, key?: string }) {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handleConnectionAction = async (e: React.MouseEvent, action: 'accept' | 'decline') => {
@@ -756,8 +815,6 @@ function NotificationItem({ n, markAsRead, onClose, navigate, profile }: { n: Ap
     setIsProcessing(true);
     try {
       if (action === 'accept') {
-        // We need the connection data. We can fetch it or just use the ID.
-        // For efficiency, we can fetch it once if it's a connect_request.
         const connSnap = await getDoc(doc(db, 'connections', n.targetId!));
         if (connSnap.exists()) {
           await interactionService.acceptConnection(n.targetId!, connSnap.data(), profile);
@@ -776,15 +833,19 @@ function NotificationItem({ n, markAsRead, onClose, navigate, profile }: { n: Ap
   return (
     <div 
       onClick={() => {
-        if (n.type === 'connect_request') return; // Must use buttons
-        markAsRead(n.id);
-        if (n.type === 'engage' || n.type === 'buy') navigate('/chat');
-        if (n.type === 'like_product' || n.type === 'rate') navigate(`/product/${n.targetId}`);
-        if (n.type === 'follow' || n.type === 'like_store') navigate(`/store/${n.targetId}`);
-        onClose();
+        if (n.type === 'connect_request') return; // Must use accept/decline buttons
+        if (onSelect) {
+          onSelect(n);
+        } else {
+          markAsRead(n.id);
+          if (n.type === 'engage' || n.type === 'buy') navigate('/chat');
+          if (n.type === 'like_product' || n.type === 'rate') navigate(`/product/${n.targetId}`);
+          if (n.type === 'follow' || n.type === 'like_store') navigate(`/store/${n.targetId}`);
+          onClose();
+        }
       }}
       className={cn(
-        "p-4 rounded-2xl border transition-all group relative overflow-hidden",
+        "p-4 rounded-2xl border transition-all group relative overflow-hidden cursor-pointer",
         n.read 
           ? "bg-transparent border-white/5 opacity-60" 
           : "bg-primary/[0.03] border-primary/30 shadow-[0_0_20px_rgba(0,242,254,0.15)]",
