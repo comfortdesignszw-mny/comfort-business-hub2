@@ -16,7 +16,7 @@ import { useNotifications } from './NotificationProvider';
 import ReportModal from './ReportModal';
 
 import { useMessaging } from '../components/MessagingProvider';
-import { UnifiedCheckoutModal, EcoCashModal, PodModal } from './CheckoutModals';
+import { UnifiedCheckoutModal, EcoCashModal, PodModal, PayPalModal, StripeModal } from './CheckoutModals';
 
 export default function ProductCard({ 
   product, 
@@ -43,7 +43,7 @@ export default function ProductCard({
   });
   const [isStoreLoading, setIsStoreLoading] = useState(!initialStore);
   const [isEngaging, setIsEngaging] = useState(false);
-  const [activeModal, setActiveModal] = useState<'checkout' | 'ecocash' | 'pod' | null>(null);
+  const [activeModal, setActiveModal] = useState<'checkout' | 'ecocash' | 'pod' | 'paypal' | 'stripe' | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
   const [purchaseQuantity, setPurchaseQuantity] = useState(1);
   const navigate = useNavigate();
@@ -104,7 +104,7 @@ export default function ProductCard({
     }
   };
 
-  const handleAction = (type: 'shop' | 'engage') => {
+  const handleAction = async (type: 'shop' | 'engage') => {
     if (!profile) {
       navigate('/login');
       return;
@@ -112,23 +112,41 @@ export default function ProductCard({
 
     if (type === 'engage') {
       setIsEngaging(true);
-      // Fire and forget engagement log
       logEngagement('engaged');
       
-      const customerName = profile.name || profile.businessName || 'A Customer';
-      const interestMessage = `Hie, I am ${customerName}. I am interested in this Product/Service: ${product.name}`;
+      let targetPhone = '';
+      try {
+        const pubDoc = await getDoc(doc(db, 'public_profiles', product.ownerId));
+        if (pubDoc.exists()) {
+          const pubData = pubDoc.data();
+          targetPhone = pubData.whatsappNumber || pubData.phone || pubData.phoneNumber || '';
+        }
+        if (!targetPhone) {
+          const storeDoc = await getDoc(doc(db, 'stores', product.storeId));
+          if (storeDoc.exists()) {
+            const sData = storeDoc.data();
+            targetPhone = sData.contactNumbers?.[0] || sData.phone || sData.whatsappNumber || '';
+          }
+        }
+      } catch (e) {
+        console.error("Error fetching supplier phone:", e);
+      } finally {
+        setIsEngaging(false);
+      }
 
-      // Calculate convoId synchronously for immediate navigation
-      const targetUid = product.ownerId;
-      const convoId = [profile.uid, targetUid].sort().join('_');
+      const cleanNumber = targetPhone ? targetPhone.replace(/[^0-9]/g, '') : '';
+      const messageText = `Hi, I am interested in buying your product(s), ${product.name} in Comfort Business Hub Software.`;
       
-      // Start conversation in background
-      startConversation(targetUid, interestMessage).catch(err => {
-        console.error("Background conversation start failed:", err);
-      });
-
-      // Immediate navigation
-      navigate(`/chat?id=${convoId}`);
+      if (cleanNumber) {
+        triggerFeedback('WhatsApp Uplink', `Opening WhatsApp contact for ${product.name}...`, 'message');
+        const waUrl = `https://wa.me/${cleanNumber}?text=${encodeURIComponent(messageText)}`;
+        window.open(waUrl, '_blank');
+      } else {
+        const targetUid = product.ownerId;
+        const convoId = [profile.uid, targetUid].sort().join('_');
+        startConversation(targetUid, messageText).catch(console.error);
+        navigate(`/chat?id=${convoId}`);
+      }
       return;
     }
 
@@ -329,10 +347,10 @@ export default function ProductCard({
                   <button 
                     onClick={() => handleAction('engage')}
                     disabled={isEngaging}
-                    className="flex-1 py-2 sm:py-3 bg-white/5 border border-white/10 rounded-xl text-[8px] sm:text-[9px] font-black uppercase tracking-widest text-gray-400 hover:text-white hover:bg-white/10 transition-all flex items-center justify-center gap-1.5 sm:gap-2"
+                    className="flex-1 py-2 sm:py-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-[8px] sm:text-[9px] font-black uppercase tracking-widest text-emerald-400 hover:text-white hover:bg-emerald-500/20 transition-all flex items-center justify-center gap-1.5 sm:gap-2 shadow-[0_0_10px_rgba(16,185,129,0.15)]"
                   >
-                    {isEngaging ? <Loader2 size={10} className="animate-spin" /> : <MessageSquare size={10} />}
-                    Talk
+                    {isEngaging ? <Loader2 size={10} className="animate-spin" /> : <MessageSquare size={10} className="text-emerald-400" />}
+                    Talk on WhatsApp
                   </button>
                 </AuthGuard>
                 
@@ -362,6 +380,22 @@ export default function ProductCard({
         )}
         {activeModal === 'ecocash' && (
           <EcoCashModal 
+            product={product} 
+            profile={profile}
+            quantity={purchaseQuantity}
+            onClose={() => { setActiveModal(null); setPurchaseQuantity(1); }} 
+          />
+        )}
+        {activeModal === 'paypal' && (
+          <PayPalModal 
+            product={product} 
+            profile={profile}
+            quantity={purchaseQuantity}
+            onClose={() => { setActiveModal(null); setPurchaseQuantity(1); }} 
+          />
+        )}
+        {activeModal === 'stripe' && (
+          <StripeModal 
             product={product} 
             profile={profile}
             quantity={purchaseQuantity}

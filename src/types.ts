@@ -11,6 +11,7 @@ export interface PublicProfile {
   isVerified: boolean;
   status?: 'active' | 'suspended' | 'banned';
   isAdmin?: boolean;
+  whatsappNumber?: string;
   updatedAt: any;
 }
 
@@ -37,6 +38,7 @@ export interface UserProfile {
   suspensionEnd?: string;
   suspensionDuration?: string;
   reportCount?: number;
+  whatsappNumber?: string;
   whatsappUrl?: string;
   requiredProducts?: string[];
   fcmToken?: string;
@@ -80,6 +82,7 @@ export interface Store {
   followerCount?: number;
   likeCount?: number;
   isVerified?: boolean;
+  whatsappNumber?: string;
   statsResetAt?: string;
   createdAt: any;
   updatedAt?: any;

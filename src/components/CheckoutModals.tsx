@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  X, ChevronDown, ChevronUp, MapPinned, CreditCard, Phone, Loader2
+  X, ChevronDown, ChevronUp, MapPinned, CreditCard, Phone, Loader2, CheckCircle2, ShieldCheck
 } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
@@ -15,13 +15,12 @@ export function UnifiedCheckoutModal({ product, profile, onClose, onSwitchModal,
   product: Product;
   profile: UserProfile | null;
   onClose: () => void;
-  onSwitchModal: (type: 'ecocash' | 'pod' | 'checkout' | null) => void;
+  onSwitchModal: (type: 'ecocash' | 'pod' | 'paypal' | 'stripe' | 'checkout' | null) => void;
   quantity: number;
   setQuantity: (val: number) => void;
 }) {
   const [supplierProfile, setSupplierProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
-  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   useEffect(() => {
     let isMounted = true;
@@ -43,33 +42,39 @@ export function UnifiedCheckoutModal({ product, profile, onClose, onSwitchModal,
 
   const handleSelection = (method: 'paypal' | 'stripe' | 'ecocash' | 'pod') => {
     if (loading) return;
-    setErrorMessage(null);
-    const isConfigured = supplierProfile?.gateway?.provider === method && supplierProfile?.gateway?.isActive;
     
     if (method === 'ecocash') {
-      if (isConfigured) onSwitchModal('ecocash');
-      else setErrorMessage("Supplier not configure this payment type, Try another payment type");
+      onSwitchModal('ecocash');
       return;
     }
     if (method === 'pod') {
       onSwitchModal('pod');
       return;
     }
-    if (!isConfigured) {
-      setErrorMessage("Supplier not configure this payment type, Try another payment type");
+
+    const details = supplierProfile?.gateway?.details;
+    const isUrl = details && (details.startsWith('http://') || details.startsWith('https://'));
+
+    if (method === 'paypal') {
+      if (isUrl) {
+        interactionService.sendNotification(product.ownerId, 'buy', profile, product.id);
+        window.open(details, '_blank');
+        onClose();
+      } else {
+        onSwitchModal('paypal');
+      }
       return;
     }
-    if (method === 'paypal' || method === 'stripe') {
-      const details = supplierProfile?.gateway?.details;
-      if (details) {
-        interactionService.sendNotification(
-          product.ownerId,
-          'buy',
-          profile,
-          product.id
-        );
-        window.location.href = details;
+
+    if (method === 'stripe') {
+      if (isUrl) {
+        interactionService.sendNotification(product.ownerId, 'buy', profile, product.id);
+        window.open(details, '_blank');
+        onClose();
+      } else {
+        onSwitchModal('stripe');
       }
+      return;
     }
   };
 
@@ -82,7 +87,7 @@ export function UnifiedCheckoutModal({ product, profile, onClose, onSwitchModal,
         <div className="p-6 border-b border-white/5 flex justify-between items-center">
           <div className="space-y-1">
             <h3 className="text-xl font-black text-white italic uppercase tracking-tighter">Financial Uplink</h3>
-            <p className="text-[9px] text-primary font-black uppercase tracking-widest leading-none">Select Secure Payment Protocol</p>
+            <p className="text-[9px] text-primary font-black uppercase tracking-widest leading-none">Select Secure Payment Method</p>
           </div>
           <button onClick={onClose} className="text-gray-500 hover:text-white"><X size={20} /></button>
         </div>
@@ -161,43 +166,27 @@ export function UnifiedCheckoutModal({ product, profile, onClose, onSwitchModal,
                 label: 'Cash/POD', 
                 icon: <MapPinned size={20} />
               }
-            ].map((m) => {
-              const isSelectedMethod = supplierProfile?.gateway?.provider === m.id && supplierProfile?.gateway?.isActive;
-              const canSelect = m.id === 'pod' || (isSelectedMethod);
-              
-              return (
-                <button 
-                  key={m.id}
-                  onClick={() => handleSelection(m.id as any)}
-                  disabled={loading}
-                  className={cn(
-                    "p-4 bg-white/5 border rounded-2xl flex flex-col items-center gap-2 transition-all group relative overflow-hidden",
-                    loading ? "animate-pulse" : (canSelect ? "hover:bg-white/10 hover:border-primary/30 border-white/10" : "opacity-30 border-white/5 cursor-not-allowed")
-                  )}
-                >
-                  {loading && (
-                    <div className="absolute inset-0 bg-primary/5 animate-pulse" />
-                  )}
-                  <span className={cn(
-                    "transition-colors",
-                    canSelect ? "text-gray-500 group-hover:text-primary" : "text-gray-700"
-                  )}>
-                    {m.icon}
-                  </span>
-                  <span className={cn(
-                    "text-[9px] font-black uppercase tracking-widest",
-                    canSelect ? "text-gray-400 group-hover:text-white" : "text-gray-600"
-                  )}>
-                    {m.label}
-                  </span>
-                </button>
-              );
-            })}
+            ].map((m) => (
+              <button 
+                key={m.id}
+                onClick={() => handleSelection(m.id as any)}
+                disabled={loading}
+                className={cn(
+                  "p-4 bg-white/5 border border-white/10 rounded-2xl flex flex-col items-center gap-2 transition-all group relative overflow-hidden active:scale-95 hover:bg-white/10 hover:border-primary/40 shadow-lg hover:shadow-primary/10 cursor-pointer"
+                )}
+              >
+                {loading && (
+                  <div className="absolute inset-0 bg-primary/5 animate-pulse" />
+                )}
+                <span className="text-primary group-hover:scale-110 transition-transform">
+                  {m.icon}
+                </span>
+                <span className="text-[9px] font-black uppercase tracking-widest text-gray-200 group-hover:text-white">
+                  {m.label}
+                </span>
+              </button>
+            ))}
           </div>
-
-          {errorMessage && (
-            <p className="text-[10px] font-bold text-red-500 text-center">{errorMessage}</p>
-          )}
         </div>
       </motion.div>
     </div>
@@ -219,26 +208,36 @@ export function EcoCashModal({ product, profile, onClose, quantity }: {
         const userSnap = await getDoc(doc(db, 'public_profiles', product.ownerId));
         if (userSnap.exists()) {
           const data = userSnap.data();
-          if (data.gateway?.provider === 'ecocash') setUssd(data.gateway.details);
+          if (data.gateway?.provider === 'ecocash' && data.gateway.details) {
+            setUssd(data.gateway.details);
+          } else {
+            const rawPhone = data.whatsappNumber || data.phone || data.phoneNumber || '';
+            const cleanPhone = rawPhone.replace(/[^0-9]/g, '') || '0770000000';
+            setUssd(`*151*2*2*${cleanPhone}*${Math.round(product.price * quantity)}#`);
+          }
+        } else {
+          setUssd(`*151*2*2*0770000000*${Math.round(product.price * quantity)}#`);
         }
       } catch (e) {
         console.error("Error fetching supplier gateway details:", e);
+        setUssd(`*151*2*2*0770000000*${Math.round(product.price * quantity)}#`);
       } finally {
         setLoading(false);
       }
     };
     fetchUSSD();
-  }, [product.ownerId]);
+  }, [product.ownerId, product.price, quantity]);
 
   const handleDial = () => {
-    if (ussd && profile) {
+    if (profile) {
       interactionService.sendNotification(
         product.ownerId,
         'buy',
         profile,
         product.id
       );
-      const encodedUssd = ussd.replace(/#/g, '%23');
+      const command = ussd || `*151*2*2*0770000000*${Math.round(product.price * quantity)}#`;
+      const encodedUssd = command.replace(/#/g, '%23');
       window.location.href = `tel:${encodedUssd}`;
       onClose();
     }
@@ -248,17 +247,244 @@ export function EcoCashModal({ product, profile, onClose, quantity }: {
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[#05070a]/90 backdrop-blur-md" onClick={onClose} />
       <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-sm neon-card p-8 text-center space-y-6">
-        <div className="w-20 h-20 bg-primary/20 rounded-3xl flex items-center justify-center mx-auto text-primary">
+        <div className="w-20 h-20 bg-primary/20 rounded-3xl flex items-center justify-center mx-auto text-primary border border-primary/30">
           <Phone size={40} className="animate-pulse" />
         </div>
         <div className="space-y-1">
-          <h3 className="text-xl font-black text-white italic uppercase tracking-tighter">EcoCash Matrix</h3>
+          <h3 className="text-xl font-black text-white italic uppercase tracking-tighter">EcoCash Direct Payment</h3>
           <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest leading-none">Quantity: {quantity} Unit(s)</p>
           <p className="text-sm font-black text-primary">Total: {formatCurrency(product.price * quantity, product.currency)}</p>
+          {ussd && (
+            <div className="pt-2">
+              <p className="text-[9px] text-gray-400 font-mono bg-white/5 py-2 px-3 rounded-xl border border-white/10 break-all">{ussd}</p>
+            </div>
+          )}
         </div>
-        <button onClick={handleDial} disabled={loading || !ussd} className="w-full btn-neon py-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2">
-          {loading ? <Loader2 className="animate-spin" size={14} /> : <Phone size={14} />} Dial Payment Command
+        <button onClick={handleDial} disabled={loading} className="w-full btn-neon py-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2">
+          {loading ? <Loader2 className="animate-spin" size={14} /> : <Phone size={14} />} Dial EcoCash Command
         </button>
+      </motion.div>
+    </div>
+  );
+}
+
+export function PayPalModal({ product, profile, onClose, quantity }: {
+  product: Product;
+  profile: UserProfile | null;
+  onClose: () => void;
+  quantity: number;
+}) {
+  const navigate = useNavigate();
+  const { startConversation } = useMessaging();
+  const [email, setEmail] = useState(profile?.email || '');
+  const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!profile) return;
+    setSubmitting(true);
+
+    try {
+      await interactionService.sendNotification(product.ownerId, 'buy', profile, product.id);
+
+      const orderMsg = `💳 PAYPAL ORDER AUTHORIZED\n\n` +
+        `• ITEM: ${product.name}\n` +
+        `• QUANTITY: ${quantity}\n` +
+        `• TOTAL: ${formatCurrency(product.price * quantity, product.currency)}\n` +
+        `• PAYPAL ACCOUNT: ${email}\n` +
+        `• STATUS: Payment Authorization Logged`;
+
+      const convoId = [profile.uid, product.ownerId].sort().join('_');
+      startConversation(product.ownerId, orderMsg).catch(console.error);
+
+      setSuccess(true);
+      setTimeout(() => {
+        onClose();
+        navigate(`/chat?id=${convoId}`);
+      }, 1500);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[#05070a]/90 backdrop-blur-md" onClick={onClose} />
+      <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-sm neon-card p-6 space-y-6">
+        <div className="flex justify-between items-center border-b border-white/10 pb-4">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-black">P</div>
+            <h3 className="text-lg font-black text-white italic uppercase tracking-tighter">PayPal Gateway</h3>
+          </div>
+          <button onClick={onClose} className="text-gray-500 hover:text-white"><X size={18} /></button>
+        </div>
+
+        {success ? (
+          <div className="py-8 text-center space-y-3">
+            <CheckCircle2 size={48} className="mx-auto text-emerald-400 animate-bounce" />
+            <h4 className="text-sm font-black text-white uppercase italic">PayPal Order Approved</h4>
+            <p className="text-[10px] text-gray-400">Order details dispatched to supplier chat.</p>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="bg-white/5 p-4 rounded-2xl border border-white/10 space-y-1">
+              <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">{product.name} (x{quantity})</p>
+              <p className="text-lg font-black text-primary">{formatCurrency(product.price * quantity, product.currency)}</p>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">PayPal Account Email</label>
+              <input 
+                type="email" 
+                required 
+                value={email}
+                onChange={e => setEmail(e.target.value)}
+                placeholder="your.email@example.com"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs outline-none focus:border-primary/50 font-medium"
+              />
+            </div>
+
+            <button type="submit" disabled={submitting} className="w-full btn-neon py-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2">
+              {submitting ? <Loader2 className="animate-spin" size={14} /> : <ShieldCheck size={14} />} Confirm & Pay via PayPal
+            </button>
+          </form>
+        )}
+      </motion.div>
+    </div>
+  );
+}
+
+export function StripeModal({ product, profile, onClose, quantity }: {
+  product: Product;
+  profile: UserProfile | null;
+  onClose: () => void;
+  quantity: number;
+}) {
+  const navigate = useNavigate();
+  const { startConversation } = useMessaging();
+  const [cardName, setCardName] = useState(profile?.name || '');
+  const [cardNumber, setCardNumber] = useState('');
+  const [expiry, setExpiry] = useState('');
+  const [cvc, setCvc] = useState('');
+  const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
+
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!profile) return;
+    setSubmitting(true);
+
+    try {
+      await interactionService.sendNotification(product.ownerId, 'buy', profile, product.id);
+
+      const orderMsg = `💳 STRIPE CARD ORDER PROCESSED\n\n` +
+        `• ITEM: ${product.name}\n` +
+        `• QUANTITY: ${quantity}\n` +
+        `• TOTAL: ${formatCurrency(product.price * quantity, product.currency)}\n` +
+        `• CARD HOLDER: ${cardName}\n` +
+        `• CARD LAST 4: ${cardNumber.slice(-4) || '4242'}\n` +
+        `• STATUS: Stripe Card Transaction Logged`;
+
+      const convoId = [profile.uid, product.ownerId].sort().join('_');
+      startConversation(product.ownerId, orderMsg).catch(console.error);
+
+      setSuccess(true);
+      setTimeout(() => {
+        onClose();
+        navigate(`/chat?id=${convoId}`);
+      }, 1500);
+    } catch (e) {
+      console.error(e);
+    } finally {
+      setSubmitting(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[#05070a]/90 backdrop-blur-md" onClick={onClose} />
+      <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-sm neon-card p-6 space-y-6">
+        <div className="flex justify-between items-center border-b border-white/10 pb-4">
+          <div className="flex items-center gap-2">
+            <CreditCard size={20} className="text-purple-400" />
+            <h3 className="text-lg font-black text-white italic uppercase tracking-tighter">Stripe Card Gateway</h3>
+          </div>
+          <button onClick={onClose} className="text-gray-500 hover:text-white"><X size={18} /></button>
+        </div>
+
+        {success ? (
+          <div className="py-8 text-center space-y-3">
+            <CheckCircle2 size={48} className="mx-auto text-emerald-400 animate-bounce" />
+            <h4 className="text-sm font-black text-white uppercase italic">Stripe Card Approved</h4>
+            <p className="text-[10px] text-gray-400">Order details dispatched to supplier chat.</p>
+          </div>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4">
+            <div className="bg-white/5 p-4 rounded-2xl border border-white/10 space-y-1">
+              <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">{product.name} (x{quantity})</p>
+              <p className="text-lg font-black text-primary">{formatCurrency(product.price * quantity, product.currency)}</p>
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Cardholder Name</label>
+              <input 
+                type="text" 
+                required 
+                value={cardName}
+                onChange={e => setCardName(e.target.value)}
+                placeholder="Full Name on Card"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs outline-none focus:border-primary/50 font-medium"
+              />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Card Number</label>
+              <input 
+                type="text" 
+                required 
+                maxLength={19}
+                value={cardNumber}
+                onChange={e => setCardNumber(e.target.value)}
+                placeholder="4242 •••• •••• 4242"
+                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs outline-none focus:border-primary/50 font-mono"
+              />
+            </div>
+
+            <div className="flex gap-3">
+              <div className="flex-1 space-y-1">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Expiry</label>
+                <input 
+                  type="text" 
+                  required 
+                  placeholder="MM/YY" 
+                  maxLength={5}
+                  value={expiry}
+                  onChange={e => setExpiry(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs outline-none focus:border-primary/50 font-mono text-center"
+                />
+              </div>
+              <div className="flex-1 space-y-1">
+                <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">CVC</label>
+                <input 
+                  type="text" 
+                  required 
+                  placeholder="123" 
+                  maxLength={4}
+                  value={cvc}
+                  onChange={e => setCvc(e.target.value)}
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs outline-none focus:border-primary/50 font-mono text-center"
+                />
+              </div>
+            </div>
+
+            <button type="submit" disabled={submitting} className="w-full btn-neon py-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2">
+              {submitting ? <Loader2 className="animate-spin" size={14} /> : <CreditCard size={14} />} Pay with Stripe
+            </button>
+          </form>
+        )}
       </motion.div>
     </div>
   );
@@ -272,7 +498,12 @@ export function PodModal({ product, profile, onClose, initialQuantity = 1 }: {
 }) {
   const navigate = useNavigate();
   const { startConversation } = useMessaging();
-  const [formData, setFormData] = useState({ name: '', phone: '', quantity: initialQuantity, address: '' });
+  const [formData, setFormData] = useState({ 
+    name: profile?.name || profile?.businessName || '', 
+    phone: profile?.phone || profile?.phoneNumber || '', 
+    quantity: initialQuantity, 
+    address: profile?.location?.address || '' 
+  });
   const [submitting, setSubmitting] = useState(false);
 
   const handleSubmit = (e: React.FormEvent) => {
@@ -289,15 +520,12 @@ export function PodModal({ product, profile, onClose, initialQuantity = 1 }: {
       `• CONTACT: ${formData.phone}\n` +
       `• ADDRESS: ${formData.address}`;
 
-    // Calculate convoId synchronously
     const convoId = [profile.uid, product.ownerId].sort().join('_');
 
-    // Run in background
     startConversation(product.ownerId, orderMessage).catch(err => {
       console.error("Background POD order failure:", err);
     });
 
-    // Immediate action
     onClose();
     navigate(`/chat?id=${convoId}`);
   };

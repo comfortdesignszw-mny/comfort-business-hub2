@@ -17,7 +17,7 @@ import { useMessaging } from '../components/MessagingProvider';
 import { useNotifications } from '../components/NotificationProvider';
 import AuthGuard from '../components/AuthGuard';
 
-import { UnifiedCheckoutModal, EcoCashModal, PodModal } from '../components/CheckoutModals';
+import { UnifiedCheckoutModal, EcoCashModal, PodModal, PayPalModal, StripeModal } from '../components/CheckoutModals';
 
 export default function ProductDetail({ profile, onGuestLogin }: { profile: UserProfile | null, onGuestLogin?: () => void }) {
   const { id } = useParams<{ id: string }>();
@@ -37,7 +37,7 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [newReview, setNewReview] = useState({ rating: 5, comment: '' });
-  const [activeModal, setActiveModal] = useState<'checkout' | 'ecocash' | 'pod' | null>(null);
+  const [activeModal, setActiveModal] = useState<'checkout' | 'ecocash' | 'pod' | 'paypal' | 'stripe' | null>(null);
   const [purchaseQuantity, setPurchaseQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState<'insight' | 'feedback'>('insight');
   const { startConversation } = useMessaging();
@@ -90,21 +90,38 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
 
   const [isEngaging, setIsEngaging] = useState(false);
 
-  const handleTalk = () => {
-    if (!profile) return;
-    if (!product) return;
+  const handleTalk = async () => {
+    if (!profile || !product) return;
 
     setIsEngaging(true);
-    const customerName = profile.name || profile.businessName || 'A Customer';
-    const interestMessage = `Hie, I am ${customerName}. I am interested in this Product/Service: ${product.name}`;
-    
-    const convoId = [profile.uid, product.ownerId].sort().join('_');
-    
-    // Background conversation start
-    startConversation(product.ownerId, interestMessage).catch(console.error);
+    let targetPhone = '';
+    try {
+      const pubDoc = await getDoc(doc(db, 'public_profiles', product.ownerId));
+      if (pubDoc.exists()) {
+        const pubData = pubDoc.data();
+        targetPhone = pubData.whatsappNumber || pubData.phone || pubData.phoneNumber || '';
+      }
+      if (!targetPhone && store) {
+        targetPhone = store.contactNumbers?.[0] || store.whatsappNumber || '';
+      }
+    } catch (e) {
+      console.error("Error fetching supplier phone:", e);
+    } finally {
+      setIsEngaging(false);
+    }
 
-    // Instant navigation
-    navigate(`/chat?id=${convoId}`);
+    const cleanNumber = targetPhone ? targetPhone.replace(/[^0-9]/g, '') : '';
+    const messageText = `Hi, I am interested in buying your product(s), ${product.name} in Comfort Business Hub Software.`;
+
+    if (cleanNumber) {
+      triggerFeedback('WhatsApp Uplink', `Opening WhatsApp contact for ${product.name}...`, 'message');
+      const waUrl = `https://wa.me/${cleanNumber}?text=${encodeURIComponent(messageText)}`;
+      window.open(waUrl, '_blank');
+    } else {
+      const convoId = [profile.uid, product.ownerId].sort().join('_');
+      startConversation(product.ownerId, messageText).catch(console.error);
+      navigate(`/chat?id=${convoId}`);
+    }
   };
 
   const handlePurchase = () => {
@@ -322,10 +339,10 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
                 <button 
                   onClick={handleTalk}
                   disabled={isEngaging}
-                  className="px-2 py-1 bg-white/5 border border-white/10 rounded-lg text-primary font-black uppercase text-[8px] sm:text-[9px] tracking-widest hover:bg-primary hover:text-black transition-all flex items-center gap-1 shrink-0"
+                  className="px-2.5 py-1.5 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-emerald-400 font-black uppercase text-[8px] sm:text-[9px] tracking-widest hover:bg-emerald-500 hover:text-black transition-all flex items-center gap-1 shrink-0 shadow-[0_0_10px_rgba(16,185,129,0.15)]"
                 >
-                  {isEngaging ? <Loader2 size={8} className="animate-spin" /> : <MessageSquare size={8} />}
-                  Talk
+                  {isEngaging ? <Loader2 size={8} className="animate-spin" /> : <MessageSquare size={8} className="text-emerald-400 group-hover:text-black" />}
+                  Talk on WhatsApp
                 </button>
               </AuthGuard>
               <AuthGuard 
@@ -509,6 +526,22 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
         )}
         {activeModal === 'ecocash' && (
           <EcoCashModal 
+            product={product} 
+            profile={profile}
+            quantity={purchaseQuantity}
+            onClose={() => { setActiveModal(null); setPurchaseQuantity(1); }} 
+          />
+        )}
+        {activeModal === 'paypal' && (
+          <PayPalModal 
+            product={product} 
+            profile={profile}
+            quantity={purchaseQuantity}
+            onClose={() => { setActiveModal(null); setPurchaseQuantity(1); }} 
+          />
+        )}
+        {activeModal === 'stripe' && (
+          <StripeModal 
             product={product} 
             profile={profile}
             quantity={purchaseQuantity}

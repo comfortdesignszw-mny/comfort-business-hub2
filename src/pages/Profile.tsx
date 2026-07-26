@@ -603,6 +603,16 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
                     className="w-full bg-white/5 border border-white/10 rounded-2xl px-5 py-4 text-white outline-none focus:border-primary/50 font-mono transition-all"
                   />
                 </div>
+                <div className="space-y-1">
+                  <label className="text-[10px] font-black text-emerald-400 uppercase tracking-widest text-left block ml-1">Preferred WhatsApp Uplink Number</label>
+                  <input 
+                    type="tel"
+                    value={editData.whatsappNumber ?? profile.whatsappNumber ?? profile.phone ?? ''}
+                    onChange={e => setEditData(prev => ({ ...prev, whatsappNumber: e.target.value }))}
+                    placeholder="e.g. 263771234567"
+                    className="w-full bg-white/5 border border-emerald-500/30 rounded-2xl px-5 py-4 text-emerald-300 outline-none focus:border-emerald-400 font-mono transition-all"
+                  />
+                </div>
                 
                 <div className="flex gap-3 pt-2">
                   <button 
