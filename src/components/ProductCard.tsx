@@ -9,6 +9,7 @@ import { cn, formatCurrency, safeShare } from '../lib/utils';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { collection, addDoc, serverTimestamp, setDoc, doc, getDoc } from 'firebase/firestore';
 import { interactionService } from '../services/interactionService';
+import { viewHistoryService } from '../services/viewHistory';
 import OptimizedImage from './OptimizedImage';
 import AuthGuard from './AuthGuard';
 import { useModals } from '../context/ModalContext';
@@ -209,17 +210,20 @@ export default function ProductCard({
         whileTap={{ scale: 0.98 }}
         whileHover={{ scale: 1.01, y: -2 }}
         transition={{ type: "spring", stiffness: 400, damping: 25 }}
-        onClick={() => navigate(`/product/${product.id}`, { 
-          state: { 
-            product, 
-            store: initialStore || { 
-              id: product.storeId, 
-              name: storeData.name, 
-              rating: storeData.rating, 
-              reviewCount: storeData.reviewCount 
+        onClick={() => {
+          viewHistoryService.recordProductView(product.id, product.name, product.category, product.storeId);
+          navigate(`/product/${product.id}`, { 
+            state: { 
+              product, 
+              store: initialStore || { 
+                id: product.storeId, 
+                name: storeData.name, 
+                rating: storeData.rating, 
+                reviewCount: storeData.reviewCount 
+              } 
             } 
-          } 
-        })}
+          });
+        }}
         className="neon-card group relative overflow-hidden cursor-pointer"
       >
         <div className="aspect-[16/10] sm:aspect-video relative overflow-hidden">

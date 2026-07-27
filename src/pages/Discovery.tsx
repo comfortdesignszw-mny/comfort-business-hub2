@@ -5,7 +5,7 @@ import {
   Search, MapPin, Filter, Star, Zap, ShoppingBag, Store, ArrowRight, 
   SlidersHorizontal, MessageSquare, Sparkles, X, Phone, Check, Loader2, MapPinned, CreditCard,
   Megaphone, Calendar, FileText, Building2, ExternalLink, Share2, Info, Users, Shield, Map as MapIcon, List, UserPlus, Heart,
-  Tag, Clock, Flame, DollarSign, Send
+  Tag, Clock, Flame, DollarSign, Send, RotateCcw
 } from 'lucide-react';
 import { UserProfile, Product, Store as StoreType, Message, Spotlight, PublicProfile } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
@@ -18,6 +18,7 @@ import AuthGuard from '../components/AuthGuard';
 import { useModals } from '../context/ModalContext';
 import { useNotifications } from '../components/NotificationProvider';
 import { interactionService } from '../services/interactionService';
+import { viewHistoryService } from '../services/viewHistory';
 import { StoreDetailContent } from './StoreDetail';
 import OptimizedImage from '../components/OptimizedImage';
 import { MapContainer, TileLayer, Marker, Popup, useMap } from 'react-leaflet';
@@ -278,12 +279,167 @@ useEffect(() => {
     }
   }, [sharedProductId, loading, filteredDeals]);
 
+  const { triggerFeedback } = useNotifications();
   const [selectedStoreId, setSelectedStoreId] = useState<string | null>(null);
+  const [recTab, setRecTab] = useState<'products' | 'stores'>('products');
 
   const selectedStore = useMemo(() => {
     if (!selectedStoreId) return null;
     return nearbyStores.find(s => s.id === selectedStoreId) || null;
   }, [selectedStoreId, nearbyStores]);
+
+  useEffect(() => {
+    if (selectedStore) {
+      viewHistoryService.recordStoreView(selectedStore.id, selectedStore.name, selectedStore.category);
+    }
+  }, [selectedStore]);
+
+  const recommendations = useMemo(() => {
+    const categoryPrefs = viewHistoryService.getCategoryPreferences();
+    const viewedStoreIds = viewHistoryService.getViewedStoreIds();
+    const viewedProductIds = viewHistoryService.getViewedProductIds();
+
+    const categoryWeightMap = new Map(categoryPrefs.map(c => [c.category, c.weight]));
+    const topCategoryNames = Array.from(new Set(categoryPrefs.map(c => c.category).filter(Boolean)));
+
+    const hasHistory = categoryPrefs.length > 0 || viewedStoreIds.size > 0 || viewedProductIds.size > 0;
+
+    // Deduplicate nearbyDeals by ID
+    const uniqueNearbyDeals = Array.from(new Map(nearbyDeals.filter(p => p && p.id).map(p => [p.id, p])).values());
+
+    // Score products
+    const scoredProducts = uniqueNearbyDeals.map(product => {
+      let score = 0;
+      let reasons: string[] = [];
+
+      const catWeight = categoryWeightMap.get(product.category) || 0;
+      if (catWeight > 0) {
+        score += catWeight * 10;
+        reasons.push(`Category: ${product.category}`);
+      }
+
+      if (product.storeId && viewedStoreIds.has(product.storeId)) {
+        score += 15;
+        reasons.push('From a store you visited');
+      }
+
+      const store = storesMap[product.storeId];
+      if (store && store.category && categoryWeightMap.has(store.category)) {
+        score += (categoryWeightMap.get(store.category) || 0) * 5;
+        if (!reasons.some(r => r.includes(store.category))) {
+          reasons.push(`Store match: ${store.category}`);
+        }
+      }
+
+      if (product.rating && product.rating >= 4.5) {
+        score += 3;
+      }
+      if (product.likeCount) {
+        score += Math.min(product.likeCount, 5);
+      }
+
+      return { product, score, reasons, store };
+    });
+
+    let recProductsList: typeof scoredProducts = [];
+    if (hasHistory) {
+      recProductsList = scoredProducts
+        .filter(item => item.score > 0)
+        .sort((a, b) => b.score - a.score);
+    } else {
+      recProductsList = [...scoredProducts];
+    }
+
+    if (recProductsList.length < 4) {
+      const existingProductIds = new Set(recProductsList.map(p => p.product.id));
+      const fallbackProducts = [...scoredProducts]
+        .sort((a, b) => (b.product.rating || 0) - (a.product.rating || 0))
+        .filter(p => !existingProductIds.has(p.product.id))
+        .slice(0, 8 - recProductsList.length);
+
+      fallbackProducts.forEach(f => {
+        recProductsList.push({
+          ...f,
+          reasons: f.reasons.length > 0 ? f.reasons : ['Top Rated Node']
+        });
+      });
+    }
+
+    // Deduplicate recProductsList by product.id
+    const finalProductsMap = new Map<string, typeof scoredProducts[0]>();
+    recProductsList.forEach(item => {
+      if (item.product && item.product.id && !finalProductsMap.has(item.product.id)) {
+        finalProductsMap.set(item.product.id, item);
+      }
+    });
+    const finalProductsList = Array.from(finalProductsMap.values());
+
+    // Deduplicate nearbyStores by ID
+    const uniqueNearbyStores = Array.from(new Map(nearbyStores.filter(s => s && s.id).map(s => [s.id, s])).values());
+
+    // Score stores
+    const scoredStores = uniqueNearbyStores.map(store => {
+      let score = 0;
+      let reasons: string[] = [];
+
+      const catWeight = categoryWeightMap.get(store.category) || 0;
+      if (catWeight > 0) {
+        score += catWeight * 10;
+        reasons.push(`Matches ${store.category}`);
+      }
+
+      if (viewedStoreIds.has(store.id)) {
+        score += 12;
+        reasons.push('Recently visited');
+      }
+
+      if (store.rating && store.rating >= 4.5) {
+        score += 4;
+      }
+
+      return { store, score, reasons };
+    });
+
+    let recStoresList: typeof scoredStores = [];
+    if (hasHistory) {
+      recStoresList = scoredStores
+        .filter(item => item.score > 0)
+        .sort((a, b) => b.score - a.score);
+    } else {
+      recStoresList = [...scoredStores];
+    }
+
+    if (recStoresList.length < 3) {
+      const existingStoreIds = new Set(recStoresList.map(s => s.store.id));
+      const fallbackStores = [...scoredStores]
+        .sort((a, b) => (b.store.rating || 0) - (a.store.rating || 0))
+        .filter(s => !existingStoreIds.has(s.store.id))
+        .slice(0, 6 - recStoresList.length);
+
+      fallbackStores.forEach(f => {
+        recStoresList.push({
+          ...f,
+          reasons: f.reasons.length > 0 ? f.reasons : ['Verified Supplier']
+        });
+      });
+    }
+
+    // Deduplicate recStoresList by store.id
+    const finalStoresMap = new Map<string, typeof scoredStores[0]>();
+    recStoresList.forEach(item => {
+      if (item.store && item.store.id && !finalStoresMap.has(item.store.id)) {
+        finalStoresMap.set(item.store.id, item);
+      }
+    });
+    const finalStoresList = Array.from(finalStoresMap.values());
+
+    return {
+      hasHistory,
+      topCategories: topCategoryNames.slice(0, 4),
+      products: finalProductsList.slice(0, 8),
+      stores: finalStoresList.slice(0, 6)
+    };
+  }, [nearbyDeals, nearbyStores, storesMap, profile]);
 
   return (
     <motion.div 
@@ -732,6 +888,160 @@ useEffect(() => {
         </section>
 
       </div>
+
+      {/* Recommended for You Section */}
+      <section className="bg-gradient-to-r from-[#0d1117] via-[#080b10] to-[#0d1117] border border-primary/25 rounded-[2rem] p-4 sm:p-6 shadow-2xl space-y-5 relative overflow-hidden">
+        {/* Glow backdrop */}
+        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+
+        {/* Section Header */}
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 relative z-10">
+          <div className="space-y-1 text-left">
+            <div className="flex items-center gap-2">
+              <div className="p-1.5 rounded-xl bg-primary/20 text-primary border border-primary/30 shrink-0">
+                <Sparkles size={16} className="animate-pulse" />
+              </div>
+              <h2 className="font-black text-white uppercase tracking-tighter text-base sm:text-lg italic">
+                Recommended For You
+              </h2>
+              <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[8px] font-black border border-primary/20 uppercase tracking-widest shrink-0">
+                {recommendations.hasHistory ? 'Personalized' : 'Trending Node'}
+              </span>
+            </div>
+            <p className="text-[10px] text-gray-400 font-medium leading-relaxed max-w-xl">
+              {recommendations.hasHistory ? (
+                <span>
+                  Curated based on your viewed stores and favorite categories:{' '}
+                  {recommendations.topCategories.map((cat, i) => (
+                    <span key={`rec-top-cat-${cat}-${i}`} className="text-primary font-bold">
+                      {cat}{i < recommendations.topCategories.length - 1 ? ', ' : ''}
+                    </span>
+                  ))}
+                </span>
+              ) : (
+                <span>Recommendations update automatically as you explore suppliers and product categories across the network.</span>
+              )}
+            </p>
+          </div>
+
+          <div className="flex items-center gap-2 shrink-0">
+            <div className="flex bg-[#05070a] p-1 rounded-xl border border-white/10">
+              <button
+                onClick={() => setRecTab('products')}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5",
+                  recTab === 'products'
+                    ? "bg-primary text-[#05070a] shadow-[0_0_10px_rgba(0,242,254,0.3)]"
+                    : "text-gray-400 hover:text-white"
+                )}
+              >
+                <ShoppingBag size={11} /> Items ({recommendations.products.length})
+              </button>
+              <button
+                onClick={() => setRecTab('stores')}
+                className={cn(
+                  "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5",
+                  recTab === 'stores'
+                    ? "bg-primary text-[#05070a] shadow-[0_0_10px_rgba(0,242,254,0.3)]"
+                    : "text-gray-400 hover:text-white"
+                )}
+              >
+                <Store size={11} /> Suppliers ({recommendations.stores.length})
+              </button>
+            </div>
+
+            {recommendations.hasHistory && (
+              <button
+                onClick={() => {
+                  viewHistoryService.clearHistory();
+                  triggerFeedback('History Reset', 'Your browsing history and category signals have been reset.', 'reminder');
+                  setSearchTerm(prev => prev);
+                }}
+                title="Reset Recommendation Signals"
+                className="p-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-gray-400 hover:text-white text-[9px] transition-all"
+              >
+                <RotateCcw size={12} />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Category Signals Badges */}
+        {recommendations.hasHistory && recommendations.topCategories.length > 0 && (
+          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-1">
+            <span className="text-[8px] font-bold uppercase tracking-wider text-gray-500 shrink-0">Active Preference Signals:</span>
+            {recommendations.topCategories.map((cat, idx) => (
+              <button
+                key={`rec-signal-badge-${cat}-${idx}`}
+                onClick={() => setActiveCategory(cat)}
+                className="px-2.5 py-0.5 rounded-full bg-white/5 hover:bg-primary/20 border border-white/10 hover:border-primary/40 text-[8px] font-black text-gray-300 hover:text-primary transition-all flex items-center gap-1 shrink-0"
+              >
+                <Tag size={9} className="text-primary" /> {cat}
+              </button>
+            ))}
+          </div>
+        )}
+
+        {/* Recommended Content */}
+        {recTab === 'products' ? (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pt-1">
+            {recommendations.products.map(({ product, reasons }, idx) => (
+              <div key={`rec-prod-${product.id || idx}-${idx}`} className="relative group">
+                {reasons.length > 0 && (
+                  <div className="absolute top-2 left-2 z-30 pointer-events-none">
+                    <span className="px-2 py-0.5 rounded-full bg-primary/95 text-[#05070a] text-[7.5px] font-black uppercase tracking-wider shadow-lg flex items-center gap-1 backdrop-blur-md">
+                      <Sparkles size={8} /> {reasons[0]}
+                    </span>
+                  </div>
+                )}
+                <AuthGuard
+                  title="Access Detailed Intelligence"
+                  message="Sign in to view full technical specifications, verified ratings, and secure purchasing options for this store."
+                  profile={profile}
+                  allowGuest={true}
+                  onGuestContinue={onGuestLogin}
+                >
+                  <ProductCard
+                    product={product}
+                    profile={profile}
+                    store={storesMap[product.storeId]}
+                  />
+                </AuthGuard>
+              </div>
+            ))}
+          </div>
+        ) : (
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
+            {recommendations.stores.map(({ store, reasons }, idx) => (
+              <div key={`rec-store-${store.id || idx}-${idx}`} className="relative group">
+                {reasons.length > 0 && (
+                  <div className="absolute top-2 left-2 z-30 pointer-events-none">
+                    <span className="px-2 py-0.5 rounded-full bg-accent/90 text-white text-[7.5px] font-black uppercase tracking-wider shadow-lg flex items-center gap-1 backdrop-blur-md">
+                      <Building2 size={8} /> {reasons[0]}
+                    </span>
+                  </div>
+                )}
+                <AuthGuard
+                  title="Access Features"
+                  message="Sign in to view this supplier's store and items."
+                  profile={profile}
+                  allowGuest={true}
+                  onGuestContinue={onGuestLogin}
+                >
+                  <StoreCard
+                    store={store}
+                    profile={profile}
+                    onSelect={(id) => {
+                      viewHistoryService.recordStoreView(store.id, store.name, store.category);
+                      setSelectedStoreId(id);
+                    }}
+                  />
+                </AuthGuard>
+              </div>
+            ))}
+          </div>
+        )}
+      </section>
 
       {/* Discovery Feed */}
       <section className="space-y-6">

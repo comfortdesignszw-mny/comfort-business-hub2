@@ -16,6 +16,7 @@ import { BUSINESS_CATEGORIES } from '../constants';
 import { cn } from '../lib/utils';
 import SupplierDashboard from './SupplierDashboard';
 import OptimizedImage from '../components/OptimizedImage';
+import { viewHistoryService } from '../services/viewHistory';
 
 export default function StoresHub({ profile }: { profile: UserProfile | null }) {
   const navigate = useNavigate();
@@ -336,6 +337,7 @@ function StoreCard({ store, profile }: StoreCardProps) {
     <motion.div 
       whileHover={{ y: -8 }}
       onClick={() => {
+        viewHistoryService.recordStoreView(store.id, store.name, store.category);
         navigate(`/store/${store.id}`);
       }}
       className="group relative bg-[#0d1117] border border-white/5 rounded-[2.5rem] overflow-hidden cursor-pointer hover:border-primary/40 transition-all duration-500 shadow-2xl flex flex-col h-full"

@@ -9,7 +9,8 @@
     "deploy": "wrangler deploy",
     "preview": "vite preview",
     "clean": "rm -rf dist",
-    "lint": "tsc --noEmit && eslint ."
+    "lint": "tsc --noEmit && eslint .",
+    "verify-icons": "node scripts/verify-icons.cjs"
   },
   "dependencies": {
     "@google/genai": "^1.51.0",

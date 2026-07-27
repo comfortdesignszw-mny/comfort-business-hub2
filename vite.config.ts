@@ -16,7 +16,7 @@ export default defineConfig(({mode}) => {
         filename: 'sw.ts',
         registerType: 'autoUpdate',
         manifestFilename: 'manifest.json',
-        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'manifest.json', 'icons/*.png', 'icons/*.ico'],
+        includeAssets: ['favicon.ico', 'apple-touch-icon.png', 'icon.png', 'manifest.json', 'icons/*.png', 'icons/*.ico', 'icon/*.png', 'icon/*.ico'],
         manifest: {
           name: 'Comfort Business Hub',
           short_name: 'ComfortHub',
@@ -67,6 +67,30 @@ export default defineConfig(({mode}) => {
             },
             {
               src: '/icons/icon-maskable-512x512.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'maskable'
+            },
+            {
+              src: '/icon/icon-192x192.png',
+              sizes: '192x192',
+              type: 'image/png',
+              purpose: 'any'
+            },
+            {
+              src: '/icon/icon-512x512.png',
+              sizes: '512x512',
+              type: 'image/png',
+              purpose: 'any'
+            },
+            {
+              src: '/icon/icon-maskable-192x192.png',
+              sizes: '192x192',
+              type: 'image/png',
+              purpose: 'maskable'
+            },
+            {
+              src: '/icon/icon-maskable-512x512.png',
               sizes: '512x512',
               type: 'image/png',
               purpose: 'maskable'

@@ -16,6 +16,7 @@ import { interactionService } from '../services/interactionService';
 import { useMessaging } from '../components/MessagingProvider';
 import { useNotifications } from '../components/NotificationProvider';
 import AuthGuard from '../components/AuthGuard';
+import { viewHistoryService } from '../services/viewHistory';
 
 import { UnifiedCheckoutModal, EcoCashModal, PodModal, PayPalModal, StripeModal } from '../components/CheckoutModals';
 
@@ -51,6 +52,7 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
         const productData = { id: snap.id, ...snap.data() } as Product;
         setProduct(productData);
         setLoading(false);
+        viewHistoryService.recordProductView(productData.id, productData.name, productData.category, productData.storeId);
 
         // Fetch/Listen to Store if not yet done or different
         if (!store || store.id !== productData.storeId) {

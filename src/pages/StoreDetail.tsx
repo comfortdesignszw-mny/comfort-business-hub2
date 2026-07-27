@@ -16,6 +16,7 @@ import ReportModal from '../components/ReportModal';
 import { useModals } from '../context/ModalContext';
 import { localDB } from '../lib/db';
 import { interactionService } from '../services/interactionService';
+import { viewHistoryService } from '../services/viewHistory';
 import { useNotifications } from '../components/NotificationProvider';
 
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
@@ -574,7 +575,9 @@ export default function StoreDetail({ profile, onGuestLogin }: { profile: UserPr
     // Real-time Store Listener
     const storeUnsub = onSnapshot(doc(db, 'stores', id), (snap) => {
       if (snap.exists()) {
-        setStore({ id: snap.id, ...snap.data() } as StoreType);
+        const storeData = { id: snap.id, ...snap.data() } as StoreType;
+        setStore(storeData);
+        viewHistoryService.recordStoreView(storeData.id, storeData.name, storeData.category);
       } else {
         setError("Store not found");
       }

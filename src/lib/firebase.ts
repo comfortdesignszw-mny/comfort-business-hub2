@@ -28,9 +28,10 @@ async function testConnection() {
     await getDocFromServer(doc(db, 'test', 'connection'));
     console.log("Firestore Signal: CONNECTED");
   } catch (error) {
-    console.error("Firestore Signal Error:", error);
-    if (error instanceof Error && (error.message.includes('the client is offline') || error.message.includes('Insufficient permissions'))) {
-      console.error("CRITICAL: Firestore is unreachable or permissions are missing. Check network or Firebase Console rules/allowlist.");
+    if (error instanceof Error && error.message.includes('the client is offline')) {
+      console.info("Firestore Signal: Operating in offline persistent cache mode.");
+    } else {
+      console.warn("Firestore Signal Status:", error);
     }
   }
 }
