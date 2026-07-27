@@ -5,7 +5,7 @@ import {
   User, Store, Phone, MapPin, Shield, LogOut, ChevronRight, Wallet, 
   Bell, Zap, Image as ImageIcon, X, Check, CreditCard, 
   Navigation, Crosshair, Save, Loader2, Megaphone, Trash2, Calendar, FileText, Plus, Users, MessageSquare, Share, RefreshCw, Download
-, Network, ExternalLink, Fingerprint, Compass, BellRing, Clock, Tag, Flame, Sparkles, DollarSign, Layers, MessageCircle, MapPinned } from 'lucide-react';
+, Network, ExternalLink, Fingerprint, Compass, BellRing, Clock, Tag, Flame, Sparkles, DollarSign, Layers, MessageCircle, MapPinned, Landmark, Star } from 'lucide-react';
 import BiometricAuthModal from '../components/BiometricAuthModal';
 import AppTutorialModal from '../components/AppTutorialModal';
 import PushNotificationSettingsModal from '../components/PushNotificationSettingsModal';
@@ -1006,7 +1006,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
               </button>
 
               {activeModal === 'gateway' && (
-                <GatewayConfig profile={profile} onSave={(g) => { handleUpdateProfile({ gateway: g }); setActiveModal(null); }} />
+                <GatewayConfig profile={profile} onSave={(data) => { handleUpdateProfile(data); setActiveModal(null); }} />
               )}
               {activeModal === 'location' && (
                 <LocationConfig profile={profile} onSave={(l) => { handleUpdateProfile({ location: l }); setActiveModal(null); }} />
@@ -1746,6 +1746,9 @@ function GatewayConfig({ profile, onSave }: { profile: UserProfile, onSave: (dat
   const existingMethods = (profile as any)?.paymentMethods || {};
   const primaryProvider = profile.gateway?.provider || 'paypal';
 
+  const [primary, setPrimary] = useState<string>(primaryProvider);
+  const [saveMessage, setSaveMessage] = useState<string | null>(null);
+
   const [methods, setMethods] = useState({
     paypal: {
       enabled: existingMethods.paypal?.enabled ?? (primaryProvider === 'paypal' && profile.gateway?.isActive !== false),
@@ -1759,29 +1762,60 @@ function GatewayConfig({ profile, onSave }: { profile: UserProfile, onSave: (dat
       enabled: existingMethods.ecocash?.enabled ?? (primaryProvider === 'ecocash' && profile.gateway?.isActive !== false),
       details: existingMethods.ecocash?.details || (primaryProvider === 'ecocash' ? profile.gateway?.details || '' : '')
     },
+    paynow: {
+      enabled: existingMethods.paynow?.enabled ?? (primaryProvider === 'paynow' && profile.gateway?.isActive !== false),
+      details: existingMethods.paynow?.details || (primaryProvider === 'paynow' ? profile.gateway?.details || '' : '')
+    },
+    bank: {
+      enabled: existingMethods.bank?.enabled ?? false,
+      details: existingMethods.bank?.details || '',
+      bankName: existingMethods.bank?.bankName || '',
+      accountNumber: existingMethods.bank?.accountNumber || '',
+      branchCode: existingMethods.bank?.branchCode || '',
+      accountName: existingMethods.bank?.accountName || ''
+    },
     pod: {
       enabled: existingMethods.pod?.enabled ?? (primaryProvider === 'pod' && profile.gateway?.isActive !== false),
-      details: existingMethods.pod?.details || 'Pay on Delivery Enabled'
+      details: existingMethods.pod?.details || 'Cash or Mobile Transfer accepted upon delivery'
     }
   });
 
-  const [activeTab, setActiveTab] = useState<'paypal' | 'stripe' | 'ecocash' | 'pod'>('paypal');
+  const [activeTab, setActiveTab] = useState<'paypal' | 'stripe' | 'ecocash' | 'paynow' | 'bank' | 'pod'>('paypal');
 
   const handleSave = () => {
     const keys = Object.keys(methods) as Array<keyof typeof methods>;
-    const firstEnabled = keys.find(k => methods[k].enabled) || activeTab;
-    
+    const chosenPrimary = (methods[primary as keyof typeof methods]?.enabled ? primary : keys.find(k => methods[k].enabled)) || 'paypal';
+
+    let primaryDetails = methods[chosenPrimary as keyof typeof methods]?.details || '';
+    if (chosenPrimary === 'bank') {
+      const b = methods.bank;
+      primaryDetails = [b.bankName, b.accountNumber, b.accountName].filter(Boolean).join(' - ') || b.details;
+    }
+
     const gatewayData = {
-      provider: firstEnabled,
-      details: methods[firstEnabled].details || (firstEnabled === 'pod' ? 'Pay on Delivery Enabled' : ''),
+      provider: chosenPrimary,
+      details: primaryDetails || (chosenPrimary === 'pod' ? 'Cash / POD Enabled' : ''),
       isActive: true
     };
 
-    onSave({
-      gateway: gatewayData,
-      paymentMethods: methods
-    });
+    setSaveMessage("✓ Payment Methods Saved & Synced for Buyer Checkout!");
+
+    setTimeout(() => {
+      onSave({
+        gateway: gatewayData,
+        paymentMethods: methods
+      });
+    }, 600);
   };
+
+  const providerInfo = [
+    { id: 'paypal', label: 'PayPal', icon: CreditCard, color: 'text-blue-400', badgeBg: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
+    { id: 'stripe', label: 'Stripe', icon: CreditCard, color: 'text-purple-400', badgeBg: 'bg-purple-500/20 text-purple-400 border-purple-500/30' },
+    { id: 'ecocash', label: 'EcoCash', icon: Phone, color: 'text-emerald-400', badgeBg: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
+    { id: 'paynow', label: 'Paynow', icon: Wallet, color: 'text-cyan-400', badgeBg: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' },
+    { id: 'bank', label: 'Bank Transfer', icon: Landmark, color: 'text-amber-400', badgeBg: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
+    { id: 'pod', label: 'Cash / POD', icon: MapPinned, color: 'text-rose-400', badgeBg: 'bg-rose-500/20 text-rose-400 border-rose-500/30' }
+  ];
 
   return (
     <div className="space-y-6">
@@ -1790,92 +1824,157 @@ function GatewayConfig({ profile, onSave }: { profile: UserProfile, onSave: (dat
         <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Configure & enable how you receive payments for your products and services</p>
       </header>
 
-      <div className="grid grid-cols-2 gap-3">
-        {[
-          { id: 'paypal', label: 'PayPal', icon: CreditCard, color: 'text-blue-400' },
-          { id: 'stripe', label: 'Stripe', icon: CreditCard, color: 'text-purple-400' },
-          { id: 'ecocash', label: 'EcoCash', icon: Phone, color: 'text-emerald-400' },
-          { id: 'pod', label: 'Cash / POD', icon: MapPinned, color: 'text-amber-400' }
-        ].map(m => {
-          const isEnabled = methods[m.id as keyof typeof methods].enabled;
+      {saveMessage && (
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="p-3 bg-emerald-500/20 border border-emerald-500/40 rounded-xl text-emerald-400 text-xs font-bold text-center flex items-center justify-center gap-2"
+        >
+          <Check size={16} /> {saveMessage}
+        </motion.div>
+      )}
+
+      {/* Grid of payment options */}
+      <div className="grid grid-cols-2 sm:grid-cols-3 gap-2.5">
+        {providerInfo.map(m => {
+          const isEnabled = methods[m.id as keyof typeof methods]?.enabled;
           const isSelected = activeTab === m.id;
+          const isPrimary = primary === m.id;
+
           return (
             <button
               key={m.id}
               type="button"
               onClick={() => setActiveTab(m.id as any)}
               className={cn(
-                "p-4 rounded-2xl border flex flex-col items-center gap-2 transition-all relative overflow-hidden text-left",
+                "p-3 rounded-2xl border flex flex-col justify-between transition-all relative overflow-hidden text-left min-h-[95px]",
                 isSelected ? "bg-primary/20 border-primary text-white shadow-[0_0_15px_rgba(0,242,254,0.15)]" : "bg-white/5 border-white/5 text-gray-400 hover:border-white/20"
               )}
             >
               <div className="flex items-center justify-between w-full">
                 <m.icon size={18} className={m.color} />
-                <span className={cn(
-                  "text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full border",
-                  isEnabled ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-gray-500/10 text-gray-500 border-gray-500/20"
-                )}>
-                  {isEnabled ? 'Active' : 'Disabled'}
-                </span>
+                <div className="flex items-center gap-1">
+                  {isPrimary && (
+                    <span className="text-[7px] font-black uppercase px-1 py-0.5 rounded bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-0.5">
+                      <Star size={8} className="fill-amber-300" /> Primary
+                    </span>
+                  )}
+                  <span className={cn(
+                    "text-[7px] font-black uppercase tracking-wider px-1.5 py-0.5 rounded-full border",
+                    isEnabled ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-gray-500/10 text-gray-500 border-gray-500/20"
+                  )}>
+                    {isEnabled ? 'Active' : 'Off'}
+                  </span>
+                </div>
               </div>
-              <span className="text-[10px] font-black uppercase tracking-widest w-full text-left mt-1">
-                {m.label}
-              </span>
+              <div>
+                <span className="text-[10px] font-black uppercase tracking-wider w-full block text-left mt-2 text-white">
+                  {m.label}
+                </span>
+                <p className="text-[8px] text-gray-400 truncate">
+                  {methods[m.id as keyof typeof methods]?.details || 'Not set'}
+                </p>
+              </div>
             </button>
           );
         })}
       </div>
 
+      {/* Active Tab Configurator */}
       <div className="bg-white/5 p-5 rounded-2xl border border-white/10 space-y-4">
-        <div className="flex items-center justify-between border-b border-white/10 pb-3">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between border-b border-white/10 pb-3 gap-2">
           <div className="space-y-0.5">
-            <h4 className="text-xs font-black text-white uppercase tracking-wider">{activeTab.toUpperCase()} Configuration</h4>
-            <p className="text-[9px] text-gray-400 font-bold">Accept payments via {activeTab}</p>
+            <div className="flex items-center gap-2">
+              <h4 className="text-xs font-black text-white uppercase tracking-wider">{activeTab.toUpperCase()} Configuration</h4>
+              {primary === activeTab && (
+                <span className="text-[8px] font-black text-amber-400 bg-amber-500/20 px-2 py-0.5 rounded-full border border-amber-500/30 uppercase tracking-widest">
+                  Primary Gateway
+                </span>
+              )}
+            </div>
+            <p className="text-[9px] text-gray-400 font-bold">Configure details for buyers checking out with {activeTab.toUpperCase()}</p>
           </div>
-          <button
-            type="button"
-            onClick={() => setMethods(prev => ({
-              ...prev,
-              [activeTab]: { ...prev[activeTab], enabled: !prev[activeTab].enabled }
-            }))}
-            className={cn(
-              "px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border cursor-pointer",
-              methods[activeTab].enabled 
-                ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/40" 
-                : "bg-white/5 text-gray-400 border-white/10 hover:text-white"
+
+          <div className="flex items-center gap-2">
+            {activeTab !== primary && (
+              <button
+                type="button"
+                onClick={() => setPrimary(activeTab)}
+                className="px-2.5 py-1.5 rounded-xl text-[8px] font-black uppercase tracking-widest bg-amber-500/10 text-amber-300 border border-amber-500/30 hover:bg-amber-500/20 transition-all flex items-center gap-1 cursor-pointer"
+              >
+                <Star size={10} /> Set as Primary
+              </button>
             )}
-          >
-            {methods[activeTab].enabled ? '✓ Enabled' : 'Enable Method'}
-          </button>
+            <button
+              type="button"
+              onClick={() => setMethods(prev => ({
+                ...prev,
+                [activeTab]: { ...prev[activeTab], enabled: !prev[activeTab].enabled }
+              }))}
+              className={cn(
+                "px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border cursor-pointer",
+                methods[activeTab].enabled 
+                  ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/40" 
+                  : "bg-white/5 text-gray-400 border-white/10 hover:text-white"
+              )}
+            >
+              {methods[activeTab].enabled ? '✓ Enabled' : 'Enable Method'}
+            </button>
+          </div>
         </div>
 
-        {activeTab !== 'pod' ? (
-          <div className="space-y-2">
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
-              {activeTab === 'ecocash' ? 'EcoCash USSD Code / Merchant Number / Phone' : 'Payment Handle / Link / Account Email'}
-            </label>
-            <input 
-              type="text"
-              value={methods[activeTab].details}
-              onChange={e => setMethods(prev => ({
-                ...prev,
-                [activeTab]: { ...prev[activeTab], details: e.target.value }
-              }))}
-              placeholder={
-                activeTab === 'paypal' ? 'paypal.me/yourbusiness or email@domain.com' :
-                activeTab === 'stripe' ? 'https://buy.stripe.com/... or Stripe Account ID' :
-                activeTab === 'ecocash' ? '*151*2*2*077...# or Merchant Code' :
-                'Account Details'
-              }
-              className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3.5 text-white outline-none focus:border-primary/50 font-mono text-xs"
-            />
-            <p className="text-[8px] text-gray-500 italic">
-              {activeTab === 'ecocash' ? 'Buyers can dial this code directly or auto-generate their payment.' : 'Used to direct customers straight to your checkout gateway.'}
-            </p>
+        {activeTab === 'bank' ? (
+          <div className="space-y-3">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Bank Name</label>
+                <input 
+                  type="text"
+                  value={methods.bank.bankName}
+                  onChange={e => setMethods(prev => ({ ...prev, bank: { ...prev.bank, bankName: e.target.value } }))}
+                  placeholder="e.g. Stanbic / CBZ / FBC"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-white outline-none focus:border-primary/50 text-xs font-bold"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Account Holder Name</label>
+                <input 
+                  type="text"
+                  value={methods.bank.accountName}
+                  onChange={e => setMethods(prev => ({ ...prev, bank: { ...prev.bank, accountName: e.target.value } }))}
+                  placeholder="Full Account Holder Name"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-white outline-none focus:border-primary/50 text-xs font-bold"
+                />
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Account Number</label>
+                <input 
+                  type="text"
+                  value={methods.bank.accountNumber}
+                  onChange={e => setMethods(prev => ({ ...prev, bank: { ...prev.bank, accountNumber: e.target.value } }))}
+                  placeholder="e.g. 914000123456"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-white outline-none focus:border-primary/50 font-mono text-xs"
+                />
+              </div>
+              <div className="space-y-1">
+                <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Branch Code / Swift</label>
+                <input 
+                  type="text"
+                  value={methods.bank.branchCode}
+                  onChange={e => setMethods(prev => ({ ...prev, bank: { ...prev.bank, branchCode: e.target.value } }))}
+                  placeholder="e.g. 31024 or STANZWHA"
+                  className="w-full bg-white/5 border border-white/10 rounded-xl px-3.5 py-2.5 text-white outline-none focus:border-primary/50 font-mono text-xs"
+                />
+              </div>
+            </div>
+            <p className="text-[8px] text-gray-400 italic">Buyers will be presented with these exact bank deposit details at checkout.</p>
           </div>
-        ) : (
+        ) : activeTab === 'pod' ? (
           <div className="space-y-2">
-            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Pay on Delivery Notes</label>
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Pay on Delivery Notes & Terms</label>
             <input 
               type="text"
               value={methods.pod.details}
@@ -1886,6 +1985,36 @@ function GatewayConfig({ profile, onSave }: { profile: UserProfile, onSave: (dat
               placeholder="e.g. Cash or Mobile Transfer accepted upon delivery"
               className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3.5 text-white outline-none focus:border-primary/50 font-medium text-xs"
             />
+            <p className="text-[8px] text-gray-400 italic">Instructions provided to buyers when placing Cash / Pay on Delivery orders.</p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
+              {activeTab === 'ecocash' ? 'EcoCash USSD Code / Merchant Number / Phone' : 
+               activeTab === 'paynow' ? 'Paynow Integration Link / Merchant Email / Key' : 
+               'Payment Handle / Checkout Link / Account Email'}
+            </label>
+            <input 
+              type="text"
+              value={methods[activeTab].details}
+              onChange={e => setMethods(prev => ({
+                ...prev,
+                [activeTab]: { ...prev[activeTab], details: e.target.value }
+              }))}
+              placeholder={
+                activeTab === 'paypal' ? 'paypal.me/yourbusiness or sales@domain.com' :
+                activeTab === 'stripe' ? 'https://buy.stripe.com/5kA... or Stripe Account ID' :
+                activeTab === 'ecocash' ? '*151*2*2*077123456# or Merchant 077...' :
+                activeTab === 'paynow' ? 'https://www.paynow.co.zw/Payment/Link/... or email@domain.com' :
+                'Account Details'
+              }
+              className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3.5 text-white outline-none focus:border-primary/50 font-mono text-xs"
+            />
+            <p className="text-[8px] text-gray-500 italic">
+              {activeTab === 'ecocash' ? 'Buyers can dial this code directly or auto-generate their EcoCash command.' : 
+               activeTab === 'paynow' ? 'Used to launch direct Paynow payment interface at checkout.' :
+               'Directs buyers straight to your configured receiving gateway.'}
+            </p>
           </div>
         )}
       </div>
@@ -1893,7 +2022,7 @@ function GatewayConfig({ profile, onSave }: { profile: UserProfile, onSave: (dat
       <button 
         type="button"
         onClick={handleSave}
-        className="w-full btn-neon py-4 text-xs font-black uppercase tracking-[0.2em] italic flex items-center justify-center gap-2"
+        className="w-full btn-neon py-4 text-xs font-black uppercase tracking-[0.2em] italic flex items-center justify-center gap-2 cursor-pointer"
       >
         <Check size={18} /> Save Payment Configuration
       </button>

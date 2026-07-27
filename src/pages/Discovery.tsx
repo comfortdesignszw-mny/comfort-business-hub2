@@ -616,11 +616,11 @@ useEffect(() => {
         </motion.div>
       )}
 
-      {/* Top 3-Column Horizontal Grid layout on Desktop */}
-      <div className="grid grid-cols-1 lg:grid-cols-12 gap-4 lg:items-stretch pt-2">
+      {/* Top 2-Column Horizontal Grid layout on Desktop */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:items-stretch pt-2">
         
-        {/* 1. Search Bar and Filters Section (Left) */}
-        <section className="lg:col-span-4 bg-[#0d1117]/90 backdrop-blur-md border border-white/10 rounded-[2rem] p-4 flex flex-col justify-between space-y-3 shadow-xl">
+        {/* 1. Search Bar and Filters Section (Synchronized Discover) */}
+        <section className="bg-[#0d1117]/90 backdrop-blur-md border border-white/10 rounded-[2rem] p-4 flex flex-col justify-between space-y-3 shadow-xl">
           <div className="space-y-3">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
@@ -722,50 +722,8 @@ useEffect(() => {
           )}
         </section>
 
-        {/* 2. Active Stores Section (Middle) */}
-        <section className="lg:col-span-4 bg-[#0d1117]/90 backdrop-blur-md border border-white/10 rounded-[2rem] p-4 flex flex-col justify-between space-y-2 shadow-xl overflow-hidden min-h-[220px]">
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-2">
-              <h2 className="font-black text-white uppercase tracking-tighter text-xs sm:text-sm">Active Stores</h2>
-              <div className="px-1.5 py-0.5 bg-primary/10 text-primary text-[8px] font-black rounded border border-primary/20 uppercase tracking-widest">Network</div>
-            </div>
-            <span className="text-[8px] font-black text-gray-500 uppercase tracking-widest">
-              {filteredStores.length} Live
-            </span>
-          </div>
-
-          {storesLoading ? (
-            <div className="flex gap-2 overflow-x-auto no-scrollbar py-1">
-              {[1, 2].map(i => (
-                <div key={i} className="min-w-[170px] h-32 bg-white/5 rounded-2xl animate-pulse border border-white/5 shrink-0" />
-              ))}
-            </div>
-          ) : filteredStores.length > 0 ? (
-            <div className="flex gap-2 overflow-x-auto no-scrollbar py-1 snap-x max-w-full">
-              {Array.from(new Map(filteredStores.filter(s => s && s.id).map(s => [s.id, s])).values()).map((store, idx) => (
-                <div key={`disc-store-${store.id || idx}-${idx}`} className="min-w-[170px] max-w-[195px] snap-start shrink-0">
-                  <AuthGuard
-                    title="Access Features"
-                    message="Sign in to view this supplier's store and items."
-                    profile={profile}
-                    allowGuest={true}
-                    onGuestContinue={onGuestLogin}
-                  >
-                    <StoreCard store={store} profile={profile} onSelect={setSelectedStoreId} />
-                  </AuthGuard>
-                </div>
-              ))}
-            </div>
-          ) : (
-            <div className="bg-white/5 border border-white/5 rounded-2xl p-6 text-center my-auto">
-              <Building2 className="mx-auto text-gray-700 mb-1" size={20} />
-              <p className="text-[9px] font-black text-gray-500 uppercase tracking-widest">No active stores nearby</p>
-            </div>
-          )}
-        </section>
-
-        {/* 3. Market Spotlight / Classified Carousel Section (Right) */}
-        <section className="lg:col-span-4 relative overflow-hidden rounded-[2rem] border border-primary/30 shadow-2xl bg-[#05070a] min-h-[220px] flex flex-col">
+        {/* 2. Market Spotlight / Classified Carousel Section (Marketing Spotlight) */}
+        <section className="relative overflow-hidden rounded-[2rem] border border-primary/30 shadow-2xl bg-[#05070a] min-h-[220px] flex flex-col">
           <AnimatePresence mode="wait">
             {spotlights.length > 0 ? (
               (() => {

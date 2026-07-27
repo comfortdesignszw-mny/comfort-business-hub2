@@ -18,7 +18,7 @@ import { useNotifications } from '../components/NotificationProvider';
 import AuthGuard from '../components/AuthGuard';
 import { viewHistoryService } from '../services/viewHistory';
 
-import { UnifiedCheckoutModal, EcoCashModal, PodModal, PayPalModal, StripeModal } from '../components/CheckoutModals';
+import { UnifiedCheckoutModal, EcoCashModal, PodModal, PayPalModal, StripeModal, PaynowModal, BankModal } from '../components/CheckoutModals';
 
 export default function ProductDetail({ profile, onGuestLogin }: { profile: UserProfile | null, onGuestLogin?: () => void }) {
   const { id } = useParams<{ id: string }>();
@@ -38,7 +38,7 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
   const [newReview, setNewReview] = useState({ rating: 5, comment: '' });
-  const [activeModal, setActiveModal] = useState<'checkout' | 'ecocash' | 'pod' | 'paypal' | 'stripe' | null>(null);
+  const [activeModal, setActiveModal] = useState<'checkout' | 'ecocash' | 'pod' | 'paypal' | 'stripe' | 'paynow' | 'bank' | null>(null);
   const [purchaseQuantity, setPurchaseQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState<'insight' | 'feedback'>('insight');
   const { startConversation } = useMessaging();
@@ -554,6 +554,22 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
             product={product} 
             profile={profile}
             initialQuantity={purchaseQuantity}
+            onClose={() => { setActiveModal(null); setPurchaseQuantity(1); }} 
+          />
+        )}
+        {activeModal === 'paynow' && (
+          <PaynowModal 
+            product={product} 
+            profile={profile}
+            quantity={purchaseQuantity}
+            onClose={() => { setActiveModal(null); setPurchaseQuantity(1); }} 
+          />
+        )}
+        {activeModal === 'bank' && (
+          <BankModal 
+            product={product} 
+            profile={profile}
+            quantity={purchaseQuantity}
             onClose={() => { setActiveModal(null); setPurchaseQuantity(1); }} 
           />
         )}

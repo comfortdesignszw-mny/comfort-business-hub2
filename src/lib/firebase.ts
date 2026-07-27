@@ -139,6 +139,7 @@ export async function syncPublicProfile(profile: any) {
       location: profile.location ? { city: profile.location.city || '' } : null,
       isVerified: Boolean(profile.isVerified),
       gateway: profile.gateway || null,
+      paymentMethods: profile.paymentMethods || null,
       whatsappNumber: profile.whatsappNumber || profile.phone || profile.phoneNumber || '',
       updatedAt: serverTimestamp()
     };

@@ -62,6 +62,8 @@ export interface UserProfile {
     paypal?: { enabled: boolean; details: string };
     stripe?: { enabled: boolean; details: string };
     ecocash?: { enabled: boolean; details: string };
+    paynow?: { enabled: boolean; details: string };
+    bank?: { enabled: boolean; details: string; bankName?: string; accountNumber?: string; branchCode?: string; accountName?: string };
     pod?: { enabled: boolean; details: string };
     [key: string]: any;
   };

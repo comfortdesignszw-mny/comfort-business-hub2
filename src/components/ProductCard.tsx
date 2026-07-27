@@ -17,7 +17,7 @@ import { useNotifications } from './NotificationProvider';
 import ReportModal from './ReportModal';
 
 import { useMessaging } from '../components/MessagingProvider';
-import { UnifiedCheckoutModal, EcoCashModal, PodModal, PayPalModal, StripeModal } from './CheckoutModals';
+import { UnifiedCheckoutModal, EcoCashModal, PodModal, PayPalModal, StripeModal, PaynowModal, BankModal } from './CheckoutModals';
 
 export default function ProductCard({ 
   product, 
@@ -44,7 +44,7 @@ export default function ProductCard({
   });
   const [isStoreLoading, setIsStoreLoading] = useState(!initialStore);
   const [isEngaging, setIsEngaging] = useState(false);
-  const [activeModal, setActiveModal] = useState<'checkout' | 'ecocash' | 'pod' | 'paypal' | 'stripe' | null>(null);
+  const [activeModal, setActiveModal] = useState<'checkout' | 'ecocash' | 'pod' | 'paypal' | 'stripe' | 'paynow' | 'bank' | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
   const [purchaseQuantity, setPurchaseQuantity] = useState(1);
   const navigate = useNavigate();
@@ -410,6 +410,22 @@ export default function ProductCard({
             product={product} 
             profile={profile}
             initialQuantity={purchaseQuantity}
+            onClose={() => { setActiveModal(null); setPurchaseQuantity(1); }} 
+          />
+        )}
+        {activeModal === 'paynow' && (
+          <PaynowModal 
+            product={product} 
+            profile={profile}
+            quantity={purchaseQuantity}
+            onClose={() => { setActiveModal(null); setPurchaseQuantity(1); }} 
+          />
+        )}
+        {activeModal === 'bank' && (
+          <BankModal 
+            product={product} 
+            profile={profile}
+            quantity={purchaseQuantity}
             onClose={() => { setActiveModal(null); setPurchaseQuantity(1); }} 
           />
         )}
