@@ -27,11 +27,19 @@ async function testConnection() {
     // Explicitly check connectivity to the server
     await getDocFromServer(doc(db, 'test', 'connection'));
     console.log("Firestore Signal: CONNECTED");
-  } catch (error) {
-    if (error instanceof Error && error.message.includes('the client is offline')) {
+  } catch (error: any) {
+    const errStr = String(error?.message || error || '');
+    if (
+      error?.code === 'unavailable' ||
+      error?.code === 'failed-precondition' ||
+      errStr.includes('offline') ||
+      errStr.includes('could not be completed') ||
+      errStr.includes('10 seconds') ||
+      errStr.includes('unavailable')
+    ) {
       console.info("Firestore Signal: Operating in offline persistent cache mode.");
     } else {
-      console.warn("Firestore Signal Status:", error);
+      console.warn("Firestore Signal Status:", errStr);
     }
   }
 }
