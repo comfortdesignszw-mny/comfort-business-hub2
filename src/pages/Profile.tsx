@@ -707,187 +707,186 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
         </div>
       </section>
 
-      {/* Role Toggle Dashboard */}
-      <section className="neon-card p-8 relative overflow-hidden group">
-        <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl -mr-16 -mt-16 group-hover:bg-primary/20 transition-all pointer-events-none"></div>
-        
-        <div className="flex items-center justify-between mb-8">
-          <div className="space-y-1 text-left">
-            <h3 className="text-sm font-black text-white uppercase tracking-widest">Active Link</h3>
-            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Switch Account Type</p>
-          </div>
-          <div className="flex items-center gap-2 p-1.5 bg-white/5 rounded-2xl border border-white/5 relative z-10">
-            <button 
-              onClick={toggleRole}
-              disabled={loading}
-              title="Customer Mode"
-              className={cn(
-                "w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-90",
-                profile.currentRole === 'customer' 
-                  ? "bg-primary text-[#05070a] shadow-[0_0_15px_rgba(0,242,254,0.4)]" 
-                  : "text-gray-500 hover:text-gray-300"
-              )}
-            >
-              <User size={22} />
-            </button>
-            <button 
-              onClick={toggleRole}
-              disabled={loading}
-              title="Supplier Mode"
-              className={cn(
-                "w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-90",
-                profile.currentRole === 'supplier' 
-                  ? "bg-accent text-white shadow-[0_0_15px_rgba(240,147,251,0.4)]" 
-                  : "text-gray-500 hover:text-gray-300"
-              )}
-            >
-              <Store size={22} />
-            </button>
-          </div>
-        </div>
-        
-        <motion.div 
-          initial={false}
-          animate={{ 
-            height: profile.currentRole === 'supplier' ? 'auto' : 0, 
-            opacity: profile.currentRole === 'supplier' ? 1 : 0,
-            marginBottom: profile.currentRole === 'supplier' ? 0 : -24
-          }}
-          transition={{ 
-            duration: 0.25, 
-            ease: [0.23, 1, 0.32, 1] // Fast out, slow in for snappier feel
-          }}
-          className="overflow-hidden"
-          style={{ willChange: 'height, opacity' }}
-        >
-          <div className="pt-6 border-t border-white/5 space-y-4">
-            <div className="grid grid-cols-2 gap-4">
-              <div className="bg-white/5 p-4 rounded-2xl border border-white/5 space-y-2">
-                <p className="text-[8px] text-gray-400 font-black uppercase tracking-widest">Store Volume</p>
-                <div className="flex items-end gap-2">
-                  <p className="text-xl font-black text-white">{formatCurrency(engagementStats.volume, 'USD')}</p>
-                </div>
+      {/* Active Link & Neural Member Network (Horizontally aligned on desktop) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 items-stretch">
+        {/* Role Toggle Dashboard */}
+        <section className="neon-card p-8 relative overflow-hidden group flex flex-col justify-between">
+          <div className="absolute top-0 right-0 w-32 h-32 bg-primary/5 blur-3xl -mr-16 -mt-16 group-hover:bg-primary/20 transition-all pointer-events-none"></div>
+          
+          <div>
+            <div className="flex items-center justify-between mb-8">
+              <div className="space-y-1 text-left">
+                <h3 className="text-sm font-black text-white uppercase tracking-widest">Active Link</h3>
+                <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Switch Account Type</p>
               </div>
-              <div className="bg-white/5 p-4 rounded-2xl border border-white/5 space-y-2">
-                <p className="text-[8px] text-gray-400 font-black uppercase tracking-widest">Active Leads</p>
-                <p className="text-xl font-black text-primary">{engagementStats.engaged} Connections</p>
+              <div className="flex items-center gap-2 p-1.5 bg-white/5 rounded-2xl border border-white/5 relative z-10">
+                <button 
+                  onClick={toggleRole}
+                  disabled={loading}
+                  title="Customer Mode"
+                  className={cn(
+                    "w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-90",
+                    profile.currentRole === 'customer' 
+                      ? "bg-primary text-[#05070a] shadow-[0_0_15px_rgba(0,242,254,0.4)]" 
+                      : "text-gray-500 hover:text-gray-300"
+                  )}
+                >
+                  <User size={22} />
+                </button>
+                <button 
+                  onClick={toggleRole}
+                  disabled={loading}
+                  title="Supplier Mode"
+                  className={cn(
+                    "w-12 h-12 rounded-xl flex items-center justify-center transition-all duration-200 active:scale-90",
+                    profile.currentRole === 'supplier' 
+                      ? "bg-accent text-white shadow-[0_0_15px_rgba(240,147,251,0.4)]" 
+                      : "text-gray-500 hover:text-gray-300"
+                  )}
+                >
+                  <Store size={22} />
+                </button>
               </div>
             </div>
             
-            <motion.button
-              whileTap={{ scale: 0.97 }}
-              onClick={() => handleNavigate('/stores?tab=manage')}
-              className={cn(
-                "w-full btn-neon py-4 flex items-center justify-center gap-3 text-[11px] font-black uppercase tracking-widest transition-all",
-                isPending && "brightness-50 grayscale cursor-wait"
-              )}
+            <motion.div 
+              initial={false}
+              animate={{ 
+                height: profile.currentRole === 'supplier' ? 'auto' : 0, 
+                opacity: profile.currentRole === 'supplier' ? 1 : 0,
+                marginBottom: profile.currentRole === 'supplier' ? 0 : -24
+              }}
+              transition={{ 
+                duration: 0.25, 
+                ease: [0.23, 1, 0.32, 1] // Fast out, slow in for snappier feel
+              }}
+              className="overflow-hidden"
+              style={{ willChange: 'height, opacity' }}
             >
-              {isPending ? <Loader2 className="animate-spin" size={16} /> : <Store size={18} className="text-inherit" />} 
-              Sync & Manage Business
-            </motion.button>
+              <div className="pt-6 border-t border-white/5 space-y-4">
+                <div className="grid grid-cols-2 gap-4">
+                  <div className="bg-white/5 p-4 rounded-2xl border border-white/5 space-y-2">
+                    <p className="text-[8px] text-gray-400 font-black uppercase tracking-widest">Store Volume</p>
+                    <div className="flex items-end gap-2">
+                      <p className="text-xl font-black text-white">{formatCurrency(engagementStats.volume, 'USD')}</p>
+                    </div>
+                  </div>
+                  <div className="bg-white/5 p-4 rounded-2xl border border-white/5 space-y-2">
+                    <p className="text-[8px] text-gray-400 font-black uppercase tracking-widest">Active Leads</p>
+                    <p className="text-xl font-black text-primary">{engagementStats.engaged} Connections</p>
+                  </div>
+                </div>
+                
+                <motion.button
+                  whileTap={{ scale: 0.97 }}
+                  onClick={() => handleNavigate('/stores?tab=manage')}
+                  className={cn(
+                    "w-full btn-neon py-4 flex items-center justify-center gap-3 text-[11px] font-black uppercase tracking-widest transition-all",
+                    isPending && "brightness-50 grayscale cursor-wait"
+                  )}
+                >
+                  {isPending ? <Loader2 className="animate-spin" size={16} /> : <Store size={18} className="text-inherit" />} 
+                  Sync & Manage Business
+                </motion.button>
+              </div>
+            </motion.div>
           </div>
-        </motion.div>
-      </section>
+        </section>
 
-      {/* Supplier's Active Inventory Section */}
-      {profile.currentRole === 'supplier' && (
-        <SupplierInventoryPreview profile={profile} />
-      )}
-
-      
-      {/* Neural Member Network */}
-      <section className="space-y-6 pt-2">
-        <div className="flex items-center justify-between px-1">
-          <div className="flex items-center gap-2 sm:gap-3">
-            <div className="w-1 h-5 sm:w-1.5 sm:h-6 bg-primary rounded-full shadow-[0_0_10px_rgba(0,242,254,0.5)]" />
-            <div className="space-y-0.5">
-              <h2 className="text-[10px] sm:text-xs font-black text-white uppercase tracking-[0.15em] sm:tracking-[0.2em] italic">Neural Member Network</h2>
-              <p className="text-[7px] sm:text-[8px] text-gray-500 font-bold uppercase tracking-widest leading-none">
-                <span className="text-primary font-black">{userCount || '0'}</span> users
-              </p>
+        {/* Neural Member Network */}
+        <section className="neon-card p-6 relative overflow-hidden flex flex-col justify-between space-y-6">
+          <div className="flex items-center justify-between px-1">
+            <div className="flex items-center gap-2 sm:gap-3">
+              <div className="w-1 h-5 sm:w-1.5 sm:h-6 bg-primary rounded-full shadow-[0_0_10px_rgba(0,242,254,0.5)]" />
+              <div className="space-y-0.5">
+                <h2 className="text-[10px] sm:text-xs font-black text-white uppercase tracking-[0.15em] sm:tracking-[0.2em] italic">Neural Member Network</h2>
+                <p className="text-[7px] sm:text-[8px] text-gray-500 font-bold uppercase tracking-widest leading-none">
+                  <span className="text-primary font-black">{userCount || '0'}</span> users
+                </p>
+              </div>
             </div>
-          </div>
-          <div className="flex items-center gap-2">
-            <AuthGuard 
-              title="View Restricted" 
-              message="Join the Network Hub to browse all signed in users."
-              profile={profile}
-            >
-              <button 
-                onClick={() => setIsUserListOpen(true)}
-                className="text-[8px] sm:text-[9px] font-black text-primary uppercase tracking-widest hover:text-white transition-colors flex items-center gap-1.5 sm:gap-2 bg-primary/5 py-1.5 px-3 rounded-full border border-primary/10"
-              >
-                Directory <ExternalLink size={8} />
-              </button>
-            </AuthGuard>
-          </div>
-        </div>
-        <div className="flex gap-4 overflow-x-auto pb-4 pt-2 -mx-2 px-2 custom-scrollbar snap-x no-scrollbar">
-          {Array.from(new Map(displayedUsers.filter(u => u && u.uid).map(u => [u.uid, u])).values()).map((user, idx) => (
-            <div key={`prof-user-${user.uid || idx}`} className="contents">
+            <div className="flex items-center gap-2">
               <AuthGuard 
-                title="View Partner Profile"
-                message="Enter the Hub network to connect with registered partners and view tactical intelligence."
+                title="View Restricted" 
+                message="Join the Network Hub to browse all signed in users."
                 profile={profile}
               >
-                <motion.div
-                  whileHover={{ y: -5, scale: 1.02 }}
-                  whileTap={{ scale: 0.98 }}
-                  onClick={() => handleNavigate(`/profile/${user.uid}`)}
-                  className="flex-shrink-0 w-32 sm:w-36 bg-white/5 border border-white/5 rounded-[1.5rem] sm:rounded-[2rem] p-3 sm:p-4 flex flex-col items-center text-center space-y-2 sm:space-y-3 cursor-pointer group hover:border-primary/20 transition-all snap-start"
+                <button 
+                  onClick={() => setIsUserListOpen(true)}
+                  className="text-[8px] sm:text-[9px] font-black text-primary uppercase tracking-widest hover:text-white transition-colors flex items-center gap-1.5 sm:gap-2 bg-primary/5 py-1.5 px-3 rounded-full border border-primary/10"
                 >
-                <div className="relative">
-                  <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-accent/20 rounded-full blur opacity-0 group-hover:opacity-100 transition-opacity" />
-                  <div className="relative w-14 h-14 sm:w-16 sm:h-16 bg-[#0d1117] rounded-full border-2 border-white/5 flex items-center justify-center text-primary font-black overflow-hidden group-hover:border-primary/30 transition-all">
-                    {user.avatar ? (
-                      <img src={user.avatar} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
-                    ) : user.name.charAt(0)}
-                  </div>
-                  {user.isVerified && (
-                    <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 sm:w-6 sm:h-6 bg-neon-green rounded-full flex items-center justify-center text-[#05070a] border-2 border-[#05070a] shadow-lg">
-                      <Shield size={8} className="fill-current sm:w-[10px] sm:h-[10px]" />
+                  Directory <ExternalLink size={8} />
+                </button>
+              </AuthGuard>
+            </div>
+          </div>
+          <div className="flex gap-4 overflow-x-auto pb-4 pt-2 -mx-2 px-2 custom-scrollbar snap-x no-scrollbar">
+            {Array.from(new Map(displayedUsers.filter(u => u && u.uid).map(u => [u.uid, u])).values()).map((user, idx) => (
+              <div key={`prof-user-${user.uid || idx}`} className="contents">
+                <AuthGuard 
+                  title="View Partner Profile"
+                  message="Enter the Hub network to connect with registered partners and view tactical intelligence."
+                  profile={profile}
+                >
+                  <motion.div
+                    whileHover={{ y: -5, scale: 1.02 }}
+                    whileTap={{ scale: 0.98 }}
+                    onClick={() => handleNavigate(`/profile/${user.uid}`)}
+                    className="flex-shrink-0 w-32 sm:w-36 bg-white/5 border border-white/5 rounded-[1.5rem] sm:rounded-[2rem] p-3 sm:p-4 flex flex-col items-center text-center space-y-2 sm:space-y-3 cursor-pointer group hover:border-primary/20 transition-all snap-start"
+                  >
+                  <div className="relative">
+                    <div className="absolute -inset-1 bg-gradient-to-r from-primary/20 to-accent/20 rounded-full blur opacity-0 group-hover:opacity-100 transition-opacity" />
+                    <div className="relative w-14 h-14 sm:w-16 sm:h-16 bg-[#0d1117] rounded-full border-2 border-white/5 flex items-center justify-center text-primary font-black overflow-hidden group-hover:border-primary/30 transition-all">
+                      {user.avatar ? (
+                        <img src={user.avatar} className="w-full h-full object-cover" referrerPolicy="no-referrer" />
+                      ) : user.name.charAt(0)}
                     </div>
-                  )}
-                </div>
-                <div className="space-y-1 w-full">
-                  <h3 className="text-[9px] sm:text-[10px] font-black text-white uppercase tracking-tight truncate group-hover:text-primary transition-colors">{user.name}</h3>
-                  <div className="flex items-center justify-center gap-1.5 pt-0.5 sm:pt-1">
-                    <span className={cn(
-                      "text-[6px] sm:text-[7px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full border",
-                      user.currentRole === 'supplier' ? "bg-accent/10 border-accent/20 text-accent" : "bg-primary/10 border-primary/20 text-primary"
-                    )}>
-                      {user.currentRole === 'supplier' ? 'Supplier' : 'Partner'}
-                    </span>
+                    {user.isVerified && (
+                      <div className="absolute -bottom-0.5 -right-0.5 w-5 h-5 sm:w-6 sm:h-6 bg-neon-green rounded-full flex items-center justify-center text-[#05070a] border-2 border-[#05070a] shadow-lg">
+                        <Shield size={8} className="fill-current sm:w-[10px] sm:h-[10px]" />
+                      </div>
+                    )}
                   </div>
+                  <div className="space-y-1 w-full">
+                    <h3 className="text-[9px] sm:text-[10px] font-black text-white uppercase tracking-tight truncate group-hover:text-primary transition-colors">{user.name}</h3>
+                    <div className="flex items-center justify-center gap-1.5 pt-0.5 sm:pt-1">
+                      <span className={cn(
+                        "text-[6px] sm:text-[7px] font-bold uppercase tracking-widest px-1.5 py-0.5 rounded-full border",
+                        user.currentRole === 'supplier' ? "bg-accent/10 border-accent/20 text-accent" : "bg-primary/10 border-primary/20 text-primary"
+                      )}>
+                        {user.currentRole === 'supplier' ? 'Supplier' : 'Partner'}
+                      </span>
+                    </div>
+                  </div>
+                </motion.div>
+              </AuthGuard>
+            </div>
+          ))}
+            <AuthGuard 
+              title="View All Members" 
+              message="Sign in to explore the complete member directory."
+              profile={profile}
+            >
+              <motion.div
+                whileHover={{ scale: 1.02 }}
+                onClick={() => setIsUserListOpen(true)}
+                className="flex-shrink-0 w-36 bg-primary/5 border border-primary/10 rounded-[2rem] p-4 flex flex-col items-center justify-center text-center space-y-3 cursor-pointer group hover:bg-primary/10 transition-all snap-start border-dashed"
+              >
+                <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-primary">
+                  <Users size={20} />
+                </div>
+                <div className="space-y-1">
+                  <p className="text-[9px] font-black text-primary uppercase tracking-widest">All Members</p>
+                  <p className="text-[7px] text-gray-500 font-bold uppercase tracking-widest leading-tight">Connect with {userCount || 'All'} Members</p>
                 </div>
               </motion.div>
             </AuthGuard>
           </div>
-        ))}
-          <AuthGuard 
-            title="View All Members" 
-            message="Sign in to explore the complete member directory."
-            profile={profile}
-          >
-            <motion.div
-              whileHover={{ scale: 1.02 }}
-              onClick={() => setIsUserListOpen(true)}
-              className="flex-shrink-0 w-36 bg-primary/5 border border-primary/10 rounded-[2rem] p-4 flex flex-col items-center justify-center text-center space-y-3 cursor-pointer group hover:bg-primary/10 transition-all snap-start border-dashed"
-            >
-              <div className="w-12 h-12 rounded-full bg-primary/20 flex items-center justify-center text-primary">
-                <Users size={20} />
-              </div>
-              <div className="space-y-1">
-                <p className="text-[9px] font-black text-primary uppercase tracking-widest">All Members</p>
-                <p className="text-[7px] text-gray-500 font-bold uppercase tracking-widest leading-tight">Connect with {userCount || 'All'} Members</p>
-              </div>
-            </motion.div>
-          </AuthGuard>
-        </div>
-      </section>
+        </section>
+      </div>
 
-      {/* Menu Links */}
-      <section className="space-y-4">
+      {/* Block 2: 4 Menu Cards (Trusted Networks, Financial Gateway, Geographical Connections, Market Spotlight) */}
+      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <MenuButton 
           icon={Users} 
           label="Trusted Network" 
@@ -914,6 +913,10 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
             onClick={() => setActiveModal('spotlights')}
           />
         )}
+      </section>
+
+      {/* Block 3: 4 Menu Cards (My Profile, Biometric Vault, Notification Settings, My Information) */}
+      <section className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         <MenuButton icon={User} label="My Profile" detail="Modify Profile Details" onClick={() => setIsEditing(true)} />
         <MenuButton 
           icon={Fingerprint} 
@@ -924,6 +927,11 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
         <MenuButton icon={Bell} label="Notification Settings" detail="Manage your alerts" onClick={() => setActiveModal('notifications')} />
         <MenuButton icon={Download} label="My Information" detail="Download my data" onClick={handleDownloadData} />
       </section>
+
+      {/* Block 4: Supplier's Active Inventory Section */}
+      {profile.currentRole === 'supplier' && (
+        <SupplierInventoryPreview profile={profile} />
+      )}
 
       {/* Biometric Hardware Vault Modal */}
       <BiometricAuthModal 
