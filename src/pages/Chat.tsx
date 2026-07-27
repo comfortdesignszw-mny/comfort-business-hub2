@@ -135,7 +135,7 @@ export default function Chat({ profile }: { profile: UserProfile | null }) {
         <div className="space-y-4 custom-scrollbar">
           {conversations.map((conv, idx) => (
             <motion.button
-              key={`chat-conv-${conv.id || idx}`}
+              key={`chat-conv-${conv.id || idx}-${idx}`}
               whileHover={{ scale: 1.01 }}
               whileTap={{ scale: 0.99 }}
               onClick={() => setSelectedConvo(conv.id)}
@@ -568,7 +568,7 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
               const isMe = msg.senderId === profile?.uid;
               return (
                 <div 
-                  key={`chat-msg-${msg.id || idx}`} 
+                  key={`chat-msg-${msg.id || idx}-${idx}`} 
                   className={cn(
                     "flex flex-col max-w-[85%] space-y-1",
                     isMe ? "ml-auto items-end" : "items-start"

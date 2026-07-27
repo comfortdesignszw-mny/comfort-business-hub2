@@ -362,8 +362,8 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
               exit={{ opacity: 0, y: -20 }}
               className="grid gap-4"
             >
-              {filteredReports.map((report) => (
-                <div key={report.id} className="neon-card p-5 space-y-4 border-white/5 hover:border-red-500/20 transition-all group">
+              {filteredReports.map((report, idx) => (
+                <div key={`admin-rep-${report.id || idx}-${idx}`} className="neon-card p-5 space-y-4 border-white/5 hover:border-red-500/20 transition-all group">
                   <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
                     <div className="flex items-start gap-4">
                       <div className={cn(
@@ -467,8 +467,8 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
               exit={{ opacity: 0, y: -20 }}
               className="grid gap-4"
             >
-              {filteredUsers.map((user) => (
-                <div key={user.uid} className="neon-card p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-white/5">
+              {filteredUsers.map((user, idx) => (
+                <div key={`admin-usr-${user.uid || idx}-${idx}`} className="neon-card p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-white/5">
                   <div className="flex items-center gap-4">
                     <div className="relative">
                       <div className="w-12 h-12 rounded-full border-2 border-white/10 bg-white/5 overflow-hidden flex items-center justify-center text-white font-black">
@@ -581,8 +581,8 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
               exit={{ opacity: 0, y: -20 }}
               className="grid gap-4"
             >
-              {filteredStores.map((store) => (
-                <div key={store.id} className="neon-card p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-white/5">
+              {filteredStores.map((store, idx) => (
+                <div key={`admin-str-${store.id || idx}-${idx}`} className="neon-card p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-white/5">
                   <div className="flex items-center gap-4">
                     <div className="w-12 h-12 rounded-2xl border border-white/10 bg-white/5 overflow-hidden flex items-center justify-center text-primary font-black shrink-0">
                       {store.logo ? <img src={store.logo} className="w-full h-full object-cover" /> : <Store size={20} />}
@@ -641,8 +641,8 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
               exit={{ opacity: 0, y: -20 }}
               className="grid gap-4"
             >
-              {filteredProducts.map((product) => (
-                <div key={product.id} className="neon-card p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-white/5">
+              {filteredProducts.map((product, idx) => (
+                <div key={`admin-prd-${product.id || idx}-${idx}`} className="neon-card p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-white/5">
                   <div className="flex items-center gap-4">
                     <div className="w-14 h-14 rounded-2xl border border-white/10 bg-white/5 overflow-hidden shrink-0">
                       <img src={product.images[0]} className="w-full h-full object-cover" alt={product.name} />

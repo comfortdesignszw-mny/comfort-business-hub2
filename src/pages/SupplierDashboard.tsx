@@ -572,7 +572,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
         <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
           {Array.from(new Map(stores.filter(s => s && s.id).map(s => [s.id, s])).values()).map((s, idx) => (
             <button
-              key={`sup-store-${s.id || idx}`}
+              key={`sup-store-${s.id || idx}-${idx}`}
               onClick={() => switchStore(s)}
               className={cn(
                 "px-5 py-3 rounded-2xl border transition-all flex flex-col items-start gap-1 min-w-[140px]",
@@ -856,7 +856,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
         <div className="space-y-4">
           {Array.from(new Map<string, Product>(products.filter(p => p && p.id).map(p => [p.id, p])).values()).map((product, index) => (
             <motion.div 
-              key={`sup-prod-${product.id || index}`}
+              key={`sup-prod-${product.id || index}-${index}`}
               initial={{ opacity: 0, y: 20 }}
               animate={{ opacity: 1, y: 0 }}
               transition={{ delay: index * 0.05 }}
@@ -1261,7 +1261,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
                 <div className="space-y-6">
                   <div className="max-h-[300px] overflow-y-auto space-y-3 pr-2 custom-scrollbar">
                     {waImportedProducts.map((p, idx) => (
-                      <div key={idx} className="p-3 bg-white/5 border border-white/5 rounded-xl flex items-center gap-3">
+                      <div key={`wa-import-${p.name || idx}-${idx}`} className="p-3 bg-white/5 border border-white/5 rounded-xl flex items-center gap-3">
                         <div className="w-12 h-12 bg-white/10 rounded-lg overflow-hidden flex-shrink-0">
                           {p.image && <img src={p.image} className="w-full h-full object-cover" alt="" referrerPolicy="no-referrer" />}
                         </div>

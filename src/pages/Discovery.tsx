@@ -674,9 +674,9 @@ useEffect(() => {
 
             {profile && (
               <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar scroll-smooth">
-                {categories.map((cat) => (
+                {categories.map((cat, idx) => (
                   <button
-                    key={cat}
+                    key={`disc-cat-${cat}-${idx}`}
                     onClick={() => setActiveCategory(cat)}
                     className={cn(
                       "whitespace-nowrap px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all border shrink-0",
@@ -743,7 +743,7 @@ useEffect(() => {
           ) : filteredStores.length > 0 ? (
             <div className="flex gap-2 overflow-x-auto no-scrollbar py-1 snap-x max-w-full">
               {Array.from(new Map(filteredStores.filter(s => s && s.id).map(s => [s.id, s])).values()).map((store, idx) => (
-                <div key={`disc-store-${store.id || idx}`} className="min-w-[170px] max-w-[195px] snap-start shrink-0">
+                <div key={`disc-store-${store.id || idx}-${idx}`} className="min-w-[170px] max-w-[195px] snap-start shrink-0">
                   <AuthGuard
                     title="Access Features"
                     message="Sign in to view this supplier's store and items."
@@ -1060,7 +1060,7 @@ useEffect(() => {
         ) : filteredDeals.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 px-1">
             {Array.from(new Map<string, Product>(filteredDeals.filter(p => p && p.id).map(p => [p.id, p])).values()).map((product: any, idx: number) => (
-              <div key={`disc-deal-${product.id || idx}`} id={`product-${product.id}`} className={cn("contents", sharedProductId === product.id && "ring-2 ring-primary ring-offset-4 ring-offset-[#05070a] rounded-3xl")}>
+              <div key={`disc-deal-${product.id || idx}-${idx}`} id={`product-${product.id}`} className={cn("contents", sharedProductId === product.id && "ring-2 ring-primary ring-offset-4 ring-offset-[#05070a] rounded-3xl")}>
                 <AuthGuard
                   title="Access Detailed Intelligence"
                   message="Sign in to view full technical specifications, verified ratings, and secure purchasing options for this store."

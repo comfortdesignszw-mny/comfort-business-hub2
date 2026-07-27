@@ -506,7 +506,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 {Array.from(new Map(observedStores.filter(s => s && s.id).map(s => [s.id, s])).values()).map((store, idx) => (
                   <div 
-                    key={`prof-obs-store-${store.id || idx}`}
+                    key={`prof-obs-store-${store.id || idx}-${idx}`}
                     onClick={() => navigate(`/store/${store.id}`)}
                     className="neon-card p-6 flex items-center gap-4 hover:scale-[1.02] active:scale-[0.98] cursor-pointer transition-all"
                   >
@@ -822,7 +822,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
           </div>
           <div className="flex gap-4 overflow-x-auto pb-4 pt-2 -mx-2 px-2 custom-scrollbar snap-x no-scrollbar">
             {Array.from(new Map(displayedUsers.filter(u => u && u.uid).map(u => [u.uid, u])).values()).map((user, idx) => (
-              <div key={`prof-user-${user.uid || idx}`} className="contents">
+              <div key={`prof-user-${user.uid || idx}-${idx}`} className="contents">
                 <AuthGuard 
                   title="View Partner Profile"
                   message="Enter the Hub network to connect with registered partners and view tactical intelligence."
@@ -1614,7 +1614,7 @@ function SpotlightManager({ profile }: { profile: UserProfile }) {
 
                 return (
                   <motion.div 
-                    key={`prof-spotlight-${s.id || idx}`}
+                    key={`prof-spotlight-${s.id || idx}-${idx}`}
                     layout
                     className={cn(
                       "p-5 bg-white/5 border rounded-[2rem] transition-all group relative overflow-hidden text-left",
@@ -2007,7 +2007,7 @@ function SupplierInventoryPreview({ profile }: { profile: UserProfile }) {
       <div className="grid grid-cols-2 gap-4">
         {Array.from(new Map<string, Product>(products.filter(p => p && p.id).map(p => [p.id, p])).values()).map((p, idx) => (
             <ProductCard 
-              key={`prof-prod-${p.id || idx}`}
+              key={`prof-prod-${p.id || idx}-${idx}`}
               product={p}
               profile={profile}
               isOwner={true}
@@ -2089,7 +2089,7 @@ function ConnectionManager({ profile }: { profile: UserProfile }) {
           <div className="grid gap-3">
             {Array.from(new Map(connections.filter(c => c && c.id).map(c => [c.id, c])).values()).map((c, idx) => (
               <div 
-                key={`prof-conn-${c.id || idx}`}
+                key={`prof-conn-${c.id || idx}-${idx}`}
                 className="p-4 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-between group hover:border-primary/30 transition-all font-sans"
               >
                 <div className="flex items-center gap-4">

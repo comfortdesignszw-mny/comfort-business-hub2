@@ -169,8 +169,8 @@ export default function DealRoom({ profile }: { profile: UserProfile | null }) {
           </div>
         ) : activeTab === 'notifications' ? (
           engagements.length > 0 ? (
-            engagements.map((eng) => (
-              <EngagementCard key={eng.id} engagement={eng} />
+            engagements.map((eng, idx) => (
+              <EngagementCard key={`eng-${eng.id || idx}-${idx}`} engagement={eng} />
             ))
           ) : (
             <div className="py-20 flex flex-col items-center text-center space-y-4">
@@ -182,8 +182,8 @@ export default function DealRoom({ profile }: { profile: UserProfile | null }) {
             </div>
           )
         ) : deals.length > 0 ? (
-          deals.map((deal) => (
-            <DealCard key={deal.id} deal={deal} />
+          deals.map((deal, idx) => (
+            <DealCard key={`deal-${deal.id || idx}-${idx}`} deal={deal} />
           ))
         ) : (
           <div className="py-20 flex flex-col items-center text-center space-y-4">
