@@ -28,3 +28,36 @@ export async function safeShare(data: ShareData) {
     throw err;
   }
 }
+
+/**
+ * Intelligent WhatsApp redirection that triggers native WhatsApp (Regular or Business) protocol on mobile devices,
+ * falling back to web WhatsApp link if the app scheme does not open.
+ */
+export function openWhatsApp(phone: string, text: string) {
+  const cleanNumber = phone ? phone.replace(/[^0-9]/g, '') : '';
+  if (!cleanNumber) return false;
+
+  const encodedText = encodeURIComponent(text);
+  const isMobile = /Android|webOS|iPhone|iPad|iPod|BlackBerry|IEMobile|Opera Mini/i.test(navigator.userAgent);
+
+  if (isMobile) {
+    // Regular WhatsApp & Business WhatsApp register the whatsapp:// protocol scheme on iOS & Android.
+    // The OS automatically launches the installed/default WhatsApp app (Business or Regular).
+    const nativeUrl = `whatsapp://send?phone=${cleanNumber}&text=${encodedText}`;
+    const fallbackUrl = `https://api.whatsapp.com/send?phone=${cleanNumber}&text=${encodedText}`;
+
+    const start = Date.now();
+    window.location.href = nativeUrl;
+
+    setTimeout(() => {
+      if (!document.hidden && Date.now() - start < 2000) {
+        window.open(fallbackUrl, '_blank');
+      }
+    }, 1200);
+  } else {
+    // Desktop browser: api.whatsapp.com automatically routes to WhatsApp Web or Desktop App
+    const webUrl = `https://api.whatsapp.com/send?phone=${cleanNumber}&text=${encodedText}`;
+    window.open(webUrl, '_blank');
+  }
+  return true;
+}

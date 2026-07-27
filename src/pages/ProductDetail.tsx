@@ -11,7 +11,7 @@ import {
   orderBy, limit, updateDoc, increment, runTransaction, onSnapshot 
 } from 'firebase/firestore';
 import { UserProfile, Product, Store, Review } from '../types';
-import { cn, formatCurrency, safeShare } from '../lib/utils';
+import { cn, formatCurrency, safeShare, openWhatsApp } from '../lib/utils';
 import { interactionService } from '../services/interactionService';
 import { useMessaging } from '../components/MessagingProvider';
 import { useNotifications } from '../components/NotificationProvider';
@@ -117,8 +117,7 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
 
     if (cleanNumber) {
       triggerFeedback('WhatsApp Uplink', `Opening WhatsApp contact for ${product.name}...`, 'message');
-      const waUrl = `https://wa.me/${cleanNumber}?text=${encodeURIComponent(messageText)}`;
-      window.open(waUrl, '_blank');
+      openWhatsApp(cleanNumber, messageText);
     } else {
       const convoId = [profile.uid, product.ownerId].sort().join('_');
       startConversation(product.ownerId, messageText).catch(console.error);

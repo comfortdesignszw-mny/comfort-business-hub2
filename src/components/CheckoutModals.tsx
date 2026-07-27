@@ -40,9 +40,31 @@ export function UnifiedCheckoutModal({ product, profile, onClose, onSwitchModal,
     return () => { isMounted = false; };
   }, [product.ownerId]);
 
+  const supplierPaymentMethods = supplierProfile?.paymentMethods || {};
+  const supplierGateway = supplierProfile?.gateway;
+
+  const isConfiguredBySupplier = (methodId: string) => {
+    if (supplierPaymentMethods[methodId]?.enabled) return true;
+    if (supplierGateway?.isActive && supplierGateway?.provider === methodId) return true;
+    return false;
+  };
+
+  const getMethodDetails = (methodId: string) => {
+    if (supplierPaymentMethods[methodId]?.enabled && supplierPaymentMethods[methodId]?.details) {
+      return supplierPaymentMethods[methodId].details;
+    }
+    if (supplierGateway?.isActive && supplierGateway?.provider === methodId && supplierGateway?.details) {
+      return supplierGateway.details;
+    }
+    return '';
+  };
+
   const handleSelection = (method: 'paypal' | 'stripe' | 'ecocash' | 'pod') => {
     if (loading) return;
     
+    const details = getMethodDetails(method);
+    const isUrl = details && (details.startsWith('http://') || details.startsWith('https://'));
+
     if (method === 'ecocash') {
       onSwitchModal('ecocash');
       return;
@@ -52,27 +74,13 @@ export function UnifiedCheckoutModal({ product, profile, onClose, onSwitchModal,
       return;
     }
 
-    const details = supplierProfile?.gateway?.details;
-    const isUrl = details && (details.startsWith('http://') || details.startsWith('https://'));
-
-    if (method === 'paypal') {
+    if (method === 'paypal' || method === 'stripe') {
       if (isUrl) {
         interactionService.sendNotification(product.ownerId, 'buy', profile, product.id);
         window.open(details, '_blank');
         onClose();
       } else {
-        onSwitchModal('paypal');
-      }
-      return;
-    }
-
-    if (method === 'stripe') {
-      if (isUrl) {
-        interactionService.sendNotification(product.ownerId, 'buy', profile, product.id);
-        window.open(details, '_blank');
-        onClose();
-      } else {
-        onSwitchModal('stripe');
+        onSwitchModal(method);
       }
       return;
     }
@@ -87,7 +95,7 @@ export function UnifiedCheckoutModal({ product, profile, onClose, onSwitchModal,
         <div className="p-6 border-b border-white/5 flex justify-between items-center">
           <div className="space-y-1">
             <h3 className="text-xl font-black text-white italic uppercase tracking-tighter">Financial Uplink</h3>
-            <p className="text-[9px] text-primary font-black uppercase tracking-widest leading-none">Select Secure Payment Method</p>
+            <p className="text-[9px] text-primary font-black uppercase tracking-widest leading-none">Select Payment Method</p>
           </div>
           <button onClick={onClose} className="text-gray-500 hover:text-white"><X size={20} /></button>
         </div>
@@ -166,26 +174,40 @@ export function UnifiedCheckoutModal({ product, profile, onClose, onSwitchModal,
                 label: 'Cash/POD', 
                 icon: <MapPinned size={20} />
               }
-            ].map((m) => (
-              <button 
-                key={m.id}
-                onClick={() => handleSelection(m.id as any)}
-                disabled={loading}
-                className={cn(
-                  "p-4 bg-white/5 border border-white/10 rounded-2xl flex flex-col items-center gap-2 transition-all group relative overflow-hidden active:scale-95 hover:bg-white/10 hover:border-primary/40 shadow-lg hover:shadow-primary/10 cursor-pointer"
-                )}
-              >
-                {loading && (
-                  <div className="absolute inset-0 bg-primary/5 animate-pulse" />
-                )}
-                <span className="text-primary group-hover:scale-110 transition-transform">
-                  {m.icon}
-                </span>
-                <span className="text-[9px] font-black uppercase tracking-widest text-gray-200 group-hover:text-white">
-                  {m.label}
-                </span>
-              </button>
-            ))}
+            ].map((m) => {
+              const configured = isConfiguredBySupplier(m.id);
+              return (
+                <button 
+                  key={m.id}
+                  onClick={() => handleSelection(m.id as any)}
+                  disabled={loading}
+                  className={cn(
+                    "p-4 border rounded-2xl flex flex-col items-center gap-2 transition-all group relative overflow-hidden active:scale-95 shadow-lg cursor-pointer pt-6",
+                    configured
+                      ? "bg-primary/10 border-primary/60 text-white hover:bg-primary/20 shadow-[0_0_15px_rgba(0,242,254,0.15)]"
+                      : "bg-white/5 border-white/10 hover:bg-white/10 hover:border-white/20 text-gray-300"
+                  )}
+                >
+                  {configured && (
+                    <span className="absolute top-1.5 right-1.5 px-1.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-400 border border-emerald-500/30 text-[7px] font-black uppercase tracking-wider">
+                      ✓ Configured
+                    </span>
+                  )}
+                  {loading && (
+                    <div className="absolute inset-0 bg-primary/5 animate-pulse" />
+                  )}
+                  <span className={cn(
+                    "group-hover:scale-110 transition-transform",
+                    configured ? "text-primary" : "text-gray-400 group-hover:text-white"
+                  )}>
+                    {m.icon}
+                  </span>
+                  <span className="text-[9px] font-black uppercase tracking-widest text-gray-200 group-hover:text-white">
+                    {m.label}
+                  </span>
+                </button>
+              );
+            })}
           </div>
         </div>
       </motion.div>
@@ -208,8 +230,12 @@ export function EcoCashModal({ product, profile, onClose, quantity }: {
         const userSnap = await getDoc(doc(db, 'public_profiles', product.ownerId));
         if (userSnap.exists()) {
           const data = userSnap.data();
-          if (data.gateway?.provider === 'ecocash' && data.gateway.details) {
-            setUssd(data.gateway.details);
+          const ecocashDetail = data.paymentMethods?.ecocash?.enabled && data.paymentMethods.ecocash.details
+            ? data.paymentMethods.ecocash.details
+            : data.gateway?.provider === 'ecocash' ? data.gateway.details : '';
+
+          if (ecocashDetail) {
+            setUssd(ecocashDetail);
           } else {
             const rawPhone = data.whatsappNumber || data.phone || data.phoneNumber || '';
             const cleanPhone = rawPhone.replace(/[^0-9]/g, '') || '0770000000';

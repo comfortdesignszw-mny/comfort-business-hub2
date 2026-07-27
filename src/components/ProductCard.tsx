@@ -5,7 +5,7 @@ import {
   Zap, ShoppingBag, ArrowRight, MessageSquare, Phone, Check, Loader2, MapPinned, CreditCard, Share2, X, Info, Star, Store as StoreIcon, Edit3, Trash2, ChevronDown, ChevronUp, ShieldAlert, Heart
 } from 'lucide-react';
 import { UserProfile, Product, Store, EngagementType } from '../types';
-import { cn, formatCurrency, safeShare } from '../lib/utils';
+import { cn, formatCurrency, safeShare, openWhatsApp } from '../lib/utils';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { collection, addDoc, serverTimestamp, setDoc, doc, getDoc } from 'firebase/firestore';
 import { interactionService } from '../services/interactionService';
@@ -140,8 +140,7 @@ export default function ProductCard({
       
       if (cleanNumber) {
         triggerFeedback('WhatsApp Uplink', `Opening WhatsApp contact for ${product.name}...`, 'message');
-        const waUrl = `https://wa.me/${cleanNumber}?text=${encodeURIComponent(messageText)}`;
-        window.open(waUrl, '_blank');
+        openWhatsApp(cleanNumber, messageText);
       } else {
         const targetUid = product.ownerId;
         const convoId = [profile.uid, targetUid].sort().join('_');

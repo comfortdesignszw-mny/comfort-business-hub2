@@ -59,6 +59,9 @@ export default function PrivacyPolicy() {
                 <h2 className="text-xl font-black text-white italic uppercase tracking-tighter">Recent Data Updates (July 2026)</h2>
               </div>
               <ul className="space-y-3 text-sm text-gray-400 font-medium leading-relaxed relative z-10 list-disc list-inside">
+                <li><strong className="text-white">Payment Method Configuration Data:</strong> Supplier payment settings (PayPal emails/links, Stripe identifiers, EcoCash USSD codes, Cash/POD instructions) are stored securely in profile metadata to render customized checkout options for buyers.</li>
+                <li><strong className="text-white">Direct WhatsApp App Scheme Uplink:</strong> "Talk on WhatsApp" triggers utilize direct device URI schemes (`whatsapp://`) to launch either WhatsApp Business or Regular WhatsApp natively, bypassing external web tracking pages.</li>
+                <li><strong className="text-white">Your Live Inventory Telemetry:</strong> Profile inventory tracking logs product status, availability, and engagement metrics to maintain accurate "Your Live Inventory" listings on user profiles.</li>
                 <li><strong className="text-white">Location & Geo-Targeting:</strong> We collect and process location data, including default geographic approximations during login, to enhance product discovery and deliver relevant "Classified Ads" or "Spotlights". This data is encrypted and not shared with third-party data brokers.</li>
                 <li><strong className="text-white">Neural Member Network:</strong> Profile visibility within the Neural Member Network directory is public among registered users to facilitate B2B and B2C connections.</li>
               </ul>

@@ -8,7 +8,7 @@ import {
   Tag, Clock, Flame, DollarSign, Send, RotateCcw
 } from 'lucide-react';
 import { UserProfile, Product, Store as StoreType, Message, Spotlight, PublicProfile } from '../types';
-import { cn, formatCurrency } from '../lib/utils';
+import { cn, formatCurrency, openWhatsApp } from '../lib/utils';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { localDB } from '../lib/db';
 import { collection, query, limit, getDocs, where, addDoc, serverTimestamp, setDoc, doc, getDoc, orderBy, onSnapshot, getCountFromServer, startAt, endAt } from 'firebase/firestore';
@@ -555,14 +555,12 @@ useEffect(() => {
 
                 <div className="flex flex-col sm:flex-row gap-3 pt-2">
                   {selectedSpotlightAd.whatsappNumber && (
-                    <a
-                      href={`https://wa.me/${selectedSpotlightAd.whatsappNumber.replace(/[^0-9]/g, '')}?text=${encodeURIComponent(`Hi, I'm interested in your ad: ${selectedSpotlightAd.title}`)}`}
-                      target="_blank"
-                      rel="noopener noreferrer"
-                      className="flex-1 py-3.5 bg-neon-green text-[#05070a] rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_0_20px_#39FF14] hover:scale-105 transition-all"
+                    <button
+                      onClick={() => openWhatsApp(selectedSpotlightAd.whatsappNumber!, `Hi, I'm interested in your ad: ${selectedSpotlightAd.title}`)}
+                      className="flex-1 py-3.5 bg-neon-green text-[#05070a] rounded-xl font-black text-xs uppercase tracking-wider flex items-center justify-center gap-2 shadow-[0_0_20px_#39FF14] hover:scale-105 transition-all cursor-pointer"
                     >
                       <MessageSquare size={16} /> Contact via WhatsApp
-                    </a>
+                    </button>
                   )}
 
                   {selectedSpotlightAd.contactPhone && (

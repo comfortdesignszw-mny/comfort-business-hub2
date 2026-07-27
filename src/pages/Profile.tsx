@@ -5,7 +5,7 @@ import {
   User, Store, Phone, MapPin, Shield, LogOut, ChevronRight, Wallet, 
   Bell, Zap, Image as ImageIcon, X, Check, CreditCard, 
   Navigation, Crosshair, Save, Loader2, Megaphone, Trash2, Calendar, FileText, Plus, Users, MessageSquare, Share, RefreshCw, Download
-, Network, ExternalLink, Fingerprint, Compass, BellRing, Clock, Tag, Flame, Sparkles, DollarSign, Layers, MessageCircle } from 'lucide-react';
+, Network, ExternalLink, Fingerprint, Compass, BellRing, Clock, Tag, Flame, Sparkles, DollarSign, Layers, MessageCircle, MapPinned } from 'lucide-react';
 import BiometricAuthModal from '../components/BiometricAuthModal';
 import AppTutorialModal from '../components/AppTutorialModal';
 import PushNotificationSettingsModal from '../components/PushNotificationSettingsModal';
@@ -1742,65 +1742,161 @@ function SpotlightManager({ profile }: { profile: UserProfile }) {
   );
 }
 
-function GatewayConfig({ profile, onSave }: { profile: UserProfile, onSave: (g: any) => void }) {
-  const [provider, setProvider] = useState(profile.gateway?.provider || 'paypal');
-  const [details, setDetails] = useState(profile.gateway?.details || '');
+function GatewayConfig({ profile, onSave }: { profile: UserProfile, onSave: (data: any) => void }) {
+  const existingMethods = (profile as any)?.paymentMethods || {};
+  const primaryProvider = profile.gateway?.provider || 'paypal';
+
+  const [methods, setMethods] = useState({
+    paypal: {
+      enabled: existingMethods.paypal?.enabled ?? (primaryProvider === 'paypal' && profile.gateway?.isActive !== false),
+      details: existingMethods.paypal?.details || (primaryProvider === 'paypal' ? profile.gateway?.details || '' : '')
+    },
+    stripe: {
+      enabled: existingMethods.stripe?.enabled ?? (primaryProvider === 'stripe' && profile.gateway?.isActive !== false),
+      details: existingMethods.stripe?.details || (primaryProvider === 'stripe' ? profile.gateway?.details || '' : '')
+    },
+    ecocash: {
+      enabled: existingMethods.ecocash?.enabled ?? (primaryProvider === 'ecocash' && profile.gateway?.isActive !== false),
+      details: existingMethods.ecocash?.details || (primaryProvider === 'ecocash' ? profile.gateway?.details || '' : '')
+    },
+    pod: {
+      enabled: existingMethods.pod?.enabled ?? (primaryProvider === 'pod' && profile.gateway?.isActive !== false),
+      details: existingMethods.pod?.details || 'Pay on Delivery Enabled'
+    }
+  });
+
+  const [activeTab, setActiveTab] = useState<'paypal' | 'stripe' | 'ecocash' | 'pod'>('paypal');
+
+  const handleSave = () => {
+    const keys = Object.keys(methods) as Array<keyof typeof methods>;
+    const firstEnabled = keys.find(k => methods[k].enabled) || activeTab;
+    
+    const gatewayData = {
+      provider: firstEnabled,
+      details: methods[firstEnabled].details || (firstEnabled === 'pod' ? 'Pay on Delivery Enabled' : ''),
+      isActive: true
+    };
+
+    onSave({
+      gateway: gatewayData,
+      paymentMethods: methods
+    });
+  };
 
   return (
-    <div className="space-y-8">
+    <div className="space-y-6">
       <header className="space-y-2">
-        <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter">Payment Settings</h3>
-        <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Configure how you receive payments</p>
+        <h3 className="text-2xl font-black text-white italic uppercase tracking-tighter">Payment Methods Settings</h3>
+        <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest">Configure & enable how you receive payments for your products and services</p>
       </header>
 
-      <div className="space-y-6">
-        <div className="grid grid-cols-2 gap-3">
-          {['paypal', 'stripe', 'ecocash', 'pod'].map((id) => (
+      <div className="grid grid-cols-2 gap-3">
+        {[
+          { id: 'paypal', label: 'PayPal', icon: CreditCard, color: 'text-blue-400' },
+          { id: 'stripe', label: 'Stripe', icon: CreditCard, color: 'text-purple-400' },
+          { id: 'ecocash', label: 'EcoCash', icon: Phone, color: 'text-emerald-400' },
+          { id: 'pod', label: 'Cash / POD', icon: MapPinned, color: 'text-amber-400' }
+        ].map(m => {
+          const isEnabled = methods[m.id as keyof typeof methods].enabled;
+          const isSelected = activeTab === m.id;
+          return (
             <button
-              key={id}
-              onClick={() => {
-                setProvider(id as any);
-                if (id === 'pod' && !details) setDetails('Pay on Delivery Enabled');
-              }}
+              key={m.id}
+              type="button"
+              onClick={() => setActiveTab(m.id as any)}
               className={cn(
-                "p-4 rounded-2xl border flex flex-col items-center gap-2 transition-all",
-                provider === id ? "bg-primary/20 border-primary text-primary" : "bg-white/5 border-white/5 text-gray-500"
+                "p-4 rounded-2xl border flex flex-col items-center gap-2 transition-all relative overflow-hidden text-left",
+                isSelected ? "bg-primary/20 border-primary text-white shadow-[0_0_15px_rgba(0,242,254,0.15)]" : "bg-white/5 border-white/5 text-gray-400 hover:border-white/20"
               )}
             >
-              {id === 'ecocash' ? <Phone size={20} /> : <CreditCard size={20} />}
-              <span className="text-[10px] font-black uppercase tracking-widest">
-                {id === 'ecocash' ? 'EcoCash' : id === 'pod' ? 'Cash/POD' : id}
+              <div className="flex items-center justify-between w-full">
+                <m.icon size={18} className={m.color} />
+                <span className={cn(
+                  "text-[8px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded-full border",
+                  isEnabled ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/30" : "bg-gray-500/10 text-gray-500 border-gray-500/20"
+                )}>
+                  {isEnabled ? 'Active' : 'Disabled'}
+                </span>
+              </div>
+              <span className="text-[10px] font-black uppercase tracking-widest w-full text-left mt-1">
+                {m.label}
               </span>
             </button>
-          ))}
+          );
+        })}
+      </div>
+
+      <div className="bg-white/5 p-5 rounded-2xl border border-white/10 space-y-4">
+        <div className="flex items-center justify-between border-b border-white/10 pb-3">
+          <div className="space-y-0.5">
+            <h4 className="text-xs font-black text-white uppercase tracking-wider">{activeTab.toUpperCase()} Configuration</h4>
+            <p className="text-[9px] text-gray-400 font-bold">Accept payments via {activeTab}</p>
+          </div>
+          <button
+            type="button"
+            onClick={() => setMethods(prev => ({
+              ...prev,
+              [activeTab]: { ...prev[activeTab], enabled: !prev[activeTab].enabled }
+            }))}
+            className={cn(
+              "px-3 py-1.5 rounded-xl text-[9px] font-black uppercase tracking-widest transition-all border cursor-pointer",
+              methods[activeTab].enabled 
+                ? "bg-emerald-500/20 text-emerald-400 border-emerald-500/40" 
+                : "bg-white/5 text-gray-400 border-white/10 hover:text-white"
+            )}
+          >
+            {methods[activeTab].enabled ? '✓ Enabled' : 'Enable Method'}
+          </button>
         </div>
 
-        {provider !== 'pod' && (
+        {activeTab !== 'pod' ? (
           <div className="space-y-2">
             <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
-              {provider === 'ecocash' ? 'EcoCash USSD Code / Merchant' : 'Gateway Identity/Address'}
+              {activeTab === 'ecocash' ? 'EcoCash USSD Code / Merchant Number / Phone' : 'Payment Handle / Link / Account Email'}
             </label>
             <input 
               type="text"
-              value={details}
-              onChange={e => setDetails(e.target.value)}
+              value={methods[activeTab].details}
+              onChange={e => setMethods(prev => ({
+                ...prev,
+                [activeTab]: { ...prev[activeTab], details: e.target.value }
+              }))}
               placeholder={
-                provider === 'paypal' ? 'Paypal Email Address' : 
-                provider === 'ecocash' ? '*151*2*2*...#' :
-                'Account Details / Secret Link'
+                activeTab === 'paypal' ? 'paypal.me/yourbusiness or email@domain.com' :
+                activeTab === 'stripe' ? 'https://buy.stripe.com/... or Stripe Account ID' :
+                activeTab === 'ecocash' ? '*151*2*2*077...# or Merchant Code' :
+                'Account Details'
               }
-              className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-white outline-none focus:border-primary/50 font-mono text-xs"
+              className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3.5 text-white outline-none focus:border-primary/50 font-mono text-xs"
+            />
+            <p className="text-[8px] text-gray-500 italic">
+              {activeTab === 'ecocash' ? 'Buyers can dial this code directly or auto-generate their payment.' : 'Used to direct customers straight to your checkout gateway.'}
+            </p>
+          </div>
+        ) : (
+          <div className="space-y-2">
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Pay on Delivery Notes</label>
+            <input 
+              type="text"
+              value={methods.pod.details}
+              onChange={e => setMethods(prev => ({
+                ...prev,
+                pod: { ...prev.pod, details: e.target.value }
+              }))}
+              placeholder="e.g. Cash or Mobile Transfer accepted upon delivery"
+              className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3.5 text-white outline-none focus:border-primary/50 font-medium text-xs"
             />
           </div>
         )}
-
-        <button 
-          onClick={() => onSave({ provider, details: provider === 'pod' ? 'Pay on Delivery Enabled' : details, isActive: true })}
-          className="w-full btn-neon py-5 text-sm uppercase tracking-[0.2em] italic flex items-center justify-center gap-3"
-        >
-          <Check size={18} /> Synchronize Gateway
-        </button>
       </div>
+
+      <button 
+        type="button"
+        onClick={handleSave}
+        className="w-full btn-neon py-4 text-xs font-black uppercase tracking-[0.2em] italic flex items-center justify-center gap-2"
+      >
+        <Check size={18} /> Save Payment Configuration
+      </button>
     </div>
   );
 }
@@ -1899,7 +1995,7 @@ function SupplierInventoryPreview({ profile }: { profile: UserProfile }) {
   return (
     <section className="space-y-4">
       <div className="flex items-center justify-between px-2">
-        <h3 className="text-sm font-black text-white uppercase tracking-widest italic">Live Inventory</h3>
+        <h3 className="text-sm font-black text-white uppercase tracking-widest italic">Your Live Inventory</h3>
         <button 
           onClick={() => navigate('/stores?tab=manage')}
           className="text-[9px] font-black text-primary uppercase tracking-widest hover:underline"

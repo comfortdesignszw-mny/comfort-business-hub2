@@ -58,6 +58,13 @@ export interface UserProfile {
     details: string;
     isActive: boolean;
   };
+  paymentMethods?: {
+    paypal?: { enabled: boolean; details: string };
+    stripe?: { enabled: boolean; details: string };
+    ecocash?: { enabled: boolean; details: string };
+    pod?: { enabled: boolean; details: string };
+    [key: string]: any;
+  };
   createdAt?: any;
   updatedAt?: any;
 }

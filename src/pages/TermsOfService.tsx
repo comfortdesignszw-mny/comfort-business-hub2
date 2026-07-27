@@ -75,7 +75,10 @@ export default function TermsOfService() {
                 <h2 className="text-xl font-black text-white italic uppercase tracking-tighter">Recent Updates (July 2026)</h2>
               </div>
               <ul className="space-y-3 text-sm text-gray-400 font-medium leading-relaxed relative z-10 list-disc list-inside">
-                <li><strong className="text-white">Verified Operator Accounts:</strong> The platform now grants Verified Operator status (indicated by a green shield) to recognized partners. This status is granted at the sole discretion of the Administration team.</li>
+                <li><strong className="text-white">Multi-Gateway Payment Configuration:</strong> Suppliers can configure, activate, and customize their preferred payment methods (including PayPal, Stripe, EcoCash USSD codes, Cash/Pay on Delivery, and PayNow). Buyers are presented with supplier-configured payment methods upon checkout.</li>
+                <li><strong className="text-white">Direct WhatsApp App Uplink:</strong> Product and ad "Talk on WhatsApp" buttons intelligently detect whether WhatsApp Business or Regular WhatsApp is installed on the user's device and route communication seamlessly.</li>
+                <li><strong className="text-white">Your Live Inventory Controls:</strong> Suppliers gain direct access to manage and review "Your Live Inventory" straight from their user profile terminal.</li>
+                <li><strong className="text-white">Verified Operator Accounts:</strong> The platform grants Verified Operator status (indicated by a green shield) to recognized partners at the sole discretion of the Administration team.</li>
                 <li><strong className="text-white">Location Services:</strong> We use location data (including default geographic approximation at login) to suggest locally relevant products and services.</li>
                 <li><strong className="text-white">Classified Ads:</strong> Users are entitled to a maximum of 5 Spotlight Classified Ads per month. These ads remain active for up to 30 days and are subject to community guidelines.</li>
                 <li><strong className="text-white">Image Uploads:</strong> Local image uploads for product catalogs are restricted to 2 assets to preserve bandwidth, while external URL assets support up to 5 images per product.</li>
