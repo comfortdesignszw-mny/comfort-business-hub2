@@ -14,6 +14,7 @@ import {
   LogIn, Download, Compass, Settings, HelpCircle
 } from 'lucide-react';
 import AppTutorialModal from './components/AppTutorialModal';
+import SupplierTutorialModal from './components/SupplierTutorialModal';
 import PushNotificationSettingsModal from './components/PushNotificationSettingsModal';
 import AppLogo from './components/AppLogo';
 import { motion, AnimatePresence } from 'motion/react';
@@ -118,6 +119,21 @@ export default function App() {
   const [loading, setLoading] = useState(true);
 
   const [showSidebar, setShowSidebar] = useState(false);
+  const [showSupplierTutorial, setShowSupplierTutorial] = useState(false);
+
+  // Detect new Supplier mode user & listen for manual trigger
+  useEffect(() => {
+    if (profile && profile.currentRole === 'supplier' && !profile.isGuest) {
+      const dismissed = localStorage.getItem(`supplier_tutorial_dismissed_${profile.uid}`);
+      if (dismissed !== 'true') {
+        setShowSupplierTutorial(true);
+      }
+    }
+
+    const handleManualOpen = () => setShowSupplierTutorial(true);
+    window.addEventListener('open_supplier_tutorial', handleManualOpen);
+    return () => window.removeEventListener('open_supplier_tutorial', handleManualOpen);
+  }, [profile]);
 
   useEffect(() => {
     if ('serviceWorker' in navigator) {
@@ -412,6 +428,7 @@ function Header({ profile, onMenuClick, onLogout }: { profile: UserProfile | nul
   const { unreadCount } = useNotifications();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
+  const [showSupplierTutorial, setShowSupplierTutorial] = useState(false);
 
   return (
     <header className="bg-white/5 backdrop-blur-xl border-b border-white/5 p-4 sticky top-0 z-20">
@@ -475,6 +492,12 @@ function Header({ profile, onMenuClick, onLogout }: { profile: UserProfile | nul
               <AppTutorialModal 
                 isOpen={showTutorial} 
                 onClose={() => setShowTutorial(false)} 
+              />
+
+              <SupplierTutorialModal 
+                isOpen={showSupplierTutorial} 
+                onClose={() => setShowSupplierTutorial(false)} 
+                profile={profile}
               />
 
               <Link to="/profile" className="w-10 h-10 rounded-xl overflow-hidden border border-white/10 hover:border-primary/50 transition-colors text-primary font-bold">

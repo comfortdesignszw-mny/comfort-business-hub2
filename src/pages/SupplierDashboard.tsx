@@ -21,7 +21,9 @@ import {
   Building2,
   Sparkles,
   Zap,
-  RefreshCw
+  RefreshCw,
+  Wrench,
+  HelpCircle
 } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { 
@@ -69,6 +71,8 @@ interface ProductForm {
   buyButtonType: BuyButtonType;
   buyButtonLink: string;
   isActive: boolean;
+  itemType: 'product' | 'service';
+  pricingOption: 'fixed' | 'negotiable' | 'installments' | 'contact_seller_for_price';
 }
 
 const initialForm: ProductForm = {
@@ -80,7 +84,9 @@ const initialForm: ProductForm = {
   images: [],
   buyButtonType: 'chat',
   buyButtonLink: '',
-  isActive: true
+  isActive: true,
+  itemType: 'product',
+  pricingOption: 'fixed'
 };
 
 export default function SupplierDashboard({ profile }: { profile: UserProfile }) {
@@ -308,13 +314,15 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
       setFormData({
         name: product.name,
         description: product.description,
-        price: product.price,
-        currency: product.currency,
+        price: product.price || 0,
+        currency: product.currency || 'USD',
         category: PRODUCT_CATEGORIES.includes(product.category) ? product.category : 'Other',
         images: product.images,
         buyButtonType: product.buyButtonType,
         buyButtonLink: product.buyButtonLink || '',
-        isActive: product.isActive
+        isActive: product.isActive,
+        itemType: product.itemType || 'product',
+        pricingOption: product.pricingOption || 'fixed'
       });
       if (!PRODUCT_CATEGORIES.includes(product.category)) {
         setCustomCategory(product.category);
@@ -562,12 +570,26 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
       <section className="flex flex-col gap-4">
         <div className="flex items-center justify-between">
           <h2 className="text-[10px] font-black text-gray-500 uppercase tracking-[0.2em]">Your Stores ({stores.length})</h2>
-          <button 
-            onClick={() => setShowStoreSetup(true)}
-            className="flex items-center gap-2 text-primary text-[10px] font-black uppercase tracking-widest hover:opacity-80 transition-opacity"
-          >
-            <Plus size={14} /> New Store
-          </button>
+          <div className="flex items-center gap-3">
+            <button 
+              onClick={() => {
+                if (profile?.uid) {
+                  localStorage.removeItem(`supplier_tutorial_dismissed_${profile.uid}`);
+                }
+                window.dispatchEvent(new CustomEvent('open_supplier_tutorial'));
+              }}
+              className="flex items-center gap-1.5 text-amber-400 border border-amber-500/30 bg-amber-500/10 px-3 py-1.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-amber-500/20 transition-all shadow-sm"
+              title="Open Supplier Tutorial Guide"
+            >
+              <HelpCircle size={14} /> Supplier Guide
+            </button>
+            <button 
+              onClick={() => setShowStoreSetup(true)}
+              className="flex items-center gap-2 text-primary text-[10px] font-black uppercase tracking-widest hover:opacity-80 transition-opacity"
+            >
+              <Plus size={14} /> New Store
+            </button>
+          </div>
         </div>
         <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
           {Array.from(new Map(stores.filter(s => s && s.id).map(s => [s.id, s])).values()).map((s, idx) => (
@@ -1042,12 +1064,45 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
                       </div>
 
                       <div className="space-y-4">
+                        {/* Listing Type Choice: Product or Service */}
                         <div className="space-y-2">
-                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Item Name</label>
+                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Listing Type</label>
+                          <div className="grid grid-cols-2 gap-3">
+                            <button
+                              type="button"
+                              onClick={() => setFormData({ ...formData, itemType: 'product' })}
+                              className={cn(
+                                "py-3 px-4 rounded-2xl border text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all",
+                                formData.itemType === 'product'
+                                  ? "bg-primary/20 border-primary text-primary shadow-[0_0_15px_rgba(0,242,254,0.15)]"
+                                  : "bg-white/5 border-white/10 text-gray-400 hover:text-white"
+                              )}
+                            >
+                              <Package size={16} /> Physical Product
+                            </button>
+                            <button
+                              type="button"
+                              onClick={() => setFormData({ ...formData, itemType: 'service' })}
+                              className={cn(
+                                "py-3 px-4 rounded-2xl border text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all",
+                                formData.itemType === 'service'
+                                  ? "bg-emerald-500/20 border-emerald-400 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.15)]"
+                                  : "bg-white/5 border-white/10 text-gray-400 hover:text-white"
+                              )}
+                            >
+                              <Wrench size={16} /> Professional Service
+                            </button>
+                          </div>
+                        </div>
+
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">
+                            {formData.itemType === 'service' ? 'Service Title' : 'Item Name'}
+                          </label>
                           <input 
                             type="text"
                             className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-white outline-none focus:border-primary/50 font-bold italic transition-all"
-                            placeholder="e.g. 5KVA Inverter System"
+                            placeholder={formData.itemType === 'service' ? "e.g. Solar Inverter Installation & Wiring" : "e.g. 5KVA Inverter System"}
                             value={formData.name}
                             onChange={e => setFormData({ ...formData, name: e.target.value })}
                             required
@@ -1058,7 +1113,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
                           <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Data Description</label>
                           <textarea 
                             className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-white outline-none focus:border-primary/50 text-sm min-h-[100px] transition-all"
-                            placeholder="Full technical specifications..."
+                            placeholder="Full specifications or service deliverables..."
                             rows={3}
                             value={formData.description}
                             onChange={e => setFormData({ ...formData, description: e.target.value })}
@@ -1066,18 +1121,56 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
                           />
                         </div>
 
+                        {/* Pricing Terms / Options */}
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Pricing Terms & Structure</label>
+                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                            {[
+                              { id: 'fixed', label: 'Fixed Price' },
+                              { id: 'negotiable', label: 'Negotiable' },
+                              { id: 'installments', label: 'Installments' },
+                              { id: 'contact_seller_for_price', label: 'Contact for Price' }
+                            ].map((opt) => (
+                              <button
+                                key={opt.id}
+                                type="button"
+                                onClick={() => {
+                                  const isContact = opt.id === 'contact_seller_for_price';
+                                  setFormData({ 
+                                    ...formData, 
+                                    pricingOption: opt.id as any,
+                                    buyButtonType: isContact ? 'chat' : formData.buyButtonType
+                                  });
+                                }}
+                                className={cn(
+                                  "py-2.5 px-3 rounded-xl border text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center text-center",
+                                  formData.pricingOption === opt.id
+                                    ? opt.id === 'contact_seller_for_price'
+                                      ? "bg-emerald-500/20 border-emerald-400 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.2)]"
+                                      : "bg-primary/20 border-primary text-primary shadow-[0_0_15px_rgba(0,242,254,0.15)]"
+                                    : "bg-white/5 border-white/10 text-gray-400 hover:text-white"
+                                )}
+                              >
+                                {opt.label}
+                              </button>
+                            ))}
+                          </div>
+                        </div>
+
                         <div className="grid grid-cols-2 gap-4">
                           <div className="space-y-2">
-                            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Unit Price</label>
+                            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">
+                              Unit Price {formData.pricingOption === 'contact_seller_for_price' ? '(Optional)' : ''}
+                            </label>
                             <div className="relative">
                               <DollarSign size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-primary" />
                               <input 
                                 type="number"
                                 className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-4 py-4 text-white outline-none focus:border-primary/50 font-mono"
-                                placeholder="0.00"
+                                placeholder={formData.pricingOption === 'contact_seller_for_price' ? 'Contact Seller' : '0.00'}
                                 value={formData.price || ''}
-                                onChange={e => setFormData({ ...formData, price: parseFloat(e.target.value) })}
-                                required
+                                onChange={e => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
+                                required={formData.pricingOption !== 'contact_seller_for_price'}
                               />
                             </div>
                           </div>

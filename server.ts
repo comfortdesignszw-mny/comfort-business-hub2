@@ -178,6 +178,42 @@ async function startServer() {
     }
   });
 
+  // API Route for AI Legal & Document Translation (Shona, Ndebele, English)
+  app.post('/api/translate', async (req, res) => {
+    try {
+      const { text, targetLanguage } = req.body;
+      if (!text || !targetLanguage) {
+        return res.status(400).json({ error: 'text and targetLanguage parameters are required' });
+      }
+
+      if (targetLanguage.toLowerCase() === 'english' || targetLanguage.toLowerCase() === 'en') {
+        return res.json({ translatedText: text });
+      }
+
+      if (!ai) {
+        return res.status(503).json({ 
+          error: 'Gemini AI client is not initialized. Please ensure GEMINI_API_KEY is configured in server environment.' 
+        });
+      }
+
+      console.log(`[AI Translation Engine] Translating document into ${targetLanguage}...`);
+
+      const response = await generateContentWithRetry({
+        contents: `You are an expert official translator specializing in Zimbabwean official languages (English, Shona/chiShona, Ndebele/isiNdebele). 
+Translate the following legal text accurately into ${targetLanguage}. 
+Maintain clear, natural, high-quality phrasing and keep any numbers, section headers, or list structures intact:
+
+${text}`,
+      });
+
+      const translatedText = response.text || '';
+      res.json({ translatedText });
+    } catch (error: any) {
+      console.error('Translation error:', error);
+      res.status(500).json({ error: error.message || 'Translation failed' });
+    }
+  });
+
   // Health check
   app.get('/api/health', (req, res) => {
     res.json({ status: 'ok', api_configured: !!ai });

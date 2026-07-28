@@ -3,7 +3,7 @@ import { useNavigate, useParams } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   User, Store, Phone, MapPin, Shield, LogOut, ChevronRight, Wallet, 
-  Bell, Zap, Image as ImageIcon, X, Check, CreditCard, 
+  Bell, Zap, Image as ImageIcon, X, Check, CheckCircle, CreditCard, 
   Navigation, Crosshair, Save, Loader2, Megaphone, Trash2, Calendar, FileText, Plus, Users, MessageSquare, Share, RefreshCw, Download
 , Network, ExternalLink, Fingerprint, Compass, BellRing, Clock, Tag, Flame, Sparkles, DollarSign, Layers, MessageCircle, MapPinned, Landmark, Star } from 'lucide-react';
 import BiometricAuthModal from '../components/BiometricAuthModal';
@@ -18,6 +18,7 @@ import { doc, updateDoc, collection, addDoc, query, where, getDocs, deleteDoc, o
 import { cn, formatCurrency } from '../lib/utils';
 import { useNotifications } from '../components/NotificationProvider';
 import ImageInput from '../components/ImageInput';
+import VideoInput from '../components/VideoInput';
 import LocationPicker from '../components/LocationPicker';
 import ProductCard from '../components/ProductCard';
 import AuthGuard from '../components/AuthGuard';
@@ -43,6 +44,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
   const [showPushModal, setShowPushModal] = useState(false);
   const [editData, setEditData] = useState<Partial<UserProfile>>({});
   const [engagementStats, setEngagementStats] = useState({ engaged: 0, volume: 0 });
+  const [myStores, setMyStores] = useState<any[]>([]);
   const modalContainerRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -138,7 +140,17 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
       setEngagementStats({ engaged, volume });
     });
 
-    return () => unsub();
+    // Real-time Store performance listener for Supplier
+    const qStores = query(collection(db, 'stores'), where('ownerId', '==', profile.uid));
+    const unsubStores = onSnapshot(qStores, (snap) => {
+      const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
+      setMyStores(items);
+    });
+
+    return () => {
+      unsub();
+      unsubStores();
+    };
   }, [profile?.uid, profile?.currentRole]);
   const [isPending, startTransition] = useTransition();
   const navigate = useNavigate();
@@ -776,6 +788,37 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
                     <p className="text-xl font-black text-primary">{engagementStats.engaged} Connections</p>
                   </div>
                 </div>
+
+                {myStores.length > 0 && (
+                  <div className="space-y-3 pt-2">
+                    <p className="text-[9px] text-gray-400 font-black uppercase tracking-widest text-left">Store Performance Stats</p>
+                    {myStores.map((st, idx) => (
+                      <div key={`my-store-${st.id || idx}-${idx}`} className="bg-white/5 p-4 rounded-2xl border border-white/10 space-y-3 text-left">
+                        <div className="flex justify-between items-center border-b border-white/5 pb-2">
+                          <span className="text-xs font-black text-white italic uppercase">{st.name}</span>
+                          <span className="text-[8px] font-black uppercase text-emerald-400 bg-emerald-500/10 px-2 py-0.5 rounded border border-emerald-500/20">Active Store</span>
+                        </div>
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="bg-black/30 p-2.5 rounded-xl border border-white/5">
+                            <p className="text-[7.5px] text-gray-400 font-bold uppercase tracking-wider">Order Clicks</p>
+                            <p className="text-sm font-black text-cyan-400 mt-0.5">{st.orderClicks || 0}</p>
+                          </div>
+                          <div className="bg-black/30 p-2.5 rounded-xl border border-white/5">
+                            <p className="text-[7.5px] text-gray-400 font-bold uppercase tracking-wider">WhatsApp Clicks</p>
+                            <p className="text-sm font-black text-emerald-400 mt-0.5">{st.whatsappClicks || 0}</p>
+                          </div>
+                          <div className="bg-black/30 p-2.5 rounded-xl border border-white/5">
+                            <p className="text-[7.5px] text-gray-400 font-bold uppercase tracking-wider">Est. Sales (USD)</p>
+                            <p className="text-sm font-black text-primary mt-0.5">{formatCurrency(st.estimatedSalesUsd || 0, 'USD')}</p>
+                          </div>
+                        </div>
+                      </div>
+                    ))}
+                    <p className="text-[8px] text-gray-400 italic font-medium leading-relaxed bg-white/5 p-2.5 rounded-xl border border-white/5 text-left">
+                      Note: This is an estimated sales calculation based on checkout interactions and WhatsApp engagements. Actual sales volume may be higher or lower.
+                    </p>
+                  </div>
+                )}
                 
                 <motion.button
                   whileTap={{ scale: 0.97 }}
@@ -1081,6 +1124,7 @@ function SpotlightManager({ profile }: { profile: UserProfile }) {
     date: '',
     location: profile.location?.city || '',
     image: '',
+    videoUrl: '',
     isActive: true,
     isClassified: true,
     category: 'Electronics & Tech',
@@ -1131,7 +1175,20 @@ function SpotlightManager({ profile }: { profile: UserProfile }) {
     );
 
     const unsubscribe = onSnapshot(q, (snap) => {
-      setSpotlights(snap.docs.map(d => ({ id: d.id, ...d.data() } as Spotlight)));
+      const now = new Date();
+      const validSpotlights: Spotlight[] = [];
+
+      snap.docs.forEach(d => {
+        const item = { id: d.id, ...d.data() } as Spotlight;
+        if (item.expiresAt && new Date(item.expiresAt) < now) {
+          // Auto delete expired classified ad and video from DB to save space and bandwidth
+          deleteDoc(doc(db, 'spotlights', d.id)).catch(console.error);
+        } else {
+          validSpotlights.push(item);
+        }
+      });
+
+      setSpotlights(validSpotlights);
       setLoading(false);
     }, (err) => {
       console.error("Spotlight sync failure:", err);
@@ -1159,6 +1216,7 @@ function SpotlightManager({ profile }: { profile: UserProfile }) {
       date: s.date || '',
       location: s.location || profile.location?.city || '',
       image: s.image || '',
+      videoUrl: s.videoUrl || '',
       isActive: s.isActive ?? true,
       isClassified: isClass,
       category: s.category || 'Electronics & Tech',
@@ -1185,11 +1243,14 @@ function SpotlightManager({ profile }: { profile: UserProfile }) {
       const isClassified = postMode === 'classified';
       const duration = formData.durationHours || 168;
       const expiresAt = isClassified ? calculateExpiresAt(duration) : null;
+      const isAdminUser = profile?.isAdmin || profile?.email === 'comfort.designszw@gmail.com';
+      const isApproved = isAdminUser ? true : false;
 
       const payload = {
         ...formData,
         type: isClassified ? 'classified' : (formData.type === 'classified' ? 'news' : formData.type || 'news'),
         isClassified,
+        isApproved,
         expiresAt: expiresAt || formData.expiresAt || null,
         authorId: profile.uid,
         authorName: profile.businessName || profile.name,
@@ -1221,6 +1282,7 @@ function SpotlightManager({ profile }: { profile: UserProfile }) {
           date: '',
           location: profile.location?.city || '',
           image: '',
+          videoUrl: '',
           isActive: true,
           isClassified: true,
           category: 'Electronics & Tech',
@@ -1556,7 +1618,7 @@ function SpotlightManager({ profile }: { profile: UserProfile }) {
 
             {/* Image upload */}
             <div className="space-y-1 text-left">
-              <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Cover Image / Media</label>
+              <label className="text-[9px] font-black text-gray-400 uppercase tracking-widest ml-1">Cover Image / Photo</label>
               <ImageInput 
                 value={formData.image || ''}
                 onChange={(val) => setFormData(prev => ({ ...prev, image: val }))}
@@ -1564,6 +1626,14 @@ function SpotlightManager({ profile }: { profile: UserProfile }) {
                 className="!bg-[#0d1117]"
               />
             </div>
+
+            {/* Video upload for Classified Ads */}
+            <VideoInput 
+              value={formData.videoUrl || ''}
+              onChange={(val) => setFormData(prev => ({ ...prev, videoUrl: val }))}
+              label="Classified Promo Video (Optional: <5MB, <10s or Direct URL)"
+              className="!bg-[#0d1117] p-3 rounded-2xl border border-white/5"
+            />
           </div>
 
           <div className="flex gap-3 pt-2">
@@ -1625,7 +1695,9 @@ function SpotlightManager({ profile }: { profile: UserProfile }) {
                   >
                     <div className="flex gap-4 items-start relative z-10">
                       <div className="w-16 h-16 bg-[#0d1117] rounded-2xl border border-white/10 overflow-hidden flex-shrink-0 flex items-center justify-center text-primary relative">
-                        {s.image ? (
+                        {s.videoUrl ? (
+                          <video src={s.videoUrl} autoPlay loop muted playsInline className="w-full h-full object-cover" />
+                        ) : s.image ? (
                           <img src={s.image} className="w-full h-full object-cover" />
                         ) : (
                           <Tag size={28} />
@@ -1658,6 +1730,16 @@ function SpotlightManager({ profile }: { profile: UserProfile }) {
                           {s.category && (
                             <span className="text-[8px] font-bold text-gray-400 uppercase px-2 py-0.5 bg-white/5 rounded-full border border-white/5">
                               {s.category}
+                            </span>
+                          )}
+
+                          {s.isApproved === false ? (
+                            <span className="text-[8px] font-black text-amber-400 uppercase tracking-widest px-2 py-0.5 bg-amber-500/10 rounded-full border border-amber-500/30 flex items-center gap-1">
+                              <Clock size={10} /> Pending Admin Approval
+                            </span>
+                          ) : (
+                            <span className="text-[8px] font-black text-neon-green uppercase tracking-widest px-2 py-0.5 bg-neon-green/10 rounded-full border border-neon-green/30 flex items-center gap-1">
+                              <CheckCircle size={10} /> Approved & Live
                             </span>
                           )}
 

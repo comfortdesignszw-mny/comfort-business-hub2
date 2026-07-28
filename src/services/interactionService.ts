@@ -276,5 +276,34 @@ export const interactionService = {
     } catch (err) {
       console.error('Notification fail', err);
     }
+  },
+
+  async logStoreEngagement(storeId: string, type: 'order' | 'whatsapp' | 'checkout', priceAmount: number = 0) {
+    if (!storeId) return;
+    try {
+      const { updateDoc, doc, increment } = await import('firebase/firestore');
+      const storeRef = doc(db, 'stores', storeId);
+      const updates: any = {
+        updatedAt: new Date().toISOString()
+      };
+      if (type === 'order') {
+        updates.orderClicks = increment(1);
+        if (priceAmount > 0) {
+          updates.estimatedSalesUsd = increment(priceAmount);
+        }
+      } else if (type === 'whatsapp') {
+        updates.whatsappClicks = increment(1);
+        if (priceAmount > 0) {
+          updates.estimatedSalesUsd = increment(priceAmount);
+        }
+      } else if (type === 'checkout') {
+        if (priceAmount > 0) {
+          updates.estimatedSalesUsd = increment(priceAmount);
+        }
+      }
+      await updateDoc(storeRef, updates);
+    } catch (err) {
+      console.error('Failed logging store engagement stats:', err);
+    }
   }
 };

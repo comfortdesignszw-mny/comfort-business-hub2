@@ -3,21 +3,23 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   ShieldAlert, Users, Search, Filter, CheckCircle, Info, XCircle, ArrowRight, 
   Trash2, Pause, Play, AlertCircle, Calendar, Hash, Tag, User as UserIcon, Store, ShoppingBag, ExternalLink, Loader2,
-  X, AlertTriangle, Shield, Check
+  X, AlertTriangle, Shield, Check, Megaphone, Clock
 } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
-import { collection, query, orderBy, onSnapshot, doc, updateDoc, getDocs, where, writeBatch, serverTimestamp } from 'firebase/firestore';
-import { Report, UserProfile, Role, Store as StoreType, Product } from '../types';
+import { collection, query, orderBy, onSnapshot, doc, updateDoc, getDocs, where, writeBatch, serverTimestamp, deleteDoc } from 'firebase/firestore';
+import { Report, UserProfile, Role, Store as StoreType, Product, Spotlight } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
 import { useNavigate } from 'react-router-dom';
 
 export default function AdminDashboard({ profile }: { profile: UserProfile | null }) {
   const navigate = useNavigate();
-  const [activeTab, setActiveTab] = useState<'users' | 'stores' | 'products' | 'reports'>('users');
+  const [activeTab, setActiveTab] = useState<'users' | 'stores' | 'products' | 'reports' | 'ads'>('users');
   const [reports, setReports] = useState<Report[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [stores, setStores] = useState<StoreType[]>([]);
   const [products, setProducts] = useState<Product[]>([]);
+  const [spotlights, setSpotlights] = useState<Spotlight[]>([]);
+  const [adFilter, setAdFilter] = useState<'pending' | 'approved' | 'all'>('pending');
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'resolved' | 'dismissed'>('all');
@@ -77,13 +79,49 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
       setProducts(snap.docs.map(d => ({ id: d.id, ...d.data() } as Product)));
     });
 
+    // Listen for spotlights / classified ads
+    const spotlightsQuery = query(collection(db, 'spotlights'), orderBy('createdAt', 'desc'));
+    const unsubscribeSpotlights = onSnapshot(spotlightsQuery, (snap) => {
+      setSpotlights(snap.docs.map(d => ({ id: d.id, ...d.data() } as Spotlight)));
+    });
+
     return () => {
       unsubscribeReports();
       unsubscribeUsers();
       unsubscribeStores();
       unsubscribeProducts();
+      unsubscribeSpotlights();
     };
   }, []);
+
+  const handleSpotlightApproval = async (spotlightId: string, isApproved: boolean) => {
+    setIsProcessing(spotlightId);
+    try {
+      await updateDoc(doc(db, 'spotlights', spotlightId), {
+        isApproved,
+        isActive: true,
+        updatedAt: serverTimestamp()
+      });
+      setSpotlights(prev => prev.map(s => s.id === spotlightId ? { ...s, isApproved } : s));
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `spotlights/${spotlightId}`);
+    } finally {
+      setIsProcessing(null);
+    }
+  };
+
+  const handleSpotlightDelete = async (spotlightId: string) => {
+    if (!confirm('Are you sure you want to delete this listing?')) return;
+    setIsProcessing(spotlightId);
+    try {
+      await deleteDoc(doc(db, 'spotlights', spotlightId));
+      setSpotlights(prev => prev.filter(s => s.id !== spotlightId));
+    } catch (err) {
+      handleFirestoreError(err, OperationType.DELETE, `spotlights/${spotlightId}`);
+    } finally {
+      setIsProcessing(null);
+    }
+  };
 
   const handleReportAction = async (reportId: string, status: 'resolved' | 'dismissed') => {
     setIsProcessing(reportId);
@@ -230,6 +268,22 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
            p.description?.toLowerCase().includes(search);
   });
 
+  const pendingAdsCount = spotlights.filter(s => s.isApproved === false).length;
+
+  const filteredSpotlights = spotlights.filter(s => {
+    const search = searchTerm.toLowerCase();
+    const matchesSearch = (s.title || '').toLowerCase().includes(search) ||
+                          (s.authorName || '').toLowerCase().includes(search) ||
+                          (s.content || '').toLowerCase().includes(search) ||
+                          (s.category || '').toLowerCase().includes(search);
+    
+    if (!matchesSearch) return false;
+
+    if (adFilter === 'pending') return s.isApproved === false;
+    if (adFilter === 'approved') return s.isApproved === true || s.isApproved === undefined;
+    return true;
+  });
+
   return (
     <motion.div 
       initial={{ opacity: 0 }}
@@ -295,6 +349,19 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
               <span className="bg-white text-red-500 px-1.5 py-0.5 rounded-full text-[8px] font-bold">{reports.filter(r => r.status === 'pending').length}</span>
             )}
           </button>
+          <button 
+            onClick={() => setActiveTab('ads')}
+            className={cn(
+              "px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all gap-1.5 flex items-center",
+              activeTab === 'ads' ? "bg-red-500 text-white shadow-lg shadow-red-500/20" : "text-gray-500 hover:text-white"
+            )}
+          >
+            <Megaphone size={14} />
+            Ads & Spotlights
+            {pendingAdsCount > 0 && (
+              <span className="bg-amber-400 text-black px-1.5 py-0.5 rounded-full text-[8px] font-black animate-pulse">{pendingAdsCount}</span>
+            )}
+          </button>
         </div>
       </header>
 
@@ -327,6 +394,7 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
                 activeTab === 'reports' ? "Search conflicts..." : 
                 activeTab === 'stores' ? "Search stores by name, category, or owner..." :
                 activeTab === 'products' ? "Search products by name, category, or owner..." :
+                activeTab === 'ads' ? "Search classified ads or spotlights by title or author..." :
                 "Search users..."
               }
               className="w-full bg-[#0d1117] border border-white/5 rounded-2xl pl-12 pr-4 py-4 text-white text-xs font-black uppercase tracking-tight outline-none focus:border-red-500/30 transition-all"
@@ -347,6 +415,27 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
                   )}
                 >
                   {s}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {activeTab === 'ads' && (
+            <div className="flex gap-2">
+              {[
+                { id: 'pending', label: `Pending (${pendingAdsCount})` },
+                { id: 'approved', label: 'Approved' },
+                { id: 'all', label: `All (${spotlights.length})` }
+              ].map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => setAdFilter(f.id as any)}
+                  className={cn(
+                    "px-4 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest border transition-all",
+                    adFilter === f.id ? "bg-red-500/10 border-red-500/30 text-red-500" : "bg-[#0d1117] border-white/5 text-gray-500 hover:text-white"
+                  )}
+                >
+                  {f.label}
                 </button>
               ))}
             </div>
@@ -600,6 +689,19 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
                         )}
                       </div>
                       <p className="text-[10px] text-gray-400 font-medium">{store.address || 'No location set'}</p>
+                      
+                      {/* Store Performance Stats for Admin */}
+                      <div className="flex items-center gap-3 mt-2 flex-wrap text-[8.5px] font-bold">
+                        <span className="px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-cyan-300">
+                          Order Clicks: <strong className="text-white font-black">{store.orderClicks || 0}</strong>
+                        </span>
+                        <span className="px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-emerald-300">
+                          WhatsApp Engagements: <strong className="text-white font-black">{store.whatsappClicks || 0}</strong>
+                        </span>
+                        <span className="px-2 py-0.5 rounded-md bg-white/5 border border-white/10 text-primary">
+                          Est. Sales: <strong className="text-white font-black">{formatCurrency(store.estimatedSalesUsd || 0, 'USD')}</strong>
+                        </span>
+                      </div>
                     </div>
                   </div>
 
@@ -630,6 +732,121 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
                 <div className="py-16 text-center space-y-3">
                   <Store size={32} className="mx-auto text-gray-600" />
                   <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">No Stores Located</p>
+                </div>
+              )}
+            </motion.div>
+          ) : activeTab === 'ads' ? (
+            <motion.div 
+              key="ads-grid"
+              initial={{ opacity: 0, y: 20 }}
+              animate={{ opacity: 1, y: 0 }}
+              exit={{ opacity: 0, y: -20 }}
+              className="grid gap-4"
+            >
+              {filteredSpotlights.map((ad, idx) => {
+                const isClass = ad.isClassified || ad.type === 'classified';
+
+                return (
+                  <div key={`admin-ad-${ad.id || idx}-${idx}`} className="neon-card p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 border-white/5 bg-[#0d1117] relative overflow-hidden">
+                    <div className="flex items-start gap-4 flex-1">
+                      <div className="w-20 h-20 rounded-2xl border border-white/10 bg-white/5 overflow-hidden shrink-0 flex items-center justify-center text-primary relative">
+                        {ad.videoUrl ? (
+                          <video src={ad.videoUrl} autoPlay loop muted playsInline className="w-full h-full object-cover" />
+                        ) : ad.image ? (
+                          <img src={ad.image} className="w-full h-full object-cover" alt={ad.title} />
+                        ) : (
+                          <Megaphone size={32} />
+                        )}
+                        {ad.price && (
+                          <div className="absolute bottom-0 inset-x-0 bg-primary text-[#05070a] font-black text-[8px] text-center py-0.5 truncate">
+                            {ad.price}
+                          </div>
+                        )}
+                      </div>
+
+                      <div className="space-y-1.5 flex-1 min-w-0">
+                        <div className="flex items-center gap-2 flex-wrap">
+                          <h3 className="font-black text-white uppercase italic tracking-tighter text-sm truncate">{ad.title}</h3>
+                          
+                          {isClass ? (
+                            <span className="text-[7.5px] font-black uppercase tracking-widest px-2 py-0.5 rounded border bg-amber-500/10 border-amber-500/30 text-amber-300">
+                              Classified Ad
+                            </span>
+                          ) : (
+                            <span className="text-[7.5px] font-black uppercase tracking-widest px-2 py-0.5 rounded border bg-primary/10 border-primary/20 text-primary">
+                              {ad.type || 'Spotlight'}
+                            </span>
+                          )}
+
+                          {ad.category && (
+                            <span className="text-[7.5px] font-bold uppercase tracking-wider px-2 py-0.5 rounded border bg-white/5 border-white/5 text-gray-400">
+                              {ad.category}
+                            </span>
+                          )}
+
+                          {ad.isApproved === false ? (
+                            <span className="text-[7.5px] font-black uppercase tracking-widest px-2 py-0.5 rounded border bg-amber-500/20 border-amber-400/50 text-amber-400 flex items-center gap-1 shadow-[0_0_12px_rgba(245,158,11,0.2)]">
+                              <Clock size={10} /> Pending Approval
+                            </span>
+                          ) : (
+                            <span className="text-[7.5px] font-black uppercase tracking-widest px-2 py-0.5 rounded border bg-emerald-500/20 border-emerald-400/50 text-emerald-400 flex items-center gap-1 shadow-[0_0_12px_rgba(16,185,129,0.2)]">
+                              <CheckCircle size={10} /> Approved & Live
+                            </span>
+                          )}
+                        </div>
+
+                        <p className="text-xs text-gray-300 font-medium line-clamp-2 leading-relaxed">
+                          {ad.content}
+                        </p>
+
+                        <div className="flex items-center gap-4 text-[9px] text-gray-500 font-bold uppercase tracking-wider pt-1 flex-wrap">
+                          <span>Author: <strong className="text-white">{ad.authorName || ad.authorId || 'Supplier'}</strong></span>
+                          {ad.location && <span>Location: <strong className="text-gray-400">{ad.location}</strong></span>}
+                          {ad.contactPhone && <span>Contact: <strong className="text-gray-400">{ad.contactPhone}</strong></span>}
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="flex items-center gap-2 shrink-0 border-t md:border-t-0 pt-3 md:pt-0 border-white/5">
+                      {ad.isApproved === false ? (
+                        <button 
+                          onClick={() => handleSpotlightApproval(ad.id, true)}
+                          disabled={isProcessing === ad.id}
+                          className="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-600 text-[#05070a] font-black text-[9px] uppercase tracking-widest rounded-xl transition-all flex items-center gap-1.5 shadow-[0_0_20px_rgba(16,185,129,0.3)] hover:scale-105 active:scale-95"
+                        >
+                          {isProcessing === ad.id ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle size={14} />}
+                          Approve Ad
+                        </button>
+                      ) : (
+                        <button 
+                          onClick={() => handleSpotlightApproval(ad.id, false)}
+                          disabled={isProcessing === ad.id}
+                          className="px-3.5 py-2.5 bg-amber-500/10 hover:bg-amber-500/20 text-amber-400 border border-amber-500/30 font-black text-[9px] uppercase tracking-widest rounded-xl transition-all flex items-center gap-1.5"
+                        >
+                          {isProcessing === ad.id ? <Loader2 size={12} className="animate-spin" /> : <XCircle size={14} />}
+                          Revoke Approval
+                        </button>
+                      )}
+
+                      <button 
+                        onClick={() => handleSpotlightDelete(ad.id)}
+                        disabled={isProcessing === ad.id}
+                        className="p-2.5 bg-red-500/10 hover:bg-red-500 text-red-400 hover:text-white border border-red-500/20 font-black text-[9px] uppercase tracking-widest rounded-xl transition-all flex items-center justify-center"
+                        title="Delete Ad"
+                      >
+                        {isProcessing === ad.id ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={14} />}
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
+
+              {filteredSpotlights.length === 0 && (
+                <div className="py-16 text-center space-y-3">
+                  <Megaphone size={32} className="mx-auto text-gray-600" />
+                  <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">
+                    {adFilter === 'pending' ? 'No Pending Ads Requiring Approval' : 'No Ads Located'}
+                  </p>
                 </div>
               )}
             </motion.div>

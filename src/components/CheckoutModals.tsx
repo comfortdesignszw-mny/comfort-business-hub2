@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  X, ChevronDown, ChevronUp, MapPinned, CreditCard, Phone, Loader2, CheckCircle2, ShieldCheck,
+  X, ChevronDown, ChevronUp, MapPinned, CreditCard, Phone, Loader2, CheckCircle2, ShieldCheck, ShieldAlert,
   Landmark, Copy, Check, ExternalLink, Star, Wallet
 } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
@@ -11,6 +11,18 @@ import { UserProfile, Product } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
 import { interactionService } from '../services/interactionService';
 import { useMessaging } from './MessagingProvider';
+
+export function BuyerDisclaimerNotice() {
+  return (
+    <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-3.5 flex items-start gap-3 text-amber-300 text-[10px] leading-relaxed font-bold shadow-[0_0_15px_rgba(245,158,11,0.1)]">
+      <ShieldAlert className="text-amber-400 shrink-0 mt-0.5" size={16} />
+      <div>
+        <span className="font-black uppercase tracking-wider text-amber-400 block mb-0.5">Disclaimer & Security Notice</span>
+        Disclaimer: Make sure you are satisfied with the product and ensure the Seller is not a Scammer before you send money, or use Pay on Delivery, it's safe and convenient.
+      </div>
+    </div>
+  );
+}
 
 export function UnifiedCheckoutModal({ product, profile, onClose, onSwitchModal, quantity, setQuantity }: {
   product: Product;
@@ -185,6 +197,7 @@ export function UnifiedCheckoutModal({ product, profile, onClose, onSwitchModal,
         </div>
 
         <div className="p-5 space-y-5 max-h-[80vh] overflow-y-auto custom-scrollbar">
+          <BuyerDisclaimerNotice />
           <div className="space-y-3">
             <div className="flex gap-4 items-center p-3.5 bg-white/5 rounded-2xl border border-white/5">
               <div className="w-12 h-12 bg-white/5 rounded-xl overflow-hidden shrink-0">
@@ -351,8 +364,9 @@ export function EcoCashModal({ product, profile, onClose, quantity }: {
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[#05070a]/90 backdrop-blur-md" onClick={onClose} />
-      <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-sm neon-card p-8 text-center space-y-6">
-        <div className="w-20 h-20 bg-primary/20 rounded-3xl flex items-center justify-center mx-auto text-primary border border-primary/30">
+      <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-sm neon-card p-6 text-center space-y-5">
+        <BuyerDisclaimerNotice />
+        <div className="w-16 h-16 bg-primary/20 rounded-3xl flex items-center justify-center mx-auto text-primary border border-primary/30">
           <Phone size={40} className="animate-pulse" />
         </div>
         <div className="space-y-1">

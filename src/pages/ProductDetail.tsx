@@ -275,9 +275,12 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
               {product.name}
             </h2>
             <div className="flex flex-wrap items-center gap-1">
-              <div className="glass-pill !text-primary !border-primary/20 flex items-center gap-1 py-0.5 px-2 text-[8px] sm:text-[9px] uppercase font-black">
-                <Zap size={8} className="fill-primary" />
-                <span>{product.category}</span>
+              <div className={cn(
+                "glass-pill flex items-center gap-1 py-0.5 px-2 text-[8px] sm:text-[9px] uppercase font-black",
+                product.itemType === 'service' ? "!text-emerald-400 !border-emerald-500/30" : "!text-primary !border-primary/20"
+              )}>
+                <Zap size={8} className={product.itemType === 'service' ? "fill-emerald-400" : "fill-primary"} />
+                <span>{product.itemType === 'service' ? 'Service' : 'Product'} • {product.category}</span>
               </div>
               {(product.isVerified || (product as any).verified || store?.isVerified) && (
                 <div className="inline-flex items-center gap-1 py-0.5 px-2.5 rounded-full bg-emerald-500/20 border border-emerald-400/50 text-emerald-400 text-[8px] sm:text-[9px] font-black uppercase tracking-wider shadow-[0_0_12px_rgba(16,185,129,0.5)]">
@@ -308,10 +311,22 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
             </div>
           </div>
           <div className="text-right shrink-0">
-            <p className="text-lg sm:text-xl md:text-2xl font-black text-primary italic tracking-tighter leading-none">{formatCurrency(product.price, product.currency)}</p>
+            {product.pricingOption === 'contact_seller_for_price' ? (
+              <span className="text-sm sm:text-base font-black text-emerald-400 italic tracking-tight block">Contact for Price</span>
+            ) : (
+              <>
+                <p className="text-lg sm:text-xl md:text-2xl font-black text-primary italic tracking-tighter leading-none">{formatCurrency(product.price, product.currency)}</p>
+                {product.pricingOption === 'negotiable' && (
+                  <p className="text-[8px] font-black uppercase text-amber-400 tracking-wider mt-0.5">Price Negotiable</p>
+                )}
+                {product.pricingOption === 'installments' && (
+                  <p className="text-[8px] font-black uppercase text-emerald-400 tracking-wider mt-0.5">Installments Allowed</p>
+                )}
+              </>
+            )}
             <div className="flex items-center justify-end gap-1 text-neon-green mt-0.5">
                <ShieldCheck size={8} />
-               <p className="text-[7px] sm:text-[8px] font-black uppercase tracking-widest">Verified Hub Price</p>
+               <p className="text-[7px] sm:text-[8px] font-black uppercase tracking-widest">Verified Hub Listing</p>
             </div>
           </div>
         </div>

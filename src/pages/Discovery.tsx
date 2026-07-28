@@ -11,7 +11,7 @@ import { UserProfile, Product, Store as StoreType, Message, Spotlight, PublicPro
 import { cn, formatCurrency, openWhatsApp } from '../lib/utils';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { localDB } from '../lib/db';
-import { collection, query, limit, getDocs, where, addDoc, serverTimestamp, setDoc, doc, getDoc, orderBy, onSnapshot, getCountFromServer, startAt, endAt } from 'firebase/firestore';
+import { collection, query, limit, getDocs, where, addDoc, serverTimestamp, setDoc, doc, getDoc, orderBy, onSnapshot, getCountFromServer, startAt, endAt, deleteDoc } from 'firebase/firestore';
 import { BUSINESS_CATEGORIES, PRODUCT_CATEGORIES } from '../constants';
 import ProductCard from '../components/ProductCard';
 import AuthGuard from '../components/AuthGuard';
@@ -237,7 +237,21 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
       limit(10)
     );
     const unsubscribeSpotlights = onSnapshot(spq, (snapshot) => {
-      setSpotlights(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Spotlight)));
+      const now = new Date();
+      const validSpotlights: Spotlight[] = [];
+
+      snapshot.docs.forEach(d => {
+        const item = { id: d.id, ...d.data() } as Spotlight;
+        if (item.expiresAt && new Date(item.expiresAt) < now) {
+          // Auto-delete expired classified ad and video from database to save space and bandwidth
+          deleteDoc(doc(db, 'spotlights', d.id)).catch(console.error);
+        } else if (item.isApproved !== false) {
+          // Only show approved ads (or legacy ads where isApproved is undefined)
+          validSpotlights.push(item);
+        }
+      });
+
+      setSpotlights(validSpotlights);
       setSpotlightsLoading(false);
       setLoading(false);
     }, (error) => {
@@ -526,7 +540,24 @@ useEffect(() => {
                   )}
                 </div>
 
-                {selectedSpotlightAd.image && (
+                {selectedSpotlightAd.videoUrl ? (
+                  <div className="w-full h-52 sm:h-60 rounded-2xl overflow-hidden border border-white/10 relative bg-black flex items-center justify-center">
+                    <video 
+                      src={selectedSpotlightAd.videoUrl} 
+                      controls 
+                      autoPlay 
+                      loop 
+                      muted 
+                      playsInline 
+                      className="w-full h-full object-contain"
+                    />
+                    {selectedSpotlightAd.price && (
+                      <div className="absolute bottom-3 left-3 bg-primary text-[#05070a] font-black text-sm px-4 py-1.5 rounded-xl shadow-lg z-10">
+                        {selectedSpotlightAd.price}
+                      </div>
+                    )}
+                  </div>
+                ) : selectedSpotlightAd.image ? (
                   <div className="w-full h-48 sm:h-56 rounded-2xl overflow-hidden border border-white/10 relative">
                     <img src={selectedSpotlightAd.image} className="w-full h-full object-cover" />
                     {selectedSpotlightAd.price && (
@@ -535,7 +566,7 @@ useEffect(() => {
                       </div>
                     )}
                   </div>
-                )}
+                ) : null}
 
                 <div>
                   <h3 className="text-xl sm:text-2xl font-black text-white italic uppercase tracking-tight">{selectedSpotlightAd.title}</h3>
@@ -746,13 +777,24 @@ useEffect(() => {
                         : "border-primary/30 shadow-[0_0_30px_rgba(0,242,254,0.12)] bg-[#05070a]"
                     )}
                   >
-                    {/* Background Image & Gradient */}
-                    <div className="absolute inset-0 z-0">
-                      <OptimizedImage 
-                        src={currentSpotlight.image || "https://images.unsplash.com/photo-1540350394557-8d14678e7f91?w=800&q=80"} 
-                        className="w-full h-full object-cover opacity-25 group-hover:scale-105 transition-transform duration-1000" 
-                        alt="Spotlight Ad" 
-                      />
+                    {/* Background Image/Video & Gradient */}
+                    <div className="absolute inset-0 z-0 overflow-hidden">
+                      {currentSpotlight.videoUrl ? (
+                        <video 
+                          src={currentSpotlight.videoUrl} 
+                          autoPlay 
+                          loop 
+                          muted 
+                          playsInline 
+                          className="w-full h-full object-cover opacity-50 group-hover:scale-105 transition-transform duration-1000"
+                        />
+                      ) : (
+                        <OptimizedImage 
+                          src={currentSpotlight.image || "https://images.unsplash.com/photo-1540350394557-8d14678e7f91?w=800&q=80"} 
+                          className="w-full h-full object-cover opacity-25 group-hover:scale-105 transition-transform duration-1000" 
+                          alt="Spotlight Ad" 
+                        />
+                      )}
                       <div className="absolute inset-0 bg-gradient-to-t from-[#05070a] via-[#05070a]/80 to-[#05070a]/40"></div>
                     </div>
 

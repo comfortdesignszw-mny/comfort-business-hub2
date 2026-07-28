@@ -93,6 +93,9 @@ export interface Store {
   isVerified?: boolean;
   whatsappNumber?: string;
   statsResetAt?: string;
+  orderClicks?: number;
+  whatsappClicks?: number;
+  estimatedSalesUsd?: number;
   createdAt: any;
   updatedAt?: any;
 }
@@ -112,6 +115,8 @@ export interface Product {
   buyButtonType: BuyButtonType;
   buyButtonLink?: string;
   buyButtonText?: string;
+  itemType?: 'product' | 'service';
+  pricingOption?: 'fixed' | 'negotiable' | 'installments' | 'contact_seller_for_price';
   rating?: number;
   reviewCount?: number;
   followerCount?: number;
@@ -198,9 +203,11 @@ export interface Spotlight {
   title: string;
   content: string;
   image?: string;
+  videoUrl?: string;
   location?: string;
   date?: string;
   isActive: boolean;
+  isApproved?: boolean;
   createdAt: any;
 
   // Classified Ads specific properties

@@ -114,6 +114,7 @@ export default function ProductCard({
     if (type === 'engage') {
       setIsEngaging(true);
       logEngagement('engaged');
+      interactionService.logStoreEngagement(product.storeId, 'whatsapp', product.price || 0);
       
       let targetPhone = '';
       try {
@@ -136,7 +137,7 @@ export default function ProductCard({
       }
 
       const cleanNumber = targetPhone ? targetPhone.replace(/[^0-9]/g, '') : '';
-      const messageText = `Hi, I am interested in buying your product(s), ${product.name} in Comfort Business Hub Software.`;
+      const messageText = `Hi, I am interested in ${product.itemType === 'service' ? 'your service' : 'buying your product'}, ${product.name} on Comfort Business Hub.`;
       
       if (cleanNumber) {
         triggerFeedback('WhatsApp Uplink', `Opening WhatsApp contact for ${product.name}...`, 'message');
@@ -152,6 +153,7 @@ export default function ProductCard({
 
     // Fire and forget engagement log
     logEngagement('order_now');
+    interactionService.logStoreEngagement(product.storeId, 'order', product.price || 0);
 
     if (onAction) {
       onAction(product);
@@ -285,6 +287,14 @@ export default function ProductCard({
           <div className="flex justify-between items-start gap-2 sm:gap-4">
             <div className="space-y-0.5 sm:space-y-1 flex-1 min-w-0">
               <div className="flex items-center gap-1.5 flex-wrap">
+                <span className={cn(
+                  "px-1.5 py-0.5 rounded text-[7px] sm:text-[8px] font-black uppercase tracking-wider shrink-0 border",
+                  product.itemType === 'service' 
+                    ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" 
+                    : "bg-primary/10 border-primary/20 text-primary"
+                )}>
+                  {product.itemType === 'service' ? 'Service' : 'Product'}
+                </span>
                 <h3 className="font-black text-white italic uppercase tracking-tighter text-base sm:text-lg leading-none truncate group-hover:text-primary transition-colors">{product.name}</h3>
                 {(product.isVerified || (product as any).verified) && (
                   <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/50 text-emerald-400 text-[7px] sm:text-[8px] font-black uppercase tracking-wider shadow-[0_0_10px_rgba(16,185,129,0.5)] shrink-0">
@@ -294,8 +304,20 @@ export default function ProductCard({
               </div>
               <p className="text-[8px] sm:text-[10px] text-gray-500 font-bold uppercase tracking-widest truncate">{product.category}</p>
             </div>
-            <div className="text-right">
-              <p className="text-lg sm:text-xl font-black text-primary italic tracking-tighter leading-none">{formatCurrency(product.price, product.currency)}</p>
+            <div className="text-right shrink-0">
+              {product.pricingOption === 'contact_seller_for_price' ? (
+                <span className="text-xs sm:text-sm font-black text-emerald-400 italic tracking-tight block">Contact for Price</span>
+              ) : (
+                <>
+                  <p className="text-lg sm:text-xl font-black text-primary italic tracking-tighter leading-none">{formatCurrency(product.price, product.currency)}</p>
+                  {product.pricingOption === 'negotiable' && (
+                    <p className="text-[7px] sm:text-[8px] font-black text-amber-400 uppercase tracking-wider mt-0.5">Negotiable</p>
+                  )}
+                  {product.pricingOption === 'installments' && (
+                    <p className="text-[7px] sm:text-[8px] font-black text-emerald-400 uppercase tracking-wider mt-0.5">Installments</p>
+                  )}
+                </>
+              )}
               <div className="flex items-center justify-end gap-1 mt-1">
                 <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 bg-neon-green rounded-full animate-pulse shadow-[0_0_5px_#39FF14]"></div>
                 <p className="text-[7px] sm:text-[8px] text-neon-green font-black uppercase tracking-widest">Active</p>
