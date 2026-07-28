@@ -30,7 +30,7 @@ const updateSW = registerSW({
 let refreshing = false;
 if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
   navigator.serviceWorker.addEventListener('controllerchange', () => {
-    if (!refreshing) {
+    if (!refreshing && navigator.serviceWorker.controller && navigator.onLine) {
       refreshing = true;
       console.log('[PWA] New deployment active. Refreshing application...');
       window.location.reload();

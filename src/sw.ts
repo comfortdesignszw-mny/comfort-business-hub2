@@ -1,11 +1,10 @@
 /// <reference lib="webworker" />
 declare let self: ServiceWorkerGlobalScope;
 
-import { precacheAndRoute, cleanupOutdatedCaches } from 'workbox-precaching';
-import { registerRoute } from 'workbox-routing';
-import { StaleWhileRevalidate, NetworkFirst, CacheFirst } from 'workbox-strategies';
+import { precacheAndRoute, cleanupOutdatedCaches, createHandlerBoundToURL } from 'workbox-precaching';
+import { registerRoute, NavigationRoute, setCatchHandler } from 'workbox-routing';
+import { StaleWhileRevalidate, CacheFirst } from 'workbox-strategies';
 import { ExpirationPlugin } from 'workbox-expiration';
-import { BackgroundSyncPlugin } from 'workbox-background-sync';
 import { clientsClaim } from 'workbox-core';
 
 // Ensure new deployments take effect immediately across Cloudflare Pages & browsers
@@ -19,56 +18,66 @@ self.addEventListener('message', (event) => {
   }
 });
 
-// Precache static assets
+// Precache static assets compiled by Vite
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
 
-// SPA Navigation Fallback for Offline Capability
-registerRoute(
-  ({ request }) => request.mode === 'navigate',
-  new NetworkFirst({
-    cacheName: 'spa-navigation-cache',
-    plugins: [
-      new ExpirationPlugin({
-        maxEntries: 20,
-        maxAgeSeconds: 24 * 60 * 60, // 24 hours
-      })
-    ]
-  })
-);
-
-// Background Sync for standard fetch requests (if any)
-const bgSyncPlugin = new BackgroundSyncPlugin('comfort-queue', {
-  maxRetentionTime: 24 * 60 // Retry for max of 24 Hours
+// SPA Navigation Handler:
+// Guarantees that ANY page load or route navigation (e.g., /, /discovery, /chat, /profile, /stores, /?source=pwa)
+// immediately serves precached index.html when offline or online without waiting for network delays, enabling zero-connection app launch.
+const navigationHandler = createHandlerBoundToURL('/index.html');
+const navigationRoute = new NavigationRoute(navigationHandler, {
+  denylist: [
+    /^\/api\/.*/,
+    /^\/__/,
+    /\.[a-zA-Z0-9]+$/ // Do not intercept direct asset files with extension (e.g., .png, .css, .js)
+  ]
 });
+registerRoute(navigationRoute);
 
-// Cache google fonts
+// Cache Google Fonts
 registerRoute(
-  /^https:\/\/fonts\.googleapis\.com\/.*/i,
+  /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,
   new CacheFirst({
     cacheName: 'google-fonts-cache',
     plugins: [
       new ExpirationPlugin({
-        maxEntries: 10,
-        maxAgeSeconds: 60 * 60 * 24 * 365
+        maxEntries: 20,
+        maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
       })
     ]
   })
 );
 
-// Firebase Storage / Unsplash caching
+// Firebase Storage / Unsplash / External Images caching
 registerRoute(
   /^https:\/\/(firebasestorage\.googleapis\.com|images\.unsplash\.com)\/.*/i,
   new StaleWhileRevalidate({
     cacheName: 'media-assets',
     plugins: [
       new ExpirationPlugin({
-        maxEntries: 150,
-        maxAgeSeconds: 60 * 60 * 24 * 30
+        maxEntries: 200,
+        maxAgeSeconds: 60 * 60 * 24 * 30 // 30 days
       })
     ]
   })
 );
+
+// Offline Fallback for missing resources
+setCatchHandler(async ({ request }) => {
+  if (request.destination === 'image') {
+    const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
+      <rect width="100%" height="100%" fill="#0d1117"/>
+      <path d="M70 120 L95 90 L120 120 L135 105 L160 135 L40 135 Z" fill="#21262d"/>
+      <circle cx="75" cy="75" r="12" fill="#30363d"/>
+      <text x="50%" y="85%" font-family="sans-serif" font-weight="bold" font-size="11" fill="#8b949e" text-anchor="middle">OFFLINE ASSET</text>
+    </svg>`;
+    return new Response(svg, {
+      headers: { 'Content-Type': 'image/svg+xml', 'Cache-Control': 'no-store' }
+    });
+  }
+  return Response.error();
+});
 
 // Push Notifications
 self.addEventListener('push', (event) => {
@@ -89,18 +98,16 @@ self.addEventListener('push', (event) => {
     vibrate: [100, 50, 100],
   };
 
-  // High Priority specific handling
   if (data.priority === 'high') {
-    options.requireInteraction = true; // Keep visible until user acts
+    options.requireInteraction = true;
     options.actions = [];
     
-    // Actionable buttons
     if (data.type === 'message') {
       options.actions.push({ action: 'reply', title: 'Reply' });
       options.data.url = '/chat';
     } else if (data.type === 'order') {
       options.actions.push({ action: 'view_order', title: 'View Order' });
-      options.data.url = '/orders'; // or relevant route
+      options.data.url = '/orders';
     }
   }
 
@@ -115,7 +122,6 @@ self.addEventListener('notificationclick', (event) => {
 
   event.waitUntil(
     self.clients.matchAll({ type: 'window', includeUncontrolled: true }).then((windowClients) => {
-      // Check if there is already a window/tab open with the target URL
       for (let i = 0; i < windowClients.length; i++) {
         const client = windowClients[i];
         if (client.url === urlToOpen && 'focus' in client) {
