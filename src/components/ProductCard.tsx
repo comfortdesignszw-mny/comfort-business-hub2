@@ -309,7 +309,12 @@ export default function ProductCard({
                 <span className="text-xs sm:text-sm font-black text-emerald-400 italic tracking-tight block">Contact for Price</span>
               ) : (
                 <>
-                  <p className="text-lg sm:text-xl font-black text-primary italic tracking-tighter leading-none">{formatCurrency(product.price, product.currency)}</p>
+                  <p className="text-lg sm:text-xl font-black text-primary italic tracking-tighter leading-none">
+                    {formatCurrency(product.price, product.currency)}
+                    {product.quantityUnit && product.quantityUnit !== 'per item' && (
+                      <span className="text-[10px] sm:text-xs font-bold text-gray-400 not-italic ml-1">/{product.quantityUnit}</span>
+                    )}
+                  </p>
                   {product.pricingOption === 'negotiable' && (
                     <p className="text-[7px] sm:text-[8px] font-black text-amber-400 uppercase tracking-wider mt-0.5">Negotiable</p>
                   )}

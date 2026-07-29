@@ -1142,12 +1142,15 @@ function SpotlightManager({ profile }: { profile: UserProfile }) {
   });
 
   const CATEGORIES = [
+    'Car Rental Service',
+    'Hotel/Lodge Bookings',
+    'Farm Produce',
+    'Clothes/Apparel',
     'Electronics & Tech',
     'Vehicles & Motors',
     'Real Estate & Housing',
     'Services & Repairs',
     'Jobs & Careers',
-    'Fashion & Apparel',
     'Agriculture & Fresh Produce',
     'Wholesale & Goods',
     'General Merchandise'

@@ -315,7 +315,12 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
               <span className="text-sm sm:text-base font-black text-emerald-400 italic tracking-tight block">Contact for Price</span>
             ) : (
               <>
-                <p className="text-lg sm:text-xl md:text-2xl font-black text-primary italic tracking-tighter leading-none">{formatCurrency(product.price, product.currency)}</p>
+                <p className="text-lg sm:text-xl md:text-2xl font-black text-primary italic tracking-tighter leading-none">
+                  {formatCurrency(product.price, product.currency)}
+                  {product.quantityUnit && product.quantityUnit !== 'per item' && (
+                    <span className="text-xs sm:text-sm font-bold text-gray-400 not-italic ml-1">/{product.quantityUnit}</span>
+                  )}
+                </p>
                 {product.pricingOption === 'negotiable' && (
                   <p className="text-[8px] font-black uppercase text-amber-400 tracking-wider mt-0.5">Price Negotiable</p>
                 )}

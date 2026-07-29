@@ -1,4 +1,8 @@
 export const BUSINESS_CATEGORIES = [
+  'Car Rental Service',
+  'Hotel/Lodge Bookings',
+  'Farm Produce',
+  'Clothes/Apparel',
   'Medical Services',
   'Digital Marketing Services',
   'Web Development Services',
@@ -10,7 +14,6 @@ export const BUSINESS_CATEGORIES = [
   'Electronics',
   'Groceries',
   'Construction',
-  'Fashion',
   'Cosmetics',
   'Retail',
   'Education',
@@ -19,14 +22,16 @@ export const BUSINESS_CATEGORIES = [
 
 export const PRODUCT_CATEGORIES = [
   'General',
+  'Car Rental Service',
+  'Hotel/Lodge Bookings',
+  'Farm Produce',
+  'Clothes/Apparel',
   'Equipment',
   'Software',
   'Hardware',
   'Maintenance',
   'Consultation',
   'Subscription',
-  'Produce',
-  'Apparel',
   'Beauty',
   'Home & Garden',
   'Electronics'

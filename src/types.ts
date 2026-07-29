@@ -110,6 +110,7 @@ export interface Product {
   description: string;
   price: number;
   currency: string;
+  quantityUnit?: string;
   category: string;
   images: string[];
   buyButtonType: BuyButtonType;

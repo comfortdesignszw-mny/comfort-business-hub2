@@ -66,6 +66,7 @@ interface ProductForm {
   description: string;
   price: number;
   currency: string;
+  quantityUnit?: string;
   category: string;
   images: string[];
   buyButtonType: BuyButtonType;
@@ -75,11 +76,23 @@ interface ProductForm {
   pricingOption: 'fixed' | 'negotiable' | 'installments' | 'contact_seller_for_price';
 }
 
+const PRESET_QUANTITY_UNITS = [
+  'per item',
+  'per kg',
+  'per tonne',
+  'per night',
+  'per day',
+  'per session',
+  'per box',
+  'per litre'
+];
+
 const initialForm: ProductForm = {
   name: '',
   description: '',
   price: 0,
   currency: 'USD',
+  quantityUnit: 'per item',
   category: 'Electronics',
   images: [],
   buyButtonType: 'chat',
@@ -107,6 +120,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
   const [isWaitingForSync, setIsWaitingForSync] = useState(false);
   const [productToDelete, setProductToDelete] = useState<Product | null>(null);
   const [customCategory, setCustomCategory] = useState('');
+  const [customQuantityUnit, setCustomQuantityUnit] = useState('');
   const [isEditingLocation, setIsEditingLocation] = useState(false);
   const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
   const [waUrl, setWaUrl] = useState('');
@@ -311,11 +325,14 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
   const handleOpenForm = (product?: Product) => {
     if (product) {
       setEditingProduct(product);
+      const prodUnit = product.quantityUnit || 'per item';
+      const isPresetUnit = PRESET_QUANTITY_UNITS.includes(prodUnit);
       setFormData({
         name: product.name,
         description: product.description,
         price: product.price || 0,
         currency: product.currency || 'USD',
+        quantityUnit: isPresetUnit ? prodUnit : 'custom',
         category: PRODUCT_CATEGORIES.includes(product.category) ? product.category : 'Other',
         images: product.images,
         buyButtonType: product.buyButtonType,
@@ -324,6 +341,11 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
         itemType: product.itemType || 'product',
         pricingOption: product.pricingOption || 'fixed'
       });
+      if (!isPresetUnit) {
+        setCustomQuantityUnit(prodUnit);
+      } else {
+        setCustomQuantityUnit('');
+      }
       if (!PRODUCT_CATEGORIES.includes(product.category)) {
         setCustomCategory(product.category);
       } else {
@@ -339,18 +361,22 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
           if (parsed.formData) {
             setFormData(parsed.formData);
             setCustomCategory(parsed.customCategory || '');
+            setCustomQuantityUnit(parsed.customQuantityUnit || '');
             triggerFeedback('Draft Restored', 'Unsaved product parameters resumed from saved app files.', 'message');
           } else {
             setFormData(initialForm);
             setCustomCategory('');
+            setCustomQuantityUnit('');
           }
         } catch (e) {
           setFormData(initialForm);
           setCustomCategory('');
+          setCustomQuantityUnit('');
         }
       } else {
         setFormData(initialForm);
         setCustomCategory('');
+        setCustomQuantityUnit('');
       }
     }
     setShowProductForm(true);
@@ -376,10 +402,14 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
 
     try {
       const finalCategory = formData.category === 'Other' ? customCategory : formData.category;
+      const finalQuantityUnit = formData.quantityUnit === 'custom' || (!PRESET_QUANTITY_UNITS.includes(formData.quantityUnit || ''))
+        ? (customQuantityUnit.trim() || 'per item')
+        : (formData.quantityUnit || 'per item');
       
       const data = {
         ...formData,
         category: finalCategory,
+        quantityUnit: finalQuantityUnit,
         storeId: activeStore.id,
         ownerId: profile.uid,
         images: formData.images.length > 0 ? formData.images : [`https://api.dicebear.com/7.x/shapes/svg?seed=${encodeURIComponent(formData.name)}`],
@@ -1184,6 +1214,53 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
                               <option value="USD" className="bg-[#0d1117] text-white py-2">USD (US Dollar)</option>
                               <option value="ZiG" className="bg-[#0d1117] text-white py-2">ZiG (Zimbabwe Gold)</option>
                             </select>
+                          </div>
+                        </div>
+
+                        {/* Quantity Unit / Pricing Condition (Immediately after price) */}
+                        <div className="space-y-2">
+                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">
+                            Quantity Unit / Pricing Condition
+                          </label>
+                          <div className="space-y-2">
+                            <select 
+                              className="w-full bg-[#0d1117] border border-white/10 rounded-2xl px-4 py-4 text-white outline-none focus:border-primary/50 text-xs font-bold appearance-none cursor-pointer shadow-xl"
+                              value={
+                                PRESET_QUANTITY_UNITS.includes(formData.quantityUnit || 'per item')
+                                  ? (formData.quantityUnit || 'per item')
+                                  : 'custom'
+                              }
+                              onChange={e => {
+                                const val = e.target.value;
+                                setFormData(prev => ({ ...prev, quantityUnit: val }));
+                              }}
+                            >
+                              <option value="per item" className="bg-[#0d1117] text-white py-2">per item / unit (Standard)</option>
+                              <option value="per kg" className="bg-[#0d1117] text-white py-2">per kg (Kilogram)</option>
+                              <option value="per tonne" className="bg-[#0d1117] text-white py-2">per tonne (Tonne)</option>
+                              <option value="per night" className="bg-[#0d1117] text-white py-2">per night (Hotel / Lodge Bookings)</option>
+                              <option value="per day" className="bg-[#0d1117] text-white py-2">per day (Car Rental / Daily Rate)</option>
+                              <option value="per session" className="bg-[#0d1117] text-white py-2">per session (Service / Booking)</option>
+                              <option value="per box" className="bg-[#0d1117] text-white py-2">per box / package</option>
+                              <option value="per litre" className="bg-[#0d1117] text-white py-2">per litre (Liquid / Fuel)</option>
+                              <option value="custom" className="bg-[#0d1117] text-white py-2">✨ Custom Quantity or Condition...</option>
+                            </select>
+
+                            {(formData.quantityUnit === 'custom' || (!PRESET_QUANTITY_UNITS.includes(formData.quantityUnit || 'per item') && formData.quantityUnit !== undefined)) && (
+                              <div className="space-y-1 pt-1">
+                                <label className="text-[9px] font-black text-neon-green uppercase tracking-widest ml-1">Specify Custom Quantity or Condition</label>
+                                <input 
+                                  type="text"
+                                  className="w-full bg-white/5 border border-primary/40 rounded-2xl px-4 py-4 text-white outline-none focus:border-primary font-bold text-xs transition-all shadow-[0_0_15px_rgba(0,242,254,0.1)]"
+                                  placeholder="e.g. per crate, per hour, per 50kg bag, per trip"
+                                  value={customQuantityUnit}
+                                  onChange={e => {
+                                    setCustomQuantityUnit(e.target.value);
+                                  }}
+                                  required
+                                />
+                              </div>
+                            )}
                           </div>
                         </div>
 
