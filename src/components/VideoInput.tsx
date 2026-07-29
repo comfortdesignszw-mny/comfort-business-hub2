@@ -9,8 +9,15 @@ interface VideoInputProps {
   className?: string;
 }
 
-export default function VideoInput({ value, onChange, label = 'Classified Video (Optional, <5MB or <10s)', className }: VideoInputProps) {
-  const [mode, setMode] = useState<'upload' | 'url'>('upload');
+const PRESET_VIDEOS = [
+  { name: '📱 Tech Promo', url: 'https://assets.mixkit.co/videos/preview/mixkit-hands-holding-a-smartphone-with-green-screen-41558-large.mp4' },
+  { name: '🛍️ Store Showcase', url: 'https://assets.mixkit.co/videos/preview/mixkit-woman-shopping-for-clothes-in-a-store-41539-large.mp4' },
+  { name: '☕ Gourmet / Food', url: 'https://assets.mixkit.co/videos/preview/mixkit-barista-pouring-coffee-into-a-cup-41548-large.mp4' },
+  { name: '⚡ E-Commerce Sale', url: 'https://assets.mixkit.co/videos/preview/mixkit-online-shopping-on-a-laptop-41560-large.mp4' }
+];
+
+export default function VideoInput({ value, onChange, label = 'Classified Video Ad (Max 750KB file or Direct Video URL)', className }: VideoInputProps) {
+  const [mode, setMode] = useState<'upload' | 'url' | 'presets'>('upload');
   const [urlInput, setUrlInput] = useState(value || '');
   const [error, setError] = useState<string | null>(null);
   const [isPlaying, setIsPlaying] = useState(false);
@@ -24,11 +31,12 @@ export default function VideoInput({ value, onChange, label = 'Classified Video 
 
     setError(null);
 
-    // 1. Check size limit: 5 MB = 5 * 1024 * 1024 bytes
-    const maxSizeInBytes = 5 * 1024 * 1024;
+    // 1. Strict size limit for inline Firestore Base64: 750 KB
+    const maxSizeInBytes = 750 * 1024;
     if (file.size > maxSizeInBytes) {
       const sizeInMB = (file.size / (1024 * 1024)).toFixed(2);
-      setError(`Video file is ${sizeInMB}MB. Maximum allowed file size is 5MB.`);
+      const sizeInKB = Math.round(file.size / 1024);
+      setError(`Video file is ${sizeInMB}MB (${sizeInKB}KB). Maximum allowed file size for inline upload is 750KB to ensure instant database saving. Tip: Compress your video or use "Direct Video URL" for unlimited file sizes.`);
       return;
     }
 
@@ -49,8 +57,8 @@ export default function VideoInput({ value, onChange, label = 'Classified Video 
       URL.revokeObjectURL(videoUrl);
       const duration = tempVideo.duration;
 
-      if (duration > 10.5) {
-        setError(`Video is ${Math.round(duration)}s long. Maximum allowed video length for classified ads is 10 seconds.`);
+      if (duration > 15.5) {
+        setError(`Video is ${Math.round(duration)}s long. Maximum allowed video length for inline ad clips is 15 seconds.`);
         setLoading(false);
         return;
       }
@@ -165,26 +173,36 @@ export default function VideoInput({ value, onChange, label = 'Classified Video 
       ) : (
         <div className="space-y-2">
           {/* Mode Selector */}
-          <div className="grid grid-cols-2 gap-1 bg-[#0d1117] p-1 rounded-xl border border-white/10 text-[9px] font-black uppercase tracking-wider">
+          <div className="grid grid-cols-3 gap-1 bg-[#0d1117] p-1 rounded-xl border border-white/10 text-[9px] font-black uppercase tracking-wider">
             <button
               type="button"
               onClick={() => setMode('upload')}
               className={cn(
-                "py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5",
+                "py-1.5 rounded-lg transition-all flex items-center justify-center gap-1",
                 mode === 'upload' ? "bg-primary/20 text-primary border border-primary/30" : "text-gray-400 hover:text-white"
               )}
             >
-              <Upload size={12} /> Upload File (&lt;5MB)
+              <Upload size={11} /> File (&lt;750KB)
             </button>
             <button
               type="button"
               onClick={() => setMode('url')}
               className={cn(
-                "py-1.5 rounded-lg transition-all flex items-center justify-center gap-1.5",
+                "py-1.5 rounded-lg transition-all flex items-center justify-center gap-1",
                 mode === 'url' ? "bg-primary/20 text-primary border border-primary/30" : "text-gray-400 hover:text-white"
               )}
             >
-              <LinkIcon size={12} /> Direct Video URL
+              <LinkIcon size={11} /> Direct URL
+            </button>
+            <button
+              type="button"
+              onClick={() => setMode('presets')}
+              className={cn(
+                "py-1.5 rounded-lg transition-all flex items-center justify-center gap-1",
+                mode === 'presets' ? "bg-accent/20 text-accent border border-accent/30" : "text-gray-400 hover:text-white"
+              )}
+            >
+              <Video size={11} /> Sample Presets
             </button>
           </div>
 
@@ -208,11 +226,11 @@ export default function VideoInput({ value, onChange, label = 'Classified Video 
                   {loading ? 'Processing Video File...' : 'Choose Device Video File'}
                 </span>
                 <span className="text-[9px] text-gray-500 font-medium">
-                  Max size: 5MB • Max length: 10 seconds • MP4, WebM, MOV
+                  Max size: 750KB • Max length: 15 seconds • MP4, WebM, MOV
                 </span>
               </label>
             </div>
-          ) : (
+          ) : mode === 'url' ? (
             <div className="flex gap-2">
               <input
                 type="url"
@@ -228,6 +246,22 @@ export default function VideoInput({ value, onChange, label = 'Classified Video 
               >
                 <Check size={14} /> Attach
               </button>
+            </div>
+          ) : (
+            <div className="grid grid-cols-2 gap-1.5 p-1 bg-[#0d1117] rounded-xl border border-white/10">
+              {PRESET_VIDEOS.map((preset, idx) => (
+                <button
+                  key={`video-preset-${idx}`}
+                  type="button"
+                  onClick={() => {
+                    onChange(preset.url);
+                    setUrlInput(preset.url);
+                  }}
+                  className="p-2 bg-white/5 hover:bg-primary/20 border border-white/10 hover:border-primary/40 rounded-lg text-left transition-all text-[10px] font-bold text-gray-300 hover:text-primary"
+                >
+                  {preset.name}
+                </button>
+              ))}
             </div>
           )}
         </div>

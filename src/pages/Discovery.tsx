@@ -5,7 +5,7 @@ import {
   Search, MapPin, Filter, Star, Zap, ShoppingBag, Store, ArrowRight, 
   SlidersHorizontal, MessageSquare, Sparkles, X, Phone, Check, Loader2, MapPinned, CreditCard,
   Megaphone, Calendar, FileText, Building2, ExternalLink, Share2, Info, Users, Shield, Map as MapIcon, List, UserPlus, Heart,
-  Tag, Clock, Flame, DollarSign, Send, RotateCcw
+  Tag, Clock, Flame, DollarSign, Send, RotateCcw, Video
 } from 'lucide-react';
 import { UserProfile, Product, Store as StoreType, Message, Spotlight, PublicProfile } from '../types';
 import { cn, formatCurrency, openWhatsApp } from '../lib/utils';
@@ -541,7 +541,7 @@ useEffect(() => {
                 </div>
 
                 {selectedSpotlightAd.videoUrl ? (
-                  <div className="w-full h-52 sm:h-60 rounded-2xl overflow-hidden border border-white/10 relative bg-black flex items-center justify-center">
+                  <div className="w-full h-60 sm:h-72 rounded-2xl overflow-hidden border border-primary/40 relative bg-black shadow-[0_0_30px_rgba(0,242,254,0.15)] group/modalmedia">
                     <video 
                       src={selectedSpotlightAd.videoUrl} 
                       controls 
@@ -549,19 +549,22 @@ useEffect(() => {
                       loop 
                       muted 
                       playsInline 
-                      className="w-full h-full object-contain"
+                      className="w-full h-full object-contain bg-black"
                     />
+                    <div className="absolute top-3 left-3 bg-black/80 backdrop-blur-md text-neon-green border border-neon-green/40 px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-widest flex items-center gap-1.5 z-10 pointer-events-none">
+                      <span className="w-2 h-2 rounded-full bg-neon-green animate-ping" /> Animated Video Ad (HD)
+                    </div>
                     {selectedSpotlightAd.price && (
-                      <div className="absolute bottom-3 left-3 bg-primary text-[#05070a] font-black text-sm px-4 py-1.5 rounded-xl shadow-lg z-10">
+                      <div className="absolute bottom-3 left-3 bg-gradient-to-r from-primary to-accent text-[#05070a] font-black text-sm px-4 py-1.5 rounded-xl shadow-lg z-10">
                         {selectedSpotlightAd.price}
                       </div>
                     )}
                   </div>
                 ) : selectedSpotlightAd.image ? (
-                  <div className="w-full h-48 sm:h-56 rounded-2xl overflow-hidden border border-white/10 relative">
-                    <img src={selectedSpotlightAd.image} className="w-full h-full object-cover" />
+                  <div className="w-full h-56 sm:h-64 rounded-2xl overflow-hidden border border-white/20 relative group/modalimage shadow-lg">
+                    <img src={selectedSpotlightAd.image} className="w-full h-full object-cover transition-transform duration-700 group-hover/modalimage:scale-105" alt={selectedSpotlightAd.title} />
                     {selectedSpotlightAd.price && (
-                      <div className="absolute bottom-3 left-3 bg-primary text-[#05070a] font-black text-sm px-4 py-1.5 rounded-xl shadow-lg">
+                      <div className="absolute bottom-3 left-3 bg-gradient-to-r from-primary to-accent text-[#05070a] font-black text-sm px-4 py-1.5 rounded-xl shadow-lg">
                         {selectedSpotlightAd.price}
                       </div>
                     )}
@@ -754,122 +757,168 @@ useEffect(() => {
         </section>
 
         {/* 2. Market Spotlight / Classified Carousel Section (Marketing Spotlight) */}
-        <section className="relative overflow-hidden rounded-[2rem] border border-primary/30 shadow-2xl bg-[#05070a] min-h-[220px] flex flex-col">
+        <section className="relative overflow-hidden rounded-[2.5rem] border border-primary/30 shadow-2xl bg-[#05070a] min-h-[220px]">
           <AnimatePresence mode="wait">
             {spotlights.length > 0 ? (
               (() => {
                 const currentSpotlight = spotlights[activeSpotlightIndex];
                 const isClassified = currentSpotlight.isClassified || currentSpotlight.type === 'classified';
                 const timeInfo = getTimeLeftText(currentSpotlight.expiresAt);
+                const hasMedia = !!(currentSpotlight.videoUrl || currentSpotlight.image);
 
                 return (
                   <motion.div 
                     key={currentSpotlight.id}
-                    initial={{ opacity: 0, scale: 0.98 }}
-                    animate={{ opacity: 1, scale: 1 }}
-                    exit={{ opacity: 0, scale: 0.98 }}
-                    transition={{ duration: 0.3 }}
+                    initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                    animate={{ opacity: 1, y: 0, scale: 1 }}
+                    exit={{ opacity: 0, y: -10, scale: 0.98 }}
+                    transition={{ duration: 0.35, ease: 'easeOut' }}
                     onClick={() => setSelectedSpotlightAd(currentSpotlight)}
                     className={cn(
-                      "relative h-full min-h-[220px] flex flex-col justify-between p-4 group cursor-pointer overflow-hidden rounded-[2rem] border transition-all text-left shadow-2xl flex-1",
+                      "relative h-full min-h-[230px] p-4 sm:p-6 group cursor-pointer overflow-hidden rounded-[2.5rem] border transition-all text-left shadow-2xl flex flex-col justify-between",
                       isClassified 
-                        ? "border-amber-500/40 shadow-[0_0_30px_rgba(245,158,11,0.15)] bg-gradient-to-br from-[#181108] via-[#0d1017] to-[#05070a]" 
-                        : "border-primary/30 shadow-[0_0_30px_rgba(0,242,254,0.12)] bg-[#05070a]"
+                        ? "border-amber-500/40 shadow-[0_0_35px_rgba(245,158,11,0.2)] bg-gradient-to-br from-[#181108] via-[#0d1017] to-[#05070a]" 
+                        : "border-primary/40 shadow-[0_0_35px_rgba(0,242,254,0.18)] bg-gradient-to-br from-[#07131e] via-[#080d14] to-[#05070a]"
                     )}
                   >
-                    {/* Background Image/Video & Gradient */}
-                    <div className="absolute inset-0 z-0 overflow-hidden">
+                    {/* Background Subtle Ambient Glow */}
+                    <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
                       {currentSpotlight.videoUrl ? (
-                        <video 
-                          src={currentSpotlight.videoUrl} 
-                          autoPlay 
-                          loop 
-                          muted 
-                          playsInline 
-                          className="w-full h-full object-cover opacity-50 group-hover:scale-105 transition-transform duration-1000"
-                        />
+                        <div className="absolute -right-20 -top-20 w-80 h-80 bg-primary/20 rounded-full blur-3xl animate-pulse" />
                       ) : (
-                        <OptimizedImage 
-                          src={currentSpotlight.image || "https://images.unsplash.com/photo-1540350394557-8d14678e7f91?w=800&q=80"} 
-                          className="w-full h-full object-cover opacity-25 group-hover:scale-105 transition-transform duration-1000" 
-                          alt="Spotlight Ad" 
-                        />
-                      )}
-                      <div className="absolute inset-0 bg-gradient-to-t from-[#05070a] via-[#05070a]/80 to-[#05070a]/40"></div>
-                    </div>
-
-                    {/* Header Row: Badges, Timer */}
-                    <div className="relative z-10 flex items-center justify-between gap-1.5 border-b border-white/10 pb-2 mb-1">
-                      <div className="flex items-center gap-1.5 min-w-0">
-                        {isClassified ? (
-                          <div className="px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1 shrink-0">
-                            <Tag size={10} /> Classified Ad
-                          </div>
-                        ) : (
-                          <div className="glass-pill !text-primary !border-primary/30 flex items-center gap-1 text-[8px] py-0.5 px-2">
-                            <Megaphone size={10} className="animate-pulse" /> Spotlight
-                          </div>
-                        )}
-                      </div>
-
-                      <div className="flex items-center gap-1.5 shrink-0">
-                        {timeInfo && (
-                          <span className={cn(
-                            "px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider border flex items-center gap-1 backdrop-blur-md",
-                            timeInfo.expired 
-                              ? "bg-red-500/20 text-red-400 border-red-500/30" 
-                              : "bg-primary/20 text-primary border-primary/30"
-                          )}>
-                            <Clock size={10} /> {timeInfo.text}
-                          </span>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* Middle Main Content */}
-                    <div className="relative z-10 space-y-1 my-1">
-                      <div className="flex items-baseline justify-between gap-2">
-                        <h3 className="text-xs sm:text-sm font-black text-white uppercase tracking-tight leading-snug line-clamp-2">
-                          {currentSpotlight.title}
-                        </h3>
-                        {currentSpotlight.price && (
-                          <span className="px-2 py-0.5 bg-gradient-to-r from-primary to-accent text-[#05070a] font-black text-[9px] rounded-lg shrink-0">
-                            {currentSpotlight.price}
-                          </span>
-                        )}
-                      </div>
-
-                      {currentSpotlight.content && (
-                        <p className="text-[10px] text-gray-300 font-normal leading-relaxed line-clamp-2">
-                          {currentSpotlight.content}
-                        </p>
+                        <div className="absolute -right-20 -top-20 w-80 h-80 bg-amber-500/15 rounded-full blur-3xl animate-pulse" />
                       )}
                     </div>
 
-                    {/* Footer Row: Dots & Action Button */}
-                    <div className="relative z-10 flex items-center justify-between gap-2 pt-2 border-t border-white/10">
-                      {spotlights.length > 1 && (
-                        <div className="flex gap-1 items-center">
-                          {spotlights.map((_, idx) => (
-                            <div 
-                              key={idx} 
-                              onClick={(e) => {
-                                e.stopPropagation();
-                                setActiveSpotlightIndex(idx);
-                              }}
-                              className={cn(
-                                "h-1 rounded-full transition-all duration-300 cursor-pointer",
-                                idx === activeSpotlightIndex ? "w-4 bg-primary" : "w-1 bg-white/30 hover:bg-white/60"
-                              )}
-                            />
-                          ))}
+                    {/* Main Content Layout - Split Grid when Media Exists */}
+                    <div className="relative z-10 flex flex-col sm:flex-row items-stretch gap-4 sm:gap-6 flex-1">
+                      
+                      {/* Left Column: Badges, Title, Details, Action */}
+                      <div className="flex-1 flex flex-col justify-between space-y-3 min-w-0">
+                        {/* Header Row: Badges, Timer */}
+                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-2">
+                          <div className="flex items-center gap-1.5 min-w-0">
+                            {isClassified ? (
+                              <div className="px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1 shrink-0 shadow-[0_0_10px_rgba(245,158,11,0.3)]">
+                                <Tag size={11} /> Classified Ad
+                              </div>
+                            ) : (
+                              <div className="px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-primary/20 text-primary border border-primary/40 flex items-center gap-1 shrink-0 shadow-[0_0_10px_rgba(0,242,254,0.3)]">
+                                <Megaphone size={11} className="animate-pulse" /> Spotlight Broadcast
+                              </div>
+                            )}
+
+                            {currentSpotlight.videoUrl && (
+                              <div className="px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider bg-red-500/20 text-red-400 border border-red-500/30 flex items-center gap-1 animate-pulse">
+                                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" /> LIVE VIDEO
+                              </div>
+                            )}
+                          </div>
+
+                          <div className="flex items-center gap-1.5 shrink-0">
+                            {timeInfo && (
+                              <span className={cn(
+                                "px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-wider border flex items-center gap-1 backdrop-blur-md",
+                                timeInfo.expired 
+                                  ? "bg-red-500/20 text-red-400 border-red-500/30" 
+                                  : "bg-white/10 text-gray-300 border-white/15"
+                              )}>
+                                <Clock size={10} className="text-primary" /> {timeInfo.text}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+
+                        {/* Title & Price */}
+                        <div className="space-y-1.5">
+                          <div className="flex items-start justify-between gap-2">
+                            <h3 className="text-sm sm:text-base font-black text-white uppercase tracking-tight leading-snug group-hover:text-primary transition-colors line-clamp-2">
+                              {currentSpotlight.title}
+                            </h3>
+                            {currentSpotlight.price && (
+                              <span className="px-2.5 py-1 bg-gradient-to-r from-primary to-accent text-[#05070a] font-black text-[10px] rounded-lg shrink-0 shadow-md">
+                                {currentSpotlight.price}
+                              </span>
+                            )}
+                          </div>
+
+                          {currentSpotlight.content && (
+                            <p className="text-[11px] text-gray-300 font-normal leading-relaxed line-clamp-2">
+                              {currentSpotlight.content}
+                            </p>
+                          )}
+                        </div>
+
+                        {/* Author & Footer Controls */}
+                        <div className="flex items-center justify-between gap-2 pt-2 border-t border-white/10 mt-auto">
+                          {currentSpotlight.authorName ? (
+                            <span className="text-[9px] text-gray-400 font-bold uppercase tracking-widest truncate">
+                              By <span className="text-primary">{currentSpotlight.authorName}</span>
+                            </span>
+                          ) : <div />}
+
+                          <button className="px-3.5 py-1.5 bg-primary hover:bg-primary/90 text-[#05070a] rounded-xl text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-[0_0_15px_rgba(0,242,254,0.3)] hover:scale-105 active:scale-95 transition-all ml-auto">
+                            View Ad <ArrowRight size={11} />
+                          </button>
+                        </div>
+                      </div>
+
+                      {/* Right Column: Featured Crystal-Clear Media Frame with Animation */}
+                      {hasMedia && (
+                        <div className="w-full sm:w-48 md:w-56 h-36 sm:h-auto rounded-2xl border border-white/20 overflow-hidden relative group/media shrink-0 shadow-xl bg-black/80 flex items-center justify-center">
+                          {currentSpotlight.videoUrl ? (
+                            <div className="relative w-full h-full">
+                              <video 
+                                src={currentSpotlight.videoUrl} 
+                                autoPlay 
+                                loop 
+                                muted 
+                                playsInline 
+                                className="w-full h-full object-cover transition-transform duration-700 group-hover/media:scale-105"
+                              />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
+                              <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between pointer-events-none">
+                                <span className="px-2 py-0.5 bg-black/70 backdrop-blur-md text-neon-green border border-neon-green/40 rounded-md text-[8px] font-black uppercase tracking-widest flex items-center gap-1">
+                                  <Video size={10} className="animate-pulse" /> Animated Ad
+                                </span>
+                              </div>
+                            </div>
+                          ) : (
+                            <div className="relative w-full h-full overflow-hidden">
+                              <OptimizedImage 
+                                src={currentSpotlight.image || "https://images.unsplash.com/photo-1540350394557-8d14678e7f91?w=800&q=80"} 
+                                className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover/media:scale-110" 
+                                alt={currentSpotlight.title} 
+                              />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
+                            </div>
+                          )}
+
+                          {/* Subtle glowing frame border animation */}
+                          <div className="absolute inset-0 border border-primary/30 rounded-2xl pointer-events-none group-hover/media:border-primary/70 transition-colors" />
                         </div>
                       )}
 
-                      <button className="px-3 py-1 bg-primary hover:bg-primary/90 text-[#05070a] rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1 shadow-[0_0_12px_rgba(0,242,254,0.25)] hover:scale-105 transition-all ml-auto">
-                        View Ad <ArrowRight size={10} />
-                      </button>
                     </div>
+
+                    {/* Pagination Dots at Bottom */}
+                    {spotlights.length > 1 && (
+                      <div className="relative z-10 flex justify-center gap-1.5 items-center pt-3 border-t border-white/10 mt-3">
+                        {spotlights.map((_, idx) => (
+                          <div 
+                            key={idx} 
+                            onClick={(e) => {
+                              e.stopPropagation();
+                              setActiveSpotlightIndex(idx);
+                            }}
+                            className={cn(
+                              "h-1.5 rounded-full transition-all duration-300 cursor-pointer",
+                              idx === activeSpotlightIndex ? "w-6 bg-primary shadow-[0_0_8px_#00f2fe]" : "w-1.5 bg-white/30 hover:bg-white/60"
+                            )}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </motion.div>
                 );
               })()

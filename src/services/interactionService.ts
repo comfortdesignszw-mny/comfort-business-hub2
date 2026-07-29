@@ -56,6 +56,7 @@ export const interactionService = {
       case 'like_product': return 'Product Liked';
       case 'connect_request': return 'Connection Uplink Request';
       case 'connect_accept': return 'Connection Protocol Established';
+      case 'spotlight_approval': return '📢 Ad Pending Approval';
       default: return 'Hub Update';
     }
   },
@@ -70,7 +71,45 @@ export const interactionService = {
       case 'like_product': return `${name} liked one of your inventory items.`;
       case 'connect_request': return `${name} wants to establish a trusted connection with you.`;
       case 'connect_accept': return `${name} accepted your connection request. You are now trusted partners.`;
+      case 'spotlight_approval': return `${name} created an ad/spotlight pending admin approval.`;
       default: return `New activity detected from ${name}.`;
+    }
+  },
+
+  async notifyAdminsOfPendingAd(
+    adTitle: string,
+    authorName: string,
+    authorUid: string,
+    adId?: string
+  ) {
+    try {
+      const snap = await getDocs(collection(db, 'users'));
+      const adminDocs = snap.docs.filter(d => {
+        const data = d.data();
+        return data.isAdmin === true || data.email === 'comfort.designszw@gmail.com';
+      });
+
+      const adminUids = new Set<string>();
+      adminDocs.forEach(d => adminUids.add(d.id));
+
+      const promises = Array.from(adminUids).map(adminUid => {
+        if (adminUid === authorUid) return Promise.resolve();
+        return addDoc(collection(db, 'notifications'), {
+          userId: adminUid,
+          type: 'spotlight_approval',
+          fromUserId: authorUid,
+          fromUserName: authorName || 'Supplier',
+          targetId: adId || 'admin_spotlights',
+          title: '📢 New Ad Pending Approval',
+          message: `${authorName || 'A supplier'} created a new ad/spotlight "${adTitle}". Review and approve it in Command Center to show on Explorer Hub.`,
+          read: false,
+          createdAt: serverTimestamp()
+        });
+      });
+
+      await Promise.all(promises);
+    } catch (err) {
+      console.error('Failed to notify admins of pending ad:', err);
     }
   },
 

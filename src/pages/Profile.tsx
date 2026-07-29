@@ -5,7 +5,7 @@ import {
   User, Store, Phone, MapPin, Shield, LogOut, ChevronRight, Wallet, 
   Bell, Zap, Image as ImageIcon, X, Check, CheckCircle, CreditCard, 
   Navigation, Crosshair, Save, Loader2, Megaphone, Trash2, Calendar, FileText, Plus, Users, MessageSquare, Share, RefreshCw, Download
-, Network, ExternalLink, Fingerprint, Compass, BellRing, Clock, Tag, Flame, Sparkles, DollarSign, Layers, MessageCircle, MapPinned, Landmark, Star } from 'lucide-react';
+, Network, ExternalLink, Fingerprint, Compass, BellRing, Clock, Tag, Flame, Sparkles, DollarSign, Layers, MessageCircle, MapPinned, Landmark, Star, Video } from 'lucide-react';
 import BiometricAuthModal from '../components/BiometricAuthModal';
 import AppTutorialModal from '../components/AppTutorialModal';
 import PushNotificationSettingsModal from '../components/PushNotificationSettingsModal';
@@ -17,6 +17,7 @@ import { geohashForLocation } from 'geofire-common';
 import { doc, updateDoc, collection, addDoc, query, where, getDocs, deleteDoc, orderBy, serverTimestamp, limit, onSnapshot , getCountFromServer } from 'firebase/firestore';
 import { cn, formatCurrency } from '../lib/utils';
 import { useNotifications } from '../components/NotificationProvider';
+import { interactionService } from '../services/interactionService';
 import ImageInput from '../components/ImageInput';
 import VideoInput from '../components/VideoInput';
 import LocationPicker from '../components/LocationPicker';
@@ -1108,11 +1109,13 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
 }
 
 function SpotlightManager({ profile }: { profile: UserProfile }) {
+  const { triggerFeedback } = useNotifications();
   const [spotlights, setSpotlights] = useState<Spotlight[]>([]);
   const [loading, setLoading] = useState(true);
   const [isAdding, setIsAdding] = useState(false);
   const [editingSpotlight, setEditingSpotlight] = useState<Spotlight | null>(null);
   const [success, setSuccess] = useState(false);
+  const [lastSubmittedIsApproved, setLastSubmittedIsApproved] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
 
   // Form Mode: 'classified' vs 'spotlight'
@@ -1242,7 +1245,8 @@ function SpotlightManager({ profile }: { profile: UserProfile }) {
     try {
       const isClassified = postMode === 'classified';
       const duration = formData.durationHours || 168;
-      const expiresAt = isClassified ? calculateExpiresAt(duration) : null;
+      // Calculate expiresAt for both classifieds and spotlights so video ads auto-delete after duration
+      const expiresAt = calculateExpiresAt(duration);
       const isAdminUser = profile?.isAdmin || profile?.email === 'comfort.designszw@gmail.com';
       const isApproved = isAdminUser ? true : false;
 
@@ -1251,11 +1255,19 @@ function SpotlightManager({ profile }: { profile: UserProfile }) {
         type: isClassified ? 'classified' : (formData.type === 'classified' ? 'news' : formData.type || 'news'),
         isClassified,
         isApproved,
-        expiresAt: expiresAt || formData.expiresAt || null,
+        expiresAt: expiresAt,
         authorId: profile.uid,
         authorName: profile.businessName || profile.name,
       };
 
+      // Safeguard against payload size limit (Firestore 1MB limit)
+      if (JSON.stringify(payload).length > 950000) {
+        triggerFeedback('Video Payload Exceeds Database Limit', 'The video or ad content is too large to fit in cloud storage. Please compress your video or use a "Direct Video URL".', 'report');
+        setLoading(false);
+        return;
+      }
+
+      let createdDocId = editingSpotlight?.id;
       if (editingSpotlight) {
         const data = {
           ...payload,
@@ -1267,9 +1279,21 @@ function SpotlightManager({ profile }: { profile: UserProfile }) {
           ...payload,
           createdAt: serverTimestamp(),
         };
-        await addDoc(collection(db, 'spotlights'), data);
+        const docRef = await addDoc(collection(db, 'spotlights'), data);
+        createdDocId = docRef.id;
       }
-      
+
+      // If created or edited by a non-admin, notify available Admin(s) via push notification
+      if (!isApproved) {
+        await interactionService.notifyAdminsOfPendingAd(
+          payload.title || 'New Ad / Spotlight',
+          profile.businessName || profile.name || 'Supplier',
+          profile.uid,
+          createdDocId
+        );
+      }
+
+      setLastSubmittedIsApproved(isApproved);
       setSuccess(true);
       setTimeout(() => {
         setIsAdding(false);
@@ -1295,7 +1319,7 @@ function SpotlightManager({ profile }: { profile: UserProfile }) {
           targetType: 'whatsapp',
           tier: 'featured',
         });
-      }, 1000);
+      }, 3500);
     } catch (err) {
       handleFirestoreError(err, editingSpotlight ? OperationType.UPDATE : OperationType.CREATE, editingSpotlight ? `spotlights/${editingSpotlight.id}` : 'spotlights');
     } finally {
@@ -1648,18 +1672,24 @@ function SpotlightManager({ profile }: { profile: UserProfile }) {
               type="submit"
               disabled={loading || success}
               className={cn(
-                "flex-[2] py-4 flex items-center justify-center gap-3 text-[11px] font-black uppercase tracking-[0.2em] rounded-2xl transition-all",
+                "flex-[2] py-4 px-3 flex items-center justify-center gap-2 text-[10px] font-black uppercase tracking-wider rounded-2xl transition-all text-center leading-snug",
                 success 
-                  ? "bg-neon-green text-[#05070a] shadow-[0_0_30px_#39FF14] scale-105" 
+                  ? (lastSubmittedIsApproved 
+                      ? "bg-neon-green text-[#05070a] shadow-[0_0_30px_#39FF14] scale-105" 
+                      : "bg-amber-400 text-[#05070a] shadow-[0_0_30px_rgba(251,191,36,0.6)] scale-105")
                   : "bg-gradient-to-r from-primary to-accent text-[#05070a] shadow-[0_0_30px_rgba(0,242,254,0.4)] hover:scale-[1.02] active:scale-95"
               )}
             >
               {loading ? (
                 <Loader2 className="animate-spin" size={16} />
               ) : success ? (
-                <>
-                  <Check size={18} /> Published to Explorer
-                </>
+                <span className="flex items-center justify-center gap-2 font-black">
+                  <Check size={18} className="shrink-0" />
+                  {lastSubmittedIsApproved 
+                    ? "Published to Explorer & Live on Hub" 
+                    : "Ad or Spotlight created, now pending approval to show on the Hub"
+                  }
+                </span>
               ) : (
                 <>
                   <Sparkles size={18} /> {editingSpotlight ? 'Update Listing' : 'Publish to Market'}
@@ -1694,16 +1724,21 @@ function SpotlightManager({ profile }: { profile: UserProfile }) {
                     )}
                   >
                     <div className="flex gap-4 items-start relative z-10">
-                      <div className="w-16 h-16 bg-[#0d1117] rounded-2xl border border-white/10 overflow-hidden flex-shrink-0 flex items-center justify-center text-primary relative">
+                      <div className="w-24 h-24 sm:w-28 sm:h-28 bg-[#0d1117] rounded-2xl border border-white/20 overflow-hidden shrink-0 flex items-center justify-center text-primary relative shadow-lg group-hover:border-primary/50 transition-colors">
                         {s.videoUrl ? (
-                          <video src={s.videoUrl} autoPlay loop muted playsInline className="w-full h-full object-cover" />
+                          <div className="relative w-full h-full">
+                            <video src={s.videoUrl} autoPlay loop muted playsInline className="w-full h-full object-cover" />
+                            <div className="absolute top-1 right-1 bg-black/70 backdrop-blur-md text-neon-green p-1 rounded-md border border-neon-green/30">
+                              <Video size={10} className="animate-pulse" />
+                            </div>
+                          </div>
                         ) : s.image ? (
-                          <img src={s.image} className="w-full h-full object-cover" />
+                          <img src={s.image} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" alt={s.title} />
                         ) : (
                           <Tag size={28} />
                         )}
                         {s.price && (
-                          <div className="absolute bottom-0 inset-x-0 bg-primary/90 text-[#05070a] text-[8px] font-black text-center py-0.5 truncate">
+                          <div className="absolute bottom-0 inset-x-0 bg-primary/90 text-[#05070a] text-[9px] font-black text-center py-0.5 truncate">
                             {s.price}
                           </div>
                         )}

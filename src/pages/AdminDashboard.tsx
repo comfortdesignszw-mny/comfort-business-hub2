@@ -3,17 +3,27 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   ShieldAlert, Users, Search, Filter, CheckCircle, Info, XCircle, ArrowRight, 
   Trash2, Pause, Play, AlertCircle, Calendar, Hash, Tag, User as UserIcon, Store, ShoppingBag, ExternalLink, Loader2,
-  X, AlertTriangle, Shield, Check, Megaphone, Clock
+  X, AlertTriangle, Shield, Check, Megaphone, Clock, Video
 } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { collection, query, orderBy, onSnapshot, doc, updateDoc, getDocs, where, writeBatch, serverTimestamp, deleteDoc } from 'firebase/firestore';
 import { Report, UserProfile, Role, Store as StoreType, Product, Spotlight } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
-import { useNavigate } from 'react-router-dom';
+import { useNavigate, useLocation } from 'react-router-dom';
+import { interactionService } from '../services/interactionService';
 
 export default function AdminDashboard({ profile }: { profile: UserProfile | null }) {
   const navigate = useNavigate();
+  const location = useLocation();
   const [activeTab, setActiveTab] = useState<'users' | 'stores' | 'products' | 'reports' | 'ads'>('users');
+
+  useEffect(() => {
+    const params = new URLSearchParams(location.search);
+    if (params.get('tab') === 'ads' || location.state?.tab === 'ads') {
+      setActiveTab('ads');
+      setAdFilter('pending');
+    }
+  }, [location]);
   const [reports, setReports] = useState<Report[]>([]);
   const [users, setUsers] = useState<UserProfile[]>([]);
   const [stores, setStores] = useState<StoreType[]>([]);
@@ -103,6 +113,20 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
         updatedAt: serverTimestamp()
       });
       setSpotlights(prev => prev.map(s => s.id === spotlightId ? { ...s, isApproved } : s));
+
+      if (isApproved && profile) {
+        const targetSpotlight = spotlights.find(s => s.id === spotlightId);
+        if (targetSpotlight && targetSpotlight.authorId) {
+          await interactionService.sendNotification(
+            targetSpotlight.authorId,
+            'spotlight_approval',
+            profile,
+            spotlightId,
+            '🎉 Ad Approved & Live!',
+            `Your ad or spotlight "${targetSpotlight.title || 'Ad'}" has been approved by admin and is now live on Explorer Hub!`
+          );
+        }
+      }
     } catch (err) {
       handleFirestoreError(err, OperationType.UPDATE, `spotlights/${spotlightId}`);
     } finally {
@@ -749,16 +773,21 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
                 return (
                   <div key={`admin-ad-${ad.id || idx}-${idx}`} className="neon-card p-5 flex flex-col md:flex-row md:items-center justify-between gap-4 border-white/5 bg-[#0d1117] relative overflow-hidden">
                     <div className="flex items-start gap-4 flex-1">
-                      <div className="w-20 h-20 rounded-2xl border border-white/10 bg-white/5 overflow-hidden shrink-0 flex items-center justify-center text-primary relative">
+                      <div className="w-24 h-24 rounded-2xl border border-white/20 bg-black overflow-hidden shrink-0 flex items-center justify-center text-primary relative shadow-lg group hover:border-primary/50 transition-colors">
                         {ad.videoUrl ? (
-                          <video src={ad.videoUrl} autoPlay loop muted playsInline className="w-full h-full object-cover" />
+                          <div className="relative w-full h-full">
+                            <video src={ad.videoUrl} autoPlay loop muted playsInline className="w-full h-full object-cover" />
+                            <div className="absolute top-1 right-1 bg-black/80 text-neon-green p-1 rounded-md border border-neon-green/30">
+                              <Video size={11} className="animate-pulse" />
+                            </div>
+                          </div>
                         ) : ad.image ? (
                           <img src={ad.image} className="w-full h-full object-cover" alt={ad.title} />
                         ) : (
                           <Megaphone size={32} />
                         )}
                         {ad.price && (
-                          <div className="absolute bottom-0 inset-x-0 bg-primary text-[#05070a] font-black text-[8px] text-center py-0.5 truncate">
+                          <div className="absolute bottom-0 inset-x-0 bg-primary text-[#05070a] font-black text-[9px] text-center py-0.5 truncate">
                             {ad.price}
                           </div>
                         )}

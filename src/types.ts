@@ -130,7 +130,7 @@ export interface Product {
 export interface AppNotification {
   id: string;
   userId: string;
-  type: 'engage' | 'buy' | 'rate' | 'follow' | 'like_store' | 'like_product' | 'connect_request' | 'connect_accept' | 'message' | 'reminder' | 'deal' | 'share' | 'report';
+  type: 'engage' | 'buy' | 'rate' | 'follow' | 'like_store' | 'like_product' | 'connect_request' | 'connect_accept' | 'message' | 'reminder' | 'deal' | 'share' | 'report' | 'spotlight_approval';
   fromUserId: string;
   fromUserName: string;
   targetId?: string;

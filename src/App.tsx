@@ -11,7 +11,7 @@ import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firest
 import { 
   Search, ShoppingBag, MessageSquare, User as UserIcon, Store, LayoutGrid, 
   Zap, Menu, Bell, ArrowLeft, ArrowRight, X, Heart, Star, UserPlus, Check, Loader2, Users, ShieldAlert,
-  LogIn, Download, Compass, Settings, HelpCircle
+  LogIn, Download, Compass, Settings, HelpCircle, Megaphone
 } from 'lucide-react';
 import AppTutorialModal from './components/AppTutorialModal';
 import SupplierTutorialModal from './components/SupplierTutorialModal';
@@ -864,6 +864,7 @@ function NotificationItem({ n, markAsRead, onSelect, onClose, navigate, profile 
           if (n.type === 'engage' || n.type === 'buy') navigate('/chat');
           if (n.type === 'like_product' || n.type === 'rate') navigate(`/product/${n.targetId}`);
           if (n.type === 'follow' || n.type === 'like_store') navigate(`/store/${n.targetId}`);
+          if (n.type === 'spotlight_approval' || n.targetId === 'admin_spotlights') navigate('/admin?tab=ads', { state: { tab: 'ads' } });
           onClose();
         }
       }}
@@ -931,6 +932,7 @@ function getNotificationIcon(type: AppNotification['type']) {
     case 'message': return <MessageSquare size={18} />;
     case 'reminder': return <Store size={18} className="text-neon-green" />;
     case 'report': return <ShieldAlert size={18} className="text-red-500" />;
+    case 'spotlight_approval': return <Megaphone size={18} className="text-amber-400" />;
     default: return <Bell size={18} />;
   }
 }
