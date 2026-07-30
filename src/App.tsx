@@ -160,6 +160,11 @@ export default function App() {
   const isProfileIncomplete = profile?.currentRole === 'customer' && (!profile.requiredProducts || profile.requiredProducts.length === 0);
 
   useEffect(() => {
+    // Safety timer to guarantee UI unblocks even when offline or network stalls
+    const maxLoadingTimer = setTimeout(() => {
+      setLoading(false);
+    }, 2000);
+
     // Check for guest session on mount
     const savedGuestProfile = localStorage.getItem('guest_profile');
     if (savedGuestProfile && !user) {
@@ -170,6 +175,21 @@ export default function App() {
       } catch (e) {
         console.error("Failed to parse guest profile", e);
       }
+    } else if (!user && typeof navigator !== 'undefined' && !navigator.onLine && !savedGuestProfile) {
+      // Offline launch without saved user session - assign default offline guest operator profile
+      const defaultOfflineGuest: UserProfile = {
+        uid: 'guest_offline_' + Date.now(),
+        name: 'Offline Guest Operator',
+        displayName: 'Offline Guest Operator',
+        phone: '',
+        currentRole: 'customer',
+        isVerified: false,
+        isGuest: true,
+        updatedAt: new Date().toISOString()
+      };
+      setProfile(defaultOfflineGuest);
+      setIsGuest(true);
+      localStorage.setItem('guest_profile', JSON.stringify(defaultOfflineGuest));
     }
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
@@ -179,6 +199,7 @@ export default function App() {
         const userPath = `users/${firebaseUser.uid}`;
 
         // 1. Instantly restore from local cache for blazing fast load!
+        let hasLoadedFromCache = false;
         try {
           const cachedProfile = localStorage.getItem(`profile_cache_${firebaseUser.uid}`);
           if (cachedProfile) {
@@ -189,6 +210,7 @@ export default function App() {
               setHasStore(true);
             }
             setLoading(false); // unblock UI immediately
+            hasLoadedFromCache = true;
           }
         } catch(e) {}
 
@@ -200,6 +222,14 @@ export default function App() {
                console.log('[Sync] Forcefully terminated all active syncing and cleared queue.');
              });
           });
+        }
+
+        // If offline, operating entirely from offline persistent cache
+        if (!navigator.onLine) {
+          setUser(firebaseUser);
+          setLoading(false);
+          clearTimeout(maxLoadingTimer);
+          return;
         }
 
         try {
@@ -218,6 +248,7 @@ export default function App() {
               setUser(null);
               setProfile(null);
               setLoading(false);
+              clearTimeout(maxLoadingTimer);
               return;
             }
           }
@@ -227,63 +258,68 @@ export default function App() {
             const profileData = docSnap.data() as UserProfile;
             setProfile(profileData); // update with fresh data
             
-            // Sync verification status and profile info with Firebase Auth
             let needsUpdate = false;
             const updates: any = {};
- 
+
             if (profileData.isVerified !== firebaseUser.emailVerified) {
               updates.isVerified = firebaseUser.emailVerified;
               needsUpdate = true;
             }
- 
+
             if (!profileData.avatar && firebaseUser.photoURL) {
               updates.avatar = firebaseUser.photoURL;
               needsUpdate = true;
             }
- 
+
             if (!profileData.email && firebaseUser.email) {
               updates.email = firebaseUser.email;
               needsUpdate = true;
             }
- 
+
             if (needsUpdate) {
               updates.updatedAt = serverTimestamp();
               await updateDoc(doc(db, 'users', firebaseUser.uid), updates);
-              // Optimistically update local profile (minus serverTimestamp which is complex to represent locally without causing dev server vs rules issues)
               setProfile({ ...profileData, ...updates, updatedAt: new Date().toISOString() });
             } else {
               setProfile(profileData);
             }
- 
-            // Proactively sync public profile for matrix visibility
+
             syncPublicProfile(profileData);
- 
+
             if (profileData.currentRole === 'supplier') {
               const { collection, query, where, getDocs } = await import('firebase/firestore');
               const storeRes = await getDocs(query(collection(db, 'stores'), where('ownerId', '==', firebaseUser.uid)));
               const userHasStore = !storeRes.empty;
               setHasStore(userHasStore);
-              if (userHasStore) {
-                localStorage.setItem(`has_store_${firebaseUser.uid}`, 'true');
-              } else {
-                localStorage.setItem(`has_store_${firebaseUser.uid}`, 'false');
-              }
+              localStorage.setItem(`has_store_${firebaseUser.uid}`, userHasStore ? 'true' : 'false');
             }
-          } else {
+          } else if (!hasLoadedFromCache) {
             setProfile(null);
           }
         } catch (err) {
-          handleFirestoreError(err, OperationType.GET, userPath);
+          console.warn('[Offline Auth] Operating in offline profile cache mode:', err);
+          setUser(firebaseUser);
         }
       } else {
         setUser(null);
-        setProfile(null);
+        const savedGuest = localStorage.getItem('guest_profile');
+        if (savedGuest) {
+          try {
+            setProfile(JSON.parse(savedGuest));
+            setIsGuest(true);
+          } catch(e) {}
+        }
         setHasStore(false);
       }
       setLoading(false);
+      clearTimeout(maxLoadingTimer);
     });
-    return unsubscribe;
-  }, [user]);
+
+    return () => {
+      clearTimeout(maxLoadingTimer);
+      unsubscribe();
+    };
+  }, []);
 
   const handleGuestLogin = () => {
     const guestUid = `guest_${Math.random().toString(36).substring(2, 11)}`;

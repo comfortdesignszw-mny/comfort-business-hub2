@@ -21,6 +21,10 @@ export const messaging = typeof window !== 'undefined' ? getMessaging(app) : nul
 
 // Connectivity Test (Delayed for reliability)
 async function testConnection() {
+  if (typeof navigator !== 'undefined' && !navigator.onLine) {
+    console.info("Firestore Signal: Operating in offline persistent cache mode.");
+    return;
+  }
   // Give the browser a moment to settle network connections
   await new Promise(resolve => setTimeout(resolve, 2000));
   try {

@@ -21,6 +21,7 @@ import {
   getFriendlyAuthErrorMessage 
 } from '../lib/authUtils';
 import CountryCodeSelector from '../components/CountryCodeSelector';
+import AppLogo from '../components/AppLogo';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -279,10 +280,8 @@ export default function Login() {
             initial={{ scale: 0, rotate: -45 }}
             animate={{ scale: 1, rotate: 0 }}
             transition={{ type: "spring", stiffness: 260, damping: 20 }}
-            className="w-20 h-20 bg-white/5 rounded-3xl flex items-center justify-center shadow-[0_0_40px_rgba(0,242,254,0.15)] relative group overflow-hidden border border-white/10"
           >
-            <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-accent/5 opacity-50"></div>
-            <img src="/icon.png" alt="Comfort Hub" className="w-12 h-12 object-contain relative z-10 drop-shadow-[0_0_12px_rgba(0,242,254,0.5)]" referrerPolicy="no-referrer" />
+            <AppLogo size="2xl" className="shadow-[0_0_40px_rgba(0,242,254,0.25)]" />
           </motion.div>
           
           <div className="space-y-1.5">
