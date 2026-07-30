@@ -5,7 +5,8 @@ import {
   Zap, ShoppingBag, ArrowRight, MessageSquare, Phone, Check, Loader2, MapPinned, CreditCard, Share2, X, Info, Star, Store as StoreIcon, Edit3, Trash2, ChevronDown, ChevronUp, ShieldAlert, Heart
 } from 'lucide-react';
 import { UserProfile, Product, Store, EngagementType } from '../types';
-import { cn, formatCurrency, safeShare, openWhatsApp } from '../lib/utils';
+import { cn, formatCurrency, openWhatsApp } from '../lib/utils';
+import { executeShare, getProductSharePayload } from '../lib/shareUtils';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { collection, addDoc, serverTimestamp, setDoc, doc, getDoc } from 'firebase/firestore';
 import { interactionService } from '../services/interactionService';
@@ -191,17 +192,18 @@ export default function ProductCard({
 
   const handleShare = async (e: React.MouseEvent) => {
     e.stopPropagation();
-    const shareUrl = `${window.location.origin}/product/${product.id}`;
-    if (navigator.share) {
-      await safeShare({
-        title: product.name,
-        text: `Check out ${product.name} on Comfort Business Hub!`,
-        url: shareUrl,
-      });
-    } else {
-      navigator.clipboard.writeText(shareUrl);
-      triggerFeedback('Link Copied', 'Node Link Copied to Clipboard!', 'message');
-    }
+    const payload = getProductSharePayload(
+      {
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        currency: product.currency,
+        images: images,
+        description: product.description,
+      },
+      storeData?.name || product.storeName
+    );
+    await executeShare(payload);
   };
 
   return (

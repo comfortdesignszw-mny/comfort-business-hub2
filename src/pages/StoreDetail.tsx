@@ -8,7 +8,8 @@ import {
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { doc, getDoc, collection, query, where, getDocs, onSnapshot, limit, updateDoc } from 'firebase/firestore';
 import { UserProfile, Product, Store as StoreType, Connection } from '../types';
-import { cn, formatCurrency, safeShare } from '../lib/utils';
+import { cn, formatCurrency } from '../lib/utils';
+import { executeShare, getStoreSharePayload, updateMetaTags } from '../lib/shareUtils';
 import ProductCard from '../components/ProductCard';
 import AuthGuard from '../components/AuthGuard';
 import ImageInput from '../components/ImageInput';
@@ -188,18 +189,29 @@ export function StoreDetailContent({ store, profile, onGuestLogin, showMap = tru
     return () => productsUnsub();
   }, [store.id]);
 
-  const handleShare = async () => {
-    const shareUrl = `${window.location.origin}/store/${store.id}`;
-    if (navigator.share) {
-      await safeShare({
-        title: store.name || 'User Profile',
-        text: `Check out ${store.name} on Comfort Business Hub!`,
-        url: shareUrl,
+  useEffect(() => {
+    if (store) {
+      updateMetaTags({
+        title: `${store.name} - Comfort Business Hub`,
+        description: store.description || `Visit ${store.name}'s official store on Comfort Business Hub`,
+        image: store.logo || store.coverPhoto,
+        url: `${window.location.origin}/store/${store.id}?store=${encodeURIComponent(store.name)}`
       });
-    } else {
-      navigator.clipboard.writeText(shareUrl);
-      triggerFeedback('Link Copied', 'Link Copied to Clipboard!', 'message');
     }
+  }, [store]);
+
+  const handleShare = async () => {
+    if (!store) return;
+    const payload = getStoreSharePayload({
+      id: store.id,
+      name: store.name,
+      description: store.description,
+      logo: store.logo,
+      coverPhoto: store.coverPhoto,
+      category: store.category,
+      verified: store.verified
+    });
+    await executeShare(payload);
   };
 
   return (

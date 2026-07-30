@@ -16,6 +16,7 @@ import { offlineResilientWrite } from '../lib/sync';
 import { geohashForLocation } from 'geofire-common';
 import { doc, updateDoc, collection, addDoc, query, where, getDocs, deleteDoc, orderBy, serverTimestamp, limit, onSnapshot , getCountFromServer } from 'firebase/firestore';
 import { cn, formatCurrency } from '../lib/utils';
+import { executeShare } from '../lib/shareUtils';
 import { useNotifications } from '../components/NotificationProvider';
 import { interactionService } from '../services/interactionService';
 import ImageInput from '../components/ImageInput';
@@ -368,40 +369,30 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
   };
 
   const handleShareProfile = async () => {
-    const shareUrl = `${window.location.origin}/profile/${profile?.uid}`;
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: profile?.name || 'User Profile',
-          text: `Check out ${profile?.name || 'User Profile'}'s profile on Comfort Business Hub!`,
-          url: shareUrl,
-        });
-      } catch (err) {
-        console.error(err);
-      }
-    } else {
-      navigator.clipboard.writeText(shareUrl);
-      triggerFeedback('Link Copied', 'Profile Link Copied to Clipboard!', 'message');
-    }
+    const origin = window.location.origin;
+    const url = `${origin}/profile/${profile?.uid}`;
+    await executeShare({
+      type: 'profile',
+      title: `${profile?.name || 'User Profile'} - Comfort Business Hub`,
+      text: `Check out ${profile?.name || 'User Profile'}'s profile on Comfort Business Hub:\n${url}`,
+      url,
+      imageUrl: profile?.avatar || `${origin}/icons/icon-512x512.png`,
+      description: `View profile and connections of ${profile?.name || 'Member'} on Comfort Business Hub.`
+    });
   };
 
   const handleShareObservedProfile = async () => {
     if (!observedProfile) return;
-    const shareUrl = `${window.location.origin}/profile/${observedProfile.uid}`;
-    if (navigator.share) {
-      try {
-        await navigator.share({
-          title: observedProfile.name,
-          text: `Check out ${observedProfile.name}'s profile on Comfort Business Hub!`,
-          url: shareUrl,
-        });
-      } catch (err) {
-        console.error(err);
-      }
-    } else {
-      navigator.clipboard.writeText(shareUrl);
-      triggerFeedback('Link Copied', 'Profile Link Copied to Clipboard!', 'message');
-    }
+    const origin = window.location.origin;
+    const url = `${origin}/profile/${observedProfile.uid}`;
+    await executeShare({
+      type: 'profile',
+      title: `${observedProfile.name} - Comfort Business Hub`,
+      text: `Check out ${observedProfile.name}'s profile on Comfort Business Hub:\n${url}`,
+      url,
+      imageUrl: observedProfile.avatar || `${origin}/icons/icon-512x512.png`,
+      description: `View profile and connections of ${observedProfile.name} on Comfort Business Hub.`
+    });
   };
 
   if (loadingObserved) {

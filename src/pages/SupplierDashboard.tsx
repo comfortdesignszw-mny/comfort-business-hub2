@@ -36,7 +36,8 @@ import {
   onSnapshot
 } from 'firebase/firestore';
 import { UserProfile, Store, Product, BuyButtonType } from '../types';
-import { cn, formatCurrency, safeShare } from '../lib/utils';
+import { cn, formatCurrency } from '../lib/utils';
+import { executeShare, getStoreSharePayload } from '../lib/shareUtils';
 import { useNotifications } from '../components/NotificationProvider';
 import { PRODUCT_CATEGORIES, BUSINESS_CATEGORIES } from '../constants';
 import SupplierSetup from './SupplierSetup';
@@ -455,17 +456,16 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
 
   const handleShareStore = async () => {
     if (!activeStore) return;
-    const shareUrl = `${window.location.origin}/store/${activeStore.id}`;
-    if (navigator.share) {
-      await safeShare({
-        title: activeStore.name,
-        text: `Visit our store ${activeStore.name} on Comfort Business Hub!`,
-        url: shareUrl,
-      });
-    } else {
-      navigator.clipboard.writeText(shareUrl);
-      triggerFeedback('Link Copied', 'Store Link Copied to Clipboard!', 'message');
-    }
+    const payload = getStoreSharePayload({
+      id: activeStore.id,
+      name: activeStore.name,
+      description: activeStore.description,
+      logo: activeStore.logo,
+      coverPhoto: activeStore.coverPhoto,
+      category: activeStore.category,
+      verified: activeStore.verified
+    });
+    await executeShare(payload);
   };
 
   const handleWhatsAppImport = async () => {

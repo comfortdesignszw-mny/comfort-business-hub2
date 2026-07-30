@@ -11,8 +11,10 @@ import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firest
 import { 
   Search, ShoppingBag, MessageSquare, User as UserIcon, Store, LayoutGrid, 
   Zap, Menu, Bell, ArrowLeft, ArrowRight, X, Heart, Star, UserPlus, Check, Loader2, Users, ShieldAlert,
-  LogIn, Download, Compass, Settings, HelpCircle, Megaphone
+  LogIn, Download, Compass, Settings, HelpCircle, Megaphone, Share2
 } from 'lucide-react';
+import ShareModal from './components/ShareModal';
+import { SharePayload, getAppSharePayload, executeShare } from './lib/shareUtils';
 import AppTutorialModal from './components/AppTutorialModal';
 import SupplierTutorialModal from './components/SupplierTutorialModal';
 import PushNotificationSettingsModal from './components/PushNotificationSettingsModal';

@@ -11,7 +11,8 @@ import {
   orderBy, limit, updateDoc, increment, runTransaction, onSnapshot 
 } from 'firebase/firestore';
 import { UserProfile, Product, Store, Review } from '../types';
-import { cn, formatCurrency, safeShare, openWhatsApp } from '../lib/utils';
+import { cn, formatCurrency, openWhatsApp } from '../lib/utils';
+import { executeShare, getProductSharePayload, updateMetaTags } from '../lib/shareUtils';
 import { interactionService } from '../services/interactionService';
 import { useMessaging } from '../components/MessagingProvider';
 import { useNotifications } from '../components/NotificationProvider';
@@ -164,18 +165,31 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
     }
   };
 
-  const handleShare = async () => {
-    const shareUrl = `${window.location.origin}/product/${id}`;
-    if (navigator.share) {
-      await safeShare({
-        title: product?.name || 'Comfort Business Hub product',
-        text: `Check out ${product?.name} on Comfort Business Hub!`,
-        url: shareUrl,
+  useEffect(() => {
+    if (product) {
+      updateMetaTags({
+        title: `${product.name} - ${store?.name || 'Comfort Business Hub'}`,
+        description: product.description || `Buy ${product.name} on Comfort Business Hub`,
+        image: product.images?.[0],
+        url: `${window.location.origin}/product/${product.id}?name=${encodeURIComponent(product.name)}${store?.name ? '&store=' + encodeURIComponent(store.name) : ''}`
       });
-    } else {
-      navigator.clipboard.writeText(shareUrl);
-      triggerFeedback('Link Copied', 'Product Link Copied to Clipboard!', 'message');
     }
+  }, [product, store]);
+
+  const handleShare = async () => {
+    if (!product) return;
+    const payload = getProductSharePayload(
+      {
+        id: product.id,
+        name: product.name,
+        price: product.price,
+        currency: product.currency,
+        images: product.images,
+        description: product.description,
+      },
+      store?.name
+    );
+    await executeShare(payload);
   };
 
   if (loading) {
