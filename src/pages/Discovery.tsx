@@ -768,7 +768,7 @@ useEffect(() => {
 
                 return (
                   <motion.div 
-                    key={currentSpotlight.id}
+                    key={currentSpotlight.id ? `spotlight-${currentSpotlight.id}-${activeSpotlightIndex}` : `spotlight-idx-${activeSpotlightIndex}`}
                     initial={{ opacity: 0, y: 10, scale: 0.98 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
                     exit={{ opacity: 0, y: -10, scale: 0.98 }}
@@ -904,9 +904,9 @@ useEffect(() => {
                     {/* Pagination Dots at Bottom */}
                     {spotlights.length > 1 && (
                       <div className="relative z-10 flex justify-center gap-1.5 items-center pt-3 border-t border-white/10 mt-3">
-                        {spotlights.map((_, idx) => (
+                        {spotlights.map((s, idx) => (
                           <div 
-                            key={idx} 
+                            key={`spotlight-dot-${s.id ? `${s.id}-${idx}` : idx}`} 
                             onClick={(e) => {
                               e.stopPropagation();
                               setActiveSpotlightIndex(idx);

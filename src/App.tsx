@@ -340,84 +340,136 @@ export default function App() {
       <Router>
         <ScrollToTop />
         <div className="flex flex-col h-screen-mobile bg-[#05070a] relative shadow-2xl">
-          <AnimatePresence mode="wait">
-            <Suspense fallback={<PageLoader />}>
-              <Routes>
-                <Route path="/*" element={
-                  <NotificationProvider profile={profile}>
-                    <MessagingProvider profile={profile}>
-                      <ModalProvider profile={profile}>
-                        <Header profile={profile} onMenuClick={() => setShowSidebar(true)} onLogout={handleLogout} />
-                        <AnimatePresence>
-                          {showSidebar && (
-                            <Sidebar 
-                              profile={profile} 
-                              onClose={() => setShowSidebar(false)} 
-                              onLogout={handleLogout}
-                            />
-                          )}
-                        </AnimatePresence>
-                        <main className="flex-1 overflow-y-auto custom-scrollbar pb-24">
-                          <div className="max-w-7xl mx-auto w-full min-h-full flex flex-col">
-                            <div className="flex-1">
-                              <AnimatePresence mode="wait">
-                                <Suspense fallback={<PageLoader />}>
-                                  <Routes>
-                                    {/* Public Routes */}
-                                    <Route path="/" element={<Discovery profile={profile} setProfile={setProfile} onGuestLogin={handleGuestLogin} />} />
-                                    <Route path="/store/:id" element={<StoreDetail profile={profile} onGuestLogin={handleGuestLogin} />} />
-                                    <Route path="/product/:id" element={<ProductDetail profile={profile} onGuestLogin={handleGuestLogin} />} />
-                                    <Route path="/profile/:id" element={<Profile profile={profile} setProfile={setProfile} />} />
-                                    <Route path="/terms" element={<TermsOfService />} />
-                                    <Route path="/privacy" element={<PrivacyPolicy />} />
-                                    <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
-                                    <Route path="/signup" element={user ? <Navigate to="/" replace /> : <SignUp />} />
-
-                                    {/* Protected Content */}
-                                    {!user ? (
-                                      <Route path="*" element={<Navigate to="/login" replace />} />
-                                    ) : (
-                                      <>
-                                        {isProfileIncomplete ? (
-                                          <Route path="*" element={<CustomerSetup profile={profile!} />} />
-                                        ) : (
-                                          <>
-                                            <Route 
-                                              path="/stores" 
-                                              element={
-                                                profile?.currentRole === 'supplier' 
-                                                  ? <StoresHub profile={profile} /> 
-                                                  : <Navigate to="/" replace />
-                                              } 
-                                            />
-                                            <Route path="/deals" element={<DealRoom profile={profile} />} />
-                                            <Route path="/chat" element={<Chat profile={profile} />} />
-                                            <Route path="/admin" element={<AdminDashboard profile={profile} />} />
-                                            <Route path="/profile" element={<Profile profile={profile} setProfile={setProfile} />} />
-                                            <Route path="*" element={<Navigate to="/" replace />} />
-                                          </>
-                                        )}
-                                      </>
-                                    )}
-                                  </Routes>
-                                </Suspense>
-                              </AnimatePresence>
-                            </div>
-                            <Footer />
-                          </div>
-                        </main>
-                        <Navigation profile={profile} />
-                        <PWAPrompt />
-                      </ModalProvider>
-                    </MessagingProvider>
-                  </NotificationProvider>
-                } />
-              </Routes>
-            </Suspense>
-          </AnimatePresence>
+          <AppRoutes 
+            profile={profile}
+            setProfile={setProfile}
+            handleGuestLogin={handleGuestLogin}
+            user={user}
+            isProfileIncomplete={isProfileIncomplete}
+            showSidebar={showSidebar}
+            setShowSidebar={setShowSidebar}
+            handleLogout={handleLogout}
+          />
         </div>
       </Router>
     </ErrorBoundary>
+  );
+}
+
+function AppRoutes({
+  profile,
+  setProfile,
+  handleGuestLogin,
+  user,
+  isProfileIncomplete,
+  showSidebar,
+  setShowSidebar,
+  handleLogout
+}: {
+  profile: UserProfile | null;
+  setProfile: (p: UserProfile | null) => void;
+  handleGuestLogin: () => void;
+  user: any;
+  isProfileIncomplete: boolean;
+  showSidebar: boolean;
+  setShowSidebar: (s: boolean) => void;
+  handleLogout: () => void;
+}) {
+  const location = useLocation();
+
+  return (
+    <NotificationProvider profile={profile}>
+      <MessagingProvider profile={profile}>
+        <ModalProvider profile={profile}>
+          <Header profile={profile} onMenuClick={() => setShowSidebar(true)} onLogout={handleLogout} />
+          <AnimatePresence>
+            {showSidebar && (
+              <Sidebar 
+                profile={profile} 
+                onClose={() => setShowSidebar(false)} 
+                onLogout={handleLogout}
+              />
+            )}
+          </AnimatePresence>
+          <main className="flex-1 overflow-y-auto custom-scrollbar pb-24">
+            <div className="max-w-7xl mx-auto w-full min-h-full flex flex-col">
+              <div className="flex-1">
+                <AnimatePresence mode="wait">
+                  <Suspense fallback={<PageLoader />}>
+                    <Routes location={location} key={location.pathname}>
+                      {/* Public Routes */}
+                      <Route path="/" element={<Discovery profile={profile} setProfile={setProfile} onGuestLogin={handleGuestLogin} />} />
+                      <Route path="/store/:id" element={<StoreDetail profile={profile} onGuestLogin={handleGuestLogin} />} />
+                      <Route path="/product/:id" element={<ProductDetail profile={profile} onGuestLogin={handleGuestLogin} />} />
+                      <Route path="/profile/:id" element={<Profile profile={profile} setProfile={setProfile} />} />
+                      <Route path="/terms" element={<TermsOfService />} />
+                      <Route path="/privacy" element={<PrivacyPolicy />} />
+                      <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
+                      <Route path="/signup" element={user ? <Navigate to="/" replace /> : <SignUp />} />
+
+                      {/* Protected Content */}
+                      <Route 
+                        path="/stores" 
+                        element={
+                          !user ? <Navigate to="/login" replace /> :
+                          isProfileIncomplete ? <CustomerSetup profile={profile!} /> :
+                          profile?.currentRole === 'supplier' ? <StoresHub profile={profile} /> : <Navigate to="/" replace />
+                        } 
+                      />
+                      <Route 
+                        path="/deals" 
+                        element={
+                          !user ? <Navigate to="/login" replace /> :
+                          isProfileIncomplete ? <CustomerSetup profile={profile!} /> :
+                          <DealRoom profile={profile} />
+                        } 
+                      />
+                      <Route 
+                        path="/chat" 
+                        element={
+                          !user ? <Navigate to="/login" replace /> :
+                          isProfileIncomplete ? <CustomerSetup profile={profile!} /> :
+                          <Chat profile={profile} />
+                        } 
+                      />
+                      <Route 
+                        path="/admin" 
+                        element={
+                          !user ? <Navigate to="/login" replace /> :
+                          isProfileIncomplete ? <CustomerSetup profile={profile!} /> :
+                          <AdminDashboard profile={profile} />
+                        } 
+                      />
+                      <Route 
+                        path="/profile" 
+                        element={
+                          !user ? <Navigate to="/login" replace /> :
+                          isProfileIncomplete ? <CustomerSetup profile={profile!} /> :
+                          <Profile profile={profile} setProfile={setProfile} />
+                        } 
+                      />
+
+                      {/* Fallback Catch-All Route */}
+                      <Route 
+                        path="*" 
+                        element={
+                          !user ? <Navigate to="/login" replace /> :
+                          isProfileIncomplete ? <CustomerSetup profile={profile!} /> :
+                          <Navigate to="/" replace />
+                        } 
+                      />
+                    </Routes>
+                  </Suspense>
+                </AnimatePresence>
+              </div>
+              <Footer />
+            </div>
+          </main>
+          <Navigation profile={profile} />
+          <PWAPrompt />
+        </ModalProvider>
+      </MessagingProvider>
+    </NotificationProvider>
   );
 }
 

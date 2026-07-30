@@ -980,7 +980,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
       {/* Modal for Store Setup Overlay */}
       <AnimatePresence>
         {showStoreSetup && (
-          <div className="fixed inset-0 z-[100] bg-[#05070a] overflow-y-auto">
+          <div key="store-setup-overlay-container" className="fixed inset-0 z-[100] bg-[#05070a] overflow-y-auto">
             <div className="max-w-2xl mx-auto py-12 px-4 shadow-2xl">
                <button 
                 onClick={() => {
@@ -1007,7 +1007,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
       {/* Product Form Modal */}
       <AnimatePresence>
         {showProductForm && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div key="product-form-modal-container" className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -1378,7 +1378,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
       {/* WhatsApp Import Modal */}
       <AnimatePresence>
         {showWhatsAppModal && (
-          <div className="fixed inset-0 z-[120] flex items-center justify-center p-4">
+          <div key="whatsapp-modal-container" className="fixed inset-0 z-[120] flex items-center justify-center p-4">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -1465,7 +1465,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
       {/* Delete Confirmation Modal */}
       <AnimatePresence>
         {productToDelete && (
-          <div className="fixed inset-0 z-[60] flex items-center justify-center p-4">
+          <div key="delete-product-modal-container" className="fixed inset-0 z-[60] flex items-center justify-center p-4">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}

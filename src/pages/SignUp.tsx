@@ -10,8 +10,8 @@ import {
 import { auth, db, handleFirestoreError, OperationType, syncPublicProfile, sanitizeFirestoreData } from '../lib/firebase';
 import { doc, setDoc, getDoc, serverTimestamp } from 'firebase/firestore';
 import { motion, AnimatePresence } from 'motion/react';
-import { LogIn, Shield, Globe, Cpu, AlertTriangle, UserPlus, Phone, Mail, Chrome, CheckCircle2, Eye, EyeOff, Loader2, ArrowLeft } from 'lucide-react';
-import { Link, useNavigate } from 'react-router-dom';
+import { LogIn, Shield, Globe, Cpu, AlertTriangle, UserPlus, Phone, Mail, Chrome, CheckCircle2, Eye, EyeOff, Loader2, ArrowLeft, Store, ShoppingBag, Sparkles, ArrowRight, Check, RefreshCw } from 'lucide-react';
+import { Link, useNavigate, useLocation } from 'react-router-dom';
 import { UserProfile } from '../types';
 import { 
   COUNTRY_CODES, 
@@ -24,6 +24,15 @@ import CountryCodeSelector from '../components/CountryCodeSelector';
 
 export default function SignUp() {
   const navigate = useNavigate();
+  const location = useLocation();
+  const searchParams = new URLSearchParams(location.search);
+  const initialRoleFromUrl = searchParams.get('role') || searchParams.get('type');
+  
+  const [selectedAccountType, setSelectedAccountType] = useState<'supplier' | 'customer' | null>(
+    (initialRoleFromUrl === 'supplier' || initialRoleFromUrl === 'seller') ? 'supplier' :
+    (initialRoleFromUrl === 'customer' || initialRoleFromUrl === 'buyer') ? 'customer' : null
+  );
+
   const [method, setMethod] = useState<'google' | 'email' | 'phone'>('phone');
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -53,6 +62,8 @@ export default function SignUp() {
     const finalPhone = extraDetails.phoneNumber || user.phoneNumber || (authMethod === 'phone' ? extraDetails.phoneNumber : null);
     const finalEmail = authMethod === 'email' ? (extraDetails.email || email) : (authMethod === 'google' ? user.email || null : null);
 
+    const chosenRole = selectedAccountType || 'customer';
+
     const newProfile: Record<string, any> = {
       uid: user.uid,
       name: finalName,
@@ -63,7 +74,9 @@ export default function SignUp() {
       phoneNumber: authMethod === 'phone' ? (finalPhone || null) : null,
       phone: finalPhone || 'Unlinked',
       phoneVerified: false,
-      currentRole: 'customer',
+      currentRole: chosenRole,
+      accountType: chosenRole,
+      role: chosenRole,
       isVerified: user.emailVerified || false,
       createdAt: serverTimestamp(),
       updatedAt: serverTimestamp()
@@ -219,6 +232,171 @@ export default function SignUp() {
     window.location.href = '/';
   };
 
+  if (selectedAccountType === null) {
+    return (
+      <div className="flex flex-col min-h-screen bg-[#05070a] p-4 sm:p-8">
+        <div className="flex-1 flex flex-col justify-center space-y-8 max-w-xl mx-auto w-full py-6">
+          
+          {/* Header */}
+          <header className="flex flex-col items-center text-center space-y-4">
+            <motion.div 
+              initial={{ scale: 0, rotate: -45 }}
+              animate={{ scale: 1, rotate: 0 }}
+              transition={{ type: "spring", stiffness: 260, damping: 20 }}
+              className="w-20 h-20 bg-white/5 rounded-3xl flex items-center justify-center shadow-[0_0_40px_rgba(0,242,254,0.15)] relative group overflow-hidden border border-white/10"
+            >
+              <div className="absolute inset-0 bg-gradient-to-br from-primary/10 to-accent/5 opacity-50"></div>
+              <img src="/icon.png" alt="Comfort Hub" className="w-12 h-12 object-contain relative z-10 drop-shadow-[0_0_12px_rgba(0,242,254,0.5)]" referrerPolicy="no-referrer" />
+            </motion.div>
+            
+            <div className="space-y-2">
+              <span className="inline-flex items-center gap-1.5 px-3.5 py-1 rounded-full bg-primary/10 border border-primary/20 text-primary text-[10px] font-black uppercase tracking-widest shadow-[0_0_10px_rgba(0,242,254,0.2)]">
+                <Sparkles size={12} />
+                Step 1: Account Type Selection
+              </span>
+              <h1 className="text-3xl sm:text-4xl font-black text-white italic tracking-tighter uppercase leading-none">
+                Choose Your <span className="text-primary drop-shadow-[0_0_10px_rgba(0,242,254,0.5)]">Account Type</span>
+              </h1>
+              <p className="text-xs text-gray-400 font-medium max-w-md mx-auto leading-relaxed">
+                Select how you would like to interact with Comfort Business Hub today. You can toggle roles anytime in your profile.
+              </p>
+            </div>
+          </header>
+
+          {/* Two Prominent Buttons */}
+          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+            
+            {/* Button 1: Seller / Supplier */}
+            <motion.button
+              whileHover={{ scale: 1.02, y: -2 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setSelectedAccountType('supplier')}
+              className="group relative text-left bg-gradient-to-br from-[#0d1117] via-[#0d1117] to-accent/15 border-2 border-accent/40 hover:border-accent rounded-3xl p-6 shadow-2xl transition-all duration-300 hover:shadow-[0_0_35px_rgba(240,147,251,0.25)] flex flex-col justify-between overflow-hidden cursor-pointer"
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-accent/10 rounded-full blur-2xl -mr-12 -mt-12 group-hover:bg-accent/20 transition-all" />
+              
+              <div className="space-y-4 relative z-10">
+                <div className="flex items-center justify-between">
+                  <div className="w-14 h-14 rounded-2xl bg-accent/20 border border-accent/30 flex items-center justify-center text-accent shadow-[0_0_20px_rgba(240,147,251,0.3)] group-hover:scale-110 transition-transform">
+                    <Store size={28} />
+                  </div>
+                  <span className="text-[9px] font-black text-accent bg-accent/10 border border-accent/20 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                    Seller / Vendor
+                  </span>
+                </div>
+
+                <div>
+                  <h2 className="text-lg font-black text-white italic uppercase tracking-tight flex items-center gap-1.5 group-hover:text-accent transition-colors">
+                    Create a Seller/Supplier Account
+                  </h2>
+                  <p className="text-[11px] text-gray-400 font-medium leading-relaxed mt-1.5">
+                    For store owners, vendors, car rental services, lodge bookings, farmers & service providers.
+                  </p>
+                </div>
+
+                <div className="space-y-1.5 pt-2 border-t border-white/10">
+                  <div className="flex items-center gap-2 text-[10px] text-gray-300 font-semibold">
+                    <Check size={13} className="text-accent shrink-0" />
+                    <span>List products, car rentals, stays & produce</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[10px] text-gray-300 font-semibold">
+                    <Check size={13} className="text-accent shrink-0" />
+                    <span>Manage store hub & order analytics</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[10px] text-gray-300 font-semibold">
+                    <Check size={13} className="text-accent shrink-0" />
+                    <span>Direct WhatsApp & in-app customer chat</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 pt-4 border-t border-white/10 relative z-10">
+                <div className="w-full py-3.5 bg-accent text-white rounded-2xl font-black uppercase text-[10px] tracking-[0.15em] flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(240,147,251,0.3)] group-hover:bg-accent/90 transition-all">
+                  <span>Create Seller/Supplier Account</span>
+                  <ArrowRight size={15} className="group-hover:translate-x-1 transition-transform" />
+                </div>
+              </div>
+            </motion.button>
+
+            {/* Button 2: Buyer / Customer */}
+            <motion.button
+              whileHover={{ scale: 1.02, y: -2 }}
+              whileTap={{ scale: 0.98 }}
+              onClick={() => setSelectedAccountType('customer')}
+              className="group relative text-left bg-gradient-to-br from-[#0d1117] via-[#0d1117] to-primary/15 border-2 border-primary/40 hover:border-primary rounded-3xl p-6 shadow-2xl transition-all duration-300 hover:shadow-[0_0_35px_rgba(0,242,254,0.25)] flex flex-col justify-between overflow-hidden cursor-pointer"
+            >
+              <div className="absolute top-0 right-0 w-32 h-32 bg-primary/10 rounded-full blur-2xl -mr-12 -mt-12 group-hover:bg-primary/20 transition-all" />
+
+              <div className="space-y-4 relative z-10">
+                <div className="flex items-center justify-between">
+                  <div className="w-14 h-14 rounded-2xl bg-primary/20 border border-primary/30 flex items-center justify-center text-primary shadow-[0_0_20px_rgba(0,242,254,0.3)] group-hover:scale-110 transition-transform">
+                    <ShoppingBag size={28} />
+                  </div>
+                  <span className="text-[9px] font-black text-primary bg-primary/10 border border-primary/20 px-2.5 py-1 rounded-full uppercase tracking-wider">
+                    Buyer / Shopper
+                  </span>
+                </div>
+
+                <div>
+                  <h2 className="text-lg font-black text-white italic uppercase tracking-tight flex items-center gap-1.5 group-hover:text-primary transition-colors">
+                    Create a Buyer/Customer Account
+                  </h2>
+                  <p className="text-[11px] text-gray-400 font-medium leading-relaxed mt-1.5">
+                    For shoppers, clients & guests looking to discover verified local vendors and request custom deals.
+                  </p>
+                </div>
+
+                <div className="space-y-1.5 pt-2 border-t border-white/10">
+                  <div className="flex items-center gap-2 text-[10px] text-gray-300 font-semibold">
+                    <Check size={13} className="text-primary shrink-0" />
+                    <span>Browse thousands of local Zimbabwean listings</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[10px] text-gray-300 font-semibold">
+                    <Check size={13} className="text-primary shrink-0" />
+                    <span>Direct contact with verified vendors</span>
+                  </div>
+                  <div className="flex items-center gap-2 text-[10px] text-gray-300 font-semibold">
+                    <Check size={13} className="text-primary shrink-0" />
+                    <span>Request quotes, place orders & save items</span>
+                  </div>
+                </div>
+              </div>
+
+              <div className="mt-6 pt-4 border-t border-white/10 relative z-10">
+                <div className="w-full py-3.5 bg-primary text-[#05070a] rounded-2xl font-black uppercase text-[10px] tracking-[0.15em] flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(0,242,254,0.3)] group-hover:bg-primary/90 transition-all">
+                  <span>Create Buyer/Customer Account</span>
+                  <ArrowRight size={15} className="group-hover:translate-x-1 transition-transform" />
+                </div>
+              </div>
+            </motion.button>
+
+          </div>
+
+          {/* Link to Returning User Login */}
+          <div className="p-4 bg-white/5 border border-white/10 rounded-2xl text-center space-y-2">
+            <p className="text-xs text-gray-300 font-medium">
+              Already have an account? Returning users log in directly:
+            </p>
+            <Link 
+              to="/login" 
+              className="inline-flex items-center justify-center gap-2 px-5 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all border border-white/15 italic group"
+            >
+              <LogIn size={15} className="text-primary group-hover:scale-110 transition-transform" />
+              <span>Log In Directly (Auto-Detect Account Type)</span>
+            </Link>
+          </div>
+
+          {/* Footer info */}
+          <div className="flex justify-center gap-6 pt-2">
+            <Link to="/terms" className="text-[9px] font-black text-gray-600 uppercase tracking-widest hover:text-primary transition-colors">Terms of Service</Link>
+            <Link to="/privacy" className="text-[9px] font-black text-gray-600 uppercase tracking-widest hover:text-primary transition-colors">Privacy Policy</Link>
+          </div>
+
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="flex flex-col min-h-screen bg-[#05070a] p-4 sm:p-8">
       <div className="flex-1 flex flex-col justify-center space-y-8 max-w-md mx-auto w-full py-6">
@@ -242,6 +420,35 @@ export default function SignUp() {
             <p className="text-[10px] text-gray-500 font-bold uppercase tracking-[0.25em]">Comfort Business Hub Zimbabwe</p>
           </div>
         </header>
+
+        {/* Selected Account Type Badge */}
+        <div className="p-3.5 bg-[#0d1117] border border-white/10 rounded-2xl flex items-center justify-between shadow-xl">
+          <div className="flex items-center gap-3">
+            {selectedAccountType === 'supplier' ? (
+              <div className="p-2.5 bg-accent/20 text-accent rounded-xl border border-accent/30 shadow-[0_0_10px_rgba(240,147,251,0.2)]">
+                <Store size={20} />
+              </div>
+            ) : (
+              <div className="p-2.5 bg-primary/20 text-primary rounded-xl border border-primary/30 shadow-[0_0_10px_rgba(0,242,254,0.2)]">
+                <ShoppingBag size={20} />
+              </div>
+            )}
+            <div>
+              <span className="text-[9px] font-black uppercase tracking-widest text-gray-400 block">Selected Account Type</span>
+              <span className={`text-xs font-black uppercase italic ${selectedAccountType === 'supplier' ? 'text-accent' : 'text-primary'}`}>
+                {selectedAccountType === 'supplier' ? 'Seller / Supplier Account' : 'Buyer / Customer Account'}
+              </span>
+            </div>
+          </div>
+          <button
+            type="button"
+            onClick={() => setSelectedAccountType(null)}
+            className="px-3 py-1.5 bg-white/10 hover:bg-white/20 text-gray-300 hover:text-white rounded-xl text-[10px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5 border border-white/10"
+          >
+            <RefreshCw size={12} />
+            <span>Change</span>
+          </button>
+        </div>
 
         {/* Card */}
         <motion.div 
@@ -428,7 +635,7 @@ export default function SignUp() {
                 {loading ? <Loader2 className="animate-spin" size={18} /> : (
                   <>
                     <UserPlus size={18} />
-                    Create Account with Phone
+                    {selectedAccountType === 'supplier' ? 'Create Seller Account with Phone' : 'Create Buyer Account with Phone'}
                   </>
                 )}
               </button>
@@ -516,7 +723,7 @@ export default function SignUp() {
                 {loading ? <Loader2 className="animate-spin" size={18} /> : (
                   <>
                     <UserPlus size={18} />
-                    Create Account with Email
+                    {selectedAccountType === 'supplier' ? 'Create Seller Account with Email' : 'Create Buyer Account with Email'}
                   </>
                 )}
               </button>
@@ -528,9 +735,11 @@ export default function SignUp() {
             <div className="space-y-4 py-2">
               <div className="p-4 bg-white/5 rounded-2xl border border-white/10 text-center space-y-2">
                 <Chrome size={32} className="text-primary mx-auto animate-pulse" />
-                <h3 className="text-xs font-black uppercase text-white tracking-widest">Instant Sign Up with Google</h3>
+                <h3 className="text-xs font-black uppercase text-white tracking-widest">
+                  Instant {selectedAccountType === 'supplier' ? 'Seller' : 'Buyer'} Sign Up with Google
+                </h3>
                 <p className="text-[10px] text-gray-400 leading-relaxed font-medium">
-                  Use your Google Account for fast, secure authentication without setting passwords.
+                  Use your Google Account for fast, secure authentication as a {selectedAccountType === 'supplier' ? 'Seller / Supplier' : 'Buyer / Customer'}.
                 </p>
               </div>
 
@@ -543,7 +752,7 @@ export default function SignUp() {
                 {loading ? <Loader2 className="animate-spin" size={18} /> : (
                   <>
                     <LogIn size={18} />
-                    Sign Up using Google
+                    {selectedAccountType === 'supplier' ? 'Sign Up as Seller with Google' : 'Sign Up as Buyer with Google'}
                   </>
                 )}
               </button>

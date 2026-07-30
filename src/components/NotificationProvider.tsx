@@ -1,6 +1,6 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
-import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
 import { UserProfile, AppNotification, PushNotificationSettings } from '../types';
 import { AnimatePresence, motion } from 'motion/react';
 import { Bell, X, Info, Star, ShoppingBag, Zap, Heart, UserPlus, MessageSquare, Store as StoreIcon, ShieldAlert } from 'lucide-react';
@@ -159,7 +159,7 @@ export function NotificationProvider({ children, profile }: { children: React.Re
   pushSettingsRef.current = pushSettings;
 
   useEffect(() => {
-    if (!profile) {
+    if (!profile || profile.isGuest || !auth.currentUser) {
       setNotifications([]);
       prevCountRef.current = 0;
       return;
@@ -220,7 +220,7 @@ export function NotificationProvider({ children, profile }: { children: React.Re
     });
 
     return () => unsubscribe();
-  }, [profile?.uid]);
+  }, [profile?.uid, profile?.isGuest, auth.currentUser?.uid]);
 
   const playNotificationSound = (type: AppNotification['type']) => {
     try {
@@ -354,6 +354,7 @@ export function NotificationProvider({ children, profile }: { children: React.Re
       <AnimatePresence>
         {showToast && (
           <motion.div
+            key={(showToast as any).id || showToast.title || 'notification-toast'}
             initial={{ opacity: 0, y: 50, scale: 0.9 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, scale: 0.9 }}

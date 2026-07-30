@@ -956,7 +956,7 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
       {/* Quarantine configuration Modal */}
       <AnimatePresence>
         {quarantineUser && (
-          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+          <div key="quarantine-user-modal-container" className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}
@@ -1069,7 +1069,7 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
       {/* Purge user configuration Modal */}
       <AnimatePresence>
         {purgeUser && (
-          <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+          <div key="purge-user-modal-container" className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}

@@ -1028,7 +1028,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
       {/* Modals */}
       <AnimatePresence>
         {activeModal && (
-          <div ref={modalContainerRef} className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-12 md:pt-20 overflow-y-auto">
+          <div key={`profile-modal-${activeModal}`} ref={modalContainerRef} className="fixed inset-0 z-50 flex items-start justify-center p-4 pt-12 md:pt-20 overflow-y-auto">
             <motion.div 
               initial={{ opacity: 0 }}
               animate={{ opacity: 1 }}

@@ -27,7 +27,7 @@ export default function GuestLoginPrompt({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[5000] flex items-center justify-center p-4 sm:p-6">
+        <div key="guest-prompt-container" className="fixed inset-0 z-[5000] flex items-center justify-center p-4 sm:p-6">
           <motion.div
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
@@ -59,16 +59,27 @@ export default function GuestLoginPrompt({
                 </p>
               </div>
 
-              <div className="grid grid-cols-1 gap-3 pt-2">
+              <div className="grid grid-cols-1 gap-2.5 pt-2">
                 <button
                   onClick={() => {
                     onClose();
                     navigate('/login');
                   }}
-                  className="w-full py-4 bg-primary text-[#05070a] rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] hover:shadow-[0_0_20px_rgba(0,242,254,0.4)] hover:scale-[1.02] active:scale-98 transition-all flex items-center justify-center gap-2"
+                  className="w-full py-3.5 bg-primary text-[#05070a] rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] hover:shadow-[0_0_20px_rgba(0,242,254,0.4)] hover:scale-[1.01] active:scale-98 transition-all flex items-center justify-center gap-2"
                 >
-                  <LogIn size={16} />
-                  {actionLabel}
+                  <LogIn size={15} />
+                  {actionLabel} (Returning User)
+                </button>
+
+                <button
+                  onClick={() => {
+                    onClose();
+                    navigate('/signup');
+                  }}
+                  className="w-full py-3.5 bg-white/10 text-white rounded-2xl font-black uppercase text-[10px] tracking-[0.15em] border border-white/15 hover:bg-white/20 transition-all flex items-center justify-center gap-2"
+                >
+                  <UserPlus size={15} className="text-primary" />
+                  Create New Account (Seller or Buyer)
                 </button>
 
                 {allowGuest && (
@@ -76,16 +87,16 @@ export default function GuestLoginPrompt({
                     onClick={() => {
                       if (onGuestContinue) onGuestContinue();
                     }}
-                    className="w-full py-4 bg-accent/20 text-accent rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] border border-accent/20 hover:bg-accent/30 hover:shadow-[0_0_20px_rgba(255,0,212,0.2)] transition-all flex items-center justify-center gap-2 group/guest"
+                    className="w-full py-3 bg-accent/20 text-accent rounded-2xl font-black uppercase text-[10px] tracking-[0.15em] border border-accent/20 hover:bg-accent/30 hover:shadow-[0_0_20px_rgba(255,0,212,0.2)] transition-all flex items-center justify-center gap-2 group/guest"
                   >
-                    <ShoppingBag size={16} className="group-hover/guest:animate-bounce" />
+                    <ShoppingBag size={15} className="group-hover/guest:animate-bounce" />
                     Transact as a Guest
                   </button>
                 )}
 
                 <button
                   onClick={onClose}
-                  className="w-full py-4 bg-white/5 text-gray-500 rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] hover:text-white hover:bg-white/10 transition-all"
+                  className="w-full py-2.5 bg-transparent text-gray-500 hover:text-white text-[10px] font-black uppercase tracking-[0.2em] transition-all"
                 >
                   Continue Browsing
                 </button>

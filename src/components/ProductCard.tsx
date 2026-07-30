@@ -230,6 +230,7 @@ export default function ProductCard({
         <div className="aspect-[16/10] sm:aspect-video relative overflow-hidden">
           <AnimatePresence mode="wait">
             <OptimizedImage 
+              key={`prod-img-${currentImageIndex}`}
               src={images[currentImageIndex]} 
               alt={product.name}
               className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
@@ -400,6 +401,7 @@ export default function ProductCard({
       <AnimatePresence>
         {activeModal === 'checkout' && (
           <UnifiedCheckoutModal 
+            key="modal-checkout"
             product={product} 
             profile={profile}
             quantity={purchaseQuantity}
@@ -410,6 +412,7 @@ export default function ProductCard({
         )}
         {activeModal === 'ecocash' && (
           <EcoCashModal 
+            key="modal-ecocash"
             product={product} 
             profile={profile}
             quantity={purchaseQuantity}
@@ -418,6 +421,7 @@ export default function ProductCard({
         )}
         {activeModal === 'paypal' && (
           <PayPalModal 
+            key="modal-paypal"
             product={product} 
             profile={profile}
             quantity={purchaseQuantity}
@@ -426,6 +430,7 @@ export default function ProductCard({
         )}
         {activeModal === 'stripe' && (
           <StripeModal 
+            key="modal-stripe"
             product={product} 
             profile={profile}
             quantity={purchaseQuantity}
@@ -434,6 +439,7 @@ export default function ProductCard({
         )}
         {activeModal === 'pod' && (
           <PodModal 
+            key="modal-pod"
             product={product} 
             profile={profile}
             initialQuantity={purchaseQuantity}
@@ -442,6 +448,7 @@ export default function ProductCard({
         )}
         {activeModal === 'paynow' && (
           <PaynowModal 
+            key="modal-paynow"
             product={product} 
             profile={profile}
             quantity={purchaseQuantity}
@@ -450,6 +457,7 @@ export default function ProductCard({
         )}
         {activeModal === 'bank' && (
           <BankModal 
+            key="modal-bank"
             product={product} 
             profile={profile}
             quantity={purchaseQuantity}

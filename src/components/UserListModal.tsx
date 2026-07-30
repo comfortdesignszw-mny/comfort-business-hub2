@@ -55,7 +55,7 @@ export default function UserListModal({ isOpen, onClose, onUserClick }: UserList
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[2500] flex items-center justify-center p-4 sm:p-6">
+        <div key="user-list-modal-container" className="fixed inset-0 z-[2500] flex items-center justify-center p-4 sm:p-6">
           <motion.div 
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}

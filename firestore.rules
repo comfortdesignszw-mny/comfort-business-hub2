@@ -85,20 +85,16 @@ service cloud.firestore {
     match /stores/{storeId} {
       allow get, list: if true;
       allow create: if isSignedIn() && isValidStore(incoming()) && isValidId(storeId);
-      allow update: if isSignedIn() && (
-        isHardcodedAdmin() || isAdmin() || isOwner(existing().ownerId) || 
-        incoming().diff(existing()).affectedKeys().hasOnly(['followerCount', 'likeCount', 'rating', 'reviewCount', 'updatedAt', '_syncedAt'])
-      );
+      allow update: if isHardcodedAdmin() || isAdmin() || (isSignedIn() && isOwner(existing().ownerId)) || 
+        incoming().diff(existing()).affectedKeys().hasOnly(['followerCount', 'likeCount', 'rating', 'reviewCount', 'orderClicks', 'whatsappClicks', 'estimatedSalesUsd', 'updatedAt', '_syncedAt']);
       allow delete: if isSignedIn() && (isOwner(existing().ownerId) || isHardcodedAdmin() || isAdmin());
     }
 
     match /products/{productId} {
       allow get, list: if true;
       allow create: if isSignedIn() && isValidProduct(incoming()) && isValidId(productId);
-      allow update: if isSignedIn() && (
-        isHardcodedAdmin() || isAdmin() || isOwner(existing().ownerId) || 
-        incoming().diff(existing()).affectedKeys().hasOnly(['rating', 'reviewCount', 'likeCount', 'updatedAt', '_syncedAt'])
-      );
+      allow update: if isHardcodedAdmin() || isAdmin() || (isSignedIn() && isOwner(existing().ownerId)) || 
+        incoming().diff(existing()).affectedKeys().hasOnly(['rating', 'reviewCount', 'likeCount', 'updatedAt', '_syncedAt']);
       allow delete: if isSignedIn() && (isOwner(existing().ownerId) || isHardcodedAdmin() || isAdmin());
     }
 
@@ -138,12 +134,13 @@ service cloud.firestore {
     }
     
     match /engagements/{id} {
-      allow get, list, create, delete: if isSignedIn();
+      allow get, list, delete: if isSignedIn();
+      allow create: if true;
     }
 
     match /spotlights/{id} {
       allow get, list: if true;
-      allow create, update, delete: if isSignedIn() || true;
+      allow create, update, delete: if isSignedIn();
     }
 
     match /connections/{id} {

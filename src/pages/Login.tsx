@@ -285,11 +285,13 @@ export default function Login() {
             <img src="/icon.png" alt="Comfort Hub" className="w-12 h-12 object-contain relative z-10 drop-shadow-[0_0_12px_rgba(0,242,254,0.5)]" referrerPolicy="no-referrer" />
           </motion.div>
           
-          <div className="space-y-1">
+          <div className="space-y-1.5">
             <h1 className="text-3xl font-black text-white italic tracking-tighter uppercase leading-none">
-              Comfort <span className="text-primary drop-shadow-[0_0_10px_rgba(0,242,254,0.5)]">Business Hub</span>
+              Returning User <span className="text-primary drop-shadow-[0_0_10px_rgba(0,242,254,0.5)]">Log In</span>
             </h1>
-            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-[0.25em]">The Future of Zimbabwe Commerce</p>
+            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-[0.15em]">
+              Account type (Seller / Buyer) is automatically detected on log in
+            </p>
           </div>
         </header>
 
@@ -585,16 +587,16 @@ export default function Login() {
           )}
 
           {/* Redirect to Sign Up Link */}
-          <div className="pt-4 border-t border-white/10 text-center">
+          <div className="pt-4 border-t border-white/10 text-center space-y-2">
             <p className="text-xs text-gray-400 font-medium">
-              Don't have an account?{' '}
-              <Link 
-                to="/signup" 
-                className="text-primary font-black uppercase tracking-wider hover:underline italic ml-1"
-              >
-                Sign Up Here
-              </Link>
+              New user? Select your account type to register:
             </p>
+            <Link 
+              to="/signup" 
+              className="inline-flex items-center gap-1.5 px-4 py-2 bg-primary/10 hover:bg-primary/20 text-primary rounded-xl text-xs font-black uppercase tracking-wider transition-all border border-primary/20 italic"
+            >
+              <span>Create Account (Seller or Buyer) →</span>
+            </Link>
           </div>
         </motion.div>
 

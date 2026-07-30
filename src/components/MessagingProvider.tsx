@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useEffect, useState } from 'react';
-import { messaging, db } from '../lib/firebase';
+import { messaging, db, auth } from '../lib/firebase';
 import { getToken, onMessage } from 'firebase/messaging';
 import { doc, updateDoc, addDoc, collection, serverTimestamp, setDoc, query, where, onSnapshot, getDoc } from 'firebase/firestore';
 import { UserProfile } from '../types';
@@ -51,16 +51,11 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode, profile: U
   };
 
   useEffect(() => {
-    if (!profile) {
+    if (!profile || profile.isGuest || !auth.currentUser) {
       setUnreadMessagesCount(0);
       return;
     }
 
-    // Listener for unread messages across all user's conversations
-    // Since Firestore doesn't support complex cross-collection queries for messages easily, 
-    // we listen to conversations where user is a participant and has unread messages.
-    // However, it's easier to listen to messages directly if we know the conversations.
-    // For now, let's listen to all "notifications" of type 'message' which we will create below.
     const q = query(
       collection(db, 'notifications'),
       where('userId', '==', profile.uid),
@@ -70,10 +65,12 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode, profile: U
 
     const unsubscribe = onSnapshot(q, (snap) => {
       setUnreadMessagesCount(snap.size);
+    }, (err) => {
+      console.warn('Unread notifications listener suppressed for guest/auth state:', err);
     });
 
     return () => unsubscribe();
-  }, [profile?.uid]);
+  }, [profile?.uid, profile?.isGuest, auth.currentUser?.uid]);
 
   useEffect(() => {
     const handleOnline = () => setIsOnline(true);

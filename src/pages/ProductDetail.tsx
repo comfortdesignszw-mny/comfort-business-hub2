@@ -492,7 +492,7 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
               <div className="space-y-1.5">
                 {reviews.length > 0 ? (
                   reviews.map((review, idx) => (
-                    <div key={`pd-review-${review.id || idx}`} className="p-2.5 bg-[#0d1117] border border-white/5 rounded-xl space-y-1.5">
+                    <div key={`pd-review-${review.id ? `${review.id}-${idx}` : idx}`} className="p-2.5 bg-[#0d1117] border border-white/5 rounded-xl space-y-1.5">
                       <div className="flex justify-between items-center">
                         <div className="flex items-center gap-1.5">
                           <div className="w-4 h-4 rounded bg-gray-800 flex items-center justify-center text-[7px] font-black text-gray-500 border border-white/10 overflow-hidden shrink-0">
@@ -537,6 +537,7 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
       <AnimatePresence>
         {activeModal === 'checkout' && (
           <UnifiedCheckoutModal 
+            key="modal-checkout-pd"
             product={product} 
             profile={profile}
             quantity={purchaseQuantity}
@@ -547,6 +548,7 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
         )}
         {activeModal === 'ecocash' && (
           <EcoCashModal 
+            key="modal-ecocash-pd"
             product={product} 
             profile={profile}
             quantity={purchaseQuantity}
@@ -555,6 +557,7 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
         )}
         {activeModal === 'paypal' && (
           <PayPalModal 
+            key="modal-paypal-pd"
             product={product} 
             profile={profile}
             quantity={purchaseQuantity}
@@ -563,6 +566,7 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
         )}
         {activeModal === 'stripe' && (
           <StripeModal 
+            key="modal-stripe-pd"
             product={product} 
             profile={profile}
             quantity={purchaseQuantity}
@@ -571,6 +575,7 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
         )}
         {activeModal === 'pod' && (
           <PodModal 
+            key="modal-pod-pd"
             product={product} 
             profile={profile}
             initialQuantity={purchaseQuantity}
@@ -579,6 +584,7 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
         )}
         {activeModal === 'paynow' && (
           <PaynowModal 
+            key="modal-paynow-pd"
             product={product} 
             profile={profile}
             quantity={purchaseQuantity}
@@ -587,6 +593,7 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
         )}
         {activeModal === 'bank' && (
           <BankModal 
+            key="modal-bank-pd"
             product={product} 
             profile={profile}
             quantity={purchaseQuantity}
