@@ -36,6 +36,18 @@ export default function Footer() {
                   Deal Rooms
                 </Link>
               </li>
+              <li>
+                <button
+                  onClick={async () => {
+                    const { getAppSharePayload, executeShare } = await import('../lib/shareUtils');
+                    const payload = getAppSharePayload();
+                    await executeShare(payload);
+                  }}
+                  className="text-[11px] font-black text-cyan-400 uppercase tracking-widest hover:text-white transition-colors flex items-center gap-2"
+                >
+                  Share Comfort Hub
+                </button>
+              </li>
             </ul>
           </div>
 

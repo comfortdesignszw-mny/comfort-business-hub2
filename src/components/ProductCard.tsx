@@ -201,7 +201,7 @@ export default function ProductCard({
         images: images,
         description: product.description,
       },
-      storeData?.name || product.storeName
+      storeData?.name || (product as any).storeName
     );
     await executeShare(payload);
   };

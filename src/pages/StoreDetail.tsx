@@ -209,7 +209,7 @@ export function StoreDetailContent({ store, profile, onGuestLogin, showMap = tru
       logo: store.logo,
       coverPhoto: store.coverPhoto,
       category: store.category,
-      verified: store.verified
+      verified: store.isVerified
     });
     await executeShare(payload);
   };

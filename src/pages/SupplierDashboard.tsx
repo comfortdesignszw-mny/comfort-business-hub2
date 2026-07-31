@@ -463,7 +463,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
       logo: activeStore.logo,
       coverPhoto: activeStore.coverPhoto,
       category: activeStore.category,
-      verified: activeStore.verified
+      verified: activeStore.isVerified
     });
     await executeShare(payload);
   };

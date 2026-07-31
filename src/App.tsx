@@ -415,6 +415,24 @@ function AppRoutes({
 }) {
   const location = useLocation();
 
+  const [sharePayload, setSharePayload] = useState<SharePayload | null>(null);
+  const [isShareModalOpen, setIsShareModalOpen] = useState(false);
+
+  useEffect(() => {
+    const handleOpenShareModal = (e: Event) => {
+      const customEvent = e as CustomEvent<SharePayload>;
+      if (customEvent.detail) {
+        setSharePayload(customEvent.detail);
+        setIsShareModalOpen(true);
+      }
+    };
+
+    window.addEventListener('open-share-modal', handleOpenShareModal);
+    return () => {
+      window.removeEventListener('open-share-modal', handleOpenShareModal);
+    };
+  }, []);
+
   return (
     <NotificationProvider profile={profile}>
       <MessagingProvider profile={profile}>
@@ -505,6 +523,11 @@ function AppRoutes({
           </main>
           <Navigation profile={profile} />
           <PWAPrompt />
+          <ShareModal 
+            isOpen={isShareModalOpen} 
+            onClose={() => setIsShareModalOpen(false)} 
+            payload={sharePayload} 
+          />
         </ModalProvider>
       </MessagingProvider>
     </NotificationProvider>
@@ -550,6 +573,18 @@ function Header({ profile, onMenuClick, onLogout }: { profile: UserProfile | nul
           </div>
         </div>
         <div className="flex items-center gap-2">
+          <button
+            onClick={async () => {
+              const payload = getAppSharePayload();
+              await executeShare(payload);
+            }}
+            className="flex items-center gap-1.5 px-2.5 py-2 bg-cyan-500/10 hover:bg-cyan-500/20 text-cyan-400 border border-cyan-500/30 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all"
+            title="Share Comfort Business Hub"
+          >
+            <Share2 size={14} />
+            <span className="hidden md:inline">Share</span>
+          </button>
+
           <button
             onClick={() => setShowTutorial(true)}
             className="flex items-center gap-1.5 px-2.5 py-2 bg-white/5 hover:bg-white/10 text-gray-300 hover:text-white border border-white/10 rounded-xl text-[10px] font-black uppercase tracking-wider transition-all"
