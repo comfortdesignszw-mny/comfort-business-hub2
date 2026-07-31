@@ -551,7 +551,7 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
       <AnimatePresence>
         {activeModal === 'checkout' && (
           <UnifiedCheckoutModal 
-            key="modal-checkout-pd"
+            key={`modal-checkout-pd-${product.id}`}
             product={product} 
             profile={profile}
             quantity={purchaseQuantity}
@@ -562,7 +562,7 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
         )}
         {activeModal === 'ecocash' && (
           <EcoCashModal 
-            key="modal-ecocash-pd"
+            key={`modal-ecocash-pd-${product.id}`}
             product={product} 
             profile={profile}
             quantity={purchaseQuantity}
@@ -571,7 +571,7 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
         )}
         {activeModal === 'paypal' && (
           <PayPalModal 
-            key="modal-paypal-pd"
+            key={`modal-paypal-pd-${product.id}`}
             product={product} 
             profile={profile}
             quantity={purchaseQuantity}
@@ -580,7 +580,7 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
         )}
         {activeModal === 'stripe' && (
           <StripeModal 
-            key="modal-stripe-pd"
+            key={`modal-stripe-pd-${product.id}`}
             product={product} 
             profile={profile}
             quantity={purchaseQuantity}
@@ -589,7 +589,7 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
         )}
         {activeModal === 'pod' && (
           <PodModal 
-            key="modal-pod-pd"
+            key={`modal-pod-pd-${product.id}`}
             product={product} 
             profile={profile}
             initialQuantity={purchaseQuantity}
@@ -598,7 +598,7 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
         )}
         {activeModal === 'paynow' && (
           <PaynowModal 
-            key="modal-paynow-pd"
+            key={`modal-paynow-pd-${product.id}`}
             product={product} 
             profile={profile}
             quantity={purchaseQuantity}
@@ -607,7 +607,7 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
         )}
         {activeModal === 'bank' && (
           <BankModal 
-            key="modal-bank-pd"
+            key={`modal-bank-pd-${product.id}`}
             product={product} 
             profile={profile}
             quantity={purchaseQuantity}

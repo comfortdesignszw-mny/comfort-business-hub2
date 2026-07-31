@@ -185,7 +185,7 @@ export function UnifiedCheckoutModal({ product, profile, onClose, onSwitchModal,
   });
 
   return (
-    <div key="modal-unified-checkout" className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[#05070a]/90 backdrop-blur-md" onClick={onClose} />
       <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-md neon-card p-0 overflow-hidden">
         <div className="p-5 border-b border-white/5 flex justify-between items-center bg-white/5">
@@ -362,7 +362,7 @@ export function EcoCashModal({ product, profile, onClose, quantity }: {
   };
 
   return (
-    <div key="modal-ecocash" className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[#05070a]/90 backdrop-blur-md" onClick={onClose} />
       <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-sm neon-card p-6 text-center space-y-5">
         <BuyerDisclaimerNotice />
@@ -430,7 +430,7 @@ export function PayPalModal({ product, profile, onClose, quantity }: {
   };
 
   return (
-    <div key="modal-paypal" className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[#05070a]/90 backdrop-blur-md" onClick={onClose} />
       <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-sm neon-card p-6 space-y-6">
         <div className="flex justify-between items-center border-b border-white/10 pb-4">
@@ -523,7 +523,7 @@ export function StripeModal({ product, profile, onClose, quantity }: {
   };
 
   return (
-    <div key="modal-stripe" className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[#05070a]/90 backdrop-blur-md" onClick={onClose} />
       <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-sm neon-card p-6 space-y-6">
         <div className="flex justify-between items-center border-b border-white/10 pb-4">
@@ -650,7 +650,7 @@ export function PodModal({ product, profile, onClose, initialQuantity = 1 }: {
   };
 
   return (
-    <div key="modal-pod" className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[#05070a]/90 backdrop-blur-md" onClick={onClose} />
       <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-lg neon-card p-8 flex flex-col max-h-[90vh] overflow-hidden">
         <div className="flex justify-between items-center mb-4">
@@ -807,7 +807,7 @@ export function BankModal({ product, profile, onClose, quantity }: {
   };
 
   return (
-    <div key="modal-bank-transfer" className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[#05070a]/90 backdrop-blur-md" onClick={onClose} />
       <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-sm neon-card p-6 space-y-6">
         <div className="flex justify-between items-center border-b border-white/10 pb-4">
@@ -943,7 +943,7 @@ export function PaynowModal({ product, profile, onClose, quantity }: {
   };
 
   return (
-    <div key="modal-paynow" className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[#05070a]/90 backdrop-blur-md" onClick={onClose} />
       <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-sm neon-card p-6 space-y-6 text-center">
         <div className="w-16 h-16 bg-cyan-500/20 rounded-3xl flex items-center justify-center mx-auto text-cyan-400 border border-cyan-500/30">

@@ -160,7 +160,7 @@ export default function SupplierTutorialModal({ isOpen, onClose, profile }: Supp
 
   return createPortal(
     <AnimatePresence>
-      <div key="supplier-tutorial-modal-container" className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
+      <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/80 backdrop-blur-md">
         <motion.div
           initial={{ opacity: 0, scale: 0.95, y: 10 }}
           animate={{ opacity: 1, scale: 1, y: 0 }}

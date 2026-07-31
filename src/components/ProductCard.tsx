@@ -403,7 +403,7 @@ export default function ProductCard({
       <AnimatePresence>
         {activeModal === 'checkout' && (
           <UnifiedCheckoutModal 
-            key="modal-checkout"
+            key={`modal-checkout-${product.id}`}
             product={product} 
             profile={profile}
             quantity={purchaseQuantity}
@@ -414,7 +414,7 @@ export default function ProductCard({
         )}
         {activeModal === 'ecocash' && (
           <EcoCashModal 
-            key="modal-ecocash"
+            key={`modal-ecocash-${product.id}`}
             product={product} 
             profile={profile}
             quantity={purchaseQuantity}
@@ -423,7 +423,7 @@ export default function ProductCard({
         )}
         {activeModal === 'paypal' && (
           <PayPalModal 
-            key="modal-paypal"
+            key={`modal-paypal-${product.id}`}
             product={product} 
             profile={profile}
             quantity={purchaseQuantity}
@@ -432,7 +432,7 @@ export default function ProductCard({
         )}
         {activeModal === 'stripe' && (
           <StripeModal 
-            key="modal-stripe"
+            key={`modal-stripe-${product.id}`}
             product={product} 
             profile={profile}
             quantity={purchaseQuantity}
@@ -441,7 +441,7 @@ export default function ProductCard({
         )}
         {activeModal === 'pod' && (
           <PodModal 
-            key="modal-pod"
+            key={`modal-pod-${product.id}`}
             product={product} 
             profile={profile}
             initialQuantity={purchaseQuantity}
@@ -450,7 +450,7 @@ export default function ProductCard({
         )}
         {activeModal === 'paynow' && (
           <PaynowModal 
-            key="modal-paynow"
+            key={`modal-paynow-${product.id}`}
             product={product} 
             profile={profile}
             quantity={purchaseQuantity}
@@ -459,7 +459,7 @@ export default function ProductCard({
         )}
         {activeModal === 'bank' && (
           <BankModal 
-            key="modal-bank"
+            key={`modal-bank-${product.id}`}
             product={product} 
             profile={profile}
             quantity={purchaseQuantity}
