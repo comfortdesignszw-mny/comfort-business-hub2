@@ -11,6 +11,7 @@ import { Report, UserProfile, Role, Store as StoreType, Product, Spotlight } fro
 import { cn, formatCurrency } from '../lib/utils';
 import { useNavigate, useLocation } from 'react-router-dom';
 import { interactionService } from '../services/interactionService';
+import { AdminUserDataTable } from '../components/AdminUserDataTable';
 
 export default function AdminDashboard({ profile }: { profile: UserProfile | null }) {
   const navigate = useNavigate();
@@ -196,6 +197,15 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
   };
 
   const handleUserStatus = async (userId: string, newStatus: 'active' | 'suspended' | 'banned', days?: number, durationLabel?: string) => {
+    const targetUser = users.find(u => u.uid === userId);
+    const isTargetAdmin = targetUser?.isAdmin || targetUser?.email === 'comfort.designszw@gmail.com';
+    const totalAdmins = users.filter(u => u.isAdmin || u.email === 'comfort.designszw@gmail.com').length;
+
+    if ((newStatus === 'suspended' || newStatus === 'banned') && isTargetAdmin && totalAdmins <= 1) {
+      alert("Action Prohibited: Cannot quarantine or ban the last remaining Admin account. The system must maintain at least one active Admin at all times.");
+      return;
+    }
+
     setIsProcessing(userId);
     try {
       const updates: any = { status: newStatus, updatedAt: serverTimestamp() };
@@ -222,7 +232,43 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
     }
   };
 
+  const handleAdminRoleToggle = async (userId: string, makeAdmin: boolean) => {
+    const targetUser = users.find(u => u.uid === userId);
+    const isTargetAdmin = targetUser?.isAdmin || targetUser?.email === 'comfort.designszw@gmail.com';
+    const totalAdmins = users.filter(u => u.isAdmin || u.email === 'comfort.designszw@gmail.com').length;
+
+    if (!makeAdmin && isTargetAdmin && totalAdmins <= 1) {
+      alert("Action Prohibited: Cannot demote the last remaining Admin account. The system must maintain at least one Admin at all times.");
+      return;
+    }
+
+    setIsProcessing(userId);
+    try {
+      const updates = { isAdmin: makeAdmin, updatedAt: serverTimestamp() };
+      
+      const batch = writeBatch(db);
+      batch.update(doc(db, 'users', userId), updates);
+      batch.update(doc(db, 'public_profiles', userId), updates);
+      await batch.commit();
+
+      setUsers(prev => prev.map(u => u.uid === userId ? { ...u, isAdmin: makeAdmin } : u));
+    } catch (err) {
+      handleFirestoreError(err, OperationType.UPDATE, `users/${userId}`);
+    } finally {
+      setIsProcessing(null);
+    }
+  };
+
   const handleWipeUser = async (userId: string) => {
+    const targetUser = users.find(u => u.uid === userId);
+    const isTargetAdmin = targetUser?.isAdmin || targetUser?.email === 'comfort.designszw@gmail.com';
+    const totalAdmins = users.filter(u => u.isAdmin || u.email === 'comfort.designszw@gmail.com').length;
+
+    if (isTargetAdmin && totalAdmins <= 1) {
+      alert("Action Prohibited: Cannot delete or purge the last remaining Admin account. Please promote another user to Admin before removing this account.");
+      return;
+    }
+
     setIsProcessing(userId);
     try {
       // 1. Delete matching stores
@@ -338,7 +384,7 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
             )}
           >
             <Users size={14} />
-            Users
+            Users ({users.length})
           </button>
           <button 
             onClick={() => setActiveTab('stores')}
@@ -574,117 +620,21 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
             </motion.div>
           ) : activeTab === 'users' ? (
             <motion.div 
-              key="users-grid"
-              initial={{ opacity: 0, y: 20 }}
+              key="users-data-table"
+              initial={{ opacity: 0, y: 15 }}
               animate={{ opacity: 1, y: 0 }}
-              exit={{ opacity: 0, y: -20 }}
-              className="grid gap-4"
+              exit={{ opacity: 0, y: -15 }}
             >
-              {filteredUsers.map((user, idx) => (
-                <div key={`admin-usr-${user.uid || idx}-${idx}`} className="neon-card p-5 flex flex-col sm:flex-row sm:items-center justify-between gap-4 border-white/5">
-                  <div className="flex items-center gap-4">
-                    <div className="relative">
-                      <div className="w-12 h-12 rounded-full border-2 border-white/10 bg-white/5 overflow-hidden flex items-center justify-center text-white font-black">
-                        {user.avatar ? <img src={user.avatar} className="w-full h-full object-cover" /> : user.name.charAt(0)}
-                      </div>
-                      {user.status === 'suspended' && <div className="absolute -top-1 -right-1 w-5 h-5 bg-amber-500 rounded-full flex items-center justify-center text-black border-2 border-[#0d1117]"><Pause size={10} /></div>}
-                      {user.status === 'banned' && <div className="absolute -top-1 -right-1 w-5 h-5 bg-red-500 rounded-full flex items-center justify-center text-white border-2 border-[#0d1117]"><XCircle size={10} /></div>}
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <h3 className="font-black text-white uppercase italic tracking-tighter">{user.name}</h3>
-                        <span className={cn(
-                          "text-[7px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded border",
-                          user.currentRole === 'supplier' ? "bg-primary/10 border-primary/20 text-primary" : "bg-white/5 border-white/10 text-gray-400"
-                        )}>
-                          {user.currentRole}
-                        </span>
-                        {user.isVerified && (
-                          <span className="text-[7.5px] font-black uppercase tracking-widest px-1.5 py-0.5 rounded border bg-neon-green/10 border-neon-green/30 text-neon-green flex items-center gap-1 shadow-[0_0_10px_rgba(57,255,20,0.15)]">
-                            <Shield size={10} className="fill-current" /> Verified
-                          </span>
-                        )}
-                        {user.status === 'suspended' && (
-                          <span className="text-[7.5px] font-black uppercase tracking-widest px-2 py-0.5 rounded border bg-amber-500/10 border-amber-500/30 text-amber-400 animate-pulse shadow-[0_0_10px_rgba(245,158,11,0.15)]">
-                            Quarantined for {user.suspensionDuration || '14 days'}
-                          </span>
-                        )}
-                      </div>
-                      <p className="text-[10px] text-gray-500 font-bold">{user.email || user.phone}</p>
-                      {user.suspensionEnd && (
-                        <p className="text-[8px] text-amber-500 font-black uppercase tracking-widest mt-1">Suspended until: {new Date(user.suspensionEnd).toLocaleDateString()}</p>
-                      )}
-                    </div>
-                  </div>
-
-                  <div className="flex flex-wrap items-center gap-2">
-                    {!user.isAdmin && user.email !== 'comfort.designszw@gmail.com' && (
-                      <button 
-                        onClick={() => handleUserVerification(user.uid, !user.isVerified)}
-                        disabled={!!isProcessing}
-                        className={cn(
-                          "px-4 py-2 border text-[9px] font-black uppercase tracking-widest rounded-xl transition-all flex items-center gap-2",
-                          user.isVerified 
-                            ? "bg-white/5 border-white/10 text-gray-400 hover:text-white" 
-                            : "bg-neon-green/10 border-neon-green/30 text-neon-green hover:bg-neon-green hover:text-black shadow-[0_0_15px_rgba(57,255,20,0.15)]"
-                        )}
-                      >
-                        {isProcessing === user.uid ? <Loader2 size={12} className="animate-spin" /> : <Shield size={14} className={user.isVerified ? "" : "fill-current"} />}
-                        {user.isVerified ? 'Revoke Verified' : 'Verify Operator'}
-                      </button>
-                    )}
-
-                    {user.isAdmin || user.email === 'comfort.designszw@gmail.com' ? (
-                      <span className="text-[8px] font-black uppercase tracking-widest px-3 py-1.5 rounded-xl border bg-primary/10 border-primary/35 text-primary shadow-[0_0_15px_rgba(255,0,212,0.1)]">
-                        Admin Account
-                      </span>
-                    ) : user.status === 'suspended' ? (
-                      <button 
-                        onClick={() => handleUserStatus(user.uid, 'active')}
-                        disabled={!!isProcessing}
-                        className="px-4 py-2 bg-amber-500/10 border border-amber-500/30 text-amber-500 text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-amber-500 hover:text-black transition-all flex items-center gap-2 shadow-[0_0_15px_rgba(245,158,11,0.15)] animate-pulse"
-                      >
-                         {isProcessing === user.uid ? <Loader2 size={12} className="animate-spin" /> : <Play size={14} className="fill-current" />}
-                         Reverse Quarantine
-                      </button>
-                    ) : user.status === 'banned' ? (
-                      <button 
-                        onClick={() => handleUserStatus(user.uid, 'active')}
-                        disabled={!!isProcessing}
-                        className="px-4 py-2 bg-neon-green/10 border border-neon-green/30 text-neon-green text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-neon-green hover:text-black transition-all flex items-center gap-2"
-                      >
-                         {isProcessing === user.uid ? <Loader2 size={12} className="animate-spin" /> : <CheckCircle size={14} />}
-                         Reactivate Account
-                      </button>
-                    ) : (
-                      <>
-                        <button 
-                          onClick={() => setQuarantineUser(user)}
-                          disabled={!!isProcessing}
-                          className="px-4 py-2 bg-amber-500/10 border border-amber-500/30 text-amber-500 text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-amber-500 hover:text-black transition-all flex items-center gap-2"
-                        >
-                           {isProcessing === user.uid ? <Loader2 size={12} className="animate-spin" /> : <Pause size={14} />}
-                           Quarantine
-                        </button>
-                        <button 
-                          onClick={() => setPurgeUser(user)}
-                          disabled={!!isProcessing}
-                          className="px-4 py-2 bg-red-500/10 border border-red-500/30 text-red-500 text-[9px] font-black uppercase tracking-widest rounded-xl hover:bg-red-500 hover:text-white transition-all flex items-center gap-2"
-                        >
-                           {isProcessing === user.uid ? <Loader2 size={12} className="animate-spin" /> : <Trash2 size={14} />}
-                           Remove Access
-                        </button>
-                      </>
-                    )}
-                  </div>
-                </div>
-              ))}
-              {filteredUsers.length === 0 && (
-                <div className="py-16 text-center space-y-3">
-                  <Users size={32} className="mx-auto text-gray-600" />
-                  <p className="text-xs text-gray-500 font-bold uppercase tracking-widest">No Users Located</p>
-                </div>
-              )}
+              <AdminUserDataTable
+                users={users}
+                profile={profile}
+                isProcessing={isProcessing}
+                onVerifyUser={handleUserVerification}
+                onStatusChange={handleUserStatus}
+                onToggleAdminRole={handleAdminRoleToggle}
+                onQuarantineClick={setQuarantineUser}
+                onPurgeClick={setPurgeUser}
+              />
             </motion.div>
           ) : activeTab === 'stores' ? (
             <motion.div 
