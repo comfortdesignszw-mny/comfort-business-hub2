@@ -1,13 +1,26 @@
 import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
-import { initializeFirestore, doc, getDocFromServer, CACHE_SIZE_UNLIMITED, persistentLocalCache } from 'firebase/firestore';
+import { 
+  initializeFirestore, 
+  doc, 
+  getDocFromCache, 
+  getDocsFromCache, 
+  getDoc, 
+  getDocs, 
+  DocumentReference, 
+  Query, 
+  DocumentSnapshot, 
+  QuerySnapshot,
+  CACHE_SIZE_UNLIMITED, 
+  persistentLocalCache 
+} from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
-import { getMessaging, getToken, onMessage } from 'firebase/messaging';
+import { getMessaging } from 'firebase/messaging';
 import firebaseConfig from '../../firebase-applet-config.json';
 
 const app = initializeApp(firebaseConfig);
 
-// Modern Firestore initialization with persistent cache settings and long polling for reliability behind proxies
+// Modern Firestore initialization with persistent local cache for zero-connectivity startup
 export const db = initializeFirestore(app, {
   experimentalForceLongPolling: true,
   localCache: persistentLocalCache({
@@ -19,36 +32,49 @@ export const auth = getAuth(app);
 export const storage = getStorage(app);
 export const messaging = typeof window !== 'undefined' ? getMessaging(app) : null;
 
-// Connectivity Test (Delayed for reliability)
-async function testConnection() {
-  if (typeof navigator !== 'undefined' && !navigator.onLine) {
-    console.info("Firestore Signal: Operating in offline persistent cache mode.");
-    return;
-  }
-  // Give the browser a moment to settle network connections
-  await new Promise(resolve => setTimeout(resolve, 2000));
-  try {
-    // Explicitly check connectivity to the server
-    await getDocFromServer(doc(db, 'test', 'connection'));
-    console.log("Firestore Signal: CONNECTED");
-  } catch (error: any) {
-    const errStr = String(error?.message || error || '');
-    if (
-      error?.code === 'unavailable' ||
-      error?.code === 'failed-precondition' ||
-      errStr.includes('offline') ||
-      errStr.includes('could not be completed') ||
-      errStr.includes('10 seconds') ||
-      errStr.includes('unavailable')
-    ) {
-      console.info("Firestore Signal: Operating in offline persistent cache mode.");
-    } else {
-      console.warn("Firestore Signal Status:", errStr);
-    }
-  }
+// Non-blocking Zero-Connectivity Startup Signal
+async function initZeroConnectivityStartup() {
+  console.info("⚡ Zero-Connectivity Startup: Prioritizing local cache and browser sandbox.");
 }
 
-testConnection();
+initZeroConnectivityStartup();
+
+/**
+ * Cache-First Document Fetcher
+ * Tries browser persistent cache / sandbox first for instant startup.
+ * Queries database only if required data is missing locally.
+ */
+export async function getDocCacheFirst(docRef: DocumentReference): Promise<DocumentSnapshot> {
+  try {
+    const cachedSnap = await getDocFromCache(docRef);
+    if (cachedSnap.exists()) {
+      return cachedSnap;
+    }
+  } catch (err) {
+    // Cache miss or local cache unavailable
+  }
+
+  // Fallback to remote database query if missing locally
+  return await getDoc(docRef);
+}
+
+/**
+ * Cache-First Collection / Query Fetcher
+ * Tries local browser cache first, queries server only if not found in local cache.
+ */
+export async function getDocsCacheFirst(queryRef: Query): Promise<QuerySnapshot> {
+  try {
+    const cachedSnap = await getDocsFromCache(queryRef);
+    if (!cachedSnap.empty) {
+      return cachedSnap;
+    }
+  } catch (err) {
+    // Cache miss or query not cached
+  }
+
+  // Fallback to remote database query
+  return await getDocs(queryRef);
+}
 
 // Standardized Error Handler
 export enum OperationType {
@@ -73,8 +99,10 @@ export interface FirestoreErrorInfo {
 }
 
 export function handleFirestoreError(error: unknown, operationType: OperationType, path: string | null) {
+  const errMessage = error instanceof Error ? error.message : String(error);
+  
   const errInfo: FirestoreErrorInfo = {
-    error: error instanceof Error ? error.message : String(error),
+    error: errMessage,
     authInfo: {
       userId: auth.currentUser?.uid,
       email: auth.currentUser?.email,
@@ -88,11 +116,20 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   // High-priority security logging for permission violations
   if (errInfo.error.includes('Insufficient permissions')) {
     console.error(' [SECURITY INCIDENT] Unauthorized Access Attempt:', JSON.stringify(errInfo));
+    throw new Error(JSON.stringify(errInfo));
+  } else if (
+    errMessage.includes('offline') || 
+    errMessage.includes('unavailable') || 
+    errMessage.includes('network') ||
+    errMessage.includes('failed-precondition')
+  ) {
+    // Graceful offline degradation for zero-connectivity startup
+    console.warn(`[Zero-Connectivity Fallback] Firestore ${operationType} on ${path || 'resource'} operating from local cache/sandbox:`, errMessage);
+    return;
   } else {
     console.error('Firestore Error Payload: ', JSON.stringify(errInfo));
+    throw new Error(JSON.stringify(errInfo));
   }
-  
-  throw new Error(JSON.stringify(errInfo));
 }
 
 /**

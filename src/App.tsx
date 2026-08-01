@@ -6,7 +6,7 @@
 import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Link, useLocation, useNavigate } from 'react-router-dom';
 import { onAuthStateChanged, User } from 'firebase/auth';
-import { auth, db, handleFirestoreError, OperationType, syncPublicProfile } from './lib/firebase';
+import { auth, db, handleFirestoreError, OperationType, syncPublicProfile, getDocCacheFirst } from './lib/firebase';
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
 import { 
   Search, ShoppingBag, MessageSquare, User as UserIcon, Store, LayoutGrid, 
@@ -235,12 +235,15 @@ export default function App() {
         }
 
         try {
-          const docSnap = await getDoc(doc(db, 'users', firebaseUser.uid));
+          const docSnap = await getDocCacheFirst(doc(db, 'users', firebaseUser.uid));
           if (docSnap.exists()) {
             const profileData = docSnap.data() as UserProfile;
             
-            // Update cache
-            localStorage.setItem(`profile_cache_${firebaseUser.uid}`, JSON.stringify(profileData));
+            // Update cache with timestamp for stale cleanup (7-day rule)
+            localStorage.setItem(`profile_cache_${firebaseUser.uid}`, JSON.stringify({
+              ...profileData,
+              _cachedAt: Date.now()
+            }));
             
             if (profileData.status === 'suspended') {
               localStorage.setItem('quarantine_temp', JSON.stringify({

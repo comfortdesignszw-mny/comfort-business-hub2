@@ -172,5 +172,73 @@ if (typeof window !== 'undefined') {
   });
 
   // Background interval for safety
-  setInterval(() => triggerSync(), 60000);
+  setInterval(() => {
+    triggerSync();
+    cleanStaleLocalStorageProfileCache();
+  }, 60000);
+  
+  // Run on startup
+  cleanStaleLocalStorageProfileCache();
 }
+
+/**
+ * Utility to periodically clear stale data from the localStorage profile cache (older than 7 days).
+ * Ensures local storage remains lean and performant for offline operations.
+ */
+export function cleanStaleLocalStorageProfileCache(maxAgeDays: number = 7) {
+  if (typeof window === 'undefined' || !window.localStorage) return;
+
+  const MAX_AGE_MS = maxAgeDays * 24 * 60 * 60 * 1000;
+  const now = Date.now();
+
+  try {
+    const keysToRemove: string[] = [];
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (key && (key.startsWith('profile_cache_') || key.startsWith('user_cache_') || key.startsWith('guest_profile'))) {
+        const itemStr = localStorage.getItem(key);
+        if (!itemStr) continue;
+
+        try {
+          const parsed = JSON.parse(itemStr);
+          let itemTime: number | null = null;
+
+          if (typeof parsed === 'object' && parsed !== null) {
+            if (typeof parsed._cachedAt === 'number') {
+              itemTime = parsed._cachedAt;
+            } else if (typeof parsed.updatedAt === 'number') {
+              itemTime = parsed.updatedAt;
+            } else if (typeof parsed.updatedAt === 'string') {
+              const dateVal = new Date(parsed.updatedAt).getTime();
+              if (!isNaN(dateVal)) itemTime = dateVal;
+            } else if (parsed.updatedAt?.seconds) {
+              itemTime = parsed.updatedAt.seconds * 1000;
+            } else if (typeof parsed.createdAt === 'number') {
+              itemTime = parsed.createdAt;
+            } else if (typeof parsed.timestamp === 'number') {
+              itemTime = parsed.timestamp;
+            }
+          }
+
+          if (itemTime !== null && !isNaN(itemTime)) {
+            if (now - itemTime > MAX_AGE_MS) {
+              keysToRemove.push(key);
+            }
+          }
+        } catch {
+          // Remove corrupted JSON items
+          keysToRemove.push(key);
+        }
+      }
+    }
+
+    for (const key of keysToRemove) {
+      localStorage.removeItem(key);
+      console.log(`[Sync Service] Cleared stale profile cache key (> 7 days old): ${key}`);
+    }
+  } catch (error) {
+    console.warn('[Sync Service] Error cleaning stale localStorage profile cache:', error);
+  }
+}
+
+export const cleanStaleProfileCache = cleanStaleLocalStorageProfileCache;

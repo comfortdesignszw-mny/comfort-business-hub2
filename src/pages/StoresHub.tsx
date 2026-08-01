@@ -47,10 +47,27 @@ export default function StoresHub({ profile }: { profile: UserProfile | null }) 
 
   useEffect(() => {
     setLoading(true);
+
+    // 1. Prioritize local cache / browser sandbox for instant zero-connectivity startup!
+    import('../lib/dexieSyncManager').then(({ getCachedCollection, cacheCollection }) => {
+      getCachedCollection<StoreType>('stores').then((cached) => {
+        if (cached && cached.length > 0) {
+          setStores(cached);
+          setLoading(false);
+        }
+      }).catch(() => {});
+    });
+
     const sq = query(collection(db, 'stores'), limit(50));
     const unsubscribe = onSnapshot(sq, (snapshot) => {
-      setStores(snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StoreType)));
+      const fetchedStores = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StoreType));
+      setStores(fetchedStores);
       setLoading(false);
+
+      // Save to local cache for next startup
+      import('../lib/dexieSyncManager').then(({ cacheCollection }) => {
+        cacheCollection('stores', fetchedStores);
+      }).catch(() => {});
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, 'stores-hub');
       setLoading(false);

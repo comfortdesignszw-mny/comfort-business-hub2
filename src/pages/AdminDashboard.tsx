@@ -62,11 +62,22 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
   useEffect(() => {
     setLoading(true);
     
+    // Prioritize local cache / browser sandbox for zero-connectivity startup!
+    import('../lib/dexieSyncManager').then(({ getCachedCollection, cacheCollection }) => {
+      getCachedCollection<Report>('reports').then(c => c && c.length > 0 && (setReports(c), setLoading(false))).catch(() => {});
+      getCachedCollection<UserProfile>('users').then(c => c && c.length > 0 && setUsers(c)).catch(() => {});
+      getCachedCollection<StoreType>('stores').then(c => c && c.length > 0 && setStores(c)).catch(() => {});
+      getCachedCollection<Product>('products').then(c => c && c.length > 0 && setProducts(c)).catch(() => {});
+      getCachedCollection<Spotlight>('spotlights').then(c => c && c.length > 0 && setSpotlights(c)).catch(() => {});
+    });
+
     // Listen for reports
     const reportsQuery = query(collection(db, 'reports'), orderBy('createdAt', 'desc'));
     const unsubscribeReports = onSnapshot(reportsQuery, (snap) => {
-      setReports(snap.docs.map(d => ({ id: d.id, ...d.data() } as Report)));
+      const fetchedReports = snap.docs.map(d => ({ id: d.id, ...d.data() } as Report));
+      setReports(fetchedReports);
       setLoading(false);
+      import('../lib/dexieSyncManager').then(({ cacheCollection }) => cacheCollection('reports', fetchedReports)).catch(() => {});
     }, (err) => {
       handleFirestoreError(err, OperationType.GET, 'admin-reports');
       setLoading(false);
@@ -75,25 +86,33 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
     // Listen for users (Admin has permission)
     const usersQuery = query(collection(db, 'users'), orderBy('updatedAt', 'desc'));
     const unsubscribeUsers = onSnapshot(usersQuery, (snap) => {
-      setUsers(snap.docs.map(d => ({ uid: d.id, ...d.data() } as UserProfile)));
+      const fetchedUsers = snap.docs.map(d => ({ uid: d.id, ...d.data() } as UserProfile));
+      setUsers(fetchedUsers);
+      import('../lib/dexieSyncManager').then(({ cacheCollection }) => cacheCollection('users', fetchedUsers)).catch(() => {});
     });
 
     // Listen for stores
     const storesQuery = query(collection(db, 'stores'), orderBy('updatedAt', 'desc'));
     const unsubscribeStores = onSnapshot(storesQuery, (snap) => {
-      setStores(snap.docs.map(d => ({ id: d.id, ...d.data() } as StoreType)));
+      const fetchedStores = snap.docs.map(d => ({ id: d.id, ...d.data() } as StoreType));
+      setStores(fetchedStores);
+      import('../lib/dexieSyncManager').then(({ cacheCollection }) => cacheCollection('stores', fetchedStores)).catch(() => {});
     });
 
     // Listen for products
     const productsQuery = query(collection(db, 'products'), orderBy('updatedAt', 'desc'));
     const unsubscribeProducts = onSnapshot(productsQuery, (snap) => {
-      setProducts(snap.docs.map(d => ({ id: d.id, ...d.data() } as Product)));
+      const fetchedProducts = snap.docs.map(d => ({ id: d.id, ...d.data() } as Product));
+      setProducts(fetchedProducts);
+      import('../lib/dexieSyncManager').then(({ cacheCollection }) => cacheCollection('products', fetchedProducts)).catch(() => {});
     });
 
     // Listen for spotlights / classified ads
     const spotlightsQuery = query(collection(db, 'spotlights'), orderBy('createdAt', 'desc'));
     const unsubscribeSpotlights = onSnapshot(spotlightsQuery, (snap) => {
-      setSpotlights(snap.docs.map(d => ({ id: d.id, ...d.data() } as Spotlight)));
+      const fetchedSpotlights = snap.docs.map(d => ({ id: d.id, ...d.data() } as Spotlight));
+      setSpotlights(fetchedSpotlights);
+      import('../lib/dexieSyncManager').then(({ cacheCollection }) => cacheCollection('spotlights', fetchedSpotlights)).catch(() => {});
     });
 
     return () => {
