@@ -265,20 +265,16 @@ export default function ProductCard({
           compact ? "!bg-[#0a0f16] !border-white/10 hover:!border-primary/40 shadow-sm" : ""
         )}
       >
-        <div className={cn("relative overflow-hidden shrink-0 bg-[#080d14] flex items-center justify-center", compact ? "h-28 sm:h-32" : "aspect-[16/10] sm:aspect-video")}>
-          <AnimatePresence mode="wait">
-            <OptimizedImage 
-              key={`prod-img-${currentImageIndex}`}
-              src={images[currentImageIndex]} 
-              alt={product.name}
-              className="w-full h-full object-contain p-1 group-hover:scale-105 transition-transform duration-500"
-              fallbackSrc="https://images.unsplash.com/photo-1541701494587-cb58502866ab?q=80&w=400&auto=format&fit=crop"
-            />
-          </AnimatePresence>
-          
-          <div className="absolute inset-0 bg-gradient-to-t from-[#05070a] via-transparent to-transparent opacity-60 pointer-events-none"></div>
-
-          <div className="absolute top-1.5 sm:top-2 left-1.5 sm:left-2 flex items-center gap-1 z-20 max-w-[calc(100%-80px)] sm:max-w-[calc(100%-105px)] overflow-hidden" onClick={(e) => e.stopPropagation()}>
+        {/* Dedicated Header Bar for Rating & Social Interactions */}
+        <div 
+          className={cn(
+            "w-full bg-[#03060a] border-b border-white/10 flex items-center justify-between gap-1.5 z-20 shrink-0",
+            compact ? "px-2 py-1.5" : "px-3 py-2 sm:px-3.5 sm:py-2.5"
+          )} 
+          onClick={(e) => e.stopPropagation()}
+        >
+          {/* Left: 5-Star Rating Capsule */}
+          <div className="flex items-center min-w-0 shrink">
             <AuthGuard
               title="Rate Product"
               message="Sign in to rate and review this product."
@@ -296,8 +292,8 @@ export default function ProductCard({
                   setShowRatingModal(true);
                 }}
                 className={cn(
-                  "bg-[#05070a]/95 backdrop-blur-md rounded-xl border border-amber-400/50 text-[8px] font-black flex items-center gap-1 shadow-[0_0_12px_rgba(251,191,36,0.25)] cursor-pointer hover:border-amber-400 hover:bg-amber-400/10 hover:scale-105 active:scale-95 transition-all truncate max-w-full",
-                  compact ? "px-1.5 py-0.5 text-[7.5px]" : "px-2 py-0.5 sm:px-2.5 sm:py-1 text-[8px] sm:text-[9px]"
+                  "bg-[#080d16] rounded-xl border border-amber-400/50 text-amber-400 font-black flex items-center gap-1 shadow-[0_0_10px_rgba(251,191,36,0.15)] cursor-pointer hover:border-amber-400 hover:bg-amber-400/10 hover:scale-[1.02] active:scale-95 transition-all truncate max-w-full",
+                  compact ? "px-1.5 py-0.5 text-[7px]" : "px-2 py-1 sm:px-2.5 text-[8px] sm:text-[9px]"
                 )}
                 title="Click to rate & review this product"
               >
@@ -306,18 +302,9 @@ export default function ProductCard({
             </AuthGuard>
           </div>
 
-          <button 
-            onClick={handleShare}
-            className={cn(
-              "absolute top-1.5 sm:top-2 right-1.5 sm:right-2 bg-[#05070a]/80 backdrop-blur-md rounded-xl border border-white/10 text-white hover:text-primary transition-colors hover:scale-110 active:scale-95 shadow-xl z-20 no-auth-guard",
-              compact ? "p-1" : "p-1.5 sm:p-2"
-            )}
-          >
-            <Share2 size={11} className={compact ? "w-2.5 h-2.5" : "sm:w-[14px] sm:h-[14px]"} />
-          </button>
-
-          {!isOwner && (
-            <>
+          {/* Right: Social Action Icons (Like, Share, Report) */}
+          <div className="flex items-center gap-1 sm:gap-1.5 shrink-0">
+            {!isOwner && (
               <AuthGuard
                 title="Save for Later"
                 message="Join the network to save this node to your private dashboard."
@@ -326,25 +313,55 @@ export default function ProductCard({
                 <button 
                   onClick={handleLike}
                   className={cn(
-                    "absolute top-1.5 sm:top-2 bg-[#05070a]/80 backdrop-blur-md rounded-xl border border-white/10 text-white hover:text-red-500 transition-colors hover:scale-110 active:scale-95 shadow-xl z-20",
-                    compact ? "right-7 p-1" : "right-10 sm:right-14 p-1.5 sm:p-2"
+                    "rounded-xl border border-white/10 bg-white/5 text-gray-300 hover:text-red-500 hover:border-red-500/40 hover:bg-red-500/10 transition-all active:scale-90 flex items-center justify-center shadow-sm",
+                    compact ? "p-1" : "p-1.5 sm:p-2"
                   )}
+                  title="Save/Like Product"
                 >
-                  <Heart size={11} className={cn(compact ? "w-2.5 h-2.5" : "sm:w-[14px] sm:h-[14px]", product.likeCount ? "fill-red-500 text-red-500" : "")} />
+                  <Heart size={12} className={cn(compact ? "w-3 h-3" : "w-3.5 h-3.5 sm:w-4 sm:h-4", product.likeCount ? "fill-red-500 text-red-500" : "")} />
                 </button>
               </AuthGuard>
+            )}
 
-              {profile && !profile.isGuest && !compact && (
-                <button 
-                  onClick={(e) => { e.stopPropagation(); setShowReportModal(true); }}
-                  className="absolute top-10 sm:top-14 right-2 sm:right-4 p-1.5 sm:p-2 bg-red-500/20 backdrop-blur-md rounded-xl border border-red-500/20 text-red-500 hover:bg-red-500 hover:text-white transition-all hover:scale-110 active:scale-95 shadow-xl z-20"
-                  title="Report Abuse"
-                >
-                  <ShieldAlert size={12} className="sm:w-[14px] sm:h-[14px]" />
-                </button>
+            <button 
+              onClick={handleShare}
+              className={cn(
+                "rounded-xl border border-white/10 bg-white/5 text-gray-300 hover:text-primary hover:border-primary/40 hover:bg-primary/10 transition-all active:scale-90 flex items-center justify-center shadow-sm no-auth-guard",
+                compact ? "p-1" : "p-1.5 sm:p-2"
               )}
-            </>
-          )}
+              title="Share Product"
+            >
+              <Share2 size={12} className={compact ? "w-3 h-3" : "w-3.5 h-3.5 sm:w-4 sm:h-4"} />
+            </button>
+
+            {!isOwner && profile && !profile.isGuest && (
+              <button 
+                onClick={(e) => { e.stopPropagation(); setShowReportModal(true); }}
+                className={cn(
+                  "rounded-xl border border-red-500/20 bg-red-500/10 text-red-400 hover:bg-red-500 hover:text-white transition-all active:scale-90 flex items-center justify-center shadow-sm",
+                  compact ? "p-1" : "p-1.5 sm:p-2"
+                )}
+                title="Report Abuse"
+              >
+                <ShieldAlert size={12} className={compact ? "w-3 h-3" : "w-3.5 h-3.5 sm:w-4 sm:h-4"} />
+              </button>
+            )}
+          </div>
+        </div>
+
+        {/* Product Image View Container */}
+        <div className={cn("relative overflow-hidden shrink-0 bg-[#080d14] flex items-center justify-center", compact ? "h-28 sm:h-32" : "aspect-[16/10] sm:aspect-video")}>
+          <AnimatePresence mode="wait">
+            <OptimizedImage 
+              key={`prod-img-${currentImageIndex}`}
+              src={images[currentImageIndex]} 
+              alt={product.name}
+              className="w-full h-full object-contain p-1 group-hover:scale-105 transition-transform duration-500"
+              fallbackSrc="https://images.unsplash.com/photo-1541701494587-cb58502866ab?q=80&w=400&auto=format&fit=crop"
+            />
+          </AnimatePresence>
+          
+          <div className="absolute inset-0 bg-gradient-to-t from-[#05070a] via-transparent to-transparent opacity-60 pointer-events-none"></div>
         </div>
 
         <div className={cn("flex-1 flex flex-col justify-between relative", compact ? "p-2.5 space-y-2" : "p-3.5 sm:p-5 space-y-3 sm:space-y-4")}>

@@ -276,6 +276,31 @@
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["reporterId", "targetId", "targetType", "type", "details", "createdAt"]
+    },
+    "PasswordResetToken": {
+      "title": "Password Reset Token",
+      "description": "Secure hashed reset tokens for custom password reset flow. Admin SDK access only.",
+      "type": "object",
+      "properties": {
+        "uid": { "type": "string" },
+        "tokenHash": { "type": "string" },
+        "identifier": { "type": "string" },
+        "used": { "type": "boolean" },
+        "expiresAt": { "type": "number" },
+        "createdAt": { "type": "string", "format": "date-time" }
+      },
+      "required": ["uid", "tokenHash", "used", "expiresAt"]
+    },
+    "RateLimit": {
+      "title": "Rate Limit Tracker",
+      "description": "Rate limiting counters per IP or identifier. Admin SDK access only.",
+      "type": "object",
+      "properties": {
+        "count": { "type": "number" },
+        "firstRequestTime": { "type": "number" },
+        "lastRequestTime": { "type": "number" }
+      },
+      "required": ["count", "firstRequestTime"]
     }
   },
   "firestore": {
@@ -334,6 +359,14 @@
     "reports": {
       "schema": "Report",
       "description": "Abuse and quality reports"
+    },
+    "passwordResetTokens": {
+      "schema": "PasswordResetToken",
+      "description": "Custom password reset tokens (Cloud Functions Admin SDK access only)"
+    },
+    "rateLimits": {
+      "schema": "RateLimit",
+      "description": "IP and identifier rate limit tracking (Cloud Functions Admin SDK access only)"
     }
   }
 }

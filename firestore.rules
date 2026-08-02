@@ -151,6 +151,15 @@ service cloud.firestore {
     match /connections/{id} {
       allow get, list, create, update, delete: if isSignedIn();
     }
+
+    // Custom Password Reset Tokens & Rate Limits: Strict Server/Admin SDK only
+    match /passwordResetTokens/{id} {
+      allow read, write: if false;
+    }
+
+    match /rateLimits/{id} {
+      allow read, write: if false;
+    }
   }
 }
 

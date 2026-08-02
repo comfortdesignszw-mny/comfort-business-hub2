@@ -47,6 +47,7 @@ const ProductDetail = lazy(() => import('./pages/ProductDetail'));
 const AdminDashboard = lazy(() => import('./pages/AdminDashboard'));
 const TermsOfService = lazy(() => import('./pages/TermsOfService'));
 const PrivacyPolicy = lazy(() => import('./pages/PrivacyPolicy'));
+const ResetPasswordPage = lazy(() => import('./pages/ResetPasswordPage'));
 
 import Footer from './components/Footer';
 
@@ -465,6 +466,7 @@ function AppRoutes({
                       <Route path="/privacy" element={<PrivacyPolicy />} />
                       <Route path="/login" element={user ? <Navigate to="/" replace /> : <Login />} />
                       <Route path="/signup" element={user ? <Navigate to="/" replace /> : <SignUp />} />
+                      <Route path="/reset-password" element={<ResetPasswordPage />} />
 
                       {/* Protected Content */}
                       <Route 

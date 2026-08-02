@@ -22,6 +22,7 @@ import {
 } from '../lib/authUtils';
 import CountryCodeSelector from '../components/CountryCodeSelector';
 import AppLogo from '../components/AppLogo';
+import PasswordResetModal from '../components/PasswordResetModal';
 
 export default function Login() {
   const navigate = useNavigate();
@@ -604,6 +605,12 @@ export default function Login() {
           <Link to="/terms" className="text-[9px] font-black text-gray-600 uppercase tracking-widest hover:text-primary transition-colors">Terms of Service</Link>
           <Link to="/privacy" className="text-[9px] font-black text-gray-600 uppercase tracking-widest hover:text-primary transition-colors">Privacy Policy</Link>
         </div>
+
+        <PasswordResetModal 
+          isOpen={showForgotPassword} 
+          onClose={() => setShowForgotPassword(false)} 
+          defaultEmail={email}
+        />
       </div>
     </div>
   );

@@ -219,6 +219,102 @@ ${text}`,
     res.json({ status: 'ok', api_configured: !!ai });
   });
 
+  // API Endpoints for Custom Password Reset Flow
+  app.post('/api/auth/request-password-reset', async (req, res) => {
+    try {
+      const { email } = req.body;
+      const clientIp = req.ip || req.headers['x-forwarded-for'] || '127.0.0.1';
+      const host = req.get('host') || 'localhost:3000';
+
+      const { handleRequestPasswordReset } = await import('./functions/src/handlers/requestPasswordReset');
+      const { getAdminServices } = await import('./functions/src/lib/admin');
+      const { db } = getAdminServices();
+
+      const result = await handleRequestPasswordReset(db, {
+        email,
+        ipAddress: String(clientIp),
+        appDomain: host,
+      });
+
+      res.json(result);
+    } catch (err: any) {
+      console.error('API /api/auth/request-password-reset error:', err);
+      res.json({
+        success: true,
+        message: "If that email/phone number is registered, we've sent you a reset link/code.",
+      });
+    }
+  });
+
+  app.post('/api/auth/reset-password', async (req, res) => {
+    try {
+      const { token, uid, newPassword } = req.body;
+      const clientIp = req.ip || req.headers['x-forwarded-for'] || '127.0.0.1';
+
+      const { handleResetPassword } = await import('./functions/src/handlers/resetPassword');
+      const { getAdminServices } = await import('./functions/src/lib/admin');
+      const { db } = getAdminServices();
+
+      const result = await handleResetPassword(db, {
+        token,
+        uid,
+        newPassword,
+        ipAddress: String(clientIp),
+      });
+
+      res.json(result);
+    } catch (err: any) {
+      console.error('API /api/auth/reset-password error:', err);
+      res.status(500).json({ success: false, message: err?.message || 'Server error' });
+    }
+  });
+
+  app.post('/api/auth/request-password-reset-phone', async (req, res) => {
+    try {
+      const { phone } = req.body;
+      const clientIp = req.ip || req.headers['x-forwarded-for'] || '127.0.0.1';
+
+      const { handleRequestPasswordResetPhone } = await import('./functions/src/handlers/requestPasswordResetPhone');
+      const { getAdminServices } = await import('./functions/src/lib/admin');
+      const { db } = getAdminServices();
+
+      const result = await handleRequestPasswordResetPhone(db, {
+        phone,
+        ipAddress: String(clientIp),
+      });
+
+      res.json(result);
+    } catch (err: any) {
+      console.error('API /api/auth/request-password-reset-phone error:', err);
+      res.json({
+        success: true,
+        message: "If that email/phone number is registered, we've sent you a reset link/code.",
+      });
+    }
+  });
+
+  app.post('/api/auth/reset-password-phone', async (req, res) => {
+    try {
+      const { idToken, newPassword } = req.body;
+      const clientIp = req.ip || req.headers['x-forwarded-for'] || '127.0.0.1';
+
+      const { handleResetPasswordAfterPhoneVerification } = await import('./functions/src/handlers/resetPasswordAfterPhoneVerification');
+      const { getAdminServices } = await import('./functions/src/lib/admin');
+      const { db } = getAdminServices();
+
+      const result = await handleResetPasswordAfterPhoneVerification(db, {
+        idToken,
+        newPassword,
+        ipAddress: String(clientIp),
+      });
+
+      res.json(result);
+    } catch (err: any) {
+      console.error('API /api/auth/reset-password-phone error:', err);
+      res.status(500).json({ success: false, message: err?.message || 'Server error' });
+    }
+  });
+
   function parseFirestoreField(field: any): any {
     if (!field) return undefined;
     if ('stringValue' in field) return field.stringValue;
