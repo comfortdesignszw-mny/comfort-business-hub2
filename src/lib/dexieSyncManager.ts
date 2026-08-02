@@ -1,4 +1,4 @@
-import { localDB } from './db';
+import { localDB, calculateTTL } from './db';
 import { db } from './firebase';
 import { doc, setDoc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/firestore';
 
@@ -10,25 +10,30 @@ import { doc, setDoc, updateDoc, deleteDoc, serverTimestamp } from 'firebase/fir
 export async function cacheDocument(collectionName: string, docId: string, data: any) {
   try {
     const now = Date.now();
+    const { lastSynced, expiresAt } = calculateTTL();
     await localDB.cache.put({
       id: `${collectionName}:${docId}`,
       collection: collectionName,
       docId,
       data,
-      updatedAt: now
+      updatedAt: now,
+      lastSynced,
+      expiresAt
     });
 
     if (collectionName === 'stores' && data) {
-      await localDB.stores.put({ id: docId, data, updatedAt: now });
+      await localDB.stores.put({ id: docId, data, updatedAt: now, lastSynced, expiresAt });
     } else if (collectionName === 'products' && data) {
-      await localDB.products.put({ id: docId, storeId: data.storeId || '', data, updatedAt: now });
+      await localDB.products.put({ id: docId, storeId: data.storeId || '', data, updatedAt: now, lastSynced, expiresAt });
     } else if (collectionName === 'deals' && data) {
       await localDB.deals.put({
         id: docId,
         supplierId: data.supplierId || '',
         customerId: data.customerId || '',
         data,
-        updatedAt: now
+        updatedAt: now,
+        lastSynced,
+        expiresAt
       });
     }
   } catch (err) {
@@ -39,20 +44,23 @@ export async function cacheDocument(collectionName: string, docId: string, data:
 export async function cacheCollection(collectionName: string, items: any[]) {
   try {
     const now = Date.now();
+    const { lastSynced, expiresAt } = calculateTTL();
     const records = items.map(item => ({
       id: `${collectionName}:${item.id || item.uid}`,
       collection: collectionName,
       docId: item.id || item.uid,
       data: item,
-      updatedAt: now
+      updatedAt: now,
+      lastSynced,
+      expiresAt
     }));
     await localDB.cache.bulkPut(records);
 
     if (collectionName === 'stores') {
-      const storeRecords = items.map(s => ({ id: s.id, data: s, updatedAt: now }));
+      const storeRecords = items.map(s => ({ id: s.id, data: s, updatedAt: now, lastSynced, expiresAt }));
       await localDB.stores.bulkPut(storeRecords);
     } else if (collectionName === 'products') {
-      const productRecords = items.map(p => ({ id: p.id, storeId: p.storeId || '', data: p, updatedAt: now }));
+      const productRecords = items.map(p => ({ id: p.id, storeId: p.storeId || '', data: p, updatedAt: now, lastSynced, expiresAt }));
       await localDB.products.bulkPut(productRecords);
     } else if (collectionName === 'deals') {
       const dealRecords = items.map(d => ({
@@ -60,7 +68,9 @@ export async function cacheCollection(collectionName: string, items: any[]) {
         supplierId: d.supplierId || '',
         customerId: d.customerId || '',
         data: d,
-        updatedAt: now
+        updatedAt: now,
+        lastSynced,
+        expiresAt
       }));
       await localDB.deals.bulkPut(dealRecords);
     }

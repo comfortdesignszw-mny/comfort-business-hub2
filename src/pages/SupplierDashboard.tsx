@@ -43,6 +43,7 @@ import { PRODUCT_CATEGORIES, BUSINESS_CATEGORIES } from '../constants';
 import SupplierSetup from './SupplierSetup';
 import { offlineResilientWrite } from '../lib/sync';
 import { localDB } from '../lib/db';
+import { cacheCollection } from '../lib/dexieSyncManager';
 import ImageInput from '../components/ImageInput';
 import LocationPicker from '../components/LocationPicker';
 import { geohashForLocation } from 'geofire-common';
@@ -241,15 +242,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
       const dbProducts = snap.docs.map(d => ({ id: d.id, ...d.data() } as Product));
       
       // 2. Refresh localDB cache values in background with clean database references
-      for (const p of dbProducts) {
-        await localDB.cache.put({
-          id: `products:${p.id}`,
-          collection: 'products',
-          docId: p.id,
-          data: p,
-          updatedAt: Date.now()
-        });
-      }
+      cacheCollection('products', dbProducts);
 
       // 3. Keep any cached/outbox items that are optimistic or offline drafts
       const cachedDocs = await localDB.cache.where('collection').equals('products').toArray();

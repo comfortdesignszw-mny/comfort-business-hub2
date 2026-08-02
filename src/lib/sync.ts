@@ -8,7 +8,7 @@ import {
   getDoc
 } from 'firebase/firestore';
 import { db } from './firebase';
-import { localDB, OutboxItem } from './db';
+import { localDB, OutboxItem, calculateTTL } from './db';
 
 export async function addToOutbox(item: Omit<OutboxItem, 'createdAt'>) {
   const fullItem: OutboxItem = {
@@ -119,12 +119,15 @@ export async function offlineResilientWrite(
 ) {
   // 1. Update local cache first for instant UI response (Optimistic)
   if (action !== 'delete' && payload) {
+    const { lastSynced, expiresAt } = calculateTTL();
     await localDB.cache.put({
       id: `${collectionName}:${docId}`,
       collection: collectionName,
       docId,
       data: payload,
-      updatedAt: Date.now()
+      updatedAt: Date.now(),
+      lastSynced,
+      expiresAt
     });
   } else if (action === 'delete') {
     await localDB.cache.delete(`${collectionName}:${docId}`);

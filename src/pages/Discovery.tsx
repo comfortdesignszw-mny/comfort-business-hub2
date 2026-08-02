@@ -11,6 +11,7 @@ import { UserProfile, Product, Store as StoreType, Message, Spotlight, PublicPro
 import { cn, formatCurrency, openWhatsApp } from '../lib/utils';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { localDB } from '../lib/db';
+import { cacheCollection } from '../lib/dexieSyncManager';
 import { collection, query, limit, getDocs, where, addDoc, serverTimestamp, setDoc, doc, getDoc, orderBy, onSnapshot, getCountFromServer, startAt, endAt, deleteDoc } from 'firebase/firestore';
 import { BUSINESS_CATEGORIES, PRODUCT_CATEGORIES } from '../constants';
 import ProductCard from '../components/ProductCard';
@@ -175,9 +176,7 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
       
       // Update local cache for next time
       try {
-        for (const p of allProducts) {
-          await localDB.cache.put({ id: `products:${p.id}`, collection: 'products', docId: p.id, data: p, updatedAt: Date.now() });
-        }
+        cacheCollection('products', allProducts);
       } catch (e) {
         console.error('Cache update failed', e);
       }
@@ -221,9 +220,7 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
       setStoresLoading(false);
 
       try {
-        for (const s of allStores) {
-          await localDB.cache.put({ id: `stores:${s.id}`, collection: 'stores', docId: s.id, data: s, updatedAt: Date.now() });
-        }
+        cacheCollection('stores', allStores);
       } catch (e) {}
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, 'stores-feed');

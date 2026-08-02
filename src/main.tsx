@@ -2,8 +2,30 @@ import {StrictMode} from 'react';
 import {createRoot} from 'react-dom/client';
 import App from './App.tsx';
 import './index.css';
+import { localDataRepository } from './lib/localDataRepository';
+import { processOutboxSync } from './lib/dexieSyncManager';
 // @ts-ignore
 import { registerSW } from 'virtual:pwa-register';
+
+// Non-blocking initialization sequence
+function initializeLocalServices() {
+  // Fire-and-forget local DB seed & offline service initialization
+  localDataRepository.seedInitialDataIfNeeded().then(() => {
+    console.log('[Bootstrap] Local IndexedDB seed check complete.');
+  }).catch((err) => {
+    console.warn('[Bootstrap] Local DB seed non-fatal warning:', err);
+  });
+
+  // Background outbox sync if online
+  if (typeof window !== 'undefined' && navigator.onLine) {
+    processOutboxSync().catch((err) => {
+      console.warn('[Bootstrap] Background outbox sync deferred:', err);
+    });
+  }
+}
+
+// Execute non-blocking services initialization
+initializeLocalServices();
 
 // Register PWA service worker with auto-update configuration
 const updateSW = registerSW({
@@ -39,13 +61,17 @@ if (typeof window !== 'undefined' && 'serviceWorker' in navigator) {
 }
 
 // Capture install prompt early
-window.addEventListener('beforeinstallprompt', (e) => {
-  e.preventDefault();
-  (window as any).deferredPWAInstallPrompt = e;
-});
+if (typeof window !== 'undefined') {
+  window.addEventListener('beforeinstallprompt', (e) => {
+    e.preventDefault();
+    (window as any).deferredPWAInstallPrompt = e;
+  });
+}
 
+// CRITICAL REQUIREMENT: Render app shell IMMEDIATELY without awaiting network/auth
 createRoot(document.getElementById('root')!).render(
   <StrictMode>
     <App />
   </StrictMode>,
 );
+

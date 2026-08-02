@@ -17,6 +17,7 @@ import ReportModal from '../components/ReportModal';
 import FiveStarRating from '../components/FiveStarRating';
 import { useModals } from '../context/ModalContext';
 import { localDB } from '../lib/db';
+import { cacheCollection } from '../lib/dexieSyncManager';
 import { interactionService } from '../services/interactionService';
 import { viewHistoryService } from '../services/viewHistory';
 import { useNotifications } from '../components/NotificationProvider';
@@ -218,15 +219,7 @@ export function StoreDetailContent({ store, profile, onGuestLogin, showMap = tru
       const dbProducts = snap.docs.map(d => ({ id: d.id, ...d.data() } as Product));
       
       // 2. Put incoming products into Cache so subsequent loads are immediate
-      for (const p of dbProducts) {
-        await localDB.cache.put({
-          id: `products:${p.id}`,
-          collection: 'products',
-          docId: p.id,
-          data: p,
-          updatedAt: Date.now()
-        });
-      }
+      cacheCollection('products', dbProducts);
 
       setProducts(dbProducts);
       setLoading(false);
