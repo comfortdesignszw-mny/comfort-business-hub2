@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  Zap, ShoppingBag, ArrowRight, MessageSquare, Phone, Check, Loader2, MapPinned, CreditCard, Share2, X, Info, Star, Store as StoreIcon, Edit3, Trash2, ChevronDown, ChevronUp, ShieldAlert, Heart
+  Zap, ShoppingBag, ArrowRight, MessageSquare, Phone, Check, Loader2, MapPinned, CreditCard, Share2, X, Info, Star, Store as StoreIcon, Edit3, Trash2, ChevronDown, ChevronUp, ShieldAlert, Heart, Send
 } from 'lucide-react';
 import { UserProfile, Product, Store, EngagementType } from '../types';
 import { cn, formatCurrency, openWhatsApp } from '../lib/utils';
@@ -13,6 +13,7 @@ import { interactionService } from '../services/interactionService';
 import { viewHistoryService } from '../services/viewHistory';
 import OptimizedImage from './OptimizedImage';
 import AuthGuard from './AuthGuard';
+import FiveStarRating from './FiveStarRating';
 import { useModals } from '../context/ModalContext';
 import { useNotifications } from './NotificationProvider';
 import ReportModal from './ReportModal';
@@ -25,13 +26,15 @@ export default function ProductCard({
   profile, 
   store: initialStore,
   onAction,
-  isOwner = false
+  isOwner = false,
+  recommendationReason
 }: { 
   product: Product, 
   profile: UserProfile | null, 
   store?: Store,
   onAction?: (prod: Product) => void, 
   isOwner?: boolean,
+  recommendationReason?: string,
   key?: React.Key 
 }) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -47,9 +50,37 @@ export default function ProductCard({
   const [isEngaging, setIsEngaging] = useState(false);
   const [activeModal, setActiveModal] = useState<'checkout' | 'ecocash' | 'pod' | 'paypal' | 'stripe' | 'paynow' | 'bank' | null>(null);
   const [showReportModal, setShowReportModal] = useState(false);
+  const [showRatingModal, setShowRatingModal] = useState(false);
+  const [userRating, setUserRating] = useState(5);
+  const [userComment, setUserComment] = useState('');
+  const [isSubmittingRating, setIsSubmittingRating] = useState(false);
   const [purchaseQuantity, setPurchaseQuantity] = useState(1);
   const navigate = useNavigate();
   const { triggerFeedback } = useNotifications();
+
+  const handleSubmitProductRating = async (e: React.FormEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    if (!profile) return;
+    setIsSubmittingRating(true);
+    try {
+      await interactionService.submitReview(
+        product.id,
+        product.storeId,
+        profile,
+        userRating,
+        userComment,
+        product.ownerId
+      );
+      triggerFeedback('Rating Submitted', `You submitted a ${userRating}-star rating for ${product.name}!`, 'rate');
+      setUserComment('');
+      setShowRatingModal(false);
+    } catch (err) {
+      console.error('Failed to submit product rating:', err);
+    } finally {
+      setIsSubmittingRating(false);
+    }
+  };
 
   useEffect(() => {
     if (initialStore) {
@@ -242,13 +273,35 @@ export default function ProductCard({
           
           <div className="absolute inset-0 bg-gradient-to-t from-[#05070a] via-transparent to-transparent opacity-60 pointer-events-none"></div>
 
-          <div className="absolute top-2 sm:top-4 left-2 sm:left-4 flex gap-2 z-20">
-            {product.rating && product.rating > 0 && (
-              <div className="px-1.5 py-0.5 sm:px-2 sm:py-1 bg-[#05070a]/80 backdrop-blur-md rounded-lg border border-primary/20 text-[8px] sm:text-[9px] font-black text-primary flex items-center gap-1 shadow-lg">
-                <Star size={8} className="fill-primary" />
-                {product.rating.toFixed(1)}
-              </div>
-            )}
+          <div className="absolute top-2 sm:top-4 left-2 sm:left-4 flex items-center gap-1.5 z-20" onClick={(e) => e.stopPropagation()}>
+            <AuthGuard
+              title="Rate Product"
+              message="Sign in to rate and review this product."
+              profile={profile}
+            >
+              <button 
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  e.preventDefault();
+                  if (isOwner) {
+                    triggerFeedback('Owner Notice', 'You are the owner of this item.', 'rate');
+                    return;
+                  }
+                  setShowRatingModal(true);
+                }}
+                className="px-2.5 py-1 bg-[#05070a]/95 backdrop-blur-md rounded-xl border border-amber-400/50 text-[8px] sm:text-[9px] font-black flex items-center gap-1.5 shadow-[0_0_15px_rgba(251,191,36,0.3)] cursor-pointer hover:border-amber-400 hover:bg-amber-400/10 hover:scale-105 active:scale-95 transition-all"
+                title="Click to rate & review this product"
+              >
+                <FiveStarRating value={product.rating || 5.0} size="sm" readOnly count={product.reviewCount || 0} countLabel="rating" />
+                {!isOwner && (
+                  <span className="px-1.5 py-0.5 bg-amber-400 text-black font-extrabold uppercase text-[7.5px] sm:text-[8.5px] rounded tracking-wider flex items-center gap-0.5 shrink-0 shadow-sm ml-0.5">
+                    <Star size={8} className="fill-black text-black" />
+                    Rate
+                  </span>
+                )}
+              </button>
+            </AuthGuard>
           </div>
 
           <button 
@@ -298,6 +351,11 @@ export default function ProductCard({
                 )}>
                   {product.itemType === 'service' ? 'Service' : 'Product'}
                 </span>
+                {recommendationReason && (
+                  <span className="px-2 py-0.5 rounded-full bg-primary/20 border border-primary/40 text-primary text-[7px] sm:text-[8px] font-black uppercase tracking-wider flex items-center gap-1 shrink-0">
+                    <Zap size={8} className="text-primary fill-primary" /> {recommendationReason}
+                  </span>
+                )}
                 <h3 className="font-black text-white italic uppercase tracking-tighter text-base sm:text-lg leading-none truncate group-hover:text-primary transition-colors">{product.name}</h3>
                 {(product.isVerified || (product as any).verified) && (
                   <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/50 text-emerald-400 text-[7px] sm:text-[8px] font-black uppercase tracking-wider shadow-[0_0_10px_rgba(16,185,129,0.5)] shrink-0">
@@ -480,6 +538,113 @@ export default function ProductCard({
           reporterName={profile.name || profile.businessName || 'Anonymous User'}
         />
       )}
+
+      {/* Interactive Product Rating & Review Modal */}
+      <AnimatePresence>
+        {showRatingModal && (
+          <div 
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
+            onClick={(e) => {
+              e.stopPropagation();
+              setShowRatingModal(false);
+            }}
+          >
+            <motion.div
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              onClick={(e) => e.stopPropagation()}
+              className="relative w-full max-w-md bg-[#0d1117] border border-amber-400/40 rounded-3xl p-5 sm:p-6 shadow-[0_0_50px_rgba(251,191,36,0.25)] space-y-4"
+            >
+              <button 
+                onClick={(e) => {
+                  e.stopPropagation();
+                  setShowRatingModal(false);
+                }}
+                className="absolute top-4 right-4 p-2 bg-white/5 hover:bg-white/10 rounded-full text-gray-400 hover:text-white transition-colors"
+              >
+                <X size={18} />
+              </button>
+
+              <div className="flex items-center gap-3 pr-8">
+                <div className="w-12 h-12 rounded-xl border border-amber-400/30 overflow-hidden shrink-0 bg-black">
+                  <img src={images[0]} alt={product.name} className="w-full h-full object-cover" />
+                </div>
+                <div>
+                  <h3 className="font-black text-white uppercase text-sm sm:text-base italic leading-tight truncate">{product.name}</h3>
+                  <p className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">{product.category}</p>
+                </div>
+              </div>
+
+              <div className="p-3.5 bg-black/60 rounded-2xl border border-amber-400/20 space-y-3 text-center">
+                <p className="text-[10px] font-black uppercase tracking-wider text-amber-300">Choose Rating Score</p>
+                <div className="flex justify-center">
+                  <FiveStarRating 
+                    value={userRating} 
+                    onChange={(r) => setUserRating(r)} 
+                    size="lg"
+                    showLabel
+                  />
+                </div>
+              </div>
+
+              <form onSubmit={handleSubmitProductRating} className="space-y-3">
+                <div className="space-y-1.5">
+                  <label className="text-[9px] font-black uppercase tracking-wider text-gray-400 block">Quick Review Highlights</label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {['Top Quality', 'Fast Delivery', 'Great Customer Service', 'Highly Recommended', 'Best Price'].map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          setUserComment((prev) => prev ? `${prev} - ${tag}` : tag);
+                        }}
+                        className="px-2 py-1 rounded-lg bg-white/5 hover:bg-amber-400/20 border border-white/10 hover:border-amber-400/40 text-[9px] font-bold text-gray-300 hover:text-amber-300 transition-all active:scale-95"
+                      >
+                        + {tag}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="text-[9px] font-black uppercase tracking-wider text-gray-400 block">Your Product Review & Feedback</label>
+                  <textarea
+                    required
+                    rows={3}
+                    value={userComment}
+                    onChange={(e) => setUserComment(e.target.value)}
+                    placeholder="Share your experience with this item..."
+                    className="w-full bg-black/60 border border-white/10 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-400 transition-colors resize-none placeholder:text-gray-600"
+                  />
+                </div>
+
+                <div className="flex gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={(e) => {
+                      e.stopPropagation();
+                      setShowRatingModal(false);
+                    }}
+                    className="flex-1 py-2.5 bg-white/5 hover:bg-white/10 border border-white/10 text-gray-400 font-black text-xs uppercase tracking-wider rounded-xl transition-colors"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingRating}
+                    className="flex-1 py-2.5 bg-amber-400 hover:bg-amber-300 text-black font-black text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-1.5 shadow-[0_0_20px_rgba(251,191,36,0.4)] disabled:opacity-50"
+                  >
+                    {isSubmittingRating ? <Loader2 size={14} className="animate-spin" /> : <Send size={14} />}
+                    Submit Rating
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
     </>
   );
 }

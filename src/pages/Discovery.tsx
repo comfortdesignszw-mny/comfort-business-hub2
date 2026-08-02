@@ -1034,13 +1034,6 @@ useEffect(() => {
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pt-1">
             {recommendations.products.map(({ product, reasons }, idx) => (
               <div key={`rec-prod-${product.id || idx}-${idx}`} className="relative group">
-                {reasons.length > 0 && (
-                  <div className="absolute top-2 left-2 z-30 pointer-events-none">
-                    <span className="px-2 py-0.5 rounded-full bg-primary/95 text-[#05070a] text-[7.5px] font-black uppercase tracking-wider shadow-lg flex items-center gap-1 backdrop-blur-md">
-                      <Sparkles size={8} /> {reasons[0]}
-                    </span>
-                  </div>
-                )}
                 <AuthGuard
                   title="Access Detailed Intelligence"
                   message="Sign in to view full technical specifications, verified ratings, and secure purchasing options for this store."
@@ -1052,6 +1045,7 @@ useEffect(() => {
                     product={product}
                     profile={profile}
                     store={storesMap[product.storeId]}
+                    recommendationReason={reasons[0]}
                   />
                 </AuthGuard>
               </div>

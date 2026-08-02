@@ -14,6 +14,7 @@ import ProductCard from '../components/ProductCard';
 import AuthGuard from '../components/AuthGuard';
 import ImageInput from '../components/ImageInput';
 import ReportModal from '../components/ReportModal';
+import FiveStarRating from '../components/FiveStarRating';
 import { useModals } from '../context/ModalContext';
 import { localDB } from '../lib/db';
 import { interactionService } from '../services/interactionService';
@@ -49,8 +50,53 @@ export function StoreDetailContent({ store, profile, onGuestLogin, showMap = tru
   const [connection, setConnection] = useState<Connection | null>(null);
   const { openUserProfile } = useModals();
 
+  // Store Ratings & Reviews State
+  const [storeReviews, setStoreReviews] = useState<any[]>([]);
+  const [showRatingForm, setShowRatingForm] = useState(false);
+  const [showStoreRatingModal, setShowStoreRatingModal] = useState(false);
+  const [newRating, setNewRating] = useState(5);
+  const [newComment, setNewComment] = useState('');
+  const [isSubmittingRating, setIsSubmittingRating] = useState(false);
+
   const navigate = useNavigate();
   const isOwner = allowEdit && profile?.currentRole === 'supplier' && profile?.uid === store.ownerId;
+
+  useEffect(() => {
+    if (!store.id) return;
+    const srq = query(
+      collection(db, 'storeReviews'),
+      where('storeId', '==', store.id),
+      limit(25)
+    );
+    const unsubStoreReviews = onSnapshot(srq, (snap) => {
+      setStoreReviews(snap.docs.map(d => ({ id: d.id, ...d.data() })));
+    }, (err) => console.error('Error fetching store reviews:', err));
+
+    return () => unsubStoreReviews();
+  }, [store.id]);
+
+  const handleSubmitStoreRating = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!profile || !store.id) return;
+    setIsSubmittingRating(true);
+    try {
+      await interactionService.submitStoreReview(
+        store.id,
+        store.ownerId,
+        profile,
+        newRating,
+        newComment
+      );
+      triggerFeedback('Rating Submitted', `You rated ${store.name} with ${newRating} stars!`, 'rate');
+      setNewComment('');
+      setShowRatingForm(false);
+      setShowStoreRatingModal(false);
+    } catch (err) {
+      console.error(err);
+    } finally {
+      setIsSubmittingRating(false);
+    }
+  };
 
   useEffect(() => {
     if (!profile || !store.ownerId || profile.uid === store.ownerId) return;
@@ -358,10 +404,44 @@ export function StoreDetailContent({ store, profile, onGuestLogin, showMap = tru
             )}
           </div>
 
-          <div className="flex flex-wrap justify-center gap-2 pt-2">
-            <div className="glass-pill !text-neon-green flex items-center gap-1.5 text-[9px] sm:text-xs">
-              <Star size={10} className="fill-neon-green sm:w-3 sm:h-3" /> {store.rating.toFixed(1)} ({store.reviewCount})
-            </div>
+          <div className="flex flex-wrap justify-center items-center gap-2 pt-2">
+            <button 
+              type="button"
+              onClick={() => {
+                if (isOwner) {
+                  triggerFeedback('Owner Notice', 'You are the owner of this store.', 'rate');
+                  return;
+                }
+                setShowStoreRatingModal(true);
+                setShowRatingForm(true);
+              }}
+              className="glass-pill !border-amber-400/50 bg-amber-400/10 hover:bg-amber-400/20 hover:border-amber-400 flex items-center gap-2 py-1 px-3 cursor-pointer transition-all shadow-[0_0_12px_rgba(251,191,36,0.2)]"
+              title="Click to view & submit store rating"
+            >
+              <FiveStarRating value={store.rating || 5.0} size="sm" readOnly count={store.reviewCount || storeReviews.length || 0} countLabel="rating" />
+            </button>
+
+            {!isOwner && (
+              <AuthGuard
+                title="Rate Storefront"
+                message="Sign in to rate and review this store."
+                profile={profile}
+              >
+                <button 
+                  type="button"
+                  onClick={() => {
+                    setShowStoreRatingModal(true);
+                    setShowRatingForm(true);
+                  }}
+                  className="glass-pill border-amber-400/50 text-amber-300 bg-amber-400/15 hover:bg-amber-400/25 hover:shadow-[0_0_15px_rgba(251,191,36,0.4)] hover:scale-105 active:scale-95 flex items-center gap-1.5 text-[10px] sm:text-xs font-black transition-all cursor-pointer"
+                  title="Submit rating & review for this store"
+                >
+                  <Star size={12} className="fill-amber-400 text-amber-400" />
+                  Rate Store
+                </button>
+              </AuthGuard>
+            )}
+
             {profile?.uid !== store.ownerId && (
               <AuthGuard
                 title="Connect"
@@ -372,33 +452,35 @@ export function StoreDetailContent({ store, profile, onGuestLogin, showMap = tru
                   onClick={handleConnect}
                   disabled={!!connection}
                   className={cn(
-                    "glass-pill flex items-center gap-1.5 text-[9px] sm:text-xs transition-all",
+                    "glass-pill flex items-center gap-1.5 text-[10px] sm:text-xs font-black transition-all",
                     connection?.status === 'accepted' 
                       ? "border-neon-green/30 text-neon-green bg-neon-green/5 shadow-[0_0_15px_rgba(57,255,20,0.2)]" 
                       : connection?.status === 'pending'
                       ? "border-gray-500/30 text-gray-400 bg-white/5 opacity-50"
-                      : "border-primary/30 text-primary bg-primary/5 hover:bg-primary/20 hover:shadow-[0_0_15px_rgba(0,242,254,0.3)] animate-pulse"
+                      : "border-primary/30 text-primary bg-primary/10 hover:bg-primary/20 hover:shadow-[0_0_15px_rgba(0,242,254,0.3)] animate-pulse"
                   )}
                 >
-                  <Users size={10} className="sm:w-3 sm:h-3" /> 
+                  <Users size={12} className="text-primary" /> 
                   {connection?.status === 'accepted' ? 'Trusted Partner' : connection?.status === 'pending' ? 'Request Sent' : 'Connect'}
                 </button>
               </AuthGuard>
             )}
+
             {profile?.uid !== store.ownerId && (
               <AuthGuard
-                title="Follow Strategic Feed"
+                title="Follow Storefront"
                 message="Sign in to follow this store and receive updates."
                 profile={profile}
               >
                 <button 
                   onClick={handleFollow}
-                  className="glass-pill border-cyan-400/30 text-cyan-400 bg-cyan-400/5 hover:bg-cyan-400/10 hover:shadow-[0_0_15px_rgba(34,211,238,0.4)] flex items-center gap-1.5 text-[9px] sm:text-xs transition-all animate-pulse"
+                  className="glass-pill border-cyan-400/40 text-cyan-300 bg-cyan-400/10 hover:bg-cyan-400/20 hover:shadow-[0_0_15px_rgba(34,211,238,0.4)] flex items-center gap-1.5 text-[10px] sm:text-xs font-black transition-all"
                 >
-                  <UserPlus size={10} className="sm:w-3 sm:h-3" /> {store.followerCount || 0} Followers
+                  <UserPlus size={12} className="text-cyan-400" /> + Follow ({store.followerCount || 0})
                 </button>
               </AuthGuard>
             )}
+
             {profile?.uid !== store.ownerId && (
               <AuthGuard
                 title="Log Store Interest"
@@ -407,24 +489,26 @@ export function StoreDetailContent({ store, profile, onGuestLogin, showMap = tru
               >
                 <button 
                   onClick={handleLike}
-                  className="glass-pill border-cyan-400/30 text-cyan-400 bg-cyan-400/5 hover:bg-cyan-400/10 hover:shadow-[0_0_15px_rgba(34,211,238,0.4)] flex items-center gap-1.5 text-[9px] sm:text-xs transition-all"
+                  className="glass-pill border-red-400/30 text-red-400 bg-red-400/10 hover:bg-red-400/20 hover:shadow-[0_0_15px_rgba(248,113,113,0.4)] flex items-center gap-1.5 text-[10px] sm:text-xs font-black transition-all"
                 >
-                  <Heart size={10} className="fill-cyan-400 sm:w-3 sm:h-3" /> {store.likeCount || 0} Likes
+                  <Heart size={12} className="fill-red-400 text-red-400" /> {store.likeCount || 0} Likes
                 </button>
               </AuthGuard>
             )}
+
             <button 
               onClick={handleShare}
-              className="glass-pill hover:bg-white/10 flex items-center gap-1.5 text-[9px] sm:text-xs no-auth-guard"
+              className="glass-pill hover:bg-white/10 flex items-center gap-1.5 text-[10px] sm:text-xs font-black no-auth-guard"
             >
-              <Share2 size={10} className="sm:w-3 sm:h-3" /> Share Store
+              <Share2 size={12} className="text-white" /> Share Store
             </button>
+
             {!isOwner && profile && (
               <button 
                 onClick={() => setShowReportModal(true)}
-                className="glass-pill border-red-500/30 text-red-500 bg-red-500/5 hover:bg-red-500/10 hover:shadow-[0_0_15px_rgba(239,68,68,0.4)] flex items-center gap-1.5 text-[9px] sm:text-xs transition-all"
+                className="glass-pill border-red-500/30 text-red-500 bg-red-500/5 hover:bg-red-500/10 flex items-center gap-1.5 text-[10px] sm:text-xs transition-all"
               >
-                <ShieldAlert size={10} className="sm:w-3 sm:h-3" /> Report Store
+                <ShieldAlert size={12} /> Report
               </button>
             )}
           </div>
@@ -555,6 +639,249 @@ export function StoreDetailContent({ store, profile, onGuestLogin, showMap = tru
           </div>
         )}
       </section>
+
+      {/* Storefront 5-Star Ratings & Reviews Section */}
+      <section id="store-rating-section" className="space-y-6 pt-6 border-t border-white/10">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 px-2">
+          <div>
+            <h3 className="font-black text-white uppercase tracking-tighter text-xl italic flex items-center gap-2">
+              <Star size={20} className="fill-amber-400 text-amber-400" />
+              Storefront Ratings & Feedback
+            </h3>
+            <p className="text-[10px] sm:text-xs text-gray-400 font-medium">
+              Verified community ratings and direct store feedback ({store.reviewCount || storeReviews.length || 0} {store.reviewCount === 1 ? 'rating' : 'ratings'})
+            </p>
+          </div>
+
+          {!isOwner && (
+            <AuthGuard
+              title="Rate Storefront"
+              message="Sign in to submit your 5-star rating for this store."
+              profile={profile}
+            >
+              <button
+                onClick={() => {
+                  setShowStoreRatingModal(true);
+                  setShowRatingForm(true);
+                }}
+                className="px-4 py-2.5 rounded-xl bg-gradient-to-r from-amber-400 to-amber-500 text-black font-black text-xs uppercase tracking-wider flex items-center gap-2 shadow-[0_0_20px_rgba(251,191,36,0.3)] hover:scale-105 active:scale-95 transition-all cursor-pointer"
+              >
+                <Star size={14} className="fill-black" />
+                Rate This Store
+              </button>
+            </AuthGuard>
+          )}
+        </div>
+
+        {/* Rating Submission Form */}
+        <AnimatePresence>
+          {showRatingForm && (
+            <motion.form
+              initial={{ opacity: 0, height: 0 }}
+              animate={{ opacity: 1, height: 'auto' }}
+              exit={{ opacity: 0, height: 0 }}
+              onSubmit={handleSubmitStoreRating}
+              className="p-5 sm:p-6 bg-gradient-to-br from-amber-400/10 via-black/40 to-black/80 rounded-2xl border border-amber-400/30 space-y-4"
+            >
+              <h4 className="text-sm font-black text-amber-300 uppercase tracking-wide">
+                Submit 5-Star Store Rating
+              </h4>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-300 block">
+                  Select Rating
+                </label>
+                <FiveStarRating
+                  value={newRating}
+                  onChange={(r) => setNewRating(r)}
+                  size="xl"
+                  showLabel
+                />
+              </div>
+
+              <div className="space-y-2">
+                <label className="text-[10px] font-black uppercase tracking-widest text-gray-300 block">
+                  Storefront Review / Feedback
+                </label>
+                <textarea
+                  value={newComment}
+                  onChange={(e) => setNewComment(e.target.value)}
+                  placeholder="Share your experience with this supplier node..."
+                  required
+                  rows={3}
+                  className="w-full bg-black/60 border border-white/10 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-400/50 resize-none placeholder:text-gray-600"
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-2">
+                <button
+                  type="button"
+                  onClick={() => setShowRatingForm(false)}
+                  className="px-4 py-2 rounded-xl bg-white/5 text-gray-400 text-xs font-bold hover:bg-white/10"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSubmittingRating}
+                  className="px-6 py-2 rounded-xl bg-amber-400 text-black font-black text-xs uppercase tracking-wider flex items-center gap-2 hover:bg-amber-300 disabled:opacity-50"
+                >
+                  {isSubmittingRating ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                  Publish Rating
+                </button>
+              </div>
+            </motion.form>
+          )}
+        </AnimatePresence>
+
+        {/* Reviews List */}
+        <div className="grid gap-4">
+          {storeReviews.length > 0 ? (
+            storeReviews.map((rev) => (
+              <div
+                key={rev.id}
+                className="p-4 bg-white/5 border border-white/5 rounded-2xl flex flex-col sm:flex-row sm:items-start justify-between gap-3 hover:border-amber-400/20 transition-all"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="w-10 h-10 bg-black rounded-full border border-white/10 overflow-hidden flex items-center justify-center text-amber-400 font-black text-sm shrink-0">
+                    {rev.userAvatar ? (
+                      <img src={rev.userAvatar} alt={rev.userName} className="w-full h-full object-cover" />
+                    ) : (
+                      rev.userName?.charAt(0) || 'U'
+                    )}
+                  </div>
+                  <div className="space-y-1">
+                    <div className="flex items-center gap-2 flex-wrap">
+                      <span className="text-xs font-black text-white">{rev.userName}</span>
+                      <FiveStarRating value={rev.rating || 5} size="sm" readOnly />
+                    </div>
+                    <p className="text-xs text-gray-300 leading-relaxed font-medium">
+                      {rev.comment}
+                    </p>
+                  </div>
+                </div>
+                {rev.createdAt?.toDate && (
+                  <span className="text-[9px] text-gray-500 font-mono shrink-0">
+                    {rev.createdAt.toDate().toLocaleDateString()}
+                  </span>
+                )}
+              </div>
+            ))
+          ) : (
+            <div className="p-8 text-center bg-white/5 border border-white/5 rounded-2xl space-y-2">
+              <Star size={24} className="mx-auto text-amber-400/40" />
+              <p className="text-xs font-bold text-gray-400">No storefront ratings yet.</p>
+              <p className="text-[10px] text-gray-500">Be the first to rate and review this supplier storefront!</p>
+            </div>
+          )}
+        </div>
+      </section>
+
+      {/* Storefront Rating Modal Overlay */}
+      <AnimatePresence>
+        {showStoreRatingModal && (
+          <div 
+            className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
+            onClick={() => setShowStoreRatingModal(false)}
+          >
+            <motion.div 
+              initial={{ scale: 0.9, opacity: 0 }}
+              animate={{ scale: 1, opacity: 1 }}
+              exit={{ scale: 0.9, opacity: 0 }}
+              className="bg-[#0d1117] border border-amber-400/40 rounded-3xl p-6 max-w-md w-full space-y-5 relative shadow-[0_0_50px_rgba(251,191,36,0.25)]"
+              onClick={(e) => e.stopPropagation()}
+            >
+              <button 
+                type="button"
+                onClick={() => setShowStoreRatingModal(false)}
+                className="absolute top-4 right-4 w-8 h-8 rounded-full bg-white/5 border border-white/10 flex items-center justify-center text-gray-400 hover:text-white hover:bg-white/10 transition-all cursor-pointer"
+              >
+                <X size={16} />
+              </button>
+
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-amber-400/10 border border-amber-400/30 flex items-center justify-center text-amber-400 shrink-0">
+                  <Star size={24} className="fill-amber-400" />
+                </div>
+                <div>
+                  <h3 className="text-lg font-black text-white italic uppercase tracking-tight">
+                    Rate {store.name}
+                  </h3>
+                  <div className="flex items-center gap-1.5 mt-0.5">
+                    <FiveStarRating value={store.rating || 5.0} size="sm" readOnly count={store.reviewCount || storeReviews.length || 0} countLabel="rating" />
+                  </div>
+                </div>
+              </div>
+
+              <form onSubmit={handleSubmitStoreRating} className="space-y-4">
+                <div className="space-y-2 bg-black/40 p-4 rounded-2xl border border-white/5">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-300 block">
+                    Your Rating Score
+                  </label>
+                  <FiveStarRating
+                    value={newRating}
+                    onChange={(r) => setNewRating(r)}
+                    size="xl"
+                    showLabel
+                  />
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-300 block">
+                    Quick Review Highlights
+                  </label>
+                  <div className="flex flex-wrap gap-1.5">
+                    {['Top Supplier', 'Fast Communication', 'High Quality Items', 'Trusted Business', 'Excellent Experience'].map((tag) => (
+                      <button
+                        key={tag}
+                        type="button"
+                        onClick={() => {
+                          setNewComment(prev => prev ? `${prev} • ${tag}` : tag);
+                        }}
+                        className="px-2.5 py-1 rounded-lg bg-white/5 border border-white/10 text-[9px] font-bold text-gray-300 hover:border-amber-400/50 hover:text-amber-300 transition-all cursor-pointer"
+                      >
+                        + {tag}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <label className="text-[10px] font-black uppercase tracking-widest text-gray-300 block">
+                    Storefront Review Feedback
+                  </label>
+                  <textarea
+                    value={newComment}
+                    onChange={(e) => setNewComment(e.target.value)}
+                    placeholder="Share your experience dealing with this supplier storefront..."
+                    required
+                    rows={3}
+                    className="w-full bg-black/60 border border-white/10 rounded-xl p-3 text-white text-xs outline-none focus:border-amber-400/50 resize-none placeholder:text-gray-600"
+                  />
+                </div>
+
+                <div className="flex justify-end gap-3 pt-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowStoreRatingModal(false)}
+                    className="px-4 py-2 rounded-xl bg-white/5 text-gray-400 text-xs font-bold hover:bg-white/10 cursor-pointer"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isSubmittingRating}
+                    className="px-6 py-2 rounded-xl bg-amber-400 text-black font-black text-xs uppercase tracking-wider flex items-center gap-2 hover:bg-amber-300 active:scale-95 transition-all shadow-[0_0_15px_rgba(251,191,36,0.4)] disabled:opacity-50 cursor-pointer"
+                  >
+                    {isSubmittingRating ? <Loader2 size={12} className="animate-spin" /> : <Check size={12} />}
+                    Submit Store Rating
+                  </button>
+                </div>
+              </form>
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
 
       {profile && (
         <ReportModal 

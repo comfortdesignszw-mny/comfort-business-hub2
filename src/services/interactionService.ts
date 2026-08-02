@@ -289,7 +289,7 @@ export const interactionService = {
           });
         }
 
-        // Create Review doc - use a specific ID to prevent multiple submissions if needed, but addDoc is fine for reviews
+        // Create Review doc
         const reviewRef = doc(collection(db, 'reviews'));
         transaction.set(reviewRef, {
           productId,
@@ -303,9 +303,46 @@ export const interactionService = {
       });
 
       // Notification
-      await this.sendNotification(productOwnerId, 'rate', profile, productId, "New Neural Feedback", `${profile.name || 'Citizen'} submitted a ${rating}-star rating.`);
+      await this.sendNotification(productOwnerId, 'rate', profile, productId, "New Product Rating", `${profile.name || 'A user'} rated your product ${rating} stars.`);
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, 'submit-review');
+    }
+  },
+
+  async submitStoreReview(storeId: string, storeOwnerId: string, profile: UserProfile, rating: number, comment: string) {
+    try {
+      await runTransaction(db, async (transaction) => {
+        const storeRef = doc(db, 'stores', storeId);
+        const sSnap = await transaction.get(storeRef);
+
+        if (!sSnap.exists()) throw new Error("Store non-existent");
+
+        const sData = sSnap.data();
+        const sCount = sData.reviewCount || 0;
+        const sRating = sData.rating || 0;
+        const sNewCount = sCount + 1;
+        const sNewAvg = ((sRating * sCount) + rating) / sNewCount;
+
+        transaction.update(storeRef, {
+          rating: sNewAvg,
+          reviewCount: sNewCount
+        });
+
+        const reviewRef = doc(collection(db, 'storeReviews'));
+        transaction.set(reviewRef, {
+          storeId,
+          userId: profile.uid,
+          userName: profile.name || 'Anonymous',
+          userAvatar: profile.avatar || '',
+          rating,
+          comment,
+          createdAt: serverTimestamp()
+        });
+      });
+
+      await this.sendNotification(storeOwnerId, 'rate', profile, storeId, "New Storefront Rating", `${profile.name || 'A customer'} rated your store ${rating} stars.`);
+    } catch (err) {
+      handleFirestoreError(err, OperationType.WRITE, 'submit-store-review');
     }
   },
 

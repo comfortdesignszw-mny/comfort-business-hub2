@@ -270,7 +270,8 @@ function StoreCard({ store, profile }: StoreCardProps) {
         {/* Rating Floating Badge */}
         <div className="absolute top-4 right-4 bg-primary/20 backdrop-blur-md px-3 py-1.5 rounded-full border border-primary/20 flex items-center gap-1.5">
           <Star size={10} className="fill-primary text-primary" />
-          <span className="text-[10px] font-black text-white">{store.rating.toFixed(1)}</span>
+          <span className="text-[10px] font-black text-white">{store.rating ? store.rating.toFixed(1) : '5.0'}</span>
+          <span className="text-[8px] font-bold text-amber-300">({store.reviewCount || 0})</span>
         </div>
       </div>
 

@@ -200,12 +200,12 @@ export default function UserProfileModal({ userId, isOpen, onClose, currentUserP
 
                   {/* Action Bar */}
                   {currentUserProfile && currentUserProfile.uid !== userId && (
-                    <div className="flex gap-3">
+                    <div className="flex flex-wrap gap-3">
                       <button 
                          onClick={handleConnect}
                          disabled={!!connection || isConnecting}
                          className={cn(
-                           "flex-1 py-4 rounded-2xl font-black uppercase text-[10px] tracking-[0.2em] transition-all flex items-center justify-center gap-2",
+                           "flex-1 py-3.5 px-4 rounded-2xl font-black uppercase text-xs tracking-wider transition-all flex items-center justify-center gap-2",
                            connection?.status === 'accepted' 
                              ? "bg-neon-green text-[#05070a] shadow-[0_0_20px_rgba(57,255,20,0.3)]"
                              : connection?.status === 'pending'
@@ -220,7 +220,7 @@ export default function UserProfileModal({ userId, isOpen, onClose, currentUserP
                         ) : connection?.status === 'pending' ? (
                           <><Check size={16} /> Request Sent</>
                         ) : (
-                          <><Users size={16} /> Connect Node</>
+                          <><Users size={16} /> Connect</>
                         )}
                       </button>
                       <button 
@@ -228,16 +228,16 @@ export default function UserProfileModal({ userId, isOpen, onClose, currentUserP
                           onClose();
                           navigate('/chat', { state: { recipientId: userId } });
                         }}
-                        className="w-14 bg-white/5 border border-white/10 rounded-2xl flex items-center justify-center text-primary hover:bg-white/10 transition-all border-primary/20"
+                        className="py-3.5 px-5 bg-emerald-500/10 border border-emerald-500/30 rounded-2xl flex items-center justify-center gap-2 text-emerald-400 font-black text-xs uppercase tracking-wider hover:bg-emerald-500 hover:text-black transition-all"
                       >
-                        <MessageSquare size={20} />
+                        <MessageSquare size={16} /> Message
                       </button>
                       <button 
                         onClick={() => setShowReportModal(true)}
-                        className="w-14 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center justify-center text-red-500 hover:bg-red-500 hover:text-white transition-all"
+                        className="p-3.5 bg-red-500/10 border border-red-500/20 rounded-2xl flex items-center justify-center text-red-500 hover:bg-red-500 hover:text-white transition-all"
                         title="Report User"
                       >
-                        <ShieldAlert size={20} />
+                        <ShieldAlert size={18} />
                       </button>
                     </div>
                   )}
@@ -285,7 +285,7 @@ export default function UserProfileModal({ userId, isOpen, onClose, currentUserP
                                       <Building2 size={8} /> {store.category}
                                     </div>
                                     <div className="flex items-center gap-1 text-[8px] text-primary font-bold uppercase tracking-widest">
-                                      <Star size={8} className="fill-primary" /> {store.rating.toFixed(1)}
+                                      <Star size={8} className="fill-primary" /> {store.rating ? store.rating.toFixed(1) : '5.0'} ({store.reviewCount || 0})
                                     </div>
                                   </div>
                                 </div>

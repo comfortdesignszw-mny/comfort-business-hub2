@@ -17,6 +17,7 @@ import { interactionService } from '../services/interactionService';
 import { useMessaging } from '../components/MessagingProvider';
 import { useNotifications } from '../components/NotificationProvider';
 import AuthGuard from '../components/AuthGuard';
+import FiveStarRating from '../components/FiveStarRating';
 import { viewHistoryService } from '../services/viewHistory';
 
 import { UnifiedCheckoutModal, EcoCashModal, PodModal, PayPalModal, StripeModal, PaynowModal, BankModal } from '../components/CheckoutModals';
@@ -143,13 +144,13 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
 
   const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!profile || !id || !product || !store) return;
+    if (!profile || !id || !product) return;
 
     setIsSubmittingReview(true);
     try {
       await interactionService.submitReview(
         id,
-        store.id,
+        store?.id || product.storeId,
         profile,
         newReview.rating,
         newReview.comment,
@@ -302,23 +303,42 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
                   <span>Verified Node</span>
                 </div>
               )}
-              <div className="flex items-center gap-1 bg-white/5 py-0.5 px-2 rounded-full border border-white/5 text-[8px] sm:text-[9px] font-black">
-                <Star size={8} className="fill-primary text-primary" />
-                <span className="text-white">{product.rating?.toFixed(1) || 'N/A'}</span>
-                <span className="text-gray-500">({product.reviewCount || 0})</span>
+              <div 
+                onClick={() => setActiveTab('feedback')}
+                className="flex items-center gap-1.5 bg-amber-400/10 border border-amber-400/30 py-1 px-2.5 rounded-full cursor-pointer hover:bg-amber-400/20 transition-all"
+                title="View & Rate Product"
+              >
+                <FiveStarRating value={product.rating || 5.0} size="sm" readOnly count={product.reviewCount || 0} />
               </div>
+
+              {profile?.uid !== product.ownerId && (
+                <AuthGuard
+                  title="Rate Product"
+                  message="Sign in to submit your rating and review for this product."
+                  profile={profile}
+                >
+                  <button 
+                    onClick={() => setActiveTab('feedback')}
+                    className="glass-pill !border-amber-400/40 !text-amber-300 bg-amber-400/10 hover:bg-amber-400/20 flex items-center gap-1 font-black py-1 px-2.5 text-[9px] sm:text-[10px] transition-all"
+                  >
+                    <Star size={10} className="fill-amber-400 text-amber-400" />
+                    <span>Rate Product</span>
+                  </button>
+                </AuthGuard>
+              )}
+
               {profile?.uid !== product.ownerId && (
                 <AuthGuard 
-                  title="Log Interest Signal" 
-                  message="Sign in to save this product to your tactical awareness dashboard."
+                  title="Save Product" 
+                  message="Sign in to save this product to your personal favorites."
                   profile={profile}
                 >
                   <button 
                     onClick={handleLike}
-                    className="glass-pill !text-cyan-400 !border-cyan-400/30 flex items-center gap-1 hover:bg-cyan-400/10 transition-all font-black py-0.5 px-2 text-[8px] sm:text-[9px]"
+                    className="glass-pill !text-red-400 !border-red-400/30 bg-red-400/10 hover:bg-red-400/20 flex items-center gap-1 transition-all font-black py-1 px-2.5 text-[9px] sm:text-[10px]"
                   >
-                    <Heart size={8} className={cn("fill-cyan-400", product.likeCount ? "opacity-100" : "opacity-30")} />
-                    <span>{product.likeCount || 0}</span>
+                    <Heart size={10} className={cn("fill-red-400 text-red-400", product.likeCount ? "opacity-100" : "opacity-40")} />
+                    <span>{product.likeCount || 0} Likes</span>
                   </button>
                 </AuthGuard>
               )}
@@ -453,47 +473,40 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
               exit={{ opacity: 0, y: -5 }}
               className="space-y-3 py-1"
             >
-              {/* Post Experience Signal form (made extra compact inline) */}
+              {/* Post Experience Signal form */}
               <AuthGuard
-                title="Log Feedback Signal"
-                message="Sign in to interact with this item."
+                title="Rate Product"
+                message="Sign in to rate and review this product."
                 profile={profile}
               >
-                <div className="p-2.5 bg-white/5 border border-white/5 rounded-xl space-y-1.5">
-                  <p className="text-[7px] font-black text-gray-400 uppercase tracking-widest inline-block">Transmit Experience Signal</p>
-                  <form onSubmit={handleSubmitReview} className="space-y-1.5">
-                    <div className="flex justify-between items-center bg-[#0d1117] p-1 rounded-lg border border-white/5">
-                      <div className="flex gap-1">
-                        {[1, 2, 3, 4, 5].map((star) => (
-                          <button
-                            key={star}
-                            type="button"
-                            onClick={() => setNewReview({ ...newReview, rating: star })}
-                            className="transition-all hover:scale-110"
-                          >
-                            <Star 
-                              size={12} 
-                              className={cn(
-                                "transition-colors",
-                                star <= newReview.rating ? "fill-primary text-primary" : "text-gray-700"
-                              )} 
-                            />
-                          </button>
-                        ))}
-                      </div>
+                <div className="p-3 bg-[#0d1117] border border-amber-400/30 rounded-xl space-y-2">
+                  <div className="flex items-center justify-between">
+                    <p className="text-[9px] font-black text-amber-300 uppercase tracking-wider flex items-center gap-1">
+                      <Star size={10} className="fill-amber-400 text-amber-400" />
+                      Submit 5-Star Product Rating
+                    </p>
+                  </div>
+                  <form onSubmit={handleSubmitReview} className="space-y-2">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-black/40 p-2 rounded-lg border border-white/5">
+                      <FiveStarRating 
+                        value={newReview.rating} 
+                        onChange={(r) => setNewReview({ ...newReview, rating: r })} 
+                        size="md"
+                        showLabel
+                      />
                       <button 
                         type="submit"
                         disabled={isSubmittingReview}
-                        className="px-2 py-0.5 bg-primary text-[#05070a] rounded-md text-[7px] font-black uppercase tracking-widest flex items-center gap-1 active:scale-95 transition-all"
+                        className="px-3 py-1.5 bg-amber-400 text-black font-black uppercase text-[9px] tracking-wider rounded-lg flex items-center justify-center gap-1 hover:bg-amber-300 active:scale-95 transition-all shadow-[0_0_10px_rgba(251,191,36,0.3)] shrink-0"
                       >
-                        {isSubmittingReview ? <Loader2 className="animate-spin" size={6} /> : <Send size={6} />}
-                        Post
+                        {isSubmittingReview ? <Loader2 className="animate-spin" size={10} /> : <Send size={10} />}
+                        Submit Rating
                       </button>
                     </div>
                     <input
                       type="text"
-                      placeholder="Comment on your synchronization experience..."
-                      className="w-full bg-[#0d1117] border border-white/10 rounded-lg px-2 py-1 text-white text-[9px] outline-none focus:border-primary/50 transition-colors"
+                      placeholder="Share your thoughts about this product..."
+                      className="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-1.5 text-white text-[10px] outline-none focus:border-amber-400/50 transition-colors placeholder:text-gray-600"
                       value={newReview.comment}
                       onChange={(e) => setNewReview({ ...newReview, comment: e.target.value })}
                       required
@@ -503,43 +516,36 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
               </AuthGuard>
 
               {/* Reviews List */}
-              <div className="space-y-1.5">
+              <div className="space-y-2">
                 {reviews.length > 0 ? (
                   reviews.map((review, idx) => (
-                    <div key={`pd-review-${review.id ? `${review.id}-${idx}` : idx}`} className="p-2.5 bg-[#0d1117] border border-white/5 rounded-xl space-y-1.5">
+                    <div key={`pd-review-${review.id ? `${review.id}-${idx}` : idx}`} className="p-3 bg-[#0d1117] border border-white/10 rounded-xl space-y-1.5">
                       <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-1.5">
-                          <div className="w-4 h-4 rounded bg-gray-800 flex items-center justify-center text-[7px] font-black text-gray-500 border border-white/10 overflow-hidden shrink-0">
+                        <div className="flex items-center gap-2">
+                          <div className="w-6 h-6 rounded-full bg-black flex items-center justify-center text-[9px] font-black text-amber-400 border border-amber-400/20 overflow-hidden shrink-0">
                             {review.userAvatar ? (
                                <img src={review.userAvatar} className="w-full h-full object-cover" />
-                            ) : review.userName.charAt(0)}
+                            ) : review.userName?.charAt(0) || 'U'}
                           </div>
                           <div>
-                            <p className="text-[8px] font-black text-white uppercase tracking-tight leading-none">{review.userName}</p>
-                            <div className="flex gap-0.5 mt-0.5">
-                              {[1, 2, 3, 4, 5].map((s) => (
-                                <Star 
-                                  key={s} 
-                                  size={5} 
-                                  className={cn(s <= review.rating ? "fill-primary text-primary" : "text-gray-800")} 
-                                />
-                              ))}
-                            </div>
+                            <p className="text-[9px] font-black text-white uppercase tracking-tight leading-none">{review.userName}</p>
+                            <FiveStarRating value={review.rating || 5} size="sm" readOnly />
                           </div>
                         </div>
-                        <span className="text-[6px] font-black text-gray-600 uppercase tracking-widest">
+                        <span className="text-[7px] font-black text-gray-500 uppercase tracking-widest font-mono">
                            {review.createdAt?.toDate ? review.createdAt.toDate().toLocaleDateString() : 'Recent'}
                         </span>
                       </div>
-                      <p className="text-[9px] text-gray-400 font-medium leading-normal italic">
+                      <p className="text-[10px] text-gray-300 font-medium leading-relaxed italic pl-8">
                         "{review.comment}"
                       </p>
                     </div>
                   ))
                 ) : (
-                  <div className="py-4 text-center bg-[#0d1117] rounded-xl border border-white/5">
-                    <Sparkles size={16} className="mx-auto text-gray-800 mb-1" />
-                    <h4 className="text-[7px] font-black text-gray-600 uppercase tracking-widest italic">Untested - Feed consensus first</h4>
+                  <div className="py-6 text-center bg-[#0d1117] rounded-xl border border-white/5 space-y-1">
+                    <Star size={20} className="mx-auto text-amber-400/40" />
+                    <h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest italic">No product ratings yet</h4>
+                    <p className="text-[8px] text-gray-600">Be the first user to submit a 5-star rating for this product!</p>
                   </div>
                 )}
               </div>
