@@ -227,7 +227,7 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
             <motion.img 
               key={currentImageIndex}
               src={images[currentImageIndex]} 
-              className="w-full h-full object-contain md:object-cover"
+              className="w-full h-full object-contain p-2 bg-[#080d14]"
               initial={{ opacity: 0, scale: 1.05 }}
               animate={{ opacity: 1, scale: 1 }}
               exit={{ opacity: 0, scale: 0.95 }}

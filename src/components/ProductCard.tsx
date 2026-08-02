@@ -265,20 +265,20 @@ export default function ProductCard({
           compact ? "!bg-[#0a0f16] !border-white/10 hover:!border-primary/40 shadow-sm" : ""
         )}
       >
-        <div className={cn("relative overflow-hidden shrink-0", compact ? "h-28 sm:h-32" : "aspect-[16/10] sm:aspect-video")}>
+        <div className={cn("relative overflow-hidden shrink-0 bg-[#080d14] flex items-center justify-center", compact ? "h-28 sm:h-32" : "aspect-[16/10] sm:aspect-video")}>
           <AnimatePresence mode="wait">
             <OptimizedImage 
               key={`prod-img-${currentImageIndex}`}
               src={images[currentImageIndex]} 
               alt={product.name}
-              className="w-full h-full object-cover group-hover:scale-105 transition-transform duration-500"
+              className="w-full h-full object-contain p-1 group-hover:scale-105 transition-transform duration-500"
               fallbackSrc="https://images.unsplash.com/photo-1541701494587-cb58502866ab?q=80&w=400&auto=format&fit=crop"
             />
           </AnimatePresence>
           
           <div className="absolute inset-0 bg-gradient-to-t from-[#05070a] via-transparent to-transparent opacity-60 pointer-events-none"></div>
 
-          <div className="absolute top-1.5 sm:top-2 left-1.5 sm:left-2 flex items-center gap-1.5 z-20" onClick={(e) => e.stopPropagation()}>
+          <div className="absolute top-1.5 sm:top-2 left-1.5 sm:left-2 flex items-center gap-1 z-20 max-w-[calc(100%-80px)] sm:max-w-[calc(100%-105px)] overflow-hidden" onClick={(e) => e.stopPropagation()}>
             <AuthGuard
               title="Rate Product"
               message="Sign in to rate and review this product."
@@ -296,18 +296,12 @@ export default function ProductCard({
                   setShowRatingModal(true);
                 }}
                 className={cn(
-                  "bg-[#05070a]/95 backdrop-blur-md rounded-xl border border-amber-400/50 text-[8px] font-black flex items-center gap-1 shadow-[0_0_15px_rgba(251,191,36,0.3)] cursor-pointer hover:border-amber-400 hover:bg-amber-400/10 hover:scale-105 active:scale-95 transition-all",
-                  compact ? "px-1.5 py-0.5 text-[7.5px]" : "px-2.5 py-1 text-[8px] sm:text-[9px]"
+                  "bg-[#05070a]/95 backdrop-blur-md rounded-xl border border-amber-400/50 text-[8px] font-black flex items-center gap-1 shadow-[0_0_12px_rgba(251,191,36,0.25)] cursor-pointer hover:border-amber-400 hover:bg-amber-400/10 hover:scale-105 active:scale-95 transition-all truncate max-w-full",
+                  compact ? "px-1.5 py-0.5 text-[7.5px]" : "px-2 py-0.5 sm:px-2.5 sm:py-1 text-[8px] sm:text-[9px]"
                 )}
                 title="Click to rate & review this product"
               >
                 <FiveStarRating value={product.rating || 5.0} size="sm" readOnly count={product.reviewCount || 0} countLabel="rating" />
-                {!isOwner && !compact && (
-                  <span className="px-1.5 py-0.5 bg-amber-400 text-black font-extrabold uppercase text-[7.5px] sm:text-[8.5px] rounded tracking-wider flex items-center gap-0.5 shrink-0 shadow-sm ml-0.5">
-                    <Star size={8} className="fill-black text-black" />
-                    Rate
-                  </span>
-                )}
               </button>
             </AuthGuard>
           </div>
@@ -426,12 +420,13 @@ export default function ProductCard({
                     onClick={() => handleAction('engage')}
                     disabled={isEngaging}
                     className={cn(
-                      "flex-1 bg-emerald-500/10 border border-emerald-500/30 rounded-lg font-black uppercase tracking-wider text-emerald-400 hover:text-white hover:bg-emerald-500/20 transition-all flex items-center justify-center gap-1 shadow-sm",
+                      "flex-1 bg-emerald-500/10 border border-emerald-500/30 rounded-lg font-black uppercase tracking-wider text-emerald-400 hover:text-white hover:bg-emerald-500/20 transition-all flex items-center justify-center gap-1 shadow-sm shrink-0 min-w-0",
                       compact ? "py-1 text-[7.5px]" : "py-2 sm:py-3 text-[8px] sm:text-[9px]"
                     )}
+                    title="Direct WhatsApp Redirect"
                   >
-                    <MessageSquare size={9} className="text-emerald-400" />
-                    Chat
+                    <MessageSquare size={10} className="text-emerald-400 shrink-0" />
+                    <span className="truncate">{compact ? 'Chat' : 'Chat on WhatsApp'}</span>
                   </button>
                 </AuthGuard>
                 
