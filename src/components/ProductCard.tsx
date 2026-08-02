@@ -27,7 +27,8 @@ export default function ProductCard({
   store: initialStore,
   onAction,
   isOwner = false,
-  recommendationReason
+  recommendationReason,
+  compact = false
 }: { 
   product: Product, 
   profile: UserProfile | null, 
@@ -35,6 +36,7 @@ export default function ProductCard({
   onAction?: (prod: Product) => void, 
   isOwner?: boolean,
   recommendationReason?: string,
+  compact?: boolean,
   key?: React.Key 
 }) {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
@@ -258,9 +260,12 @@ export default function ProductCard({
             } 
           });
         }}
-        className="neon-card group relative overflow-hidden cursor-pointer"
+        className={cn(
+          "neon-card group relative overflow-hidden cursor-pointer flex flex-col justify-between h-full",
+          compact ? "!bg-[#0a0f16] !border-white/10 hover:!border-primary/40 shadow-sm" : ""
+        )}
       >
-        <div className="aspect-[16/10] sm:aspect-video relative overflow-hidden">
+        <div className={cn("relative overflow-hidden shrink-0", compact ? "h-28 sm:h-32" : "aspect-[16/10] sm:aspect-video")}>
           <AnimatePresence mode="wait">
             <OptimizedImage 
               key={`prod-img-${currentImageIndex}`}
@@ -273,7 +278,7 @@ export default function ProductCard({
           
           <div className="absolute inset-0 bg-gradient-to-t from-[#05070a] via-transparent to-transparent opacity-60 pointer-events-none"></div>
 
-          <div className="absolute top-2 sm:top-4 left-2 sm:left-4 flex items-center gap-1.5 z-20" onClick={(e) => e.stopPropagation()}>
+          <div className="absolute top-1.5 sm:top-2 left-1.5 sm:left-2 flex items-center gap-1.5 z-20" onClick={(e) => e.stopPropagation()}>
             <AuthGuard
               title="Rate Product"
               message="Sign in to rate and review this product."
@@ -290,11 +295,14 @@ export default function ProductCard({
                   }
                   setShowRatingModal(true);
                 }}
-                className="px-2.5 py-1 bg-[#05070a]/95 backdrop-blur-md rounded-xl border border-amber-400/50 text-[8px] sm:text-[9px] font-black flex items-center gap-1.5 shadow-[0_0_15px_rgba(251,191,36,0.3)] cursor-pointer hover:border-amber-400 hover:bg-amber-400/10 hover:scale-105 active:scale-95 transition-all"
+                className={cn(
+                  "bg-[#05070a]/95 backdrop-blur-md rounded-xl border border-amber-400/50 text-[8px] font-black flex items-center gap-1 shadow-[0_0_15px_rgba(251,191,36,0.3)] cursor-pointer hover:border-amber-400 hover:bg-amber-400/10 hover:scale-105 active:scale-95 transition-all",
+                  compact ? "px-1.5 py-0.5 text-[7.5px]" : "px-2.5 py-1 text-[8px] sm:text-[9px]"
+                )}
                 title="Click to rate & review this product"
               >
                 <FiveStarRating value={product.rating || 5.0} size="sm" readOnly count={product.reviewCount || 0} countLabel="rating" />
-                {!isOwner && (
+                {!isOwner && !compact && (
                   <span className="px-1.5 py-0.5 bg-amber-400 text-black font-extrabold uppercase text-[7.5px] sm:text-[8.5px] rounded tracking-wider flex items-center gap-0.5 shrink-0 shadow-sm ml-0.5">
                     <Star size={8} className="fill-black text-black" />
                     Rate
@@ -306,9 +314,12 @@ export default function ProductCard({
 
           <button 
             onClick={handleShare}
-            className="absolute top-2 sm:top-4 right-2 sm:right-4 p-1.5 sm:p-2 bg-[#05070a]/80 backdrop-blur-md rounded-xl border border-white/10 text-white hover:text-primary transition-colors hover:scale-110 active:scale-95 shadow-xl z-20 no-auth-guard"
+            className={cn(
+              "absolute top-1.5 sm:top-2 right-1.5 sm:right-2 bg-[#05070a]/80 backdrop-blur-md rounded-xl border border-white/10 text-white hover:text-primary transition-colors hover:scale-110 active:scale-95 shadow-xl z-20 no-auth-guard",
+              compact ? "p-1" : "p-1.5 sm:p-2"
+            )}
           >
-            <Share2 size={12} className="sm:w-[14px] sm:h-[14px]" />
+            <Share2 size={11} className={compact ? "w-2.5 h-2.5" : "sm:w-[14px] sm:h-[14px]"} />
           </button>
 
           {!isOwner && (
@@ -320,13 +331,16 @@ export default function ProductCard({
               >
                 <button 
                   onClick={handleLike}
-                  className="absolute top-2 sm:top-4 right-10 sm:right-14 p-1.5 sm:p-2 bg-[#05070a]/80 backdrop-blur-md rounded-xl border border-white/10 text-white hover:text-red-500 transition-colors hover:scale-110 active:scale-95 shadow-xl z-20"
+                  className={cn(
+                    "absolute top-1.5 sm:top-2 bg-[#05070a]/80 backdrop-blur-md rounded-xl border border-white/10 text-white hover:text-red-500 transition-colors hover:scale-110 active:scale-95 shadow-xl z-20",
+                    compact ? "right-7 p-1" : "right-10 sm:right-14 p-1.5 sm:p-2"
+                  )}
                 >
-                  <Heart size={12} className={cn("sm:w-[14px] sm:h-[14px]", product.likeCount ? "fill-red-500 text-red-500" : "")} />
+                  <Heart size={11} className={cn(compact ? "w-2.5 h-2.5" : "sm:w-[14px] sm:h-[14px]", product.likeCount ? "fill-red-500 text-red-500" : "")} />
                 </button>
               </AuthGuard>
 
-              {profile && !profile.isGuest && (
+              {profile && !profile.isGuest && !compact && (
                 <button 
                   onClick={(e) => { e.stopPropagation(); setShowReportModal(true); }}
                   className="absolute top-10 sm:top-14 right-2 sm:right-4 p-1.5 sm:p-2 bg-red-500/20 backdrop-blur-md rounded-xl border border-red-500/20 text-red-500 hover:bg-red-500 hover:text-white transition-all hover:scale-110 active:scale-95 shadow-xl z-20"
@@ -339,12 +353,12 @@ export default function ProductCard({
           )}
         </div>
 
-        <div className="p-3.5 sm:p-5 space-y-3 sm:space-y-4 relative">
-          <div className="flex justify-between items-start gap-2 sm:gap-4">
-            <div className="space-y-0.5 sm:space-y-1 flex-1 min-w-0">
-              <div className="flex items-center gap-1.5 flex-wrap">
+        <div className={cn("flex-1 flex flex-col justify-between relative", compact ? "p-2.5 space-y-2" : "p-3.5 sm:p-5 space-y-3 sm:space-y-4")}>
+          <div className="flex justify-between items-start gap-1.5">
+            <div className="space-y-0.5 flex-1 min-w-0">
+              <div className="flex items-center gap-1 flex-wrap">
                 <span className={cn(
-                  "px-1.5 py-0.5 rounded text-[7px] sm:text-[8px] font-black uppercase tracking-wider shrink-0 border",
+                  "px-1 py-0.2 rounded text-[6.5px] sm:text-[7.5px] font-black uppercase tracking-wider shrink-0 border",
                   product.itemType === 'service' 
                     ? "bg-emerald-500/10 border-emerald-500/30 text-emerald-400" 
                     : "bg-primary/10 border-primary/20 text-primary"
@@ -352,84 +366,57 @@ export default function ProductCard({
                   {product.itemType === 'service' ? 'Service' : 'Product'}
                 </span>
                 {recommendationReason && (
-                  <span className="px-2 py-0.5 rounded-full bg-primary/20 border border-primary/40 text-primary text-[7px] sm:text-[8px] font-black uppercase tracking-wider flex items-center gap-1 shrink-0">
-                    <Zap size={8} className="text-primary fill-primary" /> {recommendationReason}
-                  </span>
-                )}
-                <h3 className="font-black text-white italic uppercase tracking-tighter text-base sm:text-lg leading-none truncate group-hover:text-primary transition-colors">{product.name}</h3>
-                {(product.isVerified || (product as any).verified) && (
-                  <span className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded-full bg-emerald-500/20 border border-emerald-400/50 text-emerald-400 text-[7px] sm:text-[8px] font-black uppercase tracking-wider shadow-[0_0_10px_rgba(16,185,129,0.5)] shrink-0">
-                    <Check size={8} className="stroke-[3] text-emerald-400" /> Verified
+                  <span className="px-1.5 py-0.2 rounded-full bg-primary/20 border border-primary/40 text-primary text-[6.5px] sm:text-[7.5px] font-black uppercase tracking-wider flex items-center gap-0.5 shrink-0 truncate max-w-[120px]">
+                    <Zap size={7} className="text-primary fill-primary shrink-0" /> <span className="truncate">{recommendationReason}</span>
                   </span>
                 )}
               </div>
-              <p className="text-[8px] sm:text-[10px] text-gray-500 font-bold uppercase tracking-widest truncate">{product.category}</p>
+              <h3 className={cn("font-black text-white italic uppercase tracking-tighter leading-tight truncate group-hover:text-primary transition-colors", compact ? "text-xs sm:text-sm" : "text-base sm:text-lg")}>{product.name}</h3>
+              <p className="text-[7.5px] sm:text-[8.5px] text-gray-500 font-bold uppercase tracking-widest truncate">{product.category}</p>
             </div>
             <div className="text-right shrink-0">
               {product.pricingOption === 'contact_seller_for_price' ? (
-                <span className="text-xs sm:text-sm font-black text-emerald-400 italic tracking-tight block">Contact for Price</span>
+                <span className="text-[10px] font-black text-emerald-400 italic tracking-tight block">Contact</span>
               ) : (
                 <>
-                  <p className="text-lg sm:text-xl font-black text-primary italic tracking-tighter leading-none">
+                  <p className={cn("font-black text-primary italic tracking-tighter leading-none", compact ? "text-sm sm:text-base" : "text-lg sm:text-xl")}>
                     {formatCurrency(product.price, product.currency)}
-                    {product.quantityUnit && product.quantityUnit !== 'per item' && (
-                      <span className="text-[10px] sm:text-xs font-bold text-gray-400 not-italic ml-1">/{product.quantityUnit}</span>
-                    )}
                   </p>
-                  {product.pricingOption === 'negotiable' && (
-                    <p className="text-[7px] sm:text-[8px] font-black text-amber-400 uppercase tracking-wider mt-0.5">Negotiable</p>
-                  )}
-                  {product.pricingOption === 'installments' && (
-                    <p className="text-[7px] sm:text-[8px] font-black text-emerald-400 uppercase tracking-wider mt-0.5">Installments</p>
-                  )}
                 </>
               )}
-              <div className="flex items-center justify-end gap-1 mt-1">
-                <div className="w-1 h-1 sm:w-1.5 sm:h-1.5 bg-neon-green rounded-full animate-pulse shadow-[0_0_5px_#39FF14]"></div>
-                <p className="text-[7px] sm:text-[8px] text-neon-green font-black uppercase tracking-widest">Active</p>
-              </div>
             </div>
           </div>
 
-          {product.description && (
+          {!compact && product.description && (
             <p className="text-[9px] sm:text-[10px] text-gray-400 font-medium line-clamp-2 leading-relaxed h-[22px] sm:h-7">
               {product.description}
             </p>
           )}
 
-          <div className="space-y-2.5 sm:space-y-3">
+          <div className="space-y-2 mt-auto">
              <div 
-              className="flex items-center gap-2 sm:gap-3 cursor-pointer group/store"
+              className="flex items-center gap-1.5 cursor-pointer group/store"
               onClick={(e) => {
                 e.stopPropagation();
                 openUserProfile(product.ownerId);
               }}
              >
-              <div className="w-7 h-7 sm:w-8 sm:h-8 rounded-lg border border-white/10 bg-white/5 flex items-center justify-center shrink-0 group-hover/store:border-primary/50 transition-all">
+              <div className={cn("rounded-lg border border-white/10 bg-white/5 flex items-center justify-center shrink-0 group-hover/store:border-primary/50 transition-all", compact ? "w-5 h-5" : "w-7 h-7 sm:w-8 sm:h-8")}>
                 {isStoreLoading ? (
-                  <Loader2 size={10} className="text-gray-600 animate-spin" />
+                  <Loader2 size={8} className="text-gray-600 animate-spin" />
                 ) : (
-                  <StoreIcon size={12} className="text-primary" />
+                  <StoreIcon size={10} className="text-primary" />
                 )}
               </div>
               <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-1.5 min-w-0">
-                  <p className="text-[9px] sm:text-[10px] text-white font-black uppercase tracking-tight truncate group-hover/store:text-primary transition-colors">{storeData.name}</p>
-                  {storeData.isVerified && (
-                    <span className="inline-flex items-center gap-0.5 px-1 py-0.2 rounded bg-emerald-500/20 border border-emerald-400/50 text-emerald-400 text-[6.5px] sm:text-[7.5px] font-black uppercase tracking-wider shadow-[0_0_6px_rgba(16,185,129,0.4)] shrink-0" title="Verified Store">
-                      <Check size={7} className="stroke-[3]" /> Verified
-                    </span>
-                  )}
-                </div>
-                <div className="flex items-center gap-1">
-                  <Star size={7} className="fill-primary text-primary" />
-                  <span className="text-[7px] sm:text-[8px] font-bold text-gray-400 group-hover/store:text-white transition-colors">{storeData.rating.toFixed(1)} Node</span>
+                <div className="flex items-center gap-1 min-w-0">
+                  <p className="text-[8.5px] sm:text-[9.5px] text-white font-black uppercase tracking-tight truncate group-hover/store:text-primary transition-colors">{storeData.name}</p>
                 </div>
               </div>
             </div>
 
             {!isOwner && (
-              <div className="flex gap-1.5 sm:gap-2" onClick={(e) => e.stopPropagation()}>
+              <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
                 <AuthGuard 
                   title="Direct Network Uplink" 
                   message="Secure authentication is required to initiate a direct communication channel with this supplier node."
@@ -438,16 +425,22 @@ export default function ProductCard({
                   <button 
                     onClick={() => handleAction('engage')}
                     disabled={isEngaging}
-                    className="flex-1 py-2 sm:py-3 bg-emerald-500/10 border border-emerald-500/30 rounded-xl text-[8px] sm:text-[9px] font-black uppercase tracking-widest text-emerald-400 hover:text-white hover:bg-emerald-500/20 transition-all flex items-center justify-center gap-1.5 sm:gap-2 shadow-[0_0_10px_rgba(16,185,129,0.15)]"
+                    className={cn(
+                      "flex-1 bg-emerald-500/10 border border-emerald-500/30 rounded-lg font-black uppercase tracking-wider text-emerald-400 hover:text-white hover:bg-emerald-500/20 transition-all flex items-center justify-center gap-1 shadow-sm",
+                      compact ? "py-1 text-[7.5px]" : "py-2 sm:py-3 text-[8px] sm:text-[9px]"
+                    )}
                   >
-                    {isEngaging ? <Loader2 size={10} className="animate-spin" /> : <MessageSquare size={10} className="text-emerald-400" />}
-                    Talk on WhatsApp
+                    <MessageSquare size={9} className="text-emerald-400" />
+                    Chat
                   </button>
                 </AuthGuard>
                 
                 <button 
                   onClick={() => handleAction('shop')}
-                  className="flex-[1.5] py-2 sm:py-3 bg-primary rounded-xl text-[8px] sm:text-[9px] font-black uppercase tracking-[0.15em] sm:tracking-[0.2em] text-[#05070a] shadow-lg shadow-primary/20 hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-1.5 sm:gap-2"
+                  className={cn(
+                    "flex-[1.2] bg-primary rounded-lg font-black uppercase tracking-wider text-[#05070a] shadow-md hover:scale-[1.02] active:scale-95 transition-all flex items-center justify-center gap-1",
+                    compact ? "py-1 text-[7.5px]" : "py-2 sm:py-3 text-[8px] sm:text-[9px]"
+                  )}
                 >
                   {getActionIcon()}
                   {product.buyButtonText || 'Order'}

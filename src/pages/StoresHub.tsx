@@ -25,14 +25,14 @@ export default function StoresHub({ profile }: { profile: UserProfile | null }) 
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
-  const [activeTab, setActiveTab] = useState<'browse' | 'manage'>('browse');
+  const [activeTab, setActiveTab] = useState<'browse' | 'manage'>('manage');
 
   useEffect(() => {
     const tabParam = searchParams.get('tab');
-    if (tabParam === 'manage') {
-      setActiveTab('manage');
-    } else if (tabParam === 'browse') {
+    if (tabParam === 'browse') {
       setActiveTab('browse');
+    } else if (tabParam === 'manage') {
+      setActiveTab('manage');
     }
   }, [searchParams]);
 
@@ -105,33 +105,43 @@ export default function StoresHub({ profile }: { profile: UserProfile | null }) 
         </div>
 
         <div className="flex flex-col sm:flex-row gap-4 items-center">
-          {profile?.currentRole === 'supplier' && (
-            <div className="flex p-1 bg-white/5 border border-white/5 rounded-2xl w-full sm:w-fit">
-              <button
-                onClick={() => setActiveTab('browse')}
-                className={cn(
-                  "px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all w-1/2 sm:w-auto",
-                  activeTab === 'browse' ? "bg-primary text-[#05070a] shadow-[0_10px_20px_rgba(0,242,254,0.2)]" : "text-gray-500 hover:text-white"
-                )}
-              >
-                Browse
-              </button>
-              <button
-                onClick={() => setActiveTab('manage')}
-                className={cn(
-                  "px-6 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all w-1/2 sm:w-auto",
-                  activeTab === 'manage' ? "bg-primary text-[#05070a] shadow-[0_10px_20px_rgba(0,242,254,0.2)]" : "text-gray-500 hover:text-white"
-                )}
-              >
-                Manage
-              </button>
-            </div>
-          )}
+          <div className="flex p-1 bg-[#0a0f18] border border-white/10 rounded-2xl w-full sm:w-fit shadow-xl">
+            <button
+              onClick={() => setActiveTab('manage')}
+              className={cn(
+                "px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all w-1/2 sm:w-auto flex items-center justify-center gap-1.5",
+                activeTab === 'manage' ? "bg-primary text-[#05070a] shadow-[0_10px_20px_rgba(0,242,254,0.25)]" : "text-gray-400 hover:text-white"
+              )}
+            >
+              <StoreIcon size={13} /> Manage / Create Store
+            </button>
+            <button
+              onClick={() => setActiveTab('browse')}
+              className={cn(
+                "px-5 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest transition-all w-1/2 sm:w-auto flex items-center justify-center gap-1.5",
+                activeTab === 'browse' ? "bg-primary text-[#05070a] shadow-[0_10px_20px_rgba(0,242,254,0.25)]" : "text-gray-400 hover:text-white"
+              )}
+            >
+              <Search size={13} /> Browse Directory
+            </button>
+          </div>
         </div>
       </header>
 
-      {activeTab === 'manage' && profile?.currentRole === 'supplier' ? (
-        <SupplierDashboard profile={profile} />
+      {activeTab === 'manage' ? (
+        profile ? (
+          <SupplierDashboard profile={profile} />
+        ) : (
+          <AuthGuard
+            title="Manage Storefront"
+            message="Sign in to create or manage your storefront and business catalog."
+            profile={profile}
+          >
+            <div className="p-12 text-center space-y-4 neon-card">
+              <p className="text-white text-xs font-black uppercase tracking-widest">Sign in required to create or manage stores</p>
+            </div>
+          </AuthGuard>
+        )
       ) : (
         <div className="space-y-12">
 

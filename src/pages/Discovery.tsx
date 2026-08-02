@@ -936,153 +936,200 @@ useEffect(() => {
 
       </div>
 
-      {/* Recommended for You Section */}
-      <section className="bg-gradient-to-r from-[#0d1117] via-[#080b10] to-[#0d1117] border border-primary/25 rounded-[2rem] p-4 sm:p-6 shadow-2xl space-y-5 relative overflow-hidden">
-        {/* Glow backdrop */}
-        <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
+      {/* Recommended for You Section - Temporarily removed when user is actively searching */}
+      {!searchTerm.trim() && (
+        <section className="bg-gradient-to-r from-[#0d1117] via-[#080b10] to-[#0d1117] border border-primary/25 rounded-[2rem] p-4 sm:p-6 shadow-2xl space-y-4 relative overflow-hidden">
+          {/* Glow backdrop */}
+          <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
 
-        {/* Section Header */}
-        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 relative z-10">
-          <div className="space-y-1 text-left">
-            <div className="flex items-center gap-2">
-              <div className="p-1.5 rounded-xl bg-primary/20 text-primary border border-primary/30 shrink-0">
-                <Sparkles size={16} className="animate-pulse" />
-              </div>
-              <h2 className="font-black text-white uppercase tracking-tighter text-base sm:text-lg italic">
-                Recommended For You
-              </h2>
-              <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[8px] font-black border border-primary/20 uppercase tracking-widest shrink-0">
-                {recommendations.hasHistory ? 'Personalized' : 'Trending Node'}
-              </span>
-            </div>
-            <p className="text-[10px] text-gray-400 font-medium leading-relaxed max-w-xl">
-              {recommendations.hasHistory ? (
-                <span>
-                  Curated based on your viewed stores and favorite categories:{' '}
-                  {recommendations.topCategories.map((cat, i) => (
-                    <span key={`rec-top-cat-${cat}-${i}`} className="text-primary font-bold">
-                      {cat}{i < recommendations.topCategories.length - 1 ? ', ' : ''}
-                    </span>
-                  ))}
+          {/* Section Header */}
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 relative z-10">
+            <div className="space-y-1 text-left">
+              <div className="flex items-center gap-2">
+                <div className="p-1.5 rounded-xl bg-primary/20 text-primary border border-primary/30 shrink-0">
+                  <Sparkles size={16} className="animate-pulse" />
+                </div>
+                <h2 className="font-black text-white uppercase tracking-tighter text-base sm:text-lg italic">
+                  Recommended For You
+                </h2>
+                <span className="px-2 py-0.5 rounded-full bg-primary/10 text-primary text-[8px] font-black border border-primary/20 uppercase tracking-widest shrink-0">
+                  {recommendations.hasHistory ? 'Personalized' : 'Trending Node'}
                 </span>
-              ) : (
-                <span>Recommendations update automatically as you explore suppliers and product categories across the network.</span>
-              )}
-            </p>
-          </div>
-
-          <div className="flex items-center gap-2 shrink-0">
-            <div className="flex bg-[#05070a] p-1 rounded-xl border border-white/10">
-              <button
-                onClick={() => setRecTab('products')}
-                className={cn(
-                  "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5",
-                  recTab === 'products'
-                    ? "bg-primary text-[#05070a] shadow-[0_0_10px_rgba(0,242,254,0.3)]"
-                    : "text-gray-400 hover:text-white"
+              </div>
+              <p className="text-[10px] text-gray-400 font-medium leading-relaxed max-w-xl">
+                {recommendations.hasHistory ? (
+                  <span>
+                    Curated based on your viewed stores and favorite categories:{' '}
+                    {recommendations.topCategories.map((cat, i) => (
+                      <span key={`rec-top-cat-${cat}-${i}`} className="text-primary font-bold">
+                        {cat}{i < recommendations.topCategories.length - 1 ? ', ' : ''}
+                      </span>
+                    ))}
+                  </span>
+                ) : (
+                  <span>Recommendations update automatically as you explore suppliers and product categories across the network.</span>
                 )}
-              >
-                <ShoppingBag size={11} /> Items ({recommendations.products.length})
-              </button>
-              <button
-                onClick={() => setRecTab('stores')}
-                className={cn(
-                  "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5",
-                  recTab === 'stores'
-                    ? "bg-primary text-[#05070a] shadow-[0_0_10px_rgba(0,242,254,0.3)]"
-                    : "text-gray-400 hover:text-white"
-                )}
-              >
-                <Store size={11} /> Suppliers ({recommendations.stores.length})
-              </button>
+              </p>
             </div>
 
-            {recommendations.hasHistory && (
-              <button
-                onClick={() => {
-                  viewHistoryService.clearHistory();
-                  triggerFeedback('History Reset', 'Your browsing history and category signals have been reset.', 'reminder');
-                  setSearchTerm(prev => prev);
-                }}
-                title="Reset Recommendation Signals"
-                className="p-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-gray-400 hover:text-white text-[9px] transition-all"
-              >
-                <RotateCcw size={12} />
-              </button>
-            )}
-          </div>
-        </div>
-
-        {/* Category Signals Badges */}
-        {recommendations.hasHistory && recommendations.topCategories.length > 0 && (
-          <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-1">
-            <span className="text-[8px] font-bold uppercase tracking-wider text-gray-500 shrink-0">Active Preference Signals:</span>
-            {recommendations.topCategories.map((cat, idx) => (
-              <button
-                key={`rec-signal-badge-${cat}-${idx}`}
-                onClick={() => setActiveCategory(cat)}
-                className="px-2.5 py-0.5 rounded-full bg-white/5 hover:bg-primary/20 border border-white/10 hover:border-primary/40 text-[8px] font-black text-gray-300 hover:text-primary transition-all flex items-center gap-1 shrink-0"
-              >
-                <Tag size={9} className="text-primary" /> {cat}
-              </button>
-            ))}
-          </div>
-        )}
-
-        {/* Recommended Content */}
-        {recTab === 'products' ? (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-4 pt-1">
-            {recommendations.products.map(({ product, reasons }, idx) => (
-              <div key={`rec-prod-${product.id || idx}-${idx}`} className="relative group">
-                <AuthGuard
-                  title="Access Detailed Intelligence"
-                  message="Sign in to view full technical specifications, verified ratings, and secure purchasing options for this store."
-                  profile={profile}
-                  allowGuest={true}
-                  onGuestContinue={onGuestLogin}
+            <div className="flex items-center gap-2 shrink-0">
+              <div className="flex bg-[#05070a] p-1 rounded-xl border border-white/10">
+                <button
+                  onClick={() => setRecTab('products')}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5",
+                    recTab === 'products'
+                      ? "bg-primary text-[#05070a] shadow-[0_0_10px_rgba(0,242,254,0.3)]"
+                      : "text-gray-400 hover:text-white"
+                  )}
                 >
-                  <ProductCard
-                    product={product}
-                    profile={profile}
-                    store={storesMap[product.storeId]}
-                    recommendationReason={reasons[0]}
-                  />
-                </AuthGuard>
+                  <ShoppingBag size={11} /> Items ({recommendations.products.length})
+                </button>
+                <button
+                  onClick={() => setRecTab('stores')}
+                  className={cn(
+                    "px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all flex items-center gap-1.5",
+                    recTab === 'stores'
+                      ? "bg-primary text-[#05070a] shadow-[0_0_10px_rgba(0,242,254,0.3)]"
+                      : "text-gray-400 hover:text-white"
+                  )}
+                >
+                  <Store size={11} /> Suppliers ({recommendations.stores.length})
+                </button>
               </div>
-            ))}
+
+              {recommendations.hasHistory && (
+                <button
+                  onClick={() => {
+                    viewHistoryService.clearHistory();
+                    triggerFeedback('History Reset', 'Your browsing history and category signals have been reset.', 'reminder');
+                    setSearchTerm(prev => prev);
+                  }}
+                  title="Reset Recommendation Signals"
+                  className="p-2 bg-white/5 hover:bg-white/10 border border-white/10 rounded-xl text-gray-400 hover:text-white text-[9px] transition-all"
+                >
+                  <RotateCcw size={12} />
+                </button>
+              )}
+            </div>
           </div>
-        ) : (
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4 pt-1">
-            {recommendations.stores.map(({ store, reasons }, idx) => (
-              <div key={`rec-store-${store.id || idx}-${idx}`} className="relative group">
-                {reasons.length > 0 && (
-                  <div className="absolute top-2 left-2 z-30 pointer-events-none">
-                    <span className="px-2 py-0.5 rounded-full bg-accent/90 text-white text-[7.5px] font-black uppercase tracking-wider shadow-lg flex items-center gap-1 backdrop-blur-md">
-                      <Building2 size={8} /> {reasons[0]}
-                    </span>
+
+          {/* Category Signals Badges */}
+          {recommendations.hasHistory && recommendations.topCategories.length > 0 && (
+            <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-1">
+              <span className="text-[8px] font-bold uppercase tracking-wider text-gray-500 shrink-0">Active Preference Signals:</span>
+              {recommendations.topCategories.map((cat, idx) => (
+                <button
+                  key={`rec-signal-badge-${cat}-${idx}`}
+                  onClick={() => setActiveCategory(cat)}
+                  className="px-2.5 py-0.5 rounded-full bg-white/5 hover:bg-primary/20 border border-white/10 hover:border-primary/40 text-[8px] font-black text-gray-300 hover:text-primary transition-all flex items-center gap-1 shrink-0"
+                >
+                  <Tag size={9} className="text-primary" /> {cat}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {/* Recommended Horizontal Scroll Container */}
+          {recTab === 'products' ? (
+            <div className="space-y-3">
+              {/* Single Horizontal Line Container: 4 cards visible on desktop, 1 card on phone */}
+              <div className="flex gap-3 overflow-x-auto pb-3 pt-1 scroll-smooth snap-x snap-mandatory items-stretch overflow-y-hidden focus:outline-none">
+                {recommendations.products.map(({ product, reasons }, idx) => (
+                  <div 
+                    key={`rec-prod-${product.id || idx}-${idx}`} 
+                    className="w-[82vw] sm:w-[260px] lg:w-[calc((100%-2.25rem)/4)] shrink-0 snap-start flex flex-col"
+                  >
+                    <AuthGuard
+                      title="Access Detailed Intelligence"
+                      message="Sign in to view full technical specifications, verified ratings, and secure purchasing options for this store."
+                      profile={profile}
+                      allowGuest={true}
+                      onGuestContinue={onGuestLogin}
+                    >
+                      <ProductCard
+                        product={product}
+                        profile={profile}
+                        store={storesMap[product.storeId]}
+                        recommendationReason={reasons[0]}
+                        compact={true}
+                      />
+                    </AuthGuard>
+                  </div>
+                ))}
+
+                {/* Additional indicator card at the end of scroll row */}
+                {recommendations.products.length > 4 && (
+                  <div className="w-[180px] sm:w-[220px] shrink-0 snap-start flex flex-col justify-center items-center p-4 rounded-2xl border border-dashed border-primary/40 bg-primary/5 text-center space-y-2">
+                    <Sparkles className="text-primary animate-pulse" size={24} />
+                    <p className="text-[10px] font-black uppercase tracking-wider text-white leading-snug">
+                      {Math.max(0, recommendations.products.length - 4)} more recommended for you...
+                    </p>
+                    <p className="text-[8px] text-gray-400 font-medium">Swipe left to reveal more curated items</p>
                   </div>
                 )}
-                <AuthGuard
-                  title="Access Features"
-                  message="Sign in to view this supplier's store and items."
-                  profile={profile}
-                  allowGuest={true}
-                  onGuestContinue={onGuestLogin}
-                >
-                  <StoreCard
-                    store={store}
-                    profile={profile}
-                    onSelect={(id) => {
-                      viewHistoryService.recordStoreView(store.id, store.name, store.category);
-                      setSelectedStoreId(id);
-                    }}
-                  />
-                </AuthGuard>
               </div>
-            ))}
-          </div>
-        )}
-      </section>
+
+              {/* Status bar showing hidden recommended count & swipe indicator */}
+              <div className="flex flex-wrap items-center justify-between text-[9px] font-black uppercase tracking-wider text-gray-400 px-1 pt-2 border-t border-white/5 gap-2">
+                <div className="flex items-center gap-1.5 text-primary">
+                  <Sparkles size={11} className="animate-pulse" />
+                  <span className="hidden lg:inline">
+                    {recommendations.products.length > 4 
+                      ? `${recommendations.products.length - 4} more recommended for you... (swipe left)` 
+                      : '4 recommended items in view'}
+                  </span>
+                  <span className="lg:hidden">
+                    {recommendations.products.length > 1 
+                      ? `${recommendations.products.length - 1} more recommended for you... (swipe left)` 
+                      : '1 recommended item in view'}
+                  </span>
+                </div>
+                <div className="text-gray-500 font-medium text-[8px] tracking-widest flex items-center gap-1 ml-auto">
+                  <span>← scroll horizontally →</span>
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="space-y-3">
+              <div className="flex gap-3 overflow-x-auto pb-3 pt-1 scroll-smooth snap-x snap-mandatory items-stretch overflow-y-hidden">
+                {recommendations.stores.map(({ store, reasons }, idx) => (
+                  <div key={`rec-store-${store.id || idx}-${idx}`} className="w-[82vw] sm:w-[260px] lg:w-[calc((100%-2.25rem)/4)] shrink-0 snap-start flex flex-col">
+                    {reasons.length > 0 && (
+                      <div className="mb-1">
+                        <span className="px-2 py-0.5 rounded-full bg-accent/90 text-white text-[7.5px] font-black uppercase tracking-wider shadow-lg inline-flex items-center gap-1 backdrop-blur-md">
+                          <Building2 size={8} /> {reasons[0]}
+                        </span>
+                      </div>
+                    )}
+                    <AuthGuard
+                      title="Access Features"
+                      message="Sign in to view this supplier's store and items."
+                      profile={profile}
+                      allowGuest={true}
+                      onGuestContinue={onGuestLogin}
+                    >
+                      <StoreCard
+                        store={store}
+                        profile={profile}
+                        onSelect={(id) => {
+                          viewHistoryService.recordStoreView(store.id, store.name, store.category);
+                          setSelectedStoreId(id);
+                        }}
+                      />
+                    </AuthGuard>
+                  </div>
+                ))}
+              </div>
+              <div className="flex items-center justify-between text-[9px] font-black uppercase tracking-wider text-gray-400 px-1 pt-2 border-t border-white/5">
+                <span className="text-primary flex items-center gap-1">
+                  <Store size={11} /> Swipe horizontally to explore all {recommendations.stores.length} recommended suppliers
+                </span>
+              </div>
+            </div>
+          )}
+        </section>
+      )}
 
       {/* Discovery Feed */}
       <section className="space-y-6">
