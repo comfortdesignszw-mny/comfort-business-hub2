@@ -4,7 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   MessageSquare, Phone, MoreVertical, Send, ImageIcon, MapPin, 
   FileText, Zap, ChevronRight, ArrowLeft, Paperclip, Plus, Loader2, ShieldCheck, Lock,
-  Camera, Video, User, File, X as CloseIcon, Download
+  Camera, Video, User, File, X as CloseIcon, Download, RotateCw, AlertCircle
 } from 'lucide-react';
 import { UserProfile, Conversation, Message, MessageAttachment } from '../types';
 import { cn } from '../lib/utils';
@@ -201,6 +201,7 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
   const videoInputRef = useRef<HTMLInputElement>(null);
   const docInputRef = useRef<HTMLInputElement>(null);
   const chatTimeoutRef = useRef<NodeJS.Timeout | null>(null);
+  const activeUploadFilesRef = useRef<Map<number, File>>(new Map());
 
   useEffect(() => {
     return () => {
@@ -311,35 +312,63 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
     }, 100);
   };
 
-  const handleFileUpload = async (file: File, type: 'image' | 'video' | 'file') => {
+  const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB Limit
+
+  const handleFileUpload = async (file: File, type: 'image' | 'video' | 'file', existingLocalId?: number) => {
     if (!profile || !convo.id) return;
     
     setShowAttachmentMenu(false);
 
-    // Basic format lookup: verify if it's the expected type
-    if (type === 'image' && file.type && !file.type.startsWith('image/')) {
-      setFileUploadError("Error uploading file, this may be bad connection or wrong file format, please try again");
-      setTimeout(() => setFileUploadError(null), 10000);
-      return;
-    }
-    if (type === 'video' && file.type && !file.type.startsWith('video/')) {
-      setFileUploadError("Error uploading file, this may be bad connection or wrong file format, please try again");
+    // 1. File size check (Max 2MB)
+    if (file.size > MAX_FILE_SIZE) {
+      const sizeMB = (file.size / (1024 * 1024)).toFixed(2);
+      setFileUploadError(`File "${file.name}" (${sizeMB} MB) exceeds maximum allowed size of 2MB. Please attach a smaller file.`);
       setTimeout(() => setFileUploadError(null), 10000);
       return;
     }
 
-    // Create local preview
+    // 2. Basic format lookup: verify if it's the expected type
+    if (type === 'image' && file.type && !file.type.startsWith('image/')) {
+      setFileUploadError("Invalid format: Selected file is not an image.");
+      setTimeout(() => setFileUploadError(null), 10000);
+      return;
+    }
+    if (type === 'video' && file.type && !file.type.startsWith('video/')) {
+      setFileUploadError("Invalid format: Selected file is not a video.");
+      setTimeout(() => setFileUploadError(null), 10000);
+      return;
+    }
+
+    setFileUploadError(null);
+
+    // Create or reuse local preview
     const previewUrl = URL.createObjectURL(file);
-    const localId = await localDB.queuedMessages.add({
-      convoId: convo.id,
-      senderId: profile.uid,
-      text: type === 'image' ? '[Image]' : type === 'video' ? '[Video]' : '[File]',
-      type,
-      payload: { url: previewUrl, name: file.name, size: file.size },
-      createdAt: Date.now(),
-      status: 'uploading',
-      progress: 0
-    });
+    let localId = existingLocalId;
+
+    if (!localId) {
+      localId = await localDB.queuedMessages.add({
+        convoId: convo.id,
+        senderId: profile.uid,
+        text: type === 'image' ? '[Image]' : type === 'video' ? '[Video]' : '[File]',
+        type,
+        payload: { url: previewUrl, name: file.name, size: file.size, mimeType: file.type },
+        createdAt: Date.now(),
+        status: 'uploading',
+        progress: 0,
+        fileBlob: file
+      });
+    } else {
+      await localDB.queuedMessages.update(localId, {
+        status: 'uploading',
+        progress: 0,
+        payload: { url: previewUrl, name: file.name, size: file.size, mimeType: file.type },
+        fileBlob: file
+      });
+    }
+
+    if (localId) {
+      activeUploadFilesRef.current.set(localId, file);
+    }
 
     let isCompleted = false;
     let uploadTask: any = null;
@@ -354,8 +383,10 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
             console.error("Cancel upload task failed:", e);
           }
         }
-        localDB.queuedMessages.update(localId, { status: 'failed' });
-        setFileUploadError("Error uploading file, this may be bad connection or wrong file format, please try again");
+        if (localId) {
+          localDB.queuedMessages.update(localId, { status: 'failed', progress: 0 });
+        }
+        setFileUploadError(`Upload timed out for "${file.name}". Click "Try Again" in the chat to retry.`);
         setTimeout(() => {
           setFileUploadError(null);
         }, 10000);
@@ -372,7 +403,9 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
           maxWidthOrHeight: 1920,
           useWebWorker: true,
           onProgress: (p: number) => {
-            localDB.queuedMessages.update(localId, { progress: p * 0.2 }); // 1st 20% for compression
+            if (localId) {
+              localDB.queuedMessages.update(localId, { progress: p * 0.2 }); // 1st 20% for compression
+            }
           }
         };
         try {
@@ -390,14 +423,18 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
       uploadTask.on('state_changed', 
         (snapshot: any) => {
           const progress = (snapshot.bytesTransferred / snapshot.totalBytes) * 80 + 20; // Last 80% for upload
-          localDB.queuedMessages.update(localId, { progress });
+          if (localId) {
+            localDB.queuedMessages.update(localId, { progress });
+          }
         }, 
         (error: any) => {
           console.error("Upload failed occurred:", error);
           isCompleted = true;
           clearTimeout(timeoutTimer);
-          localDB.queuedMessages.update(localId, { status: 'failed' });
-          setFileUploadError("Error uploading file, this may be bad connection or wrong file format, please try again");
+          if (localId) {
+            localDB.queuedMessages.update(localId, { status: 'failed', progress: 0 });
+          }
+          setFileUploadError(`Upload failed for "${file.name}". Click "Try Again" in the chat to retry.`);
           setTimeout(() => {
             setFileUploadError(null);
           }, 10000);
@@ -407,8 +444,11 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
           clearTimeout(timeoutTimer);
           const downloadURL = await getDownloadURL(uploadTask.snapshot.ref);
           
-          // Cleanup local blob URL if it was an image
           URL.revokeObjectURL(previewUrl);
+          if (localId) {
+            activeUploadFilesRef.current.delete(localId);
+            await localDB.queuedMessages.delete(localId);
+          }
 
           await sendAttachment(convo.id, type, {
             url: downloadURL,
@@ -426,12 +466,47 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
       console.error("Attachment handling failed:", err);
       isCompleted = true;
       clearTimeout(timeoutTimer);
-      localDB.queuedMessages.update(localId, { status: 'failed' });
-      setFileUploadError("Error uploading file, this may be bad connection or wrong file format, please try again");
+      if (localId) {
+        localDB.queuedMessages.update(localId, { status: 'failed', progress: 0 });
+      }
+      setFileUploadError(`Upload failed for "${file.name}". Click "Try Again" in the chat to retry.`);
       setTimeout(() => {
         setFileUploadError(null);
       }, 10000);
     }
+  };
+
+  const handleRetry = async (msg: any) => {
+    if (!msg.localQueueId) return;
+
+    setFileUploadError(null);
+
+    if (msg.type === 'text') {
+      await localDB.queuedMessages.update(msg.localQueueId, { status: 'pending' });
+      return;
+    }
+
+    let fileToRetry = activeUploadFilesRef.current.get(msg.localQueueId);
+
+    if (!fileToRetry && msg.fileBlob) {
+      const fileName = msg.payload?.name || `file_${Date.now()}`;
+      const fileType = msg.payload?.mimeType || msg.fileBlob.type || 'application/octet-stream';
+      fileToRetry = new window.File([msg.fileBlob], fileName, { type: fileType });
+    }
+
+    if (fileToRetry) {
+      handleFileUpload(fileToRetry, msg.type || 'file', msg.localQueueId);
+    } else {
+      setFileUploadError("File session context expired. Please re-select the file to upload.");
+      if (msg.type === 'image') fileInputRef.current?.click();
+      else if (msg.type === 'video') videoInputRef.current?.click();
+      else docInputRef.current?.click();
+    }
+  };
+
+  const handleDiscard = async (localQueueId: number) => {
+    activeUploadFilesRef.current.delete(localQueueId);
+    await localDB.queuedMessages.delete(localQueueId);
   };
 
   const handleLocationShare = async () => {
@@ -471,6 +546,7 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
 
   const allMessages = [...messages, ...currentQueuedMessages.map(m => ({
     id: `queued-${m.id}`,
+    localQueueId: m.id,
     senderId: m.senderId,
     text: m.text,
     type: m.type,
@@ -478,7 +554,8 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
     createdAt: { seconds: Math.floor(m.createdAt / 1000) },
     isQueued: true,
     status: m.status,
-    progress: m.progress
+    progress: m.progress,
+    fileBlob: m.fileBlob
   }))].sort((a, b) => {
     const timeA = a.createdAt?.seconds || 0;
     const timeB = b.createdAt?.seconds || 0;
@@ -566,6 +643,7 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
           ) : (
             Array.from(new Map(allMessages.filter(m => m && m.id).map(m => [m.id, m])).values()).map((msg, idx) => {
               const isMe = msg.senderId === profile?.uid;
+              const isFailed = msg.status === 'failed';
               return (
                 <div 
                   key={`chat-msg-${msg.id || idx}-${idx}`} 
@@ -578,12 +656,14 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
                     className={cn(
                       "px-4 py-3 rounded-2xl text-sm font-medium shadow-lg backdrop-blur-md relative overflow-hidden group whitespace-pre-wrap transition-all",
                       isMe 
-                        ? "bg-primary/20 text-white border border-primary/30 rounded-tr-none text-right" 
+                        ? isFailed
+                          ? "bg-red-950/40 text-white border border-red-500/50 rounded-tr-none text-right shadow-[0_0_15px_rgba(239,68,68,0.2)]"
+                          : "bg-primary/20 text-white border border-primary/30 rounded-tr-none text-right"
                         : "bg-white/5 text-gray-200 border border-white/10 rounded-tl-none text-left",
-                      msg.isQueued && "opacity-80 border-dashed border-gray-500/50"
+                      msg.isQueued && !isFailed && "opacity-80 border-dashed border-gray-500/50"
                     )}
                   >
-                    {isMe && <div className="absolute top-0 right-0 w-12 h-12 bg-primary/10 blur-xl group-hover:bg-primary/20 transition-colors"></div>}
+                    {isMe && !isFailed && <div className="absolute top-0 right-0 w-12 h-12 bg-primary/10 blur-xl group-hover:bg-primary/20 transition-colors"></div>}
                     
                     {/* Render different message types */}
                     {msg.type === 'image' && msg.payload?.url && (
@@ -593,7 +673,8 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
                           alt="Attachment" 
                           className={cn(
                             "max-w-full rounded-xl border border-white/10 cursor-pointer hover:opacity-90 transition-opacity",
-                            msg.status === 'uploading' && "opacity-40 grayscale blur-[2px]"
+                            msg.status === 'uploading' && "opacity-40 grayscale blur-[2px]",
+                            isFailed && "opacity-50 grayscale"
                           )}
                           onClick={() => window.open(msg.payload.url, '_blank')}
                         />
@@ -621,7 +702,10 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
                           <video 
                             src={msg.payload.url} 
                             controls 
-                            className="max-w-full rounded-xl border border-white/10"
+                            className={cn(
+                              "max-w-full rounded-xl border border-white/10",
+                              isFailed && "opacity-50 grayscale"
+                            )}
                           />
                         )}
                         {msg.text && msg.text !== '[Video Attachment]' && msg.text !== '[Video]' && <p className="text-[11px] opacity-80">{msg.text}</p>}
@@ -631,20 +715,23 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
                     {msg.type === 'file' && msg.payload?.url && (
                       <div className="relative">
                         <a 
-                          href={msg.status === 'uploading' ? '#' : msg.payload.url} 
-                          target={msg.status === 'uploading' ? undefined : "_blank"} 
+                          href={msg.status === 'uploading' || isFailed ? '#' : msg.payload.url} 
+                          target={msg.status === 'uploading' || isFailed ? undefined : "_blank"} 
                           rel="noreferrer"
                           className={cn(
                             "flex items-center gap-3 p-2 bg-white/5 rounded-xl border border-white/10 hover:bg-white/10 transition-all shrink-0",
-                            msg.status === 'uploading' && "opacity-50 grayscale pointer-events-none"
+                            (msg.status === 'uploading' || isFailed) && "opacity-50 pointer-events-none"
                           )}
                         >
-                          <div className="w-10 h-10 bg-primary/20 rounded-lg flex items-center justify-center text-primary">
+                          <div className={cn(
+                            "w-10 h-10 rounded-lg flex items-center justify-center",
+                            isFailed ? "bg-red-500/20 text-red-400" : "bg-primary/20 text-primary"
+                          )}>
                             <FileText size={20} />
                           </div>
                           <div className="flex-1 min-w-0 pr-4 text-left">
                             <p className="text-[10px] font-black uppercase tracking-tight truncate text-white">{msg.payload.name || 'Document'}</p>
-                            <p className="text-[8px] text-gray-500 font-bold uppercase">{(msg.payload.size / 1024).toFixed(0)} KB • {msg.status === 'uploading' ? 'UPLOADING' : 'FILE'}</p>
+                            <p className="text-[8px] text-gray-500 font-bold uppercase">{(msg.payload.size / 1024).toFixed(0)} KB • {msg.status === 'uploading' ? 'UPLOADING' : isFailed ? 'FAILED' : 'FILE'}</p>
                           </div>
                           {msg.status === 'uploading' ? <Loader2 size={14} className="animate-spin text-primary" /> : <Download size={14} className="text-gray-500" />}
                         </a>
@@ -684,9 +771,39 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
                     {(!msg.type || msg.type === 'text') && (
                       <p className="relative z-10 leading-relaxed font-medium tracking-tight whitespace-pre-wrap">{msg.text}</p>
                     )}
+
+                    {/* Try Again button for failed uploads */}
+                    {isFailed && (
+                      <div className="mt-3 pt-2 border-t border-red-500/30 flex items-center justify-between gap-2">
+                        <div className="flex items-center gap-1.5 text-red-400 text-[10px] font-bold">
+                          <AlertCircle size={13} className="shrink-0 text-red-500" />
+                          <span>Upload Failed</span>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          <button
+                            type="button"
+                            onClick={() => handleRetry(msg)}
+                            className="px-3 py-1.5 rounded-xl bg-red-500/20 hover:bg-red-500/40 text-red-200 border border-red-500/40 text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 transition-all active:scale-95 shadow-sm cursor-pointer"
+                          >
+                            <RotateCw size={11} className="shrink-0 animate-spin-hover" />
+                            <span>Try Again</span>
+                          </button>
+                          {msg.localQueueId && (
+                            <button
+                              type="button"
+                              onClick={() => handleDiscard(msg.localQueueId)}
+                              className="p-1 rounded-lg bg-white/5 hover:bg-white/10 text-gray-400 hover:text-white transition-colors cursor-pointer"
+                              title="Discard message"
+                            >
+                              <CloseIcon size={12} />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
                   </div>
                   <p className="text-[7px] text-gray-600 font-black uppercase tracking-widest flex items-center gap-1">
-                    {msg.createdAt?.seconds ? new Date(msg.createdAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Sending...'} • {msg.isQueued ? <span className="text-gray-500 italic">PENDING SYNC</span> : (isMe ? 'PROCESSED' : 'DECODED')}
+                    {msg.createdAt?.seconds ? new Date(msg.createdAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Sending...'} • {isFailed ? <span className="text-red-400 font-extrabold">FAILED</span> : msg.isQueued ? <span className="text-gray-500 italic">PENDING SYNC</span> : (isMe ? 'PROCESSED' : 'DECODED')}
                   </p>
                 </div>
               );
@@ -707,24 +824,27 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
               className="absolute bottom-full left-4 bg-[#0d1117] border border-white/10 rounded-3xl p-4 shadow-2xl grid grid-cols-3 gap-4 mb-4 z-[120]"
             >
               {[
-                { icon: ImageIcon, label: 'Image', color: 'text-primary', onClick: () => fileInputRef.current?.click() },
-                { icon: Video, label: 'Video', color: 'text-neon-green', onClick: () => videoInputRef.current?.click() },
-                { icon: FileText, label: 'Document', color: 'text-accent', onClick: () => docInputRef.current?.click() },
-                { icon: MapPin, label: 'Location', color: 'text-red-500', onClick: handleLocationShare },
-                { icon: User, label: 'Contact', color: 'text-blue-500', onClick: handleContactShare },
-                { icon: Camera, label: 'Media', color: 'text-white', onClick: () => fileInputRef.current?.click() },
+                { icon: ImageIcon, label: 'Image', sub: 'Up to 2MB', color: 'text-primary', onClick: () => fileInputRef.current?.click() },
+                { icon: Video, label: 'Video', sub: 'Up to 2MB', color: 'text-neon-green', onClick: () => videoInputRef.current?.click() },
+                { icon: FileText, label: 'Document', sub: 'Up to 2MB', color: 'text-accent', onClick: () => docInputRef.current?.click() },
+                { icon: MapPin, label: 'Location', sub: 'Live GPS', color: 'text-red-500', onClick: handleLocationShare },
+                { icon: User, label: 'Contact', sub: 'vCard', color: 'text-blue-500', onClick: handleContactShare },
+                { icon: Camera, label: 'Media', sub: 'Up to 2MB', color: 'text-white', onClick: () => fileInputRef.current?.click() },
               ].map((item, idx) => (
                 <motion.button
                   key={idx}
                   whileHover={{ scale: 1.05, backgroundColor: 'rgba(255,255,255,0.05)' }}
                   whileTap={{ scale: 0.95 }}
                   onClick={item.onClick}
-                  className="flex flex-col items-center gap-2 p-2 rounded-2xl transition-all"
+                  className="flex flex-col items-center gap-1.5 p-2 rounded-2xl transition-all"
                 >
                   <div className={cn("w-12 h-12 bg-white/5 rounded-2xl flex items-center justify-center border border-white/5 shadow-inner", item.color)}>
                     <item.icon size={20} />
                   </div>
-                  <span className="text-[8px] font-black uppercase tracking-widest text-gray-500">{item.label}</span>
+                  <div className="flex flex-col items-center">
+                    <span className="text-[8px] font-black uppercase tracking-widest text-gray-300">{item.label}</span>
+                    <span className="text-[6.5px] font-bold text-gray-500 uppercase">{item.sub}</span>
+                  </div>
                 </motion.button>
               ))}
             </motion.div>
@@ -737,21 +857,33 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
           ref={fileInputRef} 
           className="hidden" 
           accept="image/*" 
-          onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], 'image')} 
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) handleFileUpload(f, 'image');
+            e.target.value = '';
+          }} 
         />
         <input 
           type="file" 
           ref={videoInputRef} 
           className="hidden" 
           accept="video/*" 
-          onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], 'video')} 
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) handleFileUpload(f, 'video');
+            e.target.value = '';
+          }} 
         />
         <input 
           type="file" 
           ref={docInputRef} 
           className="hidden" 
-          accept=".pdf,.doc,.docx,.txt" 
-          onChange={(e) => e.target.files?.[0] && handleFileUpload(e.target.files[0], 'file')} 
+          accept=".pdf,.doc,.docx,.xls,.xlsx,.ppt,.pptx,.txt,.csv,.zip,.rar,.png,.jpg,.jpeg,.mp4,.mov,*/*" 
+          onChange={(e) => {
+            const f = e.target.files?.[0];
+            if (f) handleFileUpload(f, 'file');
+            e.target.value = '';
+          }} 
         />
 
         <form onSubmit={handleSend} className="relative group max-w-4xl mx-auto">

@@ -36,6 +36,7 @@ export interface QueuedMessage {
   createdAt: number;
   status: 'pending' | 'failed' | 'uploading';
   progress?: number;
+  fileBlob?: Blob;
 }
 
 export interface LocalStore {
