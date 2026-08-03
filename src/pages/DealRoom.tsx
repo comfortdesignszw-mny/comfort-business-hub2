@@ -3,7 +3,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Zap, Clock, CheckCircle2, ChevronRight, DollarSign, MessageCircle, AlertCircle, ShoppingCart, Loader2, Sparkles, MessageSquare, ShoppingBag } from 'lucide-react';
 import { UserProfile, Deal, DealStatus, Product, Engagement } from '../types';
-import { cn, formatCurrency } from '../lib/utils';
+import { cn, formatCurrency, formatAuditableStamp } from '../lib/utils';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { collection, query, where, getDocs, addDoc, serverTimestamp, doc, getDoc, orderBy, onSnapshot } from 'firebase/firestore';
 import { useLocation, useNavigate } from 'react-router-dom';
@@ -252,8 +252,8 @@ function EngagementCard({ engagement }: { engagement: Engagement, key?: React.Ke
             )}>
               {isEngaged ? 'Engaged' : 'Interested to Buy'}
             </span>
-            <span className="text-[7px] text-gray-600 font-bold uppercase tracking-widest">
-              {engagement.createdAt?.seconds ? new Date(engagement.createdAt.seconds * 1000).toLocaleTimeString() : 'RECENT'}
+            <span className="text-[7.5px] font-mono text-primary/80 font-bold uppercase tracking-wider">
+              {formatAuditableStamp(engagement.createdAt)}
             </span>
           </div>
           <h4 className="text-xs font-black text-white uppercase tracking-wider group-hover:text-primary transition-colors">

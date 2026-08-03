@@ -21,7 +21,7 @@ import PushNotificationSettingsModal from './components/PushNotificationSettings
 import AppLogo from './components/AppLogo';
 import { motion, AnimatePresence } from 'motion/react';
 import { UserProfile, Role, AppNotification } from './types';
-import { cn } from './lib/utils';
+import { cn, formatAuditableStamp } from './lib/utils';
 import { MessagingProvider, useMessaging } from './components/MessagingProvider';
 import { NotificationProvider, useNotifications } from './components/NotificationProvider';
 import { ModalProvider } from './context/ModalContext';
@@ -845,7 +845,7 @@ function NotificationsModal({ profile, onClose }: { profile: UserProfile | null,
                 <div className="flex items-center gap-2 text-[8px] text-gray-500 font-black uppercase tracking-widest">
                   <span>{activeNotification.fromUserName || 'Comfort Business Hub'}</span>
                   <span>•</span>
-                  <span>{activeNotification.createdAt?.toDate ? activeNotification.createdAt.toDate().toLocaleString() : 'Just now'}</span>
+                  <span className="text-primary font-mono font-bold tracking-wider">{formatAuditableStamp(activeNotification.createdAt)}</span>
                 </div>
               </div>
             </div>
@@ -1019,8 +1019,8 @@ function NotificationItem({ n, markAsRead, onSelect, onClose, navigate, profile 
         <div className="flex-1 min-w-0">
           <div className="flex justify-between items-start">
             <h4 className="text-[10px] font-black text-white uppercase tracking-tight truncate">{n.title}</h4>
-            <span className="text-[8px] font-black text-gray-600 uppercase ml-2 whitespace-nowrap">
-              {n.createdAt?.toDate ? n.createdAt.toDate().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}
+            <span className="text-[8px] font-mono font-bold text-primary/80 uppercase ml-2 whitespace-nowrap">
+              {formatAuditableStamp(n.createdAt)}
             </span>
           </div>
           <p className="text-[10px] text-gray-400 mt-1 leading-relaxed line-clamp-2">{n.message}</p>

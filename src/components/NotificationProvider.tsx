@@ -2,6 +2,7 @@ import React, { createContext, useContext, useEffect, useState, useRef } from 'r
 import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
 import { UserProfile, AppNotification, PushNotificationSettings } from '../types';
+import { formatAuditableStamp } from '../lib/utils';
 import { AnimatePresence, motion } from 'motion/react';
 import { Bell, X, Info, Star, ShoppingBag, Zap, Heart, UserPlus, MessageSquare, Store as StoreIcon, ShieldAlert } from 'lucide-react';
 
@@ -365,7 +366,10 @@ export function NotificationProvider({ children, profile }: { children: React.Re
                 {getIcon(showToast.type)}
               </div>
               <div className="flex-1 min-w-0">
-                <h4 className="text-xs font-black text-white uppercase tracking-tight truncate">{showToast.title}</h4>
+                <div className="flex justify-between items-start gap-1">
+                  <h4 className="text-xs font-black text-white uppercase tracking-tight truncate">{showToast.title}</h4>
+                  <span className="text-[7.5px] font-mono font-bold text-primary shrink-0 uppercase tracking-wider">{formatAuditableStamp(Date.now())}</span>
+                </div>
                 <p className="text-[10px] text-gray-300 mt-0.5 line-clamp-2 leading-relaxed">{showToast.message}</p>
               </div>
               <button 

@@ -7,7 +7,7 @@ import {
   Camera, Video, User, File, X as CloseIcon, Download, RotateCw, AlertCircle
 } from 'lucide-react';
 import { UserProfile, Conversation, Message, MessageAttachment } from '../types';
-import { cn } from '../lib/utils';
+import { cn, formatAuditableStamp } from '../lib/utils';
 import { db, handleFirestoreError, OperationType, storage } from '../lib/firebase';
 import { localDB } from '../lib/db';
 import { 
@@ -153,8 +153,8 @@ export default function Chat({ profile }: { profile: UserProfile | null }) {
                 <div className="flex justify-between items-center">
                   <h4 className="font-black text-white uppercase tracking-widest text-sm group-hover:text-primary transition-colors">{conv.participantName}</h4>
                   <div className="flex flex-col items-end gap-1">
-                    <span className="text-[8px] text-gray-600 font-bold uppercase">
-                      {conv.updatedAt?.seconds ? new Date(conv.updatedAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Now'}
+                    <span className="text-[8px] text-primary/80 font-mono font-bold uppercase tracking-wider">
+                      {formatAuditableStamp(conv.updatedAt)}
                     </span>
                     {conv.unreadCount > 0 && (
                       <span className="w-5 h-5 bg-red-600 rounded-full flex items-center justify-center text-[8px] font-black text-white shadow-[0_0_10px_rgba(255,0,0,0.5)] animate-pulse">
@@ -802,8 +802,10 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
                       </div>
                     )}
                   </div>
-                  <p className="text-[7px] text-gray-600 font-black uppercase tracking-widest flex items-center gap-1">
-                    {msg.createdAt?.seconds ? new Date(msg.createdAt.seconds * 1000).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) : 'Sending...'} • {isFailed ? <span className="text-red-400 font-extrabold">FAILED</span> : msg.isQueued ? <span className="text-gray-500 italic">PENDING SYNC</span> : (isMe ? 'PROCESSED' : 'DECODED')}
+                  <p className="text-[7.5px] text-gray-400 font-mono font-bold uppercase tracking-wider flex items-center gap-1.5">
+                    <span>{formatAuditableStamp(msg.createdAt)}</span>
+                    <span>•</span>
+                    {isFailed ? <span className="text-red-400 font-extrabold">FAILED</span> : msg.isQueued ? <span className="text-gray-500 italic">PENDING SYNC</span> : (isMe ? 'PROCESSED' : 'DECODED')}
                   </p>
                 </div>
               );

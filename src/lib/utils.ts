@@ -61,3 +61,47 @@ export function openWhatsApp(phone: string, text: string) {
   }
   return true;
 }
+
+/**
+ * Formats any timestamp or date input into a comprehensive auditable date and time stamp.
+ * Output format: "03 Aug 2026 • 10:20:51 AM"
+ */
+export function formatAuditableStamp(timestamp: any): string {
+  if (timestamp === undefined || timestamp === null) return 'TIMESTAMP UNSTAMPED';
+
+  let date: Date | null = null;
+
+  try {
+    if (typeof timestamp?.toDate === 'function') {
+      date = timestamp.toDate();
+    } else if (timestamp?.seconds !== undefined) {
+      date = new Date(timestamp.seconds * 1000);
+    } else if (typeof timestamp === 'number') {
+      date = timestamp < 10000000000 ? new Date(timestamp * 1000) : new Date(timestamp);
+    } else if (typeof timestamp === 'string') {
+      date = new Date(timestamp);
+    } else if (timestamp instanceof Date) {
+      date = timestamp;
+    }
+  } catch (e) {
+    return 'TIMESTAMP UNSTAMPED';
+  }
+
+  if (!date || isNaN(date.getTime())) {
+    return 'TIMESTAMP UNSTAMPED';
+  }
+
+  const day = date.getDate().toString().padStart(2, '0');
+  const month = date.toLocaleString('en-US', { month: 'short' });
+  const year = date.getFullYear();
+
+  let hours = date.getHours();
+  const minutes = date.getMinutes().toString().padStart(2, '0');
+  const seconds = date.getSeconds().toString().padStart(2, '0');
+  const ampm = hours >= 12 ? 'PM' : 'AM';
+  hours = hours % 12;
+  hours = hours ? hours : 12;
+  const strHours = hours.toString().padStart(2, '0');
+
+  return `${day} ${month} ${year} • ${strHours}:${minutes}:${seconds} ${ampm}`;
+}
