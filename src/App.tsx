@@ -480,16 +480,14 @@ function AppRoutes({
                       <Route 
                         path="/deals" 
                         element={
-                          !user ? <Navigate to="/login" replace /> :
-                          isProfileIncomplete ? <CustomerSetup profile={profile!} /> :
+                          user && isProfileIncomplete ? <CustomerSetup profile={profile!} /> :
                           <DealRoom profile={profile} />
                         } 
                       />
                       <Route 
                         path="/chat" 
                         element={
-                          !user ? <Navigate to="/login" replace /> :
-                          isProfileIncomplete ? <CustomerSetup profile={profile!} /> :
+                          user && isProfileIncomplete ? <CustomerSetup profile={profile!} /> :
                           <Chat profile={profile} />
                         } 
                       />
@@ -514,8 +512,6 @@ function AppRoutes({
                       <Route 
                         path="*" 
                         element={
-                          !user ? <Navigate to="/login" replace /> :
-                          isProfileIncomplete ? <CustomerSetup profile={profile!} /> :
                           <Navigate to="/" replace />
                         } 
                       />
@@ -666,9 +662,9 @@ function Sidebar({ profile, onClose, onLogout }: { profile: UserProfile | null, 
   const location = useLocation();
   const navItems = [
     { path: '/', icon: Search, label: 'Explore' },
+    { path: '/deals', icon: Zap, label: 'Markets' },
     ...(profile ? [
       ...(profile.currentRole === 'supplier' ? [{ path: '/stores', icon: Store, label: 'Stores' }] : []),
-      { path: '/deals', icon: Zap, label: 'Markets' },
       { path: '/chat', icon: MessageSquare, label: 'Comms' },
       ...(profile.email === 'comfort.designszw@gmail.com' || profile.isAdmin ? [{ path: '/admin', icon: ShieldAlert, label: 'Command' }] : []),
       { path: '/profile', icon: UserIcon, label: 'Hub' },
@@ -1073,9 +1069,9 @@ function Navigation({ profile }: { profile: UserProfile | null }) {
   
   const navItems = [
     { path: '/', icon: Search, label: 'Explore' },
+    { path: '/deals', icon: Zap, label: 'Markets' },
     ...(profile ? [
       ...(profile.currentRole === 'supplier' ? [{ path: '/stores', icon: Store, label: 'Stores' }] : []),
-      { path: '/deals', icon: Zap, label: 'Markets' },
       { path: '/chat', icon: MessageSquare, label: 'Comms' },
       ...(profile.email === 'comfort.designszw@gmail.com' || profile.isAdmin ? [{ path: '/admin', icon: ShieldAlert, label: 'Command' }] : []),
       { path: '/profile', icon: UserIcon, label: 'Hub' },

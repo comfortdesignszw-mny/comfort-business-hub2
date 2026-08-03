@@ -121,14 +121,19 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
       triggerFeedback('WhatsApp Uplink', `Opening WhatsApp contact for ${product.name}...`, 'message');
       openWhatsApp(cleanNumber, messageText);
     } else {
-      const convoId = [profile.uid, product.ownerId].sort().join('_');
+      let guestId = localStorage.getItem('guest_uid');
+      if (!guestId) {
+        guestId = `guest_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+        localStorage.setItem('guest_uid', guestId);
+      }
+      const userUid = profile?.uid || guestId;
+      const convoId = [userUid, product.ownerId].sort().join('_');
       startConversation(product.ownerId, messageText).catch(console.error);
       navigate(`/chat?id=${convoId}`);
     }
   };
 
   const handlePurchase = () => {
-    if (!profile) return;
     setActiveModal('checkout');
   };
 
@@ -386,35 +391,21 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
           
           {profile?.uid !== product.ownerId ? (
             <div className="flex gap-1 flex-1 justify-end">
-              <AuthGuard 
-                title="Establish Communication" 
-                message="Sign in to send a private message to this seller."
-                profile={profile}
+              <button 
+                onClick={handleTalk}
+                disabled={isEngaging}
+                className="px-2.5 py-1.5 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-emerald-400 font-black uppercase text-[8px] sm:text-[9px] tracking-widest hover:bg-emerald-500 hover:text-black transition-all flex items-center gap-1 shrink-0 shadow-[0_0_10px_rgba(16,185,129,0.15)]"
               >
-                <button 
-                  onClick={handleTalk}
-                  disabled={isEngaging}
-                  className="px-2.5 py-1.5 bg-emerald-500/10 border border-emerald-500/30 rounded-lg text-emerald-400 font-black uppercase text-[8px] sm:text-[9px] tracking-widest hover:bg-emerald-500 hover:text-black transition-all flex items-center gap-1 shrink-0 shadow-[0_0_10px_rgba(16,185,129,0.15)]"
-                >
-                  {isEngaging ? <Loader2 size={8} className="animate-spin" /> : <MessageSquare size={8} className="text-emerald-400 group-hover:text-black" />}
-                  Talk on WhatsApp
-                </button>
-              </AuthGuard>
-              <AuthGuard 
-                title="Initialize Acquisition" 
-                message="Join the Network Hub to process secure payments and finalize the logistics of this acquisition."
-                profile={profile}
-                allowGuest={true}
-                onGuestContinue={onGuestLogin}
+                {isEngaging ? <Loader2 size={8} className="animate-spin" /> : <MessageSquare size={8} className="text-emerald-400 group-hover:text-black" />}
+                Talk on WhatsApp
+              </button>
+              <button 
+                onClick={handlePurchase}
+                className="px-2.5 py-1 bg-primary rounded-lg flex items-center justify-center text-[#05070a] font-black uppercase text-[8px] sm:text-[9px] tracking-widest hover:shadow-[0_0_10px_rgba(0,242,254,0.3)] transition-all gap-1"
               >
-                <button 
-                  onClick={handlePurchase}
-                  className="px-2.5 py-1 bg-primary rounded-lg flex items-center justify-center text-[#05070a] font-black uppercase text-[8px] sm:text-[9px] tracking-widest hover:shadow-[0_0_10px_rgba(0,242,254,0.3)] transition-all gap-1"
-                >
-                   <Zap size={8} className="fill-current" />
-                   Order
-                </button>
-              </AuthGuard>
+                 <Zap size={8} className="fill-current" />
+                 Order
+              </button>
             </div>
           ) : (
             <div className="text-[8px] sm:text-[10px] text-primary font-black uppercase tracking-widest pr-1.5">Your Product</div>

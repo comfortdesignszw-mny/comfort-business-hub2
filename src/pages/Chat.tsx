@@ -34,12 +34,17 @@ export default function Chat({ profile }: { profile: UserProfile | null }) {
     }
   }, []);
 
-  useEffect(() => {
-    if (!profile) return;
+  let guestId = localStorage.getItem('guest_uid');
+  if (!guestId) {
+    guestId = `guest_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    localStorage.setItem('guest_uid', guestId);
+  }
+  const activeUid = profile?.uid || guestId;
 
+  useEffect(() => {
     const q = query(
       collection(db, 'conversations'),
-      where('participants', 'array-contains', profile.uid),
+      where('participants', 'array-contains', activeUid),
       orderBy('updatedAt', 'desc'),
       limit(50)
     );
@@ -47,12 +52,12 @@ export default function Chat({ profile }: { profile: UserProfile | null }) {
     const unsubscribe = onSnapshot(q, async (snapshot) => {
       const convos = await Promise.all(snapshot.docs.map(async (d) => {
         const data = d.data();
-        const otherId = data.participants?.find((p: string) => p !== profile.uid);
+        const otherId = data.participants?.find((p: string) => p !== activeUid);
         
-        // Fetch unread count for this convo (sender !== profile.uid && read == false)
+        // Fetch unread count for this convo
         const unreadQ = query(
           collection(db, 'conversations', d.id, 'messages'),
-          where('senderId', '!=', profile.uid),
+          where('senderId', '!=', activeUid),
           where('read', '==', false)
         );
         const unreadSnap = await getDocs(unreadQ);
@@ -65,7 +70,6 @@ export default function Chat({ profile }: { profile: UserProfile | null }) {
             if (userSnap.exists()) {
               otherName = userSnap.data().name || 'User';
             } else {
-              // Fallback check on full profile (for legacy or if they are the same user)
               try {
                 const legacySnap = await getDoc(doc(db, 'users', otherId));
                 if (legacySnap.exists()) {
@@ -90,10 +94,11 @@ export default function Chat({ profile }: { profile: UserProfile | null }) {
       setLoading(false);
     }, (err) => {
       handleFirestoreError(err, OperationType.LIST, 'conversations');
+      setLoading(false);
     });
 
     return () => unsubscribe();
-  }, [profile]);
+  }, [activeUid]);
 
   if (selectedConvo) {
     const convo = conversations.find(c => c.id === selectedConvo);
@@ -211,6 +216,8 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
 
   const currentQueuedMessages = queuedMessages.filter(m => m.convoId === convo.id);
 
+  const activeUid = profile?.uid || localStorage.getItem('guest_uid') || 'guest_user';
+
   useEffect(() => {
     if (participantInfo || !convo.id) return;
     
@@ -220,14 +227,13 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
         if (convoDoc.exists()) {
           const participants = convoDoc.data()?.participants;
           if (participants && Array.isArray(participants)) {
-            const otherId = participants.find((p: string) => p !== profile?.uid);
+            const otherId = participants.find((p: string) => p !== activeUid);
             if (otherId) {
               try {
                 const userSnap = await getDoc(doc(db, 'public_profiles', otherId));
                 if (userSnap.exists()) {
                   setParticipantInfo({ name: userSnap.data().name || 'User' });
                 } else {
-                  // Fallback
                   try {
                     const legacySnap = await getDoc(doc(db, 'users', otherId));
                     if (legacySnap.exists()) {
@@ -246,10 +252,10 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
       }
     };
     fetchParticipant();
-  }, [convo.id, profile?.uid, participantInfo]);
+  }, [convo.id, activeUid, participantInfo]);
 
   useEffect(() => {
-    if (!convo.id || !profile) return;
+    if (!convo.id) return;
 
     const q = query(
       collection(db, 'conversations', convo.id, 'messages'),
@@ -263,7 +269,7 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
       setLoading(false);
       
       // Mark unread messages as read
-      const unreadMessages = snapshot.docs.filter(d => !d.data().read && d.data().senderId !== profile.uid);
+      const unreadMessages = snapshot.docs.filter(d => !d.data().read && d.data().senderId !== activeUid);
       if (unreadMessages.length > 0) {
         const batch = writeBatch(db);
         unreadMessages.forEach(d => {
@@ -276,7 +282,7 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
       const markNotificationsRead = async () => {
         const nQuery = query(
           collection(db, 'notifications'), 
-          where('userId', '==', profile.uid),
+          where('userId', '==', activeUid),
           where('type', '==', 'message'),
           where('targetId', '==', convo.id),
           where('read', '==', false)
@@ -296,11 +302,11 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
     });
 
     return () => unsubscribe();
-  }, [convo.id, profile]);
+  }, [convo.id, activeUid]);
 
   const handleSend = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!text.trim() || !profile) return;
+    if (!text.trim()) return;
 
     const messageText = text;
     setText('');
@@ -315,7 +321,7 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
   const MAX_FILE_SIZE = 2 * 1024 * 1024; // 2MB Limit
 
   const handleFileUpload = async (file: File, type: 'image' | 'video' | 'file', existingLocalId?: number) => {
-    if (!profile || !convo.id) return;
+    if (!convo.id) return;
     
     setShowAttachmentMenu(false);
 

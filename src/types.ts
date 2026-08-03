@@ -160,17 +160,29 @@ export interface Review {
   createdAt: any;
 }
 
-export type DealStatus = 'pending' | 'quoted' | 'accepted' | 'shipped' | 'delivered' | 'cancelled';
+export type DealStatus = 'pending' | 'confirmed' | 'quoted' | 'accepted' | 'preparing' | 'shipped' | 'in_transit' | 'delivered' | 'won' | 'cancelled';
 
 export interface Deal {
   id: string;
   customerId: string;
+  customerName?: string;
+  customerPhone?: string;
+  customerEmail?: string;
   supplierId: string;
   productId: string;
+  productName?: string;
+  productImage?: string;
+  quantity?: number;
   status: DealStatus;
   agreedPrice: number;
+  deliveryAddress?: string;
+  paymentMethod?: string;
+  trackingStage?: 'Order Confirmed' | 'Order being prepared' | 'Order in Transit' | 'Order Delivered!' | 'Delivered Confirmed' | string;
+  buyerConfirmedDelivery?: boolean;
+  isGuestOrder?: boolean;
   customerNotes?: string;
   supplierNotes?: string;
+  createdAt?: any;
   updatedAt: any;
 }
 

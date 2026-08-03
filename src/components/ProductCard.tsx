@@ -140,14 +140,9 @@ export default function ProductCard({
   };
 
   const handleAction = async (type: 'shop' | 'engage') => {
-    if (!profile) {
-      navigate('/login');
-      return;
-    }
-
     if (type === 'engage') {
       setIsEngaging(true);
-      logEngagement('engaged');
+      if (profile) logEngagement('engaged');
       interactionService.logStoreEngagement(product.storeId, 'whatsapp', product.price || 0);
       
       let targetPhone = '';
@@ -177,8 +172,14 @@ export default function ProductCard({
         triggerFeedback('WhatsApp Uplink', `Opening WhatsApp contact for ${product.name}...`, 'message');
         openWhatsApp(cleanNumber, messageText);
       } else {
+        let guestId = localStorage.getItem('guest_uid');
+        if (!guestId) {
+          guestId = `guest_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+          localStorage.setItem('guest_uid', guestId);
+        }
+        const userUid = profile?.uid || guestId;
         const targetUid = product.ownerId;
-        const convoId = [profile.uid, targetUid].sort().join('_');
+        const convoId = [userUid, targetUid].sort().join('_');
         startConversation(targetUid, messageText).catch(console.error);
         navigate(`/chat?id=${convoId}`);
       }
@@ -186,7 +187,7 @@ export default function ProductCard({
     }
 
     // Fire and forget engagement log
-    logEngagement('order_now');
+    if (profile) logEngagement('order_now');
     interactionService.logStoreEngagement(product.storeId, 'order', product.price || 0);
 
     if (onAction) {
@@ -200,7 +201,7 @@ export default function ProductCard({
   const handleLike = async (e: React.MouseEvent) => {
     e.stopPropagation();
     if (!profile) {
-      navigate('/login');
+      triggerFeedback('Saved', `Added ${product.name} to guest wishlist`, 'like_product');
       return;
     }
     try {
@@ -428,24 +429,18 @@ export default function ProductCard({
 
             {!isOwner && (
               <div className="flex gap-1" onClick={(e) => e.stopPropagation()}>
-                <AuthGuard 
-                  title="Direct Network Uplink" 
-                  message="Secure authentication is required to initiate a direct communication channel with this supplier node."
-                  profile={profile}
+                <button 
+                  onClick={() => handleAction('engage')}
+                  disabled={isEngaging}
+                  className={cn(
+                    "flex-1 bg-emerald-500/10 border border-emerald-500/30 rounded-lg font-black uppercase tracking-wider text-emerald-400 hover:text-white hover:bg-emerald-500/20 transition-all flex items-center justify-center gap-1 shadow-sm shrink-0 min-w-0",
+                    compact ? "py-1 text-[7.5px]" : "py-2 sm:py-3 text-[8px] sm:text-[9px]"
+                  )}
+                  title="Direct WhatsApp Redirect"
                 >
-                  <button 
-                    onClick={() => handleAction('engage')}
-                    disabled={isEngaging}
-                    className={cn(
-                      "flex-1 bg-emerald-500/10 border border-emerald-500/30 rounded-lg font-black uppercase tracking-wider text-emerald-400 hover:text-white hover:bg-emerald-500/20 transition-all flex items-center justify-center gap-1 shadow-sm shrink-0 min-w-0",
-                      compact ? "py-1 text-[7.5px]" : "py-2 sm:py-3 text-[8px] sm:text-[9px]"
-                    )}
-                    title="Direct WhatsApp Redirect"
-                  >
-                    <MessageSquare size={10} className="text-emerald-400 shrink-0" />
-                    <span className="truncate">{compact ? 'Chat' : 'Chat on WhatsApp'}</span>
-                  </button>
-                </AuthGuard>
+                  <MessageSquare size={10} className="text-emerald-400 shrink-0" />
+                  <span className="truncate">{compact ? 'Chat' : 'Chat on WhatsApp'}</span>
+                </button>
                 
                 <button 
                   onClick={() => handleAction('shop')}

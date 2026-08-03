@@ -85,9 +85,31 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode, profile: U
     };
   }, []);
 
+  const getGuestProfile = (): UserProfile => {
+    let guestId = localStorage.getItem('guest_uid');
+    if (!guestId) {
+      guestId = `guest_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+      localStorage.setItem('guest_uid', guestId);
+    }
+    const savedContact = JSON.parse(localStorage.getItem('guest_contact_info') || '{}');
+    return {
+      uid: guestId,
+      name: savedContact.name || 'Guest Buyer',
+      email: savedContact.email || '',
+      phone: savedContact.phone || '',
+      currentRole: 'customer',
+      isVerified: false,
+      isGuest: true,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+  };
+
+  const activeProfile = profile || getGuestProfile();
+
   // Sync logic
   useEffect(() => {
-    if (isOnline && queuedMessages.length > 0 && profile) {
+    if (isOnline && queuedMessages.length > 0) {
       const syncMessages = async () => {
         const readyToSync = queuedMessages.filter(m => m.status === 'pending');
         
@@ -116,7 +138,7 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode, profile: U
 
             const messageData = {
               conversationId: msg.convoId,
-              senderId: msg.senderId,
+              senderId: msg.senderId || activeProfile.uid,
               text: displayText,
               type: msg.type || 'text',
               payload: msg.payload || null,
@@ -134,15 +156,15 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode, profile: U
             // Notification
             const convoDoc = await getDoc(doc(db, 'conversations', msg.convoId));
             if (convoDoc.exists()) {
-              const otherId = convoDoc.data().participants?.find((p: string) => p !== profile.uid);
+              const otherId = convoDoc.data().participants?.find((p: string) => p !== activeProfile.uid);
               if (otherId) {
                 await addDoc(collection(db, 'notifications'), {
                   userId: otherId,
                   type: 'message',
-                  fromUserId: profile.uid,
-                  fromUserName: profile.name || 'User',
+                  fromUserId: activeProfile.uid,
+                  fromUserName: activeProfile.name || 'Guest Buyer',
                   targetId: msg.convoId,
-                  title: `New Message from ${profile.name || 'User'}`,
+                  title: `New Message from ${activeProfile.name || 'Guest Buyer'}`,
                   message: displayText.length > 50 ? displayText.substring(0, 47) + '...' : displayText,
                   read: false,
                   createdAt: serverTimestamp()
@@ -153,12 +175,9 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode, profile: U
             await localDB.queuedMessages.delete(msg.id!);
           } catch (err) {
             console.error("Failed to sync message:", err);
-            // Don't mark as failed immediately if it's a transient network error
-            // but for now we'll mark it to avoid infinite loops if it's a data error
             if (err instanceof Error && err.message.includes('permission')) {
                await localDB.queuedMessages.update(msg.id!, { status: 'failed' });
             } else {
-               // Allow retry later by resetting to pending
                await localDB.queuedMessages.update(msg.id!, { status: 'pending' });
             }
           } finally {
@@ -168,14 +187,12 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode, profile: U
       };
       syncMessages();
     }
-  }, [isOnline, queuedMessages.length, profile?.uid]);
+  }, [isOnline, queuedMessages.length, activeProfile.uid]);
 
   const sendMessage = async (convoId: string, text: string) => {
-    if (!profile) return;
-
     await localDB.queuedMessages.add({
       convoId,
-      senderId: profile.uid,
+      senderId: activeProfile.uid,
       text,
       type: 'text',
       createdAt: Date.now(),
@@ -184,13 +201,11 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode, profile: U
   };
 
   const sendAttachment = async (convoId: string, type: any, payload: any, localId?: number) => {
-    if (!profile) return;
-
     let finalLocalId = localId;
     if (!finalLocalId) {
       finalLocalId = await localDB.queuedMessages.add({
         convoId,
-        senderId: profile.uid,
+        senderId: activeProfile.uid,
         text: type === 'image' ? '[Image]' : type === 'video' ? '[Video]' : '[File]',
         type,
         payload,
@@ -198,29 +213,26 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode, profile: U
         status: 'pending'
       });
     } else {
-      // If we already have a localId (e.g. from Chat.tsx uploading state), 
-      // we just update it to 'pending' to trigger the sync logic
       await localDB.queuedMessages.update(finalLocalId, { 
         status: 'pending',
-        payload // Ensure final payload (with downloadURL) is set
+        payload
       });
     }
   };
 
   const startConversation = async (targetUid: string, initialMessage?: string) => {
-    if (!profile) throw new Error("Auth required");
-    
-    const convoId = [profile.uid, targetUid].sort().join('_');
+    const userUid = activeProfile.uid;
+    const convoId = [userUid, targetUid].sort().join('_');
     
     // Background task to ensure conversation exists
     const ensureConversation = async () => {
       try {
         await setDoc(doc(db, 'conversations', convoId), {
           id: convoId,
-          participants: [profile.uid, targetUid],
+          participants: [userUid, targetUid],
           updatedAt: serverTimestamp(),
           lastMessage: initialMessage || 'Link initiated',
-          initiatorId: profile.uid
+          initiatorId: userUid
         }, { merge: true });
 
         if (initialMessage) {

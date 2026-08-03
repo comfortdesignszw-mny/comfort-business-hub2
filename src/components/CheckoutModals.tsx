@@ -2,15 +2,58 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  X, ChevronDown, ChevronUp, MapPinned, CreditCard, Phone, Loader2, CheckCircle2, ShieldCheck, ShieldAlert,
-  Landmark, Copy, Check, ExternalLink, Star, Wallet
+  X, ChevronDown, ChevronUp, MapPinned, CreditCard, Phone, Loader2, CheckCircle2, ShieldAlert,
+  Landmark, Copy, Check, ExternalLink, Star, Wallet, Zap, User
 } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
-import { UserProfile, Product } from '../types';
+import { UserProfile, Product, Deal } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
 import { interactionService } from '../services/interactionService';
 import { useMessaging } from './MessagingProvider';
+import { offlineResilientWrite } from '../lib/sync';
+
+export function getSavedGuestContact(profile: UserProfile | null) {
+  if (profile) {
+    return {
+      name: profile.name || profile.businessName || '',
+      phone: profile.phone || profile.phoneNumber || '',
+      email: profile.email || ''
+    };
+  }
+  try {
+    const saved = localStorage.getItem('guest_contact');
+    if (saved) return JSON.parse(saved);
+  } catch (e) {}
+  return { name: '', phone: '', email: '' };
+}
+
+export function saveGuestContact(contact: { name: string; phone: string; email: string }) {
+  try {
+    localStorage.setItem('guest_contact', JSON.stringify(contact));
+  } catch (e) {}
+}
+
+export function buildUserProfileForNotification(
+  profile: UserProfile | null,
+  guestId: string,
+  name: string,
+  phone: string,
+  email?: string
+): UserProfile {
+  if (profile) return profile;
+  return {
+    uid: guestId,
+    name: name || 'Guest Buyer',
+    phone: phone || '',
+    email: email || '',
+    currentRole: 'customer',
+    isVerified: false,
+    isGuest: true,
+    createdAt: new Date().toISOString(),
+    updatedAt: new Date().toISOString()
+  };
+}
 
 export function BuyerDisclaimerNotice() {
   return (
@@ -19,6 +62,94 @@ export function BuyerDisclaimerNotice() {
       <div>
         <span className="font-black uppercase tracking-wider text-amber-400 block mb-0.5">Disclaimer & Security Notice</span>
         Disclaimer: Make sure you are satisfied with the product and ensure the Seller is not a Scammer before you send money, or use Pay on Delivery, it's safe and convenient.
+      </div>
+    </div>
+  );
+}
+
+export function LegalDisclaimerNotice() {
+  return (
+    <p className="text-[10px] text-gray-400 text-center font-medium leading-relaxed pt-3 border-t border-white/5 mt-3">
+      By clicking finalize Delivery order, you agree to Comfort Business Hub{' '}
+      <a 
+        href="/terms" 
+        target="_blank" 
+        rel="noopener noreferrer" 
+        className="text-primary font-bold underline hover:text-cyan-300 transition-colors"
+      >
+        Terms of Use
+      </a>{' '}
+      and{' '}
+      <a 
+        href="/privacy" 
+        target="_blank" 
+        rel="noopener noreferrer" 
+        className="text-primary font-bold underline hover:text-cyan-300 transition-colors"
+      >
+        Privacy Policy
+      </a>
+    </p>
+  );
+}
+
+export function GuestContactFields({
+  name,
+  setName,
+  phone,
+  setPhone,
+  email,
+  setEmail
+}: {
+  name: string;
+  setName: (v: string) => void;
+  phone: string;
+  setPhone: (v: string) => void;
+  email: string;
+  setEmail: (v: string) => void;
+}) {
+  return (
+    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-3">
+      <div className="flex items-center gap-2 text-primary">
+        <User size={14} />
+        <span className="text-[10px] font-black uppercase tracking-widest">Buyer Contact Details</span>
+      </div>
+      <div className="space-y-1">
+        <label className="text-[9px] font-black text-gray-300 uppercase tracking-wider block">
+          Full Name <span className="text-red-400">*</span>
+        </label>
+        <input 
+          type="text" 
+          required 
+          value={name} 
+          onChange={e => setName(e.target.value)} 
+          placeholder="Enter your full name" 
+          className="w-full bg-black/40 border border-white/10 rounded-xl px-3.5 py-2.5 text-white text-xs outline-none focus:border-primary/50 font-bold" 
+        />
+      </div>
+      <div className="space-y-1">
+        <label className="text-[9px] font-black text-gray-300 uppercase tracking-wider block">
+          Phone Number <span className="text-red-400">*</span>
+        </label>
+        <input 
+          type="tel" 
+          required 
+          value={phone} 
+          onChange={e => setPhone(e.target.value)} 
+          placeholder="Enter phone number (+263...)" 
+          className="w-full bg-black/40 border border-white/10 rounded-xl px-3.5 py-2.5 text-white text-xs outline-none focus:border-primary/50 font-mono" 
+        />
+      </div>
+      <div className="space-y-1">
+        <label className="text-[9px] font-black text-gray-400 uppercase tracking-wider block">
+          Email Address <span className="text-gray-500 font-normal">(Optional)</span>
+        </label>
+        <input 
+          type="email" 
+          value={email} 
+          onChange={e => setEmail(e.target.value)} 
+          placeholder="your.email@example.com" 
+          className="w-full bg-black/40 border border-white/10 rounded-xl px-3.5 py-2.5 text-white text-xs outline-none focus:border-primary/50 font-medium" 
+        />
       </div>
     </div>
   );
@@ -34,6 +165,11 @@ export function UnifiedCheckoutModal({ product, profile, onClose, onSwitchModal,
 }) {
   const [supplierProfile, setSupplierProfile] = useState<UserProfile | null>(null);
   const [loading, setLoading] = useState(true);
+
+  const initialContact = getSavedGuestContact(profile);
+  const [guestName, setGuestName] = useState(initialContact.name);
+  const [guestPhone, setGuestPhone] = useState(initialContact.phone);
+  const [guestEmail, setGuestEmail] = useState(initialContact.email);
 
   useEffect(() => {
     let isMounted = true;
@@ -85,6 +221,9 @@ export function UnifiedCheckoutModal({ product, profile, onClose, onSwitchModal,
   const handleSelection = (method: 'paypal' | 'stripe' | 'ecocash' | 'paynow' | 'bank' | 'pod') => {
     if (loading) return;
     
+    // Save contact
+    saveGuestContact({ name: guestName, phone: guestPhone, email: guestEmail });
+
     const details = getMethodDetails(method);
     const isUrl = details && (details.startsWith('http://') || details.startsWith('https://'));
 
@@ -102,7 +241,7 @@ export function UnifiedCheckoutModal({ product, profile, onClose, onSwitchModal,
     }
     if (method === 'paynow') {
       if (isUrl) {
-        interactionService.sendNotification(product.ownerId, 'buy', profile, product.id);
+        interactionService.sendNotification(product.ownerId, 'buy', buildUserProfileForNotification(profile, `guest_${Date.now()}`, guestName, guestPhone, guestEmail), product.id);
         window.open(details, '_blank');
         onClose();
       } else {
@@ -113,7 +252,7 @@ export function UnifiedCheckoutModal({ product, profile, onClose, onSwitchModal,
 
     if (method === 'paypal' || method === 'stripe') {
       if (isUrl) {
-        interactionService.sendNotification(product.ownerId, 'buy', profile, product.id);
+        interactionService.sendNotification(product.ownerId, 'buy', buildUserProfileForNotification(profile, `guest_${Date.now()}`, guestName, guestPhone, guestEmail), product.id);
         window.open(details, '_blank');
         onClose();
       } else {
@@ -165,12 +304,11 @@ export function UnifiedCheckoutModal({ product, profile, onClose, onSwitchModal,
     },
     { 
       id: 'pod', 
-      label: 'Cash / POD', 
+      label: 'Pay on Delivery', 
       icon: <MapPinned size={18} className="text-rose-400" />
     }
   ];
 
-  // Sort methods so configured & preferred methods show first
   const sortedMethods = [...allMethods].sort((a, b) => {
     const aConf = isConfiguredBySupplier(a.id);
     const bConf = isConfiguredBySupplier(b.id);
@@ -180,7 +318,7 @@ export function UnifiedCheckoutModal({ product, profile, onClose, onSwitchModal,
     if (aPrim && !bPrim) return -1;
     if (!aPrim && bPrim) return 1;
     if (aConf && !bConf) return -1;
-    if (!aConf && bConf) return 1;
+    if (aConf && !bConf) return 1;
     return 0;
   });
 
@@ -198,6 +336,17 @@ export function UnifiedCheckoutModal({ product, profile, onClose, onSwitchModal,
 
         <div className="p-5 space-y-5 max-h-[80vh] overflow-y-auto custom-scrollbar">
           <BuyerDisclaimerNotice />
+
+          {/* Guest Contact Details Input */}
+          <GuestContactFields 
+            name={guestName} 
+            setName={setGuestName} 
+            phone={guestPhone} 
+            setPhone={setGuestPhone} 
+            email={guestEmail} 
+            setEmail={setGuestEmail} 
+          />
+
           <div className="space-y-3">
             <div className="flex gap-4 items-center p-3.5 bg-white/5 rounded-2xl border border-white/5">
               <div className="w-12 h-12 bg-white/5 rounded-xl overflow-hidden shrink-0">
@@ -238,7 +387,7 @@ export function UnifiedCheckoutModal({ product, profile, onClose, onSwitchModal,
           </div>
 
           <div className="space-y-2">
-            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Select Supplier Payment Channel:</p>
+            <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">Select Payment Method:</p>
 
             <div className="grid grid-cols-2 gap-2.5">
               {sortedMethods.map((m) => {
@@ -315,6 +464,10 @@ export function EcoCashModal({ product, profile, onClose, quantity }: {
 }) {
   const [ussd, setUssd] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+  const initialContact = getSavedGuestContact(profile);
+  const [guestName, setGuestName] = useState(initialContact.name);
+  const [guestPhone, setGuestPhone] = useState(initialContact.phone);
+  const [guestEmail, setGuestEmail] = useState(initialContact.email);
 
   useEffect(() => {
     const fetchUSSD = async () => {
@@ -346,19 +499,49 @@ export function EcoCashModal({ product, profile, onClose, quantity }: {
     fetchUSSD();
   }, [product.ownerId, product.price, quantity]);
 
-  const handleDial = () => {
-    if (profile) {
-      interactionService.sendNotification(
-        product.ownerId,
-        'buy',
-        profile,
-        product.id
-      );
-      const command = ussd || `*151*2*2*0770000000*${Math.round(product.price * quantity)}#`;
-      const encodedUssd = command.replace(/#/g, '%23');
-      window.location.href = `tel:${encodedUssd}`;
-      onClose();
-    }
+  const handleDial = async () => {
+    saveGuestContact({ name: guestName, phone: guestPhone, email: guestEmail });
+
+    const dealId = `deal_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    const guestId = profile?.uid || `guest_${Date.now()}`;
+
+    const dealData: Deal = {
+      id: dealId,
+      customerId: guestId,
+      customerName: guestName,
+      customerPhone: guestPhone,
+      customerEmail: guestEmail || '',
+      supplierId: product.ownerId,
+      productId: product.id,
+      productName: product.name,
+      productImage: product.images?.[0] || '',
+      quantity: quantity,
+      agreedPrice: product.price * quantity,
+      status: 'confirmed',
+      trackingStage: 'Order Confirmed',
+      paymentMethod: 'ecocash',
+      isGuestOrder: !profile,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
+    try {
+      await offlineResilientWrite('deals', dealId, 'create', dealData);
+      const existing = JSON.parse(localStorage.getItem('guest_deal_ids') || '[]');
+      localStorage.setItem('guest_deal_ids', JSON.stringify([...existing, dealId]));
+    } catch (e) {}
+
+    interactionService.sendNotification(
+      product.ownerId,
+      'buy',
+      buildUserProfileForNotification(profile, guestId, guestName, guestPhone, guestEmail),
+      product.id
+    );
+
+    const command = ussd || `*151*2*2*0770000000*${Math.round(product.price * quantity)}#`;
+    const encodedUssd = command.replace(/#/g, '%23');
+    window.location.href = `tel:${encodedUssd}`;
+    onClose();
   };
 
   return (
@@ -379,9 +562,22 @@ export function EcoCashModal({ product, profile, onClose, quantity }: {
             </div>
           )}
         </div>
-        <button onClick={handleDial} disabled={loading} className="w-full btn-neon py-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2">
-          {loading ? <Loader2 className="animate-spin" size={14} /> : <Phone size={14} />} Dial EcoCash Command
-        </button>
+
+        <GuestContactFields 
+          name={guestName} 
+          setName={setGuestName} 
+          phone={guestPhone} 
+          setPhone={setGuestPhone} 
+          email={guestEmail} 
+          setEmail={setGuestEmail} 
+        />
+
+        <div className="space-y-2">
+          <button onClick={handleDial} disabled={loading} className="w-full btn-neon py-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer">
+            {loading ? <Loader2 className="animate-spin" size={14} /> : <Phone size={14} />} Dial EcoCash Command
+          </button>
+          <LegalDisclaimerNotice />
+        </div>
       </motion.div>
     </div>
   );
@@ -395,35 +591,69 @@ export function PayPalModal({ product, profile, onClose, quantity }: {
 }) {
   const navigate = useNavigate();
   const { startConversation } = useMessaging();
-  const [email, setEmail] = useState(profile?.email || '');
+  const initialContact = getSavedGuestContact(profile);
+  const [guestName, setGuestName] = useState(initialContact.name);
+  const [guestPhone, setGuestPhone] = useState(initialContact.phone);
+  const [guestEmail, setGuestEmail] = useState(initialContact.email);
+  const [paypalEmail, setPaypalEmail] = useState(initialContact.email || '');
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!profile) return;
     setSubmitting(true);
+    saveGuestContact({ name: guestName, phone: guestPhone, email: guestEmail });
+
+    const dealId = `deal_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    const guestId = profile?.uid || `guest_${Date.now()}`;
+
+    const dealData: Deal = {
+      id: dealId,
+      customerId: guestId,
+      customerName: guestName,
+      customerPhone: guestPhone,
+      customerEmail: guestEmail || paypalEmail,
+      supplierId: product.ownerId,
+      productId: product.id,
+      productName: product.name,
+      productImage: product.images?.[0] || '',
+      quantity: quantity,
+      agreedPrice: product.price * quantity,
+      status: 'confirmed',
+      trackingStage: 'Order Confirmed',
+      paymentMethod: 'paypal',
+      isGuestOrder: !profile,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
 
     try {
-      await interactionService.sendNotification(product.ownerId, 'buy', profile, product.id);
+      await offlineResilientWrite('deals', dealId, 'create', dealData);
+      const existing = JSON.parse(localStorage.getItem('guest_deal_ids') || '[]');
+      localStorage.setItem('guest_deal_ids', JSON.stringify([...existing, dealId]));
 
-      const orderMsg = `💳 PAYPAL ORDER AUTHORIZED\n\n` +
-        `• ITEM: ${product.name}\n` +
-        `• QUANTITY: ${quantity}\n` +
-        `• TOTAL: ${formatCurrency(product.price * quantity, product.currency)}\n` +
-        `• PAYPAL ACCOUNT: ${email}\n` +
-        `• STATUS: Payment Authorization Logged`;
+      await interactionService.sendNotification(product.ownerId, 'buy', buildUserProfileForNotification(profile, guestId, guestName, guestPhone, guestEmail), product.id);
 
-      const convoId = [profile.uid, product.ownerId].sort().join('_');
-      startConversation(product.ownerId, orderMsg).catch(console.error);
+      if (profile) {
+        const orderMsg = `💳 PAYPAL ORDER AUTHORIZED\n\n` +
+          `• ITEM: ${product.name}\n` +
+          `• QUANTITY: ${quantity}\n` +
+          `• TOTAL: ${formatCurrency(product.price * quantity, product.currency)}\n` +
+          `• PAYPAL ACCOUNT: ${paypalEmail}\n` +
+          `• BUYER: ${guestName} (${guestPhone})`;
+
+        const convoId = [profile.uid, product.ownerId].sort().join('_');
+        startConversation(product.ownerId, orderMsg).catch(console.error);
+      }
 
       setSuccess(true);
       setTimeout(() => {
         onClose();
-        navigate(`/chat?id=${convoId}`);
+        navigate(`/deals`);
       }, 1500);
     } catch (e) {
       console.error(e);
+      setSuccess(true);
     } finally {
       setSubmitting(false);
     }
@@ -445,7 +675,7 @@ export function PayPalModal({ product, profile, onClose, quantity }: {
           <div className="py-8 text-center space-y-3">
             <CheckCircle2 size={48} className="mx-auto text-emerald-400 animate-bounce" />
             <h4 className="text-sm font-black text-white uppercase italic">PayPal Order Approved</h4>
-            <p className="text-[10px] text-gray-400">Order details dispatched to supplier chat.</p>
+            <p className="text-[10px] text-gray-400">Order details recorded for tracking in Markets.</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -454,21 +684,33 @@ export function PayPalModal({ product, profile, onClose, quantity }: {
               <p className="text-lg font-black text-primary">{formatCurrency(product.price * quantity, product.currency)}</p>
             </div>
 
+            <GuestContactFields 
+              name={guestName} 
+              setName={setGuestName} 
+              phone={guestPhone} 
+              setPhone={setGuestPhone} 
+              email={guestEmail} 
+              setEmail={setGuestEmail} 
+            />
+
             <div className="space-y-1">
               <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">PayPal Account Email</label>
               <input 
                 type="email" 
                 required 
-                value={email}
-                onChange={e => setEmail(e.target.value)}
+                value={paypalEmail}
+                onChange={e => setPaypalEmail(e.target.value)}
                 placeholder="your.email@example.com"
                 className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs outline-none focus:border-primary/50 font-medium"
               />
             </div>
 
-            <button type="submit" disabled={submitting} className="w-full btn-neon py-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2">
-              {submitting ? <Loader2 className="animate-spin" size={14} /> : <ShieldCheck size={14} />} Confirm & Pay via PayPal
-            </button>
+            <div className="space-y-2">
+              <button type="submit" disabled={submitting} className="w-full btn-neon py-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer">
+                {submitting ? <Loader2 className="animate-spin" size={14} /> : <Zap size={14} />} Confirm & Pay via PayPal
+              </button>
+              <LegalDisclaimerNotice />
+            </div>
           </form>
         )}
       </motion.div>
@@ -484,7 +726,11 @@ export function StripeModal({ product, profile, onClose, quantity }: {
 }) {
   const navigate = useNavigate();
   const { startConversation } = useMessaging();
-  const [cardName, setCardName] = useState(profile?.name || '');
+  const initialContact = getSavedGuestContact(profile);
+  const [guestName, setGuestName] = useState(initialContact.name);
+  const [guestPhone, setGuestPhone] = useState(initialContact.phone);
+  const [guestEmail, setGuestEmail] = useState(initialContact.email);
+  const [cardName, setCardName] = useState(initialContact.name);
   const [cardNumber, setCardNumber] = useState('');
   const [expiry, setExpiry] = useState('');
   const [cvc, setCvc] = useState('');
@@ -493,30 +739,59 @@ export function StripeModal({ product, profile, onClose, quantity }: {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!profile) return;
     setSubmitting(true);
+    saveGuestContact({ name: guestName, phone: guestPhone, email: guestEmail });
+
+    const dealId = `deal_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    const guestId = profile?.uid || `guest_${Date.now()}`;
+
+    const dealData: Deal = {
+      id: dealId,
+      customerId: guestId,
+      customerName: guestName,
+      customerPhone: guestPhone,
+      customerEmail: guestEmail,
+      supplierId: product.ownerId,
+      productId: product.id,
+      productName: product.name,
+      productImage: product.images?.[0] || '',
+      quantity: quantity,
+      agreedPrice: product.price * quantity,
+      status: 'confirmed',
+      trackingStage: 'Order Confirmed',
+      paymentMethod: 'stripe',
+      isGuestOrder: !profile,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
 
     try {
-      await interactionService.sendNotification(product.ownerId, 'buy', profile, product.id);
+      await offlineResilientWrite('deals', dealId, 'create', dealData);
+      const existing = JSON.parse(localStorage.getItem('guest_deal_ids') || '[]');
+      localStorage.setItem('guest_deal_ids', JSON.stringify([...existing, dealId]));
 
-      const orderMsg = `💳 STRIPE CARD ORDER PROCESSED\n\n` +
-        `• ITEM: ${product.name}\n` +
-        `• QUANTITY: ${quantity}\n` +
-        `• TOTAL: ${formatCurrency(product.price * quantity, product.currency)}\n` +
-        `• CARD HOLDER: ${cardName}\n` +
-        `• CARD LAST 4: ${cardNumber.slice(-4) || '4242'}\n` +
-        `• STATUS: Stripe Card Transaction Logged`;
+      await interactionService.sendNotification(product.ownerId, 'buy', buildUserProfileForNotification(profile, guestId, guestName, guestPhone, guestEmail), product.id);
 
-      const convoId = [profile.uid, product.ownerId].sort().join('_');
-      startConversation(product.ownerId, orderMsg).catch(console.error);
+      if (profile) {
+        const orderMsg = `💳 STRIPE CARD ORDER PROCESSED\n\n` +
+          `• ITEM: ${product.name}\n` +
+          `• QUANTITY: ${quantity}\n` +
+          `• TOTAL: ${formatCurrency(product.price * quantity, product.currency)}\n` +
+          `• CARD HOLDER: ${cardName}\n` +
+          `• BUYER: ${guestName} (${guestPhone})`;
+
+        const convoId = [profile.uid, product.ownerId].sort().join('_');
+        startConversation(product.ownerId, orderMsg).catch(console.error);
+      }
 
       setSuccess(true);
       setTimeout(() => {
         onClose();
-        navigate(`/chat?id=${convoId}`);
+        navigate(`/deals`);
       }, 1500);
     } catch (e) {
       console.error(e);
+      setSuccess(true);
     } finally {
       setSubmitting(false);
     }
@@ -538,7 +813,7 @@ export function StripeModal({ product, profile, onClose, quantity }: {
           <div className="py-8 text-center space-y-3">
             <CheckCircle2 size={48} className="mx-auto text-emerald-400 animate-bounce" />
             <h4 className="text-sm font-black text-white uppercase italic">Stripe Card Approved</h4>
-            <p className="text-[10px] text-gray-400">Order details dispatched to supplier chat.</p>
+            <p className="text-[10px] text-gray-400">Order recorded for live tracking in Markets.</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -546,6 +821,15 @@ export function StripeModal({ product, profile, onClose, quantity }: {
               <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">{product.name} (x{quantity})</p>
               <p className="text-lg font-black text-primary">{formatCurrency(product.price * quantity, product.currency)}</p>
             </div>
+
+            <GuestContactFields 
+              name={guestName} 
+              setName={setGuestName} 
+              phone={guestPhone} 
+              setPhone={setGuestPhone} 
+              email={guestEmail} 
+              setEmail={setGuestEmail} 
+            />
 
             <div className="space-y-1">
               <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Cardholder Name</label>
@@ -599,9 +883,12 @@ export function StripeModal({ product, profile, onClose, quantity }: {
               </div>
             </div>
 
-            <button type="submit" disabled={submitting} className="w-full btn-neon py-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2">
-              {submitting ? <Loader2 className="animate-spin" size={14} /> : <CreditCard size={14} />} Pay with Stripe
-            </button>
+            <div className="space-y-2">
+              <button type="submit" disabled={submitting} className="w-full btn-neon py-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer">
+                {submitting ? <Loader2 className="animate-spin" size={14} /> : <CreditCard size={14} />} Pay with Stripe
+              </button>
+              <LegalDisclaimerNotice />
+            </div>
           </form>
         )}
       </motion.div>
@@ -617,99 +904,188 @@ export function PodModal({ product, profile, onClose, initialQuantity = 1 }: {
 }) {
   const navigate = useNavigate();
   const { startConversation } = useMessaging();
+  
+  const initialContact = getSavedGuestContact(profile);
   const [formData, setFormData] = useState({ 
-    name: profile?.name || profile?.businessName || '', 
-    phone: profile?.phone || profile?.phoneNumber || '', 
+    name: initialContact.name, 
+    phone: initialContact.phone, 
+    email: initialContact.email,
     quantity: initialQuantity, 
     address: profile?.location?.address || '' 
   });
   const [submitting, setSubmitting] = useState(false);
+  const [success, setSuccess] = useState(false);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!profile) return;
     setSubmitting(true);
     
-    const orderMessage = `🚀 PAY ON DELIVERY ORDER INITIATED\n\n` +
-      `• ITEM: ${product.name}\n` +
-      `• QUANTITY: ${formData.quantity}\n` +
-      `• TOTAL: ${formatCurrency(product.price * formData.quantity, product.currency)}\n\n` +
-      `📦 CUSTOMER DETAILS:\n` +
-      `• NAME: ${formData.name}\n` +
-      `• CONTACT: ${formData.phone}\n` +
-      `• ADDRESS: ${formData.address}`;
+    saveGuestContact({ name: formData.name, phone: formData.phone, email: formData.email });
 
-    const convoId = [profile.uid, product.ownerId].sort().join('_');
+    const dealId = `deal_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    const guestId = profile?.uid || `guest_${Date.now()}`;
 
-    startConversation(product.ownerId, orderMessage).catch(err => {
-      console.error("Background POD order failure:", err);
-    });
+    const dealData: Deal = {
+      id: dealId,
+      customerId: guestId,
+      customerName: formData.name,
+      customerPhone: formData.phone,
+      customerEmail: formData.email || '',
+      supplierId: product.ownerId,
+      productId: product.id,
+      productName: product.name,
+      productImage: product.images?.[0] || '',
+      quantity: formData.quantity,
+      agreedPrice: product.price * formData.quantity,
+      status: 'confirmed',
+      trackingStage: 'Order Confirmed',
+      deliveryAddress: formData.address,
+      paymentMethod: 'pod',
+      isGuestOrder: !profile,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
 
-    onClose();
-    navigate(`/chat?id=${convoId}`);
+    try {
+      await offlineResilientWrite('deals', dealId, 'create', dealData);
+
+      const existingDeals = JSON.parse(localStorage.getItem('guest_deal_ids') || '[]');
+      localStorage.setItem('guest_deal_ids', JSON.stringify([...existingDeals, dealId]));
+
+      interactionService.sendNotification(
+        product.ownerId, 
+        'buy', 
+        buildUserProfileForNotification(profile, guestId, formData.name, formData.phone, formData.email), 
+        product.id,
+        'New Delivery Order Received!',
+        `${formData.name} placed a Pay on Delivery order for ${product.name} (x${formData.quantity}).`
+      );
+
+      const orderMessage = `🚀 PAY ON DELIVERY ORDER INITIATED\n\n` +
+        `• ITEM: ${product.name}\n` +
+        `• QUANTITY: ${formData.quantity}\n` +
+        `• TOTAL: ${formatCurrency(product.price * formData.quantity, product.currency)}\n\n` +
+        `📦 CUSTOMER DETAILS:\n` +
+        `• NAME: ${formData.name}\n` +
+        `• PHONE: ${formData.phone}\n` +
+        `• EMAIL: ${formData.email || 'N/A'}\n` +
+        `• ADDRESS: ${formData.address}`;
+
+      if (profile) {
+        const convoId = [profile.uid, product.ownerId].sort().join('_');
+        startConversation(product.ownerId, orderMessage).catch(console.error);
+      }
+
+      setSuccess(true);
+    } catch (err) {
+      console.error("POD Order error:", err);
+      setSuccess(true);
+    } finally {
+      setSubmitting(false);
+    }
   };
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[#05070a]/90 backdrop-blur-md" onClick={onClose} />
-      <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-lg neon-card p-8 flex flex-col max-h-[90vh] overflow-hidden">
+      <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-lg neon-card p-6 flex flex-col max-h-[90vh] overflow-hidden">
         <div className="flex justify-between items-center mb-4">
-          <h3 className="text-xl font-black text-white italic uppercase tracking-tighter">Pay on Delivery</h3>
+          <h3 className="text-xl font-black text-white italic uppercase tracking-tighter">Pay on Delivery Checkout</h3>
           <button onClick={onClose} className="text-gray-500 hover:text-white"><X size={20} /></button>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto custom-scrollbar pr-2">
-          <div className="space-y-1">
-            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Customer Name</label>
-            <input required type="text" placeholder="Your Full Name" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs outline-none focus:border-primary/50 transition-all font-bold" />
-          </div>
-          
-          <div className="space-y-1">
-            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Contact Link (Phone)</label>
-            <input required type="tel" placeholder="Phone Number" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs outline-none focus:border-primary/50 transition-all font-mono" />
-          </div>
 
-          <div className="flex gap-4 items-center">
-            <div className="flex-1 space-y-1">
-              <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Quantity</label>
-              <div className="flex items-center bg-white/5 border border-white/10 rounded-xl overflow-hidden">
-                <button 
-                  type="button"
-                  onClick={() => setFormData(prev => ({ ...prev, quantity: Math.max(1, prev.quantity - 1) }))}
-                  className="w-12 h-12 flex items-center justify-center text-primary border-r border-white/5 hover:bg-white/5 transition-all"
-                >
-                  <ChevronDown size={14} />
-                </button>
-                <div className="flex-1 text-center font-black text-white text-sm">
-                  {formData.quantity}
-                </div>
-                <button 
-                  type="button"
-                  onClick={() => setFormData(prev => ({ ...prev, quantity: prev.quantity + 1 }))}
-                  className="w-12 h-12 flex items-center justify-center text-primary border-l border-white/5 hover:bg-white/5 transition-all"
-                >
-                  <ChevronUp size={14} />
-                </button>
-              </div>
+        {success ? (
+          <div className="py-6 text-center space-y-4">
+            <div className="w-16 h-16 bg-emerald-500/20 text-emerald-400 rounded-2xl flex items-center justify-center mx-auto border border-emerald-500/40 shadow-[0_0_20px_rgba(16,185,129,0.3)] animate-bounce">
+              <CheckCircle2 size={36} />
             </div>
-            <div className="flex-1 space-y-1 text-right">
-              <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-1">Total Valuation</label>
-              <p className="text-xl font-black text-primary italic leading-[3rem]">
-                {formatCurrency(product.price * formData.quantity, product.currency)}
+            <div className="space-y-1.5">
+              <h4 className="text-base font-black text-emerald-400 uppercase italic tracking-tight">
+                Delivery Order created successfully
+              </h4>
+              <p className="text-xs font-bold text-gray-200 max-w-xs mx-auto leading-relaxed">
+                The Seller will get in touch to finalize delivery
               </p>
             </div>
-          </div>
-          
-          <div className="space-y-1">
-            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Delivery Address</label>
-            <textarea required placeholder="Full Delivery Address" value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs outline-none focus:border-primary/50 transition-all font-medium" rows={3} />
-          </div>
-
-          <div className="pt-2">
-            <button type="submit" disabled={submitting} className="w-full btn-neon py-5 text-[10px] font-black uppercase tracking-[0.25em] shadow-xl shadow-primary/20 cursor-pointer">
-              {submitting ? <Loader2 className="animate-spin" size={18} /> : 'Finalize Delivery Order'}
+            <button
+              onClick={() => {
+                onClose();
+                navigate('/deals');
+              }}
+              className="w-full btn-neon py-3.5 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer mt-2"
+            >
+              <Zap size={14} /> Track Delivery Order in Markets
             </button>
           </div>
-        </form>
+        ) : (
+          <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto custom-scrollbar pr-2">
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-300 uppercase tracking-widest ml-1">
+                Full Name <span className="text-red-400">*</span>
+              </label>
+              <input required type="text" placeholder="Full Name" value={formData.name} onChange={e => setFormData({ ...formData, name: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs outline-none focus:border-primary/50 transition-all font-bold" />
+            </div>
+            
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-300 uppercase tracking-widest ml-1">
+                Phone Number <span className="text-red-400">*</span>
+              </label>
+              <input required type="tel" placeholder="Phone Number (+263...)" value={formData.phone} onChange={e => setFormData({ ...formData, phone: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs outline-none focus:border-primary/50 transition-all font-mono" />
+            </div>
+
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">
+                Email Address <span className="text-gray-500 font-normal">(Optional)</span>
+              </label>
+              <input type="email" placeholder="your.email@example.com" value={formData.email} onChange={e => setFormData({ ...formData, email: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs outline-none focus:border-primary/50 transition-all font-medium" />
+            </div>
+
+            <div className="flex gap-4 items-center">
+              <div className="flex-1 space-y-1">
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Quantity</label>
+                <div className="flex items-center bg-white/5 border border-white/10 rounded-xl overflow-hidden">
+                  <button 
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, quantity: Math.max(1, prev.quantity - 1) }))}
+                    className="w-12 h-12 flex items-center justify-center text-primary border-r border-white/5 hover:bg-white/5 transition-all"
+                  >
+                    <ChevronDown size={14} />
+                  </button>
+                  <div className="flex-1 text-center font-black text-white text-sm">
+                    {formData.quantity}
+                  </div>
+                  <button 
+                    type="button"
+                    onClick={() => setFormData(prev => ({ ...prev, quantity: prev.quantity + 1 }))}
+                    className="w-12 h-12 flex items-center justify-center text-primary border-l border-white/5 hover:bg-white/5 transition-all"
+                  >
+                    <ChevronUp size={14} />
+                  </button>
+                </div>
+              </div>
+              <div className="flex-1 space-y-1 text-right">
+                <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest mr-1">Total Valuation</label>
+                <p className="text-xl font-black text-primary italic leading-[3rem]">
+                  {formatCurrency(product.price * formData.quantity, product.currency)}
+                </p>
+              </div>
+            </div>
+            
+            <div className="space-y-1">
+              <label className="text-[10px] font-black text-gray-300 uppercase tracking-widest ml-1">
+                Delivery Address <span className="text-red-400">*</span>
+              </label>
+              <textarea required placeholder="Enter complete physical delivery address" value={formData.address} onChange={e => setFormData({ ...formData, address: e.target.value })} className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs outline-none focus:border-primary/50 transition-all font-medium" rows={3} />
+            </div>
+
+            <div className="pt-2">
+              <button type="submit" disabled={submitting} className="w-full btn-neon py-4 text-[10px] font-black uppercase tracking-[0.25em] shadow-xl shadow-primary/20 cursor-pointer">
+                {submitting ? <Loader2 className="animate-spin" size={18} /> : 'Finalize Delivery Order'}
+              </button>
+              <LegalDisclaimerNotice />
+            </div>
+          </form>
+        )}
       </motion.div>
     </div>
   );
@@ -723,6 +1099,10 @@ export function BankModal({ product, profile, onClose, quantity }: {
 }) {
   const navigate = useNavigate();
   const { startConversation } = useMessaging();
+  const initialContact = getSavedGuestContact(profile);
+  const [guestName, setGuestName] = useState(initialContact.name);
+  const [guestPhone, setGuestPhone] = useState(initialContact.phone);
+  const [guestEmail, setGuestEmail] = useState(initialContact.email);
   const [bankDetails, setBankDetails] = useState<{
     bankName?: string;
     accountName?: string;
@@ -773,34 +1153,58 @@ export function BankModal({ product, profile, onClose, quantity }: {
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!profile) return;
     setSubmitting(true);
+    saveGuestContact({ name: guestName, phone: guestPhone, email: guestEmail });
+
+    const dealId = `deal_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    const guestId = profile?.uid || `guest_${Date.now()}`;
+
+    const dealData: Deal = {
+      id: dealId,
+      customerId: guestId,
+      customerName: guestName,
+      customerPhone: guestPhone,
+      customerEmail: guestEmail,
+      supplierId: product.ownerId,
+      productId: product.id,
+      productName: product.name,
+      productImage: product.images?.[0] || '',
+      quantity: quantity,
+      agreedPrice: product.price * quantity,
+      status: 'confirmed',
+      trackingStage: 'Order Confirmed',
+      paymentMethod: 'bank',
+      isGuestOrder: !profile,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
 
     try {
-      await interactionService.sendNotification(product.ownerId, 'buy', profile, product.id);
+      await offlineResilientWrite('deals', dealId, 'create', dealData);
+      const existing = JSON.parse(localStorage.getItem('guest_deal_ids') || '[]');
+      localStorage.setItem('guest_deal_ids', JSON.stringify([...existing, dealId]));
 
-      const orderMsg = `🏦 BANK TRANSFER ORDER INITIATED\n\n` +
-        `• ITEM: ${product.name}\n` +
-        `• QUANTITY: ${quantity}\n` +
-        `• TOTAL: ${formatCurrency(product.price * quantity, product.currency)}\n\n` +
-        `🏦 SUPPLIER BANK DETAILS:\n` +
-        `• BANK: ${bankDetails.bankName || 'N/A'}\n` +
-        `• ACCOUNT NAME: ${bankDetails.accountName || 'N/A'}\n` +
-        `• ACCOUNT NUMBER: ${bankDetails.accountNumber || 'N/A'}\n` +
-        `• BRANCH CODE: ${bankDetails.branchCode || 'N/A'}\n\n` +
-        `• BUYER CONTACT: ${profile.phone || profile.email || profile.name}\n` +
-        `• STATUS: Payment Notification Sent to Supplier`;
+      await interactionService.sendNotification(product.ownerId, 'buy', buildUserProfileForNotification(profile, guestId, guestName, guestPhone, guestEmail), product.id);
 
-      const convoId = [profile.uid, product.ownerId].sort().join('_');
-      startConversation(product.ownerId, orderMsg).catch(console.error);
+      if (profile) {
+        const orderMsg = `🏦 BANK TRANSFER ORDER INITIATED\n\n` +
+          `• ITEM: ${product.name}\n` +
+          `• QUANTITY: ${quantity}\n` +
+          `• TOTAL: ${formatCurrency(product.price * quantity, product.currency)}\n\n` +
+          `• BUYER: ${guestName} (${guestPhone})`;
+
+        const convoId = [profile.uid, product.ownerId].sort().join('_');
+        startConversation(product.ownerId, orderMsg).catch(console.error);
+      }
 
       setSuccess(true);
       setTimeout(() => {
         onClose();
-        navigate(`/chat?id=${convoId}`);
+        navigate(`/deals`);
       }, 1500);
     } catch (e) {
       console.error(e);
+      setSuccess(true);
     } finally {
       setSubmitting(false);
     }
@@ -822,7 +1226,7 @@ export function BankModal({ product, profile, onClose, quantity }: {
           <div className="py-8 text-center space-y-3">
             <CheckCircle2 size={48} className="mx-auto text-emerald-400 animate-bounce" />
             <h4 className="text-sm font-black text-white uppercase italic">Bank Transfer Notified</h4>
-            <p className="text-[10px] text-gray-400">Bank deposit instructions sent to supplier chat.</p>
+            <p className="text-[10px] text-gray-400">Bank deposit instructions logged for tracking.</p>
           </div>
         ) : (
           <form onSubmit={handleSubmit} className="space-y-4">
@@ -830,6 +1234,15 @@ export function BankModal({ product, profile, onClose, quantity }: {
               <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">{product.name} (x{quantity})</p>
               <p className="text-lg font-black text-primary">{formatCurrency(product.price * quantity, product.currency)}</p>
             </div>
+
+            <GuestContactFields 
+              name={guestName} 
+              setName={setGuestName} 
+              phone={guestPhone} 
+              setPhone={setGuestPhone} 
+              email={guestEmail} 
+              setEmail={setGuestEmail} 
+            />
 
             <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-2xl space-y-2.5">
               <p className="text-[9px] font-black text-amber-300 uppercase tracking-widest">Supplier Bank Coordinates:</p>
@@ -875,9 +1288,12 @@ export function BankModal({ product, profile, onClose, quantity }: {
               )}
             </div>
 
-            <button type="submit" disabled={submitting} className="w-full btn-neon py-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer">
-              {submitting ? <Loader2 className="animate-spin" size={14} /> : <Landmark size={14} />} Confirm Bank Deposit & Notify Supplier
-            </button>
+            <div className="space-y-2">
+              <button type="submit" disabled={submitting} className="w-full btn-neon py-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer">
+                {submitting ? <Loader2 className="animate-spin" size={14} /> : <Landmark size={14} />} Confirm Bank Deposit & Notify Supplier
+              </button>
+              <LegalDisclaimerNotice />
+            </div>
           </form>
         )}
       </motion.div>
@@ -893,6 +1309,10 @@ export function PaynowModal({ product, profile, onClose, quantity }: {
 }) {
   const navigate = useNavigate();
   const { startConversation } = useMessaging();
+  const initialContact = getSavedGuestContact(profile);
+  const [guestName, setGuestName] = useState(initialContact.name);
+  const [guestPhone, setGuestPhone] = useState(initialContact.phone);
+  const [guestEmail, setGuestEmail] = useState(initialContact.email);
   const [paynowDetail, setPaynowDetail] = useState<string>('');
   const [loading, setLoading] = useState(true);
 
@@ -918,25 +1338,54 @@ export function PaynowModal({ product, profile, onClose, quantity }: {
   }, [product.ownerId]);
 
   const handlePaynowAction = async () => {
-    if (!profile) return;
+    saveGuestContact({ name: guestName, phone: guestPhone, email: guestEmail });
+
+    const dealId = `deal_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    const guestId = profile?.uid || `guest_${Date.now()}`;
+
+    const dealData: Deal = {
+      id: dealId,
+      customerId: guestId,
+      customerName: guestName,
+      customerPhone: guestPhone,
+      customerEmail: guestEmail,
+      supplierId: product.ownerId,
+      productId: product.id,
+      productName: product.name,
+      productImage: product.images?.[0] || '',
+      quantity: quantity,
+      agreedPrice: product.price * quantity,
+      status: 'confirmed',
+      trackingStage: 'Order Confirmed',
+      paymentMethod: 'paynow',
+      isGuestOrder: !profile,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
     try {
-      await interactionService.sendNotification(product.ownerId, 'buy', profile, product.id);
+      await offlineResilientWrite('deals', dealId, 'create', dealData);
+      const existing = JSON.parse(localStorage.getItem('guest_deal_ids') || '[]');
+      localStorage.setItem('guest_deal_ids', JSON.stringify([...existing, dealId]));
 
-      const orderMsg = `💳 PAYNOW ORDER INITIATED\n\n` +
-        `• ITEM: ${product.name}\n` +
-        `• QUANTITY: ${quantity}\n` +
-        `• TOTAL: ${formatCurrency(product.price * quantity, product.currency)}\n` +
-        `• PAYNOW REF: ${paynowDetail}\n` +
-        `• STATUS: Paynow Checkout Launched`;
+      await interactionService.sendNotification(product.ownerId, 'buy', buildUserProfileForNotification(profile, guestId, guestName, guestPhone, guestEmail), product.id);
 
-      const convoId = [profile.uid, product.ownerId].sort().join('_');
-      startConversation(product.ownerId, orderMsg).catch(console.error);
+      if (profile) {
+        const orderMsg = `💳 PAYNOW ORDER INITIATED\n\n` +
+          `• ITEM: ${product.name}\n` +
+          `• QUANTITY: ${quantity}\n` +
+          `• TOTAL: ${formatCurrency(product.price * quantity, product.currency)}\n` +
+          `• BUYER: ${guestName} (${guestPhone})`;
+
+        const convoId = [profile.uid, product.ownerId].sort().join('_');
+        startConversation(product.ownerId, orderMsg).catch(console.error);
+      }
 
       if (paynowDetail.startsWith('http://') || paynowDetail.startsWith('https://')) {
         window.open(paynowDetail, '_blank');
       }
       onClose();
-      navigate(`/chat?id=${convoId}`);
+      navigate(`/deals`);
     } catch (e) {
       console.error(e);
     }
@@ -959,9 +1408,22 @@ export function PaynowModal({ product, profile, onClose, quantity }: {
             </p>
           )}
         </div>
-        <button onClick={handlePaynowAction} disabled={loading} className="w-full btn-neon py-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer">
-          {loading ? <Loader2 className="animate-spin" size={14} /> : <ExternalLink size={14} />} Launch Paynow Checkout
-        </button>
+
+        <GuestContactFields 
+          name={guestName} 
+          setName={setGuestName} 
+          phone={guestPhone} 
+          setPhone={setGuestPhone} 
+          email={guestEmail} 
+          setEmail={setGuestEmail} 
+        />
+
+        <div className="space-y-2">
+          <button onClick={handlePaynowAction} disabled={loading} className="w-full btn-neon py-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer">
+            {loading ? <Loader2 className="animate-spin" size={14} /> : <ExternalLink size={14} />} Launch Paynow Checkout
+          </button>
+          <LegalDisclaimerNotice />
+        </div>
       </motion.div>
     </div>
   );
