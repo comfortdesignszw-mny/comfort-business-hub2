@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useEffect, useState, useRef } from 'react';
 import { collection, query, where, orderBy, onSnapshot, doc, updateDoc, addDoc, serverTimestamp } from 'firebase/firestore';
 import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
-import { UserProfile, AppNotification, PushNotificationSettings } from '../types';
+import { UserProfile, AppNotification, PushNotificationSettings, Deal } from '../types';
 import { formatAuditableStamp } from '../lib/utils';
 import { AnimatePresence, motion } from 'motion/react';
 import { Bell, X, Info, Star, ShoppingBag, Zap, Heart, UserPlus, MessageSquare, Store as StoreIcon, ShieldAlert } from 'lucide-react';
@@ -9,6 +9,9 @@ import { Bell, X, Info, Star, ShoppingBag, Zap, Heart, UserPlus, MessageSquare, 
 interface NotificationContextType {
   notifications: AppNotification[];
   unreadCount: number;
+  activeOrdersCount: number;
+  sellerOrdersCount: number;
+  buyerOrdersCount: number;
   markAsRead: (id: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
   triggerFeedback: (title: string, message: string, type: AppNotification['type']) => void;
@@ -334,12 +337,56 @@ export function NotificationProvider({ children, profile }: { children: React.Re
     }
   };
 
+  const [sellerOrdersCount, setSellerOrdersCount] = useState(0);
+  const [buyerOrdersCount, setBuyerOrdersCount] = useState(0);
+
+  useEffect(() => {
+    const savedGuestIds: string[] = JSON.parse(localStorage.getItem('guest_deal_ids') || '[]');
+    const q = query(collection(db, 'deals'), orderBy('updatedAt', 'desc'));
+
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const allDeals = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Deal));
+      
+      let sCount = 0;
+      let bCount = 0;
+
+      allDeals.forEach(d => {
+        const isUnfulfilled = d.status !== 'delivered' && d.status !== 'won' && d.status !== 'cancelled';
+        
+        if (profile?.uid && d.supplierId === profile.uid && isUnfulfilled) {
+          sCount++;
+        }
+        
+        const isBuyerDeal = 
+          (profile?.uid && d.customerId === profile.uid) || 
+          savedGuestIds.includes(d.id) ||
+          (profile?.phone && d.customerPhone && d.customerPhone.includes(profile.phone));
+
+        if (isBuyerDeal && isUnfulfilled) {
+          bCount++;
+        }
+      });
+
+      setSellerOrdersCount(sCount);
+      setBuyerOrdersCount(bCount);
+    }, (err) => {
+      console.warn("Deals listener notice:", err);
+    });
+
+    return () => unsubscribe();
+  }, [profile?.uid, profile?.phone]);
+
+  const activeOrdersCount = profile?.currentRole === 'supplier' ? (sellerOrdersCount > 0 ? sellerOrdersCount : buyerOrdersCount) : buyerOrdersCount;
+
   const unreadCount = notifications.filter(n => !n.read).length;
 
   return (
     <NotificationContext.Provider value={{ 
       notifications, 
       unreadCount, 
+      activeOrdersCount,
+      sellerOrdersCount,
+      buyerOrdersCount,
       markAsRead, 
       markAllAsRead, 
       triggerFeedback,
