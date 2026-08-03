@@ -162,6 +162,14 @@ export interface Review {
 
 export type DealStatus = 'pending' | 'confirmed' | 'quoted' | 'accepted' | 'preparing' | 'shipped' | 'in_transit' | 'delivered' | 'won' | 'cancelled';
 
+export interface DealHistoryItem {
+  stage: string;
+  status: DealStatus;
+  timestamp: string;
+  updatedBy?: string;
+  note?: string;
+}
+
 export interface Deal {
   id: string;
   customerId: string;
@@ -182,6 +190,7 @@ export interface Deal {
   isGuestOrder?: boolean;
   customerNotes?: string;
   supplierNotes?: string;
+  history?: DealHistoryItem[];
   createdAt?: any;
   updatedAt: any;
 }

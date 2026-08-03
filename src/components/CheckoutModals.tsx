@@ -521,6 +521,7 @@ export function EcoCashModal({ product, profile, onClose, quantity }: {
       trackingStage: 'Order Confirmed',
       paymentMethod: 'ecocash',
       isGuestOrder: !profile,
+      history: [{ stage: 'Order Confirmed', status: 'confirmed', timestamp: new Date().toISOString(), updatedBy: guestName || 'Customer' }],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -623,6 +624,7 @@ export function PayPalModal({ product, profile, onClose, quantity }: {
       trackingStage: 'Order Confirmed',
       paymentMethod: 'paypal',
       isGuestOrder: !profile,
+      history: [{ stage: 'Order Confirmed', status: 'confirmed', timestamp: new Date().toISOString(), updatedBy: guestName || 'Customer' }],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -634,17 +636,14 @@ export function PayPalModal({ product, profile, onClose, quantity }: {
 
       await interactionService.sendNotification(product.ownerId, 'buy', buildUserProfileForNotification(profile, guestId, guestName, guestPhone, guestEmail), product.id);
 
-      if (profile) {
-        const orderMsg = `💳 PAYPAL ORDER AUTHORIZED\n\n` +
-          `• ITEM: ${product.name}\n` +
-          `• QUANTITY: ${quantity}\n` +
-          `• TOTAL: ${formatCurrency(product.price * quantity, product.currency)}\n` +
-          `• PAYPAL ACCOUNT: ${paypalEmail}\n` +
-          `• BUYER: ${guestName} (${guestPhone})`;
+      const orderMsg = `💳 PAYPAL ORDER AUTHORIZED\n\n` +
+        `• ITEM: ${product.name}\n` +
+        `• QUANTITY: ${quantity}\n` +
+        `• TOTAL: ${formatCurrency(product.price * quantity, product.currency)}\n` +
+        `• PAYPAL ACCOUNT: ${paypalEmail}\n` +
+        `• BUYER: ${guestName} (${guestPhone})`;
 
-        const convoId = [profile.uid, product.ownerId].sort().join('_');
-        startConversation(product.ownerId, orderMsg).catch(console.error);
-      }
+      startConversation(product.ownerId, orderMsg).catch(console.error);
 
       setSuccess(true);
       setTimeout(() => {
@@ -761,6 +760,7 @@ export function StripeModal({ product, profile, onClose, quantity }: {
       trackingStage: 'Order Confirmed',
       paymentMethod: 'stripe',
       isGuestOrder: !profile,
+      history: [{ stage: 'Order Confirmed', status: 'confirmed', timestamp: new Date().toISOString(), updatedBy: guestName || 'Customer' }],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -772,17 +772,14 @@ export function StripeModal({ product, profile, onClose, quantity }: {
 
       await interactionService.sendNotification(product.ownerId, 'buy', buildUserProfileForNotification(profile, guestId, guestName, guestPhone, guestEmail), product.id);
 
-      if (profile) {
-        const orderMsg = `💳 STRIPE CARD ORDER PROCESSED\n\n` +
-          `• ITEM: ${product.name}\n` +
-          `• QUANTITY: ${quantity}\n` +
-          `• TOTAL: ${formatCurrency(product.price * quantity, product.currency)}\n` +
-          `• CARD HOLDER: ${cardName}\n` +
-          `• BUYER: ${guestName} (${guestPhone})`;
+      const orderMsg = `💳 STRIPE CARD ORDER PROCESSED\n\n` +
+        `• ITEM: ${product.name}\n` +
+        `• QUANTITY: ${quantity}\n` +
+        `• TOTAL: ${formatCurrency(product.price * quantity, product.currency)}\n` +
+        `• CARD HOLDER: ${cardName}\n` +
+        `• BUYER: ${guestName} (${guestPhone})`;
 
-        const convoId = [profile.uid, product.ownerId].sort().join('_');
-        startConversation(product.ownerId, orderMsg).catch(console.error);
-      }
+      startConversation(product.ownerId, orderMsg).catch(console.error);
 
       setSuccess(true);
       setTimeout(() => {
@@ -942,6 +939,7 @@ export function PodModal({ product, profile, onClose, initialQuantity = 1 }: {
       deliveryAddress: formData.address,
       paymentMethod: 'pod',
       isGuestOrder: !profile,
+      history: [{ stage: 'Order Confirmed', status: 'confirmed', timestamp: new Date().toISOString(), updatedBy: formData.name || 'Customer' }],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -971,10 +969,7 @@ export function PodModal({ product, profile, onClose, initialQuantity = 1 }: {
         `• EMAIL: ${formData.email || 'N/A'}\n` +
         `• ADDRESS: ${formData.address}`;
 
-      if (profile) {
-        const convoId = [profile.uid, product.ownerId].sort().join('_');
-        startConversation(product.ownerId, orderMessage).catch(console.error);
-      }
+      startConversation(product.ownerId, orderMessage).catch(console.error);
 
       setSuccess(true);
     } catch (err) {
@@ -1175,6 +1170,7 @@ export function BankModal({ product, profile, onClose, quantity }: {
       trackingStage: 'Order Confirmed',
       paymentMethod: 'bank',
       isGuestOrder: !profile,
+      history: [{ stage: 'Order Confirmed', status: 'confirmed', timestamp: new Date().toISOString(), updatedBy: guestName || 'Customer' }],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -1186,16 +1182,13 @@ export function BankModal({ product, profile, onClose, quantity }: {
 
       await interactionService.sendNotification(product.ownerId, 'buy', buildUserProfileForNotification(profile, guestId, guestName, guestPhone, guestEmail), product.id);
 
-      if (profile) {
-        const orderMsg = `🏦 BANK TRANSFER ORDER INITIATED\n\n` +
-          `• ITEM: ${product.name}\n` +
-          `• QUANTITY: ${quantity}\n` +
-          `• TOTAL: ${formatCurrency(product.price * quantity, product.currency)}\n\n` +
-          `• BUYER: ${guestName} (${guestPhone})`;
+      const orderMsg = `🏦 BANK TRANSFER ORDER INITIATED\n\n` +
+        `• ITEM: ${product.name}\n` +
+        `• QUANTITY: ${quantity}\n` +
+        `• TOTAL: ${formatCurrency(product.price * quantity, product.currency)}\n\n` +
+        `• BUYER: ${guestName} (${guestPhone})`;
 
-        const convoId = [profile.uid, product.ownerId].sort().join('_');
-        startConversation(product.ownerId, orderMsg).catch(console.error);
-      }
+      startConversation(product.ownerId, orderMsg).catch(console.error);
 
       setSuccess(true);
       setTimeout(() => {
@@ -1359,6 +1352,7 @@ export function PaynowModal({ product, profile, onClose, quantity }: {
       trackingStage: 'Order Confirmed',
       paymentMethod: 'paynow',
       isGuestOrder: !profile,
+      history: [{ stage: 'Order Confirmed', status: 'confirmed', timestamp: new Date().toISOString(), updatedBy: guestName || 'Customer' }],
       createdAt: new Date().toISOString(),
       updatedAt: new Date().toISOString()
     };
@@ -1370,16 +1364,13 @@ export function PaynowModal({ product, profile, onClose, quantity }: {
 
       await interactionService.sendNotification(product.ownerId, 'buy', buildUserProfileForNotification(profile, guestId, guestName, guestPhone, guestEmail), product.id);
 
-      if (profile) {
-        const orderMsg = `💳 PAYNOW ORDER INITIATED\n\n` +
-          `• ITEM: ${product.name}\n` +
-          `• QUANTITY: ${quantity}\n` +
-          `• TOTAL: ${formatCurrency(product.price * quantity, product.currency)}\n` +
-          `• BUYER: ${guestName} (${guestPhone})`;
+      const orderMsg = `💳 PAYNOW ORDER INITIATED\n\n` +
+        `• ITEM: ${product.name}\n` +
+        `• QUANTITY: ${quantity}\n` +
+        `• TOTAL: ${formatCurrency(product.price * quantity, product.currency)}\n` +
+        `• BUYER: ${guestName} (${guestPhone})`;
 
-        const convoId = [profile.uid, product.ownerId].sort().join('_');
-        startConversation(product.ownerId, orderMsg).catch(console.error);
-      }
+      startConversation(product.ownerId, orderMsg).catch(console.error);
 
       if (paynowDetail.startsWith('http://') || paynowDetail.startsWith('https://')) {
         window.open(paynowDetail, '_blank');

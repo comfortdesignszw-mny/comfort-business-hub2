@@ -1,8 +1,21 @@
 import React from 'react';
-import { Check, Clock, Package, Truck, AlertCircle, CheckCircle2 } from 'lucide-react';
-import { DealStatus } from '../types';
+import { Check, Clock, Package, Truck, AlertCircle } from 'lucide-react';
+import { DealStatus, DealHistoryItem } from '../types';
+import { formatAuditableStamp } from '../lib/utils';
 
-export default function OrderTimeline({ status, trackingStage }: { status: DealStatus; trackingStage?: string }) {
+export default function OrderTimeline({ 
+  status, 
+  trackingStage,
+  createdAt,
+  updatedAt,
+  history 
+}: { 
+  status: DealStatus; 
+  trackingStage?: string;
+  createdAt?: any;
+  updatedAt?: any;
+  history?: DealHistoryItem[];
+}) {
   const steps = [
     { id: 'confirmed', label: 'Order Confirmed', icon: Clock },
     { id: 'prepared', label: 'Order being prepared', icon: Package },
@@ -58,6 +71,23 @@ export default function OrderTimeline({ status, trackingStage }: { status: DealS
           const isCurrent = index === currentIndex;
           const Icon = step.icon;
           
+          // Find matching history item if available
+          const historyItem = history?.find(h => 
+            h.stage.toLowerCase() === step.label.toLowerCase() || 
+            (step.id === 'confirmed' && h.stage.toLowerCase().includes('confirm')) ||
+            (step.id === 'prepared' && h.stage.toLowerCase().includes('prepar')) ||
+            (step.id === 'transit' && h.stage.toLowerCase().includes('transit')) ||
+            (step.id === 'delivered' && h.stage.toLowerCase().includes('deliver'))
+          );
+
+          const displayStamp = historyItem 
+            ? formatAuditableStamp(historyItem.timestamp)
+            : index === 0 && createdAt 
+            ? formatAuditableStamp(createdAt)
+            : isCurrent && updatedAt 
+            ? formatAuditableStamp(updatedAt)
+            : null;
+
           return (
             <div key={step.id} className="flex flex-col items-center flex-1 min-w-0">
               <div 
@@ -80,6 +110,11 @@ export default function OrderTimeline({ status, trackingStage }: { status: DealS
               }`}>
                 {step.label}
               </p>
+              {displayStamp && (
+                <span className="text-[7.5px] font-mono text-gray-400/90 mt-1 block text-center leading-none">
+                  {displayStamp.split('•')[1]?.trim() || displayStamp}
+                </span>
+              )}
             </div>
           );
         })}

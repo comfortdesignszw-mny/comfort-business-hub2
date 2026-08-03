@@ -2,7 +2,7 @@ import OrderTimeline from "../components/OrderTimeline";
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { Zap, Clock, CheckCircle2, ChevronRight, DollarSign, MessageCircle, AlertCircle, ShoppingCart, Loader2, Sparkles, MessageSquare, ShoppingBag, Truck, UserCheck, Search, ShieldCheck } from 'lucide-react';
-import { UserProfile, Deal, DealStatus, Product, Engagement } from '../types';
+import { UserProfile, Deal, DealStatus, Product, Engagement, DealHistoryItem } from '../types';
 import { cn, formatCurrency, formatAuditableStamp } from '../lib/utils';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc, orderBy, onSnapshot, updateDoc } from 'firebase/firestore';
@@ -39,13 +39,23 @@ export default function DealRoom({ profile }: { profile: UserProfile | null }) {
           setLoading(false);
         });
       } else {
-        const q = query(
-          collection(db, 'deals'),
-          where(activeTab === 'buying' ? 'customerId' : 'supplierId', '==', profile.uid),
-          orderBy('updatedAt', 'desc')
-        );
+        const savedGuestIds: string[] = JSON.parse(localStorage.getItem('guest_deal_ids') || '[]');
+        const q = query(collection(db, 'deals'), orderBy('updatedAt', 'desc'));
         unsubscribeDeals = onSnapshot(q, (snapshot) => {
-          setDeals(snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Deal)));
+          const allDeals = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Deal));
+          const filtered = allDeals.filter(d => {
+            if (activeTab === 'buying') {
+              return (
+                d.customerId === profile.uid ||
+                savedGuestIds.includes(d.id) ||
+                (profile.phone && d.customerPhone && d.customerPhone.includes(profile.phone)) ||
+                (guestPhoneSearch && (d.customerPhone?.includes(guestPhoneSearch) || d.id.toLowerCase().includes(guestPhoneSearch.toLowerCase()) || d.productName?.toLowerCase().includes(guestPhoneSearch.toLowerCase())))
+              );
+            } else {
+              return d.supplierId === profile.uid;
+            }
+          });
+          setDeals(filtered);
           setEngagements([]);
           setLoading(false);
         }, (err) => {
@@ -54,7 +64,7 @@ export default function DealRoom({ profile }: { profile: UserProfile | null }) {
         });
       }
     } else {
-      // Guest User Mode: Load local guest deals
+      // Guest User Mode: Load local guest deals & phone search
       const savedGuestIds: string[] = JSON.parse(localStorage.getItem('guest_deal_ids') || '[]');
       const q = query(collection(db, 'deals'), orderBy('updatedAt', 'desc'));
       unsubscribeDeals = onSnapshot(q, (snapshot) => {
@@ -62,7 +72,7 @@ export default function DealRoom({ profile }: { profile: UserProfile | null }) {
         const filtered = allDeals.filter(d => 
           savedGuestIds.includes(d.id) || 
           d.isGuestOrder || 
-          (guestPhoneSearch && (d.customerPhone?.includes(guestPhoneSearch) || d.id.toLowerCase().includes(guestPhoneSearch.toLowerCase())))
+          (guestPhoneSearch && (d.customerPhone?.includes(guestPhoneSearch) || d.id.toLowerCase().includes(guestPhoneSearch.toLowerCase()) || d.productName?.toLowerCase().includes(guestPhoneSearch.toLowerCase())))
         );
         setDeals(filtered);
         setEngagements([]);
@@ -79,7 +89,7 @@ export default function DealRoom({ profile }: { profile: UserProfile | null }) {
     };
   }, [profile, activeTab, guestPhoneSearch]);
 
-  const handleUpdateStage = async (dealId: string, stage: string) => {
+  const handleUpdateStage = async (dealId: string, stage: string, currentHistory: DealHistoryItem[] = []) => {
     const stageToStatus: Record<string, DealStatus> = {
       'Order Confirmed': 'confirmed',
       'Order being prepared': 'preparing',
@@ -87,24 +97,46 @@ export default function DealRoom({ profile }: { profile: UserProfile | null }) {
       'Order Delivered!': 'delivered'
     };
 
+    const now = new Date().toISOString();
+    const newHistoryItem: DealHistoryItem = {
+      stage,
+      status: stageToStatus[stage] || 'confirmed',
+      timestamp: now,
+      updatedBy: profile?.name || (profile?.currentRole === 'supplier' ? 'Supplier' : 'User')
+    };
+
+    const updatedHistory = [...currentHistory.filter(h => h.stage !== stage), newHistoryItem];
+
     try {
       await updateDoc(doc(db, 'deals', dealId), {
         trackingStage: stage,
         status: stageToStatus[stage] || 'confirmed',
-        updatedAt: new Date().toISOString()
+        history: updatedHistory,
+        updatedAt: now
       });
     } catch (e) {
       console.error("Error updating stage:", e);
     }
   };
 
-  const handleConfirmDelivery = async (dealId: string) => {
+  const handleConfirmDelivery = async (dealId: string, currentHistory: DealHistoryItem[] = []) => {
+    const now = new Date().toISOString();
+    const newHistoryItem: DealHistoryItem = {
+      stage: 'Delivered Confirmed',
+      status: 'won',
+      timestamp: now,
+      updatedBy: profile?.name || 'Buyer'
+    };
+
+    const updatedHistory = [...currentHistory, newHistoryItem];
+
     try {
       await updateDoc(doc(db, 'deals', dealId), {
         status: 'won',
         trackingStage: 'Delivered Confirmed',
         buyerConfirmedDelivery: true,
-        updatedAt: new Date().toISOString()
+        history: updatedHistory,
+        updatedAt: now
       });
     } catch (e) {
       console.error("Error confirming delivery:", e);
@@ -295,11 +327,11 @@ function DealCard({
 }: { 
   deal: Deal; 
   profile: UserProfile | null;
-  onUpdateStage: (dealId: string, stage: string) => void;
-  onConfirmDelivery: (dealId: string) => void;
+  onUpdateStage: (dealId: string, stage: string, currentHistory?: DealHistoryItem[]) => void;
+  onConfirmDelivery: (dealId: string, currentHistory?: DealHistoryItem[]) => void;
 }) {
   const [product, setProduct] = useState<Product | null>(null);
-  const [loading, setLoading] = useState(true);
+  const [showTimestamps, setShowTimestamps] = useState(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -313,8 +345,6 @@ function DealCard({
         }
       } catch (err) {
         console.error("Error fetching product for deal:", err);
-      } finally {
-        setLoading(false);
       }
     };
     fetchProduct();
@@ -373,9 +403,55 @@ function DealCard({
         </div>
       </div>
 
-      {/* Visual 4-Stage Tracker Timeline */}
+      {/* Visual 4-Stage Tracker Timeline with Timestamps */}
       <div className="pt-2">
-        <OrderTimeline status={deal.status} trackingStage={deal.trackingStage} />
+        <OrderTimeline 
+          status={deal.status} 
+          trackingStage={deal.trackingStage} 
+          createdAt={deal.createdAt}
+          updatedAt={deal.updatedAt}
+          history={deal.history}
+        />
+      </div>
+
+      {/* Toggle Timestamp & History Audit Drawer */}
+      <div className="pt-1">
+        <button 
+          onClick={() => setShowTimestamps(!showTimestamps)}
+          className="text-[9px] font-black uppercase tracking-wider text-primary hover:underline flex items-center gap-1.5 cursor-pointer"
+        >
+          <Clock size={12} />
+          {showTimestamps ? 'Hide Transaction Timeline Audit' : 'View Order Transaction Dates & Timestamps Log'}
+        </button>
+
+        {showTimestamps && (
+          <div className="mt-2.5 bg-black/60 border border-white/10 rounded-xl p-3.5 space-y-2 text-[9.5px]">
+            <p className="text-[9px] font-black uppercase tracking-widest text-primary border-b border-white/10 pb-1 flex items-center gap-1.5">
+              <Clock size={11} /> Auditable Transaction Timestamps Log
+            </p>
+            <div className="space-y-1.5">
+              <div className="flex justify-between items-center text-gray-300">
+                <span className="font-bold text-gray-400">Order Initiated:</span>
+                <span className="font-mono text-primary">{formatAuditableStamp(deal.createdAt)}</span>
+              </div>
+              <div className="flex justify-between items-center text-gray-300">
+                <span className="font-bold text-gray-400">Last Status Sync:</span>
+                <span className="font-mono text-gray-300">{formatAuditableStamp(deal.updatedAt)}</span>
+              </div>
+              {deal.history && deal.history.length > 0 && (
+                <div className="pt-2 border-t border-white/5 space-y-1">
+                  <p className="font-bold text-gray-400 uppercase tracking-wider text-[8.5px]">Stage Progress History:</p>
+                  {deal.history.map((h, i) => (
+                    <div key={i} className="flex justify-between items-center bg-white/5 px-2.5 py-1 rounded text-[8.5px]">
+                      <span className="font-black text-white uppercase">{h.stage}</span>
+                      <span className="font-mono text-gray-400">{formatAuditableStamp(h.timestamp)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
       </div>
 
       {/* Supplier Toggle Control Buttons (4 Visible Stages) */}
@@ -395,7 +471,7 @@ function DealCard({
               return (
                 <button
                   key={stage}
-                  onClick={() => onUpdateStage(deal.id, stage)}
+                  onClick={() => onUpdateStage(deal.id, stage, deal.history || [])}
                   className={cn(
                     "py-2 px-2.5 rounded-xl text-[9px] font-black uppercase tracking-wider border transition-all cursor-pointer flex items-center justify-center gap-1",
                     active
@@ -431,7 +507,7 @@ function DealCard({
             Please verify you received your order and click below to confirm.
           </p>
           <button
-            onClick={() => onConfirmDelivery(deal.id)}
+            onClick={() => onConfirmDelivery(deal.id, deal.history || [])}
             className="w-full bg-emerald-500 text-black py-3 rounded-xl font-black text-[10px] uppercase tracking-widest hover:bg-emerald-400 shadow-[0_0_20px_rgba(16,185,129,0.4)] transition-all cursor-pointer flex items-center justify-center gap-2"
           >
             <ShieldCheck size={14} /> Confirm Order Delivery & Finalize Deal

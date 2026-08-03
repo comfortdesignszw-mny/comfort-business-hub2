@@ -99,20 +99,22 @@ service cloud.firestore {
     }
 
     match /deals/{id} {
-      allow get, list: if isSignedIn();
-      allow create: if isSignedIn() && isValidId(id);
-      allow update, delete: if isSignedIn();
+      allow get, list: if true;
+      allow create: if isValidId(id);
+      allow update: if true;
+      allow delete: if isSignedIn() && (isOwner(existing().supplierId) || isOwner(existing().customerId) || isAdmin());
     }
 
     match /notifications/{id} {
-      allow get, list, create, update, delete: if isSignedIn();
+      allow create: if true;
+      allow get, list, update, delete: if isSignedIn();
     }
 
     match /conversations/{convoId} {
-      allow create, get, list, update, delete: if isSignedIn();
+      allow create, get, list, update, delete: if true;
 
       match /messages/{messageId} {
-        allow create, get, list, update, delete: if isSignedIn();
+        allow create, get, list, update, delete: if true;
       }
     }
 
