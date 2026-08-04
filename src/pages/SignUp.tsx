@@ -22,6 +22,7 @@ import {
 } from '../lib/authUtils';
 import CountryCodeSelector from '../components/CountryCodeSelector';
 import AppLogo from '../components/AppLogo';
+import GoogleIcon from '../components/GoogleIcon';
 
 export default function SignUp() {
   const navigate = useNavigate();
@@ -491,7 +492,7 @@ export default function SignUp() {
                   : 'text-gray-400 hover:text-white'
               }`}
             >
-              <Chrome size={13} />
+              <GoogleIcon size={14} />
               <span>Google</span>
             </button>
           </div>
@@ -731,7 +732,7 @@ export default function SignUp() {
           {method === 'google' && (
             <div className="space-y-4 py-2">
               <div className="p-4 bg-white/5 rounded-2xl border border-white/10 text-center space-y-2">
-                <Chrome size={32} className="text-primary mx-auto animate-pulse" />
+                <GoogleIcon size={36} className="mx-auto" />
                 <h3 className="text-xs font-black uppercase text-white tracking-widest">
                   Instant {selectedAccountType === 'supplier' ? 'Seller' : 'Buyer'} Sign Up with Google
                 </h3>
@@ -744,12 +745,12 @@ export default function SignUp() {
                 type="button"
                 onClick={handleGoogleSignUp}
                 disabled={loading}
-                className="w-full btn-neon py-4 text-xs font-black uppercase tracking-[0.2em] italic flex items-center justify-center gap-2"
+                className="w-full h-12 px-4 bg-white hover:bg-[#F8F9FA] active:bg-[#F1F3F4] text-[#1F1F1F] font-medium text-sm rounded-full border border-[#747775] transition-all flex items-center justify-center gap-3 shadow-sm hover:shadow focus:outline-none focus:ring-2 focus:ring-[#4285F4]/50 disabled:opacity-50 disabled:cursor-not-allowed"
               >
-                {loading ? <Loader2 className="animate-spin" size={18} /> : (
+                {loading ? <Loader2 className="animate-spin text-[#1F1F1F]" size={20} /> : (
                   <>
-                    <LogIn size={18} />
-                    {selectedAccountType === 'supplier' ? 'Sign Up as Seller with Google' : 'Sign Up as Buyer with Google'}
+                    <GoogleIcon size={20} />
+                    <span>Sign up with Google</span>
                   </>
                 )}
               </button>
