@@ -50,17 +50,17 @@ interface PrivacyContent {
 const PRIVACY_ENGLISH: PrivacyContent = {
   title: "Privacy",
   subtitle: "Policy",
-  version: "Data Protocol 1.0.2",
-  lastUpdated: "Last Updated: May 17, 2026",
-  welcome1: "Comfort Business Hub (\"we,\" \"our,\" or \"us\") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our Web Application (\"the Platform\").",
-  welcome2: "By accessing or using the Platform, you agree to the collection and use of information in accordance with this policy.",
-  recentUpdatesTitle: "Recent Data Updates (July 2026)",
+  version: "Data Protocol 1.1.0",
+  lastUpdated: "Last Updated: August 4, 2026",
+  welcome1: "Comfort Business Hub (\"we,\" \"our,\" or \"us\") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our Web Application, order tracking tools, and marketplace services (\"the Platform\").",
+  welcome2: "By accessing or using the Platform, including placing guest orders or tracking delivery status, you agree to the collection and use of information in accordance with this policy.",
+  recentUpdatesTitle: "Recent Data & Order Tracking Updates (August 2026)",
   recentUpdates: [
-    "Payment Method Configuration Data: Supplier payment settings (PayPal links, Stripe identifiers, EcoCash USSD codes, Cash/POD) are stored securely in profile metadata to render customized checkout options for buyers.",
-    "Direct WhatsApp App Scheme Uplink: \"Talk on WhatsApp\" triggers utilize direct device URI schemes (`whatsapp://`) to launch either WhatsApp Business or Regular WhatsApp natively.",
-    "Your Live Inventory Telemetry: Profile inventory tracking logs product status, availability, and engagement metrics to maintain accurate \"Your Live Inventory\" listings.",
-    "Location & Geo-Targeting: We collect and process location data, including default geographic approximations during login, to enhance product discovery and deliver relevant Spotlight Classified Ads.",
-    "Neural Member Network: Profile visibility within the Neural Member Network directory is public among registered users to facilitate B2B and B2C connections."
+    "Order Tracking Telemetry: Order records process customer phone numbers, delivery coordinates, and product preferences to power the 4-stage fulfillment pipeline and auditable history logs.",
+    "Guest Checkout Data Protocols: Guest orders store local order tokens in client-side HTML5 localStorage (`guest_deal_ids`). Phone numbers provided during guest checkout are used strictly for supplier dispatch and phone-based order status lookup.",
+    "Auditable Transaction Timestamp Logs: Timestamps (`createdAt`, `updatedAt`, and stage update history) are maintained in Firestore to record order progression transparently for buyers and suppliers.",
+    "Supplier Order Notification Telemetry: Unfulfilled order counts are queried in real time to generate supplier notification badges in Markets/DealRoom.",
+    "Payment Method Configuration Data: Supplier payment settings (PayPal links, Stripe identifiers, EcoCash USSD codes, Cash/POD) are stored securely in profile metadata to render customized checkout options for buyers."
   ],
   sec1Title: "01. Information We Collect",
   sec1Sub: "We collect information about you in three ways: information you provide directly, information collected automatically, and information from third-party services.",

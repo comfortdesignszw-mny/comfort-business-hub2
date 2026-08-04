@@ -188,6 +188,8 @@ export interface Deal {
   trackingStage?: 'Order Confirmed' | 'Order being prepared' | 'Order in Transit' | 'Order Delivered!' | 'Delivered Confirmed' | string;
   buyerConfirmedDelivery?: boolean;
   isGuestOrder?: boolean;
+  popReference?: string;
+  popStatus?: 'pending' | 'submitted' | 'verified';
   customerNotes?: string;
   supplierNotes?: string;
   history?: DealHistoryItem[];

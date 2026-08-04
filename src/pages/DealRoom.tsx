@@ -1,22 +1,24 @@
 import OrderTimeline from "../components/OrderTimeline";
 import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
-import { Zap, Clock, CheckCircle2, ChevronRight, DollarSign, MessageCircle, AlertCircle, ShoppingCart, Loader2, Sparkles, MessageSquare, ShoppingBag, Truck, UserCheck, Search, ShieldCheck } from 'lucide-react';
+import { Zap, Clock, CheckCircle2, ChevronRight, DollarSign, MessageCircle, AlertCircle, ShoppingCart, Loader2, Sparkles, MessageSquare, ShoppingBag, Truck, UserCheck, Search, ShieldCheck, FileText, Send } from 'lucide-react';
 import { UserProfile, Deal, DealStatus, Product, Engagement, DealHistoryItem } from '../types';
-import { cn, formatCurrency, formatAuditableStamp } from '../lib/utils';
+import { cn, formatCurrency, formatAuditableStamp, openWhatsApp } from '../lib/utils';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { collection, query, where, getDocs, doc, getDoc, orderBy, onSnapshot, updateDoc } from 'firebase/firestore';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { offlineResilientWrite } from '../lib/sync';
+import { useNotifications } from '../components/NotificationProvider';
 
 export default function DealRoom({ profile }: { profile: UserProfile | null }) {
-  const [activeTab, setActiveTab] = useState<'buying' | 'selling' | 'notifications'>(profile?.currentRole === 'supplier' ? 'notifications' : 'buying');
+  const [activeTab, setActiveTab] = useState<'selling' | 'notifications' | 'buying'>('selling');
   const [deals, setDeals] = useState<Deal[]>([]);
   const [engagements, setEngagements] = useState<Engagement[]>([]);
   const [loading, setLoading] = useState(true);
   const [guestPhoneSearch, setGuestPhoneSearch] = useState('');
   const location = useLocation();
   const navigate = useNavigate();
+  const { activeOrdersCount, sellerOrdersCount, buyerOrdersCount } = useNotifications();
 
   useEffect(() => {
     setLoading(true);
@@ -44,15 +46,23 @@ export default function DealRoom({ profile }: { profile: UserProfile | null }) {
         unsubscribeDeals = onSnapshot(q, (snapshot) => {
           const allDeals = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Deal));
           const filtered = allDeals.filter(d => {
-            if (activeTab === 'buying') {
+            if (activeTab === 'selling') {
+              // Unified "Sales and Buyer orders Tracking": includes store sales, supplier orders, guest orders, and buyer trackings
+              return (
+                d.supplierId === profile.uid ||
+                d.customerId === profile.uid ||
+                savedGuestIds.includes(d.id) ||
+                d.isGuestOrder ||
+                (profile.phone && d.customerPhone && d.customerPhone.includes(profile.phone)) ||
+                (guestPhoneSearch && (d.customerPhone?.includes(guestPhoneSearch) || d.id.toLowerCase().includes(guestPhoneSearch.toLowerCase()) || d.productName?.toLowerCase().includes(guestPhoneSearch.toLowerCase())))
+              );
+            } else {
               return (
                 d.customerId === profile.uid ||
                 savedGuestIds.includes(d.id) ||
                 (profile.phone && d.customerPhone && d.customerPhone.includes(profile.phone)) ||
                 (guestPhoneSearch && (d.customerPhone?.includes(guestPhoneSearch) || d.id.toLowerCase().includes(guestPhoneSearch.toLowerCase()) || d.productName?.toLowerCase().includes(guestPhoneSearch.toLowerCase())))
               );
-            } else {
-              return d.supplierId === profile.uid;
             }
           });
           setDeals(filtered);
@@ -181,43 +191,56 @@ export default function DealRoom({ profile }: { profile: UserProfile | null }) {
 
       {/* Role Switcher Tabs */}
       <div className="flex bg-white/5 p-1.5 rounded-2xl border border-white/5 shadow-inner backdrop-blur-md">
+        {/* Section 1: Sales and Buyer orders Tracking (Starts First) */}
+        <button 
+          onClick={() => setActiveTab('selling')}
+          className={cn(
+            "flex-1 py-3 px-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all duration-300 flex items-center justify-center gap-2 relative cursor-pointer",
+            activeTab === 'selling' ? "bg-primary text-[#05070a] shadow-[0_0_15px_rgba(0,242,254,0.3)]" : "text-gray-500 hover:text-gray-300"
+          )}
+        >
+          <Zap size={14} />
+          <span className="truncate">Sales and Buyer orders Tracking</span>
+          {(profile?.currentRole === 'supplier' ? (sellerOrdersCount || activeOrdersCount) : activeOrdersCount) > 0 && (
+            <span className="min-w-[18px] h-[18px] px-1 bg-red-600 rounded-full border border-[#05070a] flex items-center justify-center text-[9px] font-black text-white shadow-[0_0_10px_rgba(255,0,0,0.6)] animate-pulse shrink-0">
+              {profile?.currentRole === 'supplier' ? (sellerOrdersCount || activeOrdersCount) : activeOrdersCount}
+            </span>
+          )}
+        </button>
+
+        {/* Section 2: Network Feed */}
         {profile?.currentRole === 'supplier' && (
           <button 
             onClick={() => setActiveTab('notifications')}
             className={cn(
-              "flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all duration-300 flex items-center justify-center gap-2 relative cursor-pointer",
+              "flex-1 py-3 px-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all duration-300 flex items-center justify-center gap-2 relative cursor-pointer",
               activeTab === 'notifications' ? "bg-accent text-white shadow-[0_0_15px_rgba(240,147,251,0.3)]" : "text-gray-500 hover:text-gray-300"
             )}
           >
             <Sparkles size={14} />
-            Network Feed
+            <span className="truncate">Network Feed</span>
             {engagements.length > 0 && activeTab !== 'notifications' && (
-              <span className="absolute top-2 right-2 w-2 h-2 bg-red-500 rounded-full animate-ping"></span>
+              <span className="w-2 h-2 bg-red-500 rounded-full animate-ping shrink-0"></span>
             )}
           </button>
         )}
+
+        {/* Section 3: Buyer Orders */}
         <button 
           onClick={() => setActiveTab('buying')}
           className={cn(
-            "flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer",
+            "flex-1 py-3 px-2 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all duration-300 flex items-center justify-center gap-2 relative cursor-pointer",
             activeTab === 'buying' ? "bg-primary text-[#05070a] shadow-[0_0_15px_rgba(0,242,254,0.3)]" : "text-gray-500 hover:text-gray-300"
           )}
         >
           <ShoppingCart size={14} />
-          {profile?.currentRole === 'supplier' ? 'Buyer Orders' : 'My Orders & Deliveries'}
+          <span className="truncate">Buyer Orders</span>
+          {buyerOrdersCount > 0 && (
+            <span className="min-w-[16px] h-[16px] px-1 bg-red-600/80 rounded-full flex items-center justify-center text-[8px] font-black text-white shrink-0">
+              {buyerOrdersCount}
+            </span>
+          )}
         </button>
-        {profile?.currentRole === 'supplier' && (
-          <button 
-            onClick={() => setActiveTab('selling')}
-            className={cn(
-              "flex-1 py-3 text-[10px] font-black uppercase tracking-widest rounded-xl transition-all duration-300 flex items-center justify-center gap-2 cursor-pointer",
-              activeTab === 'selling' ? "bg-primary text-[#05070a] shadow-[0_0_15px_rgba(0,242,254,0.3)]" : "text-gray-500 hover:text-gray-300"
-            )}
-          >
-            <Zap size={14} />
-            Store Sales
-          </button>
-        )}
       </div>
 
       <div className="space-y-6">
@@ -332,6 +355,9 @@ function DealCard({
 }) {
   const [product, setProduct] = useState<Product | null>(null);
   const [showTimestamps, setShowTimestamps] = useState(false);
+  const [supplierPhone, setSupplierPhone] = useState<string>('');
+  const [popInput, setPopInput] = useState<string>('');
+  const [submittingPop, setSubmittingPop] = useState<boolean>(false);
   const navigate = useNavigate();
 
   useEffect(() => {
@@ -347,12 +373,107 @@ function DealCard({
         console.error("Error fetching product for deal:", err);
       }
     };
+    const fetchSupplierPhone = async () => {
+      try {
+        if (deal.supplierId) {
+          const userSnap = await getDoc(doc(db, 'public_profiles', deal.supplierId));
+          if (userSnap.exists()) {
+            const data = userSnap.data();
+            setSupplierPhone(data.whatsappNumber || data.phone || data.phoneNumber || '');
+          }
+        }
+      } catch (err) {
+        console.error("Error fetching supplier phone:", err);
+      }
+    };
     fetchProduct();
-  }, [deal.productId]);
+    fetchSupplierPhone();
+  }, [deal.productId, deal.supplierId]);
 
   const isSupplier = profile?.uid === deal.supplierId || profile?.currentRole === 'supplier';
+  const isPOD = deal.paymentMethod === 'pod';
   const isDeliveredStage = (deal.trackingStage === 'Order Delivered!') || deal.status === 'delivered';
   const isWon = deal.status === 'won' || deal.buyerConfirmedDelivery;
+
+  const handleWirePaymentWhatsApp = () => {
+    const buyerName = deal.customerName || 'Customer';
+    const totalAmount = deal.agreedPrice;
+    const messageText = `🛒 *SALES ORDER PAYMENT INFO*\n` +
+      `━━━━━━━━━━━━━━━━━━━━\n` +
+      `• *Order ID:* ${deal.id}\n` +
+      `• *Buyer Name:* ${buyerName}\n` +
+      `• *Buyer Phone:* ${deal.customerPhone || 'N/A'}\n` +
+      `• *Buyer Email:* ${deal.customerEmail || 'N/A'}\n` +
+      `• *Product/Service:* ${deal.productName || product?.name || 'Item'} (x${deal.quantity || 1})\n` +
+      `• *Total Purchase:* ${formatCurrency(totalAmount, product?.currency || 'USD')}\n` +
+      `• *Payment System:* ${(deal.paymentMethod || 'Non-POD').toUpperCase()}\n` +
+      `• *Date:* ${formatAuditableStamp(deal.createdAt)}\n` +
+      `━━━━━━━━━━━━━━━━━━━━\n` +
+      `*Status:* Sales Order logged in Deal Room. Please confirm processing.`;
+
+    if (supplierPhone) {
+      openWhatsApp(supplierPhone, messageText);
+    } else {
+      navigator.clipboard.writeText(messageText);
+      alert('Payment info copied to clipboard!');
+    }
+  };
+
+  const handleSubmitPopInDeal = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!popInput.trim()) return;
+    setSubmittingPop(true);
+
+    try {
+      const updatedDeal: Deal = {
+        ...deal,
+        popReference: popInput.trim(),
+        popStatus: 'submitted',
+        updatedAt: new Date().toISOString(),
+        history: [
+          ...(deal.history || []),
+          {
+            stage: 'POP Submitted',
+            status: 'confirmed',
+            timestamp: new Date().toISOString(),
+            updatedBy: deal.customerName || 'Customer',
+            note: `Proof of payment submitted: ${popInput.trim()}`
+          }
+        ]
+      };
+
+      await offlineResilientWrite('deals', deal.id, 'update', updatedDeal);
+      setPopInput('');
+    } catch (err) {
+      console.error("POP submission error in DealCard:", err);
+    } finally {
+      setSubmittingPop(false);
+    }
+  };
+
+  const handleVerifyPopBySupplier = async () => {
+    try {
+      const updatedDeal: Deal = {
+        ...deal,
+        popStatus: 'verified',
+        updatedAt: new Date().toISOString(),
+        history: [
+          ...(deal.history || []),
+          {
+            stage: 'POP Verified',
+            status: 'confirmed',
+            timestamp: new Date().toISOString(),
+            updatedBy: profile?.name || 'Supplier',
+            note: `Supplier verified Proof of Payment: ${deal.popReference}`
+          }
+        ]
+      };
+
+      await offlineResilientWrite('deals', deal.id, 'update', updatedDeal);
+    } catch (err) {
+      console.error("POP verification error:", err);
+    }
+  };
 
   return (
     <motion.div 
@@ -397,13 +518,104 @@ function DealCard({
           <p className="text-lg font-black text-primary italic">
             {formatCurrency(deal.agreedPrice, product?.currency || 'USD')}
           </p>
-          <span className="text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded bg-white/5 border border-white/10 text-gray-300 block">
+          <span className={cn(
+            "text-[9px] font-black uppercase tracking-widest px-2 py-0.5 rounded border block",
+            isPOD ? "bg-amber-500/20 text-amber-300 border-amber-500/30" : "bg-primary/20 text-primary border-primary/30"
+          )}>
             {deal.paymentMethod ? deal.paymentMethod.toUpperCase() : 'PAYMENT'}
           </span>
         </div>
       </div>
 
-      {/* Visual 4-Stage Tracker Timeline with Timestamps */}
+      {/* Non-POD Sales Order Payment Info & Proof of Payment (POP) Box */}
+      {!isPOD && (
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-3">
+          <div className="flex justify-between items-center border-b border-white/10 pb-2">
+            <span className="text-[10px] font-black uppercase tracking-widest text-primary flex items-center gap-1.5">
+              <Zap size={12} /> Non-POD Sales Order Payment Info
+            </span>
+            <span className="text-[9px] font-mono text-gray-400 uppercase">
+              System: {deal.paymentMethod ? deal.paymentMethod.toUpperCase() : 'DIRECT'}
+            </span>
+          </div>
+
+          <div className="grid grid-cols-2 sm:grid-cols-3 gap-2 text-xs">
+            <div>
+              <p className="text-[8.5px] text-gray-400 font-bold uppercase">Buyer Name</p>
+              <p className="font-bold text-white text-[11px]">{deal.customerName || 'Customer'}</p>
+            </div>
+            <div>
+              <p className="text-[8.5px] text-gray-400 font-bold uppercase">Phone Number</p>
+              <p className="font-mono font-bold text-gray-200 text-[11px]">{deal.customerPhone || 'N/A'}</p>
+            </div>
+            <div>
+              <p className="text-[8.5px] text-gray-400 font-bold uppercase">Total Purchase</p>
+              <p className="font-black text-primary text-[11px]">{formatCurrency(deal.agreedPrice, product?.currency || 'USD')}</p>
+            </div>
+          </div>
+
+          {/* WhatsApp Wire Button */}
+          <button
+            onClick={handleWirePaymentWhatsApp}
+            className="w-full bg-emerald-600/90 hover:bg-emerald-500 text-white py-2.5 px-3 rounded-xl text-[9.5px] font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all cursor-pointer shadow-md"
+          >
+            <MessageCircle size={14} /> Wire Sales Payment Info on WhatsApp
+          </button>
+
+          {/* Proof of Payment (POP) State */}
+          <div className="pt-2 border-t border-white/10 space-y-2">
+            <p className="text-[9px] font-black uppercase tracking-widest text-amber-400 flex items-center gap-1">
+              <FileText size={12} /> Proof of Payment (POP) Status
+            </p>
+
+            {deal.popReference ? (
+              <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
+                <div>
+                  <p className="text-[10px] font-mono font-bold text-white">
+                    Ref / Code: <span className="text-amber-300 font-black">{deal.popReference}</span>
+                  </p>
+                  <p className="text-[9px] text-gray-400">
+                    Status: {deal.popStatus === 'verified' ? (
+                      <span className="text-emerald-400 font-black">Verified by Supplier ✓</span>
+                    ) : (
+                      <span className="text-amber-400 font-bold">Awaiting Supplier Verification</span>
+                    )}
+                  </p>
+                </div>
+
+                {isSupplier && deal.popStatus !== 'verified' && (
+                  <button
+                    onClick={handleVerifyPopBySupplier}
+                    className="bg-emerald-500 hover:bg-emerald-400 text-black px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1 cursor-pointer shrink-0"
+                  >
+                    <CheckCircle2 size={12} /> Verify POP & Conclude Sale
+                  </button>
+                )}
+              </div>
+            ) : (
+              <form onSubmit={handleSubmitPopInDeal} className="flex gap-2">
+                <input
+                  type="text"
+                  required
+                  value={popInput}
+                  onChange={e => setPopInput(e.target.value)}
+                  placeholder="Enter POP Ref / Transaction Code (e.g. EC12345678)"
+                  className="flex-1 bg-black/50 border border-white/10 rounded-xl px-3 py-1.5 text-white text-xs font-mono outline-none focus:border-amber-400"
+                />
+                <button
+                  type="submit"
+                  disabled={submittingPop}
+                  className="bg-amber-500 hover:bg-amber-400 text-black px-3 py-1.5 rounded-xl font-black text-[9px] uppercase tracking-wider flex items-center gap-1 cursor-pointer shrink-0"
+                >
+                  {submittingPop ? <Loader2 className="animate-spin" size={12} /> : <Send size={12} />} Submit POP
+                </button>
+              </form>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Visual 4-Stage Tracker Timeline with Timestamps (Active for POD orders as required) */}
       <div className="pt-2">
         <OrderTimeline 
           status={deal.status} 
@@ -454,7 +666,7 @@ function DealCard({
         )}
       </div>
 
-      {/* Supplier Toggle Control Buttons (4 Visible Stages) */}
+      {/* Supplier Toggle Control Buttons (4 Visible Stages for POD and Order Control) */}
       {isSupplier && (
         <div className="space-y-2 pt-3 border-t border-white/10">
           <p className="text-[9px] font-black text-primary uppercase tracking-widest">

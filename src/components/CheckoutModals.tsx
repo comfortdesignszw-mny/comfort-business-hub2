@@ -3,12 +3,12 @@ import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { 
   X, ChevronDown, ChevronUp, MapPinned, CreditCard, Phone, Loader2, CheckCircle2, ShieldAlert,
-  Landmark, Copy, Check, ExternalLink, Star, Wallet, Zap, User
+  Landmark, Copy, Check, ExternalLink, Star, Wallet, Zap, User, MessageCircle, Send, FileText
 } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { UserProfile, Product, Deal } from '../types';
-import { cn, formatCurrency } from '../lib/utils';
+import { cn, formatCurrency, openWhatsApp } from '../lib/utils';
 import { interactionService } from '../services/interactionService';
 import { useMessaging } from './MessagingProvider';
 import { offlineResilientWrite } from '../lib/sync';
@@ -89,6 +89,238 @@ export function LegalDisclaimerNotice() {
         Privacy Policy
       </a>
     </p>
+  );
+}
+
+export function SalesOrderConfirmationModal({
+  dealData,
+  product,
+  profile,
+  onClose,
+  paymentMethodLabel
+}: {
+  dealData: Deal;
+  product: Product;
+  profile: UserProfile | null;
+  onClose: () => void;
+  paymentMethodLabel: string;
+}) {
+  const navigate = useNavigate();
+  const [supplierPhone, setSupplierPhone] = useState<string>('');
+  const [popInput, setPopInput] = useState<string>('');
+  const [popSubmitted, setPopSubmitted] = useState<boolean>(!!dealData.popReference);
+  const [submittingPop, setSubmittingPop] = useState<boolean>(false);
+  const [copiedText, setCopiedText] = useState<boolean>(false);
+
+  useEffect(() => {
+    const fetchSupplier = async () => {
+      try {
+        const userSnap = await getDoc(doc(db, 'public_profiles', product.ownerId));
+        if (userSnap.exists()) {
+          const data = userSnap.data();
+          const phone = data.whatsappNumber || data.phone || data.phoneNumber || '';
+          setSupplierPhone(phone);
+        }
+      } catch (e) {
+        console.error("Error fetching supplier phone:", e);
+      }
+    };
+    fetchSupplier();
+  }, [product.ownerId]);
+
+  const totalAmount = dealData.agreedPrice || (product.price * (dealData.quantity || 1));
+  const buyerName = dealData.customerName || 'Customer';
+  const buyerPhone = dealData.customerPhone || 'N/A';
+  const buyerEmail = dealData.customerEmail || 'N/A';
+
+  const handleWhatsAppRedirect = () => {
+    const messageText = `🛒 *SALES ORDER PAYMENT INFO*\n` +
+      `━━━━━━━━━━━━━━━━━━━━\n` +
+      `• *Order ID:* ${dealData.id}\n` +
+      `• *Buyer Name:* ${buyerName}\n` +
+      `• *Buyer Phone:* ${buyerPhone}\n` +
+      `• *Buyer Email:* ${buyerEmail}\n` +
+      `• *Product/Service:* ${product.name} (x${dealData.quantity || 1})\n` +
+      `• *Unit Price:* ${formatCurrency(product.price, product.currency)}\n` +
+      `• *Total Purchase:* ${formatCurrency(totalAmount, product.currency)}\n` +
+      `• *Payment System:* ${paymentMethodLabel}\n` +
+      `• *Date:* ${new Date().toLocaleDateString()}\n` +
+      `━━━━━━━━━━━━━━━━━━━━\n` +
+      `*Status:* Sales Order Created & Seller Notified. Please confirm order processing.`;
+
+    if (supplierPhone) {
+      openWhatsApp(supplierPhone, messageText);
+    } else {
+      navigator.clipboard.writeText(messageText);
+      setCopiedText(true);
+      setTimeout(() => setCopiedText(false), 3000);
+    }
+  };
+
+  const handleSubmitPop = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!popInput.trim()) return;
+    setSubmittingPop(true);
+
+    try {
+      const updatedDeal: Deal = {
+        ...dealData,
+        popReference: popInput.trim(),
+        popStatus: 'submitted',
+        updatedAt: new Date().toISOString(),
+        history: [
+          ...(dealData.history || []),
+          {
+            stage: 'POP Submitted',
+            status: 'confirmed',
+            timestamp: new Date().toISOString(),
+            updatedBy: buyerName,
+            note: `Proof of payment submitted: ${popInput.trim()}`
+          }
+        ]
+      };
+
+      await offlineResilientWrite('deals', dealData.id, 'update', updatedDeal);
+
+      await interactionService.sendNotification(
+        product.ownerId,
+        'buy',
+        buildUserProfileForNotification(profile, dealData.customerId, buyerName, buyerPhone, buyerEmail),
+        product.id,
+        'Proof of Payment (POP) Received!',
+        `${buyerName} submitted POP (${popInput.trim()}) for ${product.name} (${paymentMethodLabel}).`
+      );
+
+      setPopSubmitted(true);
+    } catch (err) {
+      console.error("POP submission error:", err);
+      setPopSubmitted(true);
+    } finally {
+      setSubmittingPop(false);
+    }
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+      <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[#05070a]/90 backdrop-blur-md" onClick={onClose} />
+      <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-lg neon-card p-6 space-y-5 max-h-[90vh] overflow-y-auto custom-scrollbar">
+        
+        <div className="bg-emerald-500/10 border border-emerald-500/30 rounded-2xl p-4 text-center space-y-2">
+          <div className="w-14 h-14 bg-emerald-500/20 text-emerald-400 rounded-2xl flex items-center justify-center mx-auto border border-emerald-500/40 shadow-[0_0_20px_rgba(16,185,129,0.3)] animate-bounce">
+            <CheckCircle2 size={32} />
+          </div>
+          <h3 className="text-base font-black text-emerald-400 uppercase italic tracking-tight">
+            Sales Order Created & Seller Notified!
+          </h3>
+          <p className="text-[10px] text-gray-300 font-bold leading-relaxed">
+            Your sales order has been generated and the supplier has received a real-time notification.
+          </p>
+        </div>
+
+        <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-3">
+          <div className="flex justify-between items-center border-b border-white/10 pb-2">
+            <span className="text-[10px] font-black uppercase tracking-widest text-primary">Sales Order Payment Details</span>
+            <span className="text-[9px] font-mono text-gray-400">ID: {dealData.id.slice(0, 10).toUpperCase()}</span>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3 text-xs">
+            <div>
+              <p className="text-[9px] text-gray-400 font-bold uppercase">Buyer Name</p>
+              <p className="font-black text-white">{buyerName}</p>
+            </div>
+            <div>
+              <p className="text-[9px] text-gray-400 font-bold uppercase">Phone Number</p>
+              <p className="font-mono font-bold text-gray-200">{buyerPhone}</p>
+            </div>
+            <div>
+              <p className="text-[9px] text-gray-400 font-bold uppercase">Email Address</p>
+              <p className="font-mono text-gray-300 truncate">{buyerEmail}</p>
+            </div>
+            <div>
+              <p className="text-[9px] text-gray-400 font-bold uppercase">Payment System Chosen</p>
+              <span className="px-2 py-0.5 rounded bg-primary/20 text-primary border border-primary/30 text-[9px] font-black uppercase inline-block mt-0.5">
+                {paymentMethodLabel}
+              </span>
+            </div>
+          </div>
+
+          <div className="pt-2 border-t border-white/5 flex justify-between items-center">
+            <div>
+              <p className="text-[10px] font-black text-white italic uppercase">{product.name} (x{dealData.quantity || 1})</p>
+              <p className="text-[9px] text-gray-400 font-medium">Unit Price: {formatCurrency(product.price, product.currency)}</p>
+            </div>
+            <div className="text-right">
+              <p className="text-[9px] text-gray-400 font-bold uppercase">Total Purchase</p>
+              <p className="text-base font-black text-primary italic">{formatCurrency(totalAmount, product.currency)}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <p className="text-[9px] font-black text-gray-400 uppercase tracking-widest">
+            Wire Payment Information to Supplier:
+          </p>
+          <button
+            onClick={handleWhatsAppRedirect}
+            className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-3.5 px-4 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all cursor-pointer"
+          >
+            <MessageCircle size={16} /> Wire Payment Info on WhatsApp
+          </button>
+          {copiedText && (
+            <p className="text-[9px] text-emerald-400 text-center font-mono">
+              Payment information copied to clipboard!
+            </p>
+          )}
+        </div>
+
+        <div className="bg-amber-500/10 border border-amber-500/30 rounded-2xl p-4 space-y-3">
+          <div className="flex items-center gap-2 text-amber-400">
+            <FileText size={16} />
+            <span className="text-[10px] font-black uppercase tracking-wider">
+              Proof of Payment (POP) Confirmation
+            </span>
+          </div>
+          <p className="text-[9.5px] text-gray-300 leading-relaxed font-medium">
+            Enter your payment transaction reference code (e.g. EcoCash Approval Code, Bank Reference Number, or Receipt ID) to conclude the sale.
+          </p>
+
+          {popSubmitted ? (
+            <div className="bg-emerald-500/20 border border-emerald-500/40 p-3 rounded-xl flex items-center gap-2 text-emerald-300 text-xs font-bold">
+              <CheckCircle2 size={16} className="shrink-0" />
+              <span>Proof of Payment (POP) submitted successfully! Supplier notified to conclude sale.</span>
+            </div>
+          ) : (
+            <form onSubmit={handleSubmitPop} className="space-y-2">
+              <input
+                type="text"
+                required
+                value={popInput}
+                onChange={e => setPopInput(e.target.value)}
+                placeholder="Enter POP Ref / Transaction Code (e.g. EC12345678)"
+                className="w-full bg-black/50 border border-white/10 rounded-xl px-3.5 py-2.5 text-white text-xs font-mono outline-none focus:border-amber-400"
+              />
+              <button
+                type="submit"
+                disabled={submittingPop}
+                className="w-full bg-amber-500 hover:bg-amber-400 text-black py-2.5 rounded-xl font-black text-[9.5px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all cursor-pointer"
+              >
+                {submittingPop ? <Loader2 className="animate-spin" size={14} /> : <Send size={14} />} Send Proof of Payment (POP) to Conclude Sale
+              </button>
+            </form>
+          )}
+        </div>
+
+        <button
+          onClick={() => {
+            onClose();
+            navigate('/deals');
+          }}
+          className="w-full btn-neon py-3 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer"
+        >
+          <Zap size={14} /> Track Order in Sales & Buyer Orders Hub
+        </button>
+      </motion.div>
+    </div>
   );
 }
 
@@ -468,6 +700,7 @@ export function EcoCashModal({ product, profile, onClose, quantity }: {
   const [guestName, setGuestName] = useState(initialContact.name);
   const [guestPhone, setGuestPhone] = useState(initialContact.phone);
   const [guestEmail, setGuestEmail] = useState(initialContact.email);
+  const [confirmedDeal, setConfirmedDeal] = useState<Deal | null>(null);
 
   useEffect(() => {
     const fetchUSSD = async () => {
@@ -532,18 +765,35 @@ export function EcoCashModal({ product, profile, onClose, quantity }: {
       localStorage.setItem('guest_deal_ids', JSON.stringify([...existing, dealId]));
     } catch (e) {}
 
-    interactionService.sendNotification(
+    await interactionService.sendNotification(
       product.ownerId,
       'buy',
       buildUserProfileForNotification(profile, guestId, guestName, guestPhone, guestEmail),
-      product.id
+      product.id,
+      'New EcoCash Sales Order Received!',
+      `${guestName} placed an EcoCash order for ${product.name} (x${quantity}).`
     );
 
     const command = ussd || `*151*2*2*0770000000*${Math.round(product.price * quantity)}#`;
     const encodedUssd = command.replace(/#/g, '%23');
-    window.location.href = `tel:${encodedUssd}`;
-    onClose();
+    try {
+      window.location.href = `tel:${encodedUssd}`;
+    } catch (err) {}
+
+    setConfirmedDeal(dealData);
   };
+
+  if (confirmedDeal) {
+    return (
+      <SalesOrderConfirmationModal
+        dealData={confirmedDeal}
+        product={product}
+        profile={profile}
+        onClose={onClose}
+        paymentMethodLabel="EcoCash Direct"
+      />
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -590,7 +840,6 @@ export function PayPalModal({ product, profile, onClose, quantity }: {
   onClose: () => void;
   quantity: number;
 }) {
-  const navigate = useNavigate();
   const { startConversation } = useMessaging();
   const initialContact = getSavedGuestContact(profile);
   const [guestName, setGuestName] = useState(initialContact.name);
@@ -598,7 +847,7 @@ export function PayPalModal({ product, profile, onClose, quantity }: {
   const [guestEmail, setGuestEmail] = useState(initialContact.email);
   const [paypalEmail, setPaypalEmail] = useState(initialContact.email || '');
   const [submitting, setSubmitting] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [confirmedDeal, setConfirmedDeal] = useState<Deal | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -634,7 +883,14 @@ export function PayPalModal({ product, profile, onClose, quantity }: {
       const existing = JSON.parse(localStorage.getItem('guest_deal_ids') || '[]');
       localStorage.setItem('guest_deal_ids', JSON.stringify([...existing, dealId]));
 
-      await interactionService.sendNotification(product.ownerId, 'buy', buildUserProfileForNotification(profile, guestId, guestName, guestPhone, guestEmail), product.id);
+      await interactionService.sendNotification(
+        product.ownerId,
+        'buy',
+        buildUserProfileForNotification(profile, guestId, guestName, guestPhone, guestEmail),
+        product.id,
+        'New PayPal Sales Order Received!',
+        `${guestName} placed a PayPal order for ${product.name} (x${quantity}).`
+      );
 
       const orderMsg = `💳 PAYPAL ORDER AUTHORIZED\n\n` +
         `• ITEM: ${product.name}\n` +
@@ -645,18 +901,26 @@ export function PayPalModal({ product, profile, onClose, quantity }: {
 
       startConversation(product.ownerId, orderMsg).catch(console.error);
 
-      setSuccess(true);
-      setTimeout(() => {
-        onClose();
-        navigate(`/deals`);
-      }, 1500);
+      setConfirmedDeal(dealData);
     } catch (e) {
       console.error(e);
-      setSuccess(true);
+      setConfirmedDeal(dealData);
     } finally {
       setSubmitting(false);
     }
   };
+
+  if (confirmedDeal) {
+    return (
+      <SalesOrderConfirmationModal
+        dealData={confirmedDeal}
+        product={product}
+        profile={profile}
+        onClose={onClose}
+        paymentMethodLabel="PayPal Gateway"
+      />
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -670,15 +934,8 @@ export function PayPalModal({ product, profile, onClose, quantity }: {
           <button onClick={onClose} className="text-gray-500 hover:text-white"><X size={18} /></button>
         </div>
 
-        {success ? (
-          <div className="py-8 text-center space-y-3">
-            <CheckCircle2 size={48} className="mx-auto text-emerald-400 animate-bounce" />
-            <h4 className="text-sm font-black text-white uppercase italic">PayPal Order Approved</h4>
-            <p className="text-[10px] text-gray-400">Order details recorded for tracking in Markets.</p>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="bg-white/5 p-4 rounded-2xl border border-white/10 space-y-1">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="bg-white/5 p-4 rounded-2xl border border-white/10 space-y-1">
               <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">{product.name} (x{quantity})</p>
               <p className="text-lg font-black text-primary">{formatCurrency(product.price * quantity, product.currency)}</p>
             </div>
@@ -711,7 +968,6 @@ export function PayPalModal({ product, profile, onClose, quantity }: {
               <LegalDisclaimerNotice />
             </div>
           </form>
-        )}
       </motion.div>
     </div>
   );
@@ -723,7 +979,6 @@ export function StripeModal({ product, profile, onClose, quantity }: {
   onClose: () => void;
   quantity: number;
 }) {
-  const navigate = useNavigate();
   const { startConversation } = useMessaging();
   const initialContact = getSavedGuestContact(profile);
   const [guestName, setGuestName] = useState(initialContact.name);
@@ -734,7 +989,7 @@ export function StripeModal({ product, profile, onClose, quantity }: {
   const [expiry, setExpiry] = useState('');
   const [cvc, setCvc] = useState('');
   const [submitting, setSubmitting] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [confirmedDeal, setConfirmedDeal] = useState<Deal | null>(null);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -770,7 +1025,14 @@ export function StripeModal({ product, profile, onClose, quantity }: {
       const existing = JSON.parse(localStorage.getItem('guest_deal_ids') || '[]');
       localStorage.setItem('guest_deal_ids', JSON.stringify([...existing, dealId]));
 
-      await interactionService.sendNotification(product.ownerId, 'buy', buildUserProfileForNotification(profile, guestId, guestName, guestPhone, guestEmail), product.id);
+      await interactionService.sendNotification(
+        product.ownerId,
+        'buy',
+        buildUserProfileForNotification(profile, guestId, guestName, guestPhone, guestEmail),
+        product.id,
+        'New Stripe Sales Order Received!',
+        `${guestName} placed a Stripe card order for ${product.name} (x${quantity}).`
+      );
 
       const orderMsg = `💳 STRIPE CARD ORDER PROCESSED\n\n` +
         `• ITEM: ${product.name}\n` +
@@ -781,18 +1043,26 @@ export function StripeModal({ product, profile, onClose, quantity }: {
 
       startConversation(product.ownerId, orderMsg).catch(console.error);
 
-      setSuccess(true);
-      setTimeout(() => {
-        onClose();
-        navigate(`/deals`);
-      }, 1500);
+      setConfirmedDeal(dealData);
     } catch (e) {
       console.error(e);
-      setSuccess(true);
+      setConfirmedDeal(dealData);
     } finally {
       setSubmitting(false);
     }
   };
+
+  if (confirmedDeal) {
+    return (
+      <SalesOrderConfirmationModal
+        dealData={confirmedDeal}
+        product={product}
+        profile={profile}
+        onClose={onClose}
+        paymentMethodLabel="Stripe Card Gateway"
+      />
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -806,15 +1076,8 @@ export function StripeModal({ product, profile, onClose, quantity }: {
           <button onClick={onClose} className="text-gray-500 hover:text-white"><X size={18} /></button>
         </div>
 
-        {success ? (
-          <div className="py-8 text-center space-y-3">
-            <CheckCircle2 size={48} className="mx-auto text-emerald-400 animate-bounce" />
-            <h4 className="text-sm font-black text-white uppercase italic">Stripe Card Approved</h4>
-            <p className="text-[10px] text-gray-400">Order recorded for live tracking in Markets.</p>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="bg-white/5 p-4 rounded-2xl border border-white/10 space-y-1">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="bg-white/5 p-4 rounded-2xl border border-white/10 space-y-1">
               <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">{product.name} (x{quantity})</p>
               <p className="text-lg font-black text-primary">{formatCurrency(product.price * quantity, product.currency)}</p>
             </div>
@@ -887,7 +1150,6 @@ export function StripeModal({ product, profile, onClose, quantity }: {
               <LegalDisclaimerNotice />
             </div>
           </form>
-        )}
       </motion.div>
     </div>
   );
@@ -1092,7 +1354,6 @@ export function BankModal({ product, profile, onClose, quantity }: {
   onClose: () => void;
   quantity: number;
 }) {
-  const navigate = useNavigate();
   const { startConversation } = useMessaging();
   const initialContact = getSavedGuestContact(profile);
   const [guestName, setGuestName] = useState(initialContact.name);
@@ -1107,7 +1368,7 @@ export function BankModal({ product, profile, onClose, quantity }: {
   }>({});
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [success, setSuccess] = useState(false);
+  const [confirmedDeal, setConfirmedDeal] = useState<Deal | null>(null);
 
   useEffect(() => {
     const fetchBankDetails = async () => {
@@ -1180,7 +1441,14 @@ export function BankModal({ product, profile, onClose, quantity }: {
       const existing = JSON.parse(localStorage.getItem('guest_deal_ids') || '[]');
       localStorage.setItem('guest_deal_ids', JSON.stringify([...existing, dealId]));
 
-      await interactionService.sendNotification(product.ownerId, 'buy', buildUserProfileForNotification(profile, guestId, guestName, guestPhone, guestEmail), product.id);
+      await interactionService.sendNotification(
+        product.ownerId,
+        'buy',
+        buildUserProfileForNotification(profile, guestId, guestName, guestPhone, guestEmail),
+        product.id,
+        'New Bank Transfer Order Received!',
+        `${guestName} initiated a bank transfer order for ${product.name} (x${quantity}).`
+      );
 
       const orderMsg = `🏦 BANK TRANSFER ORDER INITIATED\n\n` +
         `• ITEM: ${product.name}\n` +
@@ -1190,18 +1458,26 @@ export function BankModal({ product, profile, onClose, quantity }: {
 
       startConversation(product.ownerId, orderMsg).catch(console.error);
 
-      setSuccess(true);
-      setTimeout(() => {
-        onClose();
-        navigate(`/deals`);
-      }, 1500);
+      setConfirmedDeal(dealData);
     } catch (e) {
       console.error(e);
-      setSuccess(true);
+      setConfirmedDeal(dealData);
     } finally {
       setSubmitting(false);
     }
   };
+
+  if (confirmedDeal) {
+    return (
+      <SalesOrderConfirmationModal
+        dealData={confirmedDeal}
+        product={product}
+        profile={profile}
+        onClose={onClose}
+        paymentMethodLabel="Bank Direct Transfer"
+      />
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
@@ -1215,15 +1491,8 @@ export function BankModal({ product, profile, onClose, quantity }: {
           <button onClick={onClose} className="text-gray-500 hover:text-white p-1"><X size={18} /></button>
         </div>
 
-        {success ? (
-          <div className="py-8 text-center space-y-3">
-            <CheckCircle2 size={48} className="mx-auto text-emerald-400 animate-bounce" />
-            <h4 className="text-sm font-black text-white uppercase italic">Bank Transfer Notified</h4>
-            <p className="text-[10px] text-gray-400">Bank deposit instructions logged for tracking.</p>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="space-y-4">
-            <div className="bg-white/5 p-4 rounded-2xl border border-white/10 space-y-1">
+        <form onSubmit={handleSubmit} className="space-y-4">
+          <div className="bg-white/5 p-4 rounded-2xl border border-white/10 space-y-1">
               <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">{product.name} (x{quantity})</p>
               <p className="text-lg font-black text-primary">{formatCurrency(product.price * quantity, product.currency)}</p>
             </div>
@@ -1288,7 +1557,6 @@ export function BankModal({ product, profile, onClose, quantity }: {
               <LegalDisclaimerNotice />
             </div>
           </form>
-        )}
       </motion.div>
     </div>
   );
@@ -1300,7 +1568,6 @@ export function PaynowModal({ product, profile, onClose, quantity }: {
   onClose: () => void;
   quantity: number;
 }) {
-  const navigate = useNavigate();
   const { startConversation } = useMessaging();
   const initialContact = getSavedGuestContact(profile);
   const [guestName, setGuestName] = useState(initialContact.name);
@@ -1308,6 +1575,7 @@ export function PaynowModal({ product, profile, onClose, quantity }: {
   const [guestEmail, setGuestEmail] = useState(initialContact.email);
   const [paynowDetail, setPaynowDetail] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const [confirmedDeal, setConfirmedDeal] = useState<Deal | null>(null);
 
   useEffect(() => {
     const fetchPaynow = async () => {
@@ -1362,7 +1630,14 @@ export function PaynowModal({ product, profile, onClose, quantity }: {
       const existing = JSON.parse(localStorage.getItem('guest_deal_ids') || '[]');
       localStorage.setItem('guest_deal_ids', JSON.stringify([...existing, dealId]));
 
-      await interactionService.sendNotification(product.ownerId, 'buy', buildUserProfileForNotification(profile, guestId, guestName, guestPhone, guestEmail), product.id);
+      await interactionService.sendNotification(
+        product.ownerId,
+        'buy',
+        buildUserProfileForNotification(profile, guestId, guestName, guestPhone, guestEmail),
+        product.id,
+        'New Paynow Sales Order Received!',
+        `${guestName} initiated a Paynow order for ${product.name} (x${quantity}).`
+      );
 
       const orderMsg = `💳 PAYNOW ORDER INITIATED\n\n` +
         `• ITEM: ${product.name}\n` +
@@ -1375,12 +1650,24 @@ export function PaynowModal({ product, profile, onClose, quantity }: {
       if (paynowDetail.startsWith('http://') || paynowDetail.startsWith('https://')) {
         window.open(paynowDetail, '_blank');
       }
-      onClose();
-      navigate(`/deals`);
+      setConfirmedDeal(dealData);
     } catch (e) {
       console.error(e);
+      setConfirmedDeal(dealData);
     }
   };
+
+  if (confirmedDeal) {
+    return (
+      <SalesOrderConfirmationModal
+        dealData={confirmedDeal}
+        product={product}
+        profile={profile}
+        onClose={onClose}
+        paymentMethodLabel="Paynow Gateway"
+      />
+    );
+  }
 
   return (
     <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
