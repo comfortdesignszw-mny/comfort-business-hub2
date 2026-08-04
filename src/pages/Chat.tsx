@@ -55,13 +55,18 @@ export default function Chat({ profile }: { profile: UserProfile | null }) {
         const otherId = data.participants?.find((p: string) => p !== activeUid);
         
         // Fetch unread count for this convo
-        const unreadQ = query(
-          collection(db, 'conversations', d.id, 'messages'),
-          where('senderId', '!=', activeUid),
-          where('read', '==', false)
-        );
-        const unreadSnap = await getDocs(unreadQ);
-        const unreadCount = unreadSnap.size;
+        let unreadCount = 0;
+        try {
+          const unreadQ = query(
+            collection(db, 'conversations', d.id, 'messages'),
+            where('senderId', '!=', activeUid),
+            where('read', '==', false)
+          );
+          const unreadSnap = await getDocs(unreadQ);
+          unreadCount = unreadSnap.size;
+        } catch (e) {
+          unreadCount = 0;
+        }
 
         let otherName = 'User';
         if (otherId) {
@@ -280,19 +285,21 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
 
       // Also mark corresponding notifications as read
       const markNotificationsRead = async () => {
-        const nQuery = query(
-          collection(db, 'notifications'), 
-          where('userId', '==', activeUid),
-          where('type', '==', 'message'),
-          where('targetId', '==', convo.id),
-          where('read', '==', false)
-        );
-        const nSnap = await getDocs(nQuery);
-        if (!nSnap.empty) {
-          const batch = writeBatch(db);
-          nSnap.docs.forEach(d => batch.update(d.ref, { read: true }));
-          await batch.commit();
-        }
+        try {
+          const nQuery = query(
+            collection(db, 'notifications'), 
+            where('userId', '==', activeUid),
+            where('type', '==', 'message'),
+            where('targetId', '==', convo.id),
+            where('read', '==', false)
+          );
+          const nSnap = await getDocs(nQuery);
+          if (!nSnap.empty) {
+            const batch = writeBatch(db);
+            nSnap.docs.forEach(d => batch.update(d.ref, { read: true }));
+            await batch.commit();
+          }
+        } catch (e) {}
       };
       markNotificationsRead();
 

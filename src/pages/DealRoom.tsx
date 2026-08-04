@@ -5,6 +5,8 @@ import { Zap, Clock, CheckCircle2, ChevronRight, DollarSign, MessageCircle, Aler
 import { UserProfile, Deal, DealStatus, Product, Engagement, DealHistoryItem } from '../types';
 import { cn, formatCurrency, formatAuditableStamp, openWhatsApp } from '../lib/utils';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { localDB } from '../lib/db';
+import { cacheCollection } from '../lib/dexieSyncManager';
 import { collection, query, where, getDocs, doc, getDoc, orderBy, onSnapshot, updateDoc } from 'firebase/firestore';
 import { useLocation, useNavigate } from 'react-router-dom';
 import { offlineResilientWrite } from '../lib/sync';
@@ -41,13 +43,51 @@ export default function DealRoom({ profile }: { profile: UserProfile | null }) {
           setLoading(false);
         });
       } else {
-        const savedGuestIds: string[] = JSON.parse(localStorage.getItem('guest_deal_ids') || '[]');
+        let savedGuestIds: string[] = [];
+        try {
+          savedGuestIds = JSON.parse(localStorage.getItem('guest_deal_ids') || '[]');
+        } catch (e) {
+          savedGuestIds = [];
+        }
+
+        const loadLocalDeals = async () => {
+          try {
+            const cachedRecords = await localDB.deals.toArray();
+            if (cachedRecords.length > 0) {
+              const cachedDeals = cachedRecords.map(r => r.data as Deal);
+              const filtered = cachedDeals.filter(d => {
+                if (activeTab === 'selling') {
+                  return (
+                    d.supplierId === profile.uid ||
+                    d.customerId === profile.uid ||
+                    savedGuestIds.includes(d.id) ||
+                    d.isGuestOrder ||
+                    (profile.phone && d.customerPhone && d.customerPhone.includes(profile.phone)) ||
+                    (guestPhoneSearch && (d.customerPhone?.includes(guestPhoneSearch) || d.id.toLowerCase().includes(guestPhoneSearch.toLowerCase()) || d.productName?.toLowerCase().includes(guestPhoneSearch.toLowerCase())))
+                  );
+                } else {
+                  return (
+                    d.customerId === profile.uid ||
+                    savedGuestIds.includes(d.id) ||
+                    (profile.phone && d.customerPhone && d.customerPhone.includes(profile.phone)) ||
+                    (guestPhoneSearch && (d.customerPhone?.includes(guestPhoneSearch) || d.id.toLowerCase().includes(guestPhoneSearch.toLowerCase()) || d.productName?.toLowerCase().includes(guestPhoneSearch.toLowerCase())))
+                  );
+                }
+              });
+              setDeals(filtered);
+              setLoading(false);
+            }
+          } catch (e) {}
+        };
+        loadLocalDeals();
+
         const q = query(collection(db, 'deals'), orderBy('updatedAt', 'desc'));
         unsubscribeDeals = onSnapshot(q, (snapshot) => {
           const allDeals = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Deal));
+          cacheCollection('deals', allDeals);
+
           const filtered = allDeals.filter(d => {
             if (activeTab === 'selling') {
-              // Unified "Sales and Buyer orders Tracking": includes store sales, supplier orders, guest orders, and buyer trackings
               return (
                 d.supplierId === profile.uid ||
                 d.customerId === profile.uid ||
@@ -70,15 +110,41 @@ export default function DealRoom({ profile }: { profile: UserProfile | null }) {
           setLoading(false);
         }, (err) => {
           handleFirestoreError(err, OperationType.GET, 'deals-stream');
+          loadLocalDeals();
           setLoading(false);
         });
       }
     } else {
       // Guest User Mode: Load local guest deals & phone search
-      const savedGuestIds: string[] = JSON.parse(localStorage.getItem('guest_deal_ids') || '[]');
+      let savedGuestIds: string[] = [];
+      try {
+        savedGuestIds = JSON.parse(localStorage.getItem('guest_deal_ids') || '[]');
+      } catch (e) {
+        savedGuestIds = [];
+      }
+
+      const loadGuestLocalDeals = async () => {
+        try {
+          const cachedRecords = await localDB.deals.toArray();
+          if (cachedRecords.length > 0) {
+            const cachedDeals = cachedRecords.map(r => r.data as Deal);
+            const filtered = cachedDeals.filter(d => 
+              savedGuestIds.includes(d.id) || 
+              d.isGuestOrder || 
+              (guestPhoneSearch && (d.customerPhone?.includes(guestPhoneSearch) || d.id.toLowerCase().includes(guestPhoneSearch.toLowerCase()) || d.productName?.toLowerCase().includes(guestPhoneSearch.toLowerCase())))
+            );
+            setDeals(filtered);
+            setLoading(false);
+          }
+        } catch (e) {}
+      };
+      loadGuestLocalDeals();
+
       const q = query(collection(db, 'deals'), orderBy('updatedAt', 'desc'));
       unsubscribeDeals = onSnapshot(q, (snapshot) => {
         const allDeals = snapshot.docs.map(d => ({ id: d.id, ...d.data() } as Deal));
+        cacheCollection('deals', allDeals);
+
         const filtered = allDeals.filter(d => 
           savedGuestIds.includes(d.id) || 
           d.isGuestOrder || 
@@ -88,7 +154,8 @@ export default function DealRoom({ profile }: { profile: UserProfile | null }) {
         setEngagements([]);
         setLoading(false);
       }, (err) => {
-        console.error("Guest deals error:", err);
+        console.warn("Guest deals error:", err);
+        loadGuestLocalDeals();
         setLoading(false);
       });
     }

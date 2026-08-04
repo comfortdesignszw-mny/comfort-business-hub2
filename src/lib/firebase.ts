@@ -30,7 +30,16 @@ export const db = initializeFirestore(app, {
 
 export const auth = getAuth(app);
 export const storage = getStorage(app);
-export const messaging = typeof window !== 'undefined' ? getMessaging(app) : null;
+
+let messagingInstance: any = null;
+if (typeof window !== 'undefined') {
+  try {
+    messagingInstance = getMessaging(app);
+  } catch (err) {
+    console.warn('[Firebase Messaging] Messaging not supported or initialization skipped:', err);
+  }
+}
+export const messaging = messagingInstance;
 
 // Non-blocking Zero-Connectivity Startup Signal
 async function initZeroConnectivityStartup() {
@@ -55,7 +64,16 @@ export async function getDocCacheFirst(docRef: DocumentReference): Promise<Docum
   }
 
   // Fallback to remote database query if missing locally
-  return await getDoc(docRef);
+  try {
+    return await getDoc(docRef);
+  } catch (err) {
+    // Return empty snapshot mock if offline
+    return await getDocFromCache(docRef).catch(() => ({
+      exists: () => false,
+      data: () => undefined,
+      id: docRef.id
+    } as any));
+  }
 }
 
 /**
@@ -73,7 +91,15 @@ export async function getDocsCacheFirst(queryRef: Query): Promise<QuerySnapshot>
   }
 
   // Fallback to remote database query
-  return await getDocs(queryRef);
+  try {
+    return await getDocs(queryRef);
+  } catch (err) {
+    return await getDocsFromCache(queryRef).catch(() => ({
+      empty: true,
+      docs: [],
+      size: 0
+    } as any));
+  }
 }
 
 // Standardized Error Handler
@@ -114,21 +140,22 @@ export function handleFirestoreError(error: unknown, operationType: OperationTyp
   };
   
   // High-priority security logging for permission violations
-  if (errInfo.error.includes('Insufficient permissions')) {
-    console.error(' [SECURITY INCIDENT] Unauthorized Access Attempt:', JSON.stringify(errInfo));
-    throw new Error(JSON.stringify(errInfo));
+  if (errInfo.error.includes('Insufficient permissions') || errMessage.toLowerCase().includes('permission-denied')) {
+    console.warn(' [SECURITY / PERMISSION NOTICE] Firestore Access Restricted:', JSON.stringify(errInfo));
+    return;
   } else if (
     errMessage.includes('offline') || 
     errMessage.includes('unavailable') || 
     errMessage.includes('network') ||
-    errMessage.includes('failed-precondition')
+    errMessage.includes('failed-precondition') ||
+    errMessage.includes('canceled')
   ) {
     // Graceful offline degradation for zero-connectivity startup
     console.warn(`[Zero-Connectivity Fallback] Firestore ${operationType} on ${path || 'resource'} operating from local cache/sandbox:`, errMessage);
     return;
   } else {
-    console.error('Firestore Error Payload: ', JSON.stringify(errInfo));
-    throw new Error(JSON.stringify(errInfo));
+    console.warn('Firestore Non-Fatal Notice: ', JSON.stringify(errInfo));
+    return;
   }
 }
 

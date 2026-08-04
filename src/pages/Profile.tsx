@@ -117,6 +117,8 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
         if (data.type === 'order_now') volume += (data.price || 0);
       });
       setEngagementStats({ engaged, volume });
+    }, (err) => {
+      console.warn('Profile engagement query notice:', err);
     });
 
     // Real-time Store performance listener for Supplier
@@ -124,6 +126,8 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
     const unsubStores = onSnapshot(qStores, (snap) => {
       const items = snap.docs.map(d => ({ id: d.id, ...d.data() }));
       setMyStores(items);
+    }, (err) => {
+      console.warn('Profile stores query notice:', err);
     });
 
     return () => {
@@ -2170,6 +2174,9 @@ function ConnectionManager({ profile }: { profile: UserProfile }) {
         return [...others, ...c1];
       });
       setLoading(false);
+    }, (err) => {
+      console.warn('Profile connections query 1 notice:', err);
+      setLoading(false);
     });
 
     const unsub2 = onSnapshot(q2, (snap) => {
@@ -2180,6 +2187,9 @@ function ConnectionManager({ profile }: { profile: UserProfile }) {
         const others = prev.filter(p => !otherIds.has(p.id));
         return [...others, ...c2];
       });
+      setLoading(false);
+    }, (err) => {
+      console.warn('Profile connections query 2 notice:', err);
       setLoading(false);
     });
 

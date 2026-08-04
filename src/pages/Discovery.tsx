@@ -12,6 +12,7 @@ import { cn, formatCurrency, openWhatsApp } from '../lib/utils';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { localDB } from '../lib/db';
 import { cacheCollection } from '../lib/dexieSyncManager';
+import { localDataRepository } from '../lib/localDataRepository';
 import { collection, query, limit, getDocs, where, addDoc, serverTimestamp, setDoc, doc, getDoc, orderBy, onSnapshot, getCountFromServer, startAt, endAt, deleteDoc } from 'firebase/firestore';
 import { BUSINESS_CATEGORIES, PRODUCT_CATEGORIES } from '../constants';
 import ProductCard from '../components/ProductCard';
@@ -139,20 +140,30 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
   }, [searchTerm, activeCategory, nearbyDeals, nearbyStores, sharedProductId, nearbyOnly, userLocation, storesMap]);
 
   useEffect(() => {
-    // Phase 1: Fast Loading from Local Cache
+    // Phase 1: Instant Loading from Local Repository & Seed Fallbacks
     const tryLoadFromCache = async () => {
       try {
         const cachedProductsDoc = await localDB.cache.where('collection').equals('products').toArray();
         if (cachedProductsDoc.length > 0) {
           const cachedProducts = cachedProductsDoc.map(c => c.data as Product);
           const activeOnly = cachedProducts.filter(p => p.isActive !== false);
-          activeOnly.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          activeOnly.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
           setNearbyDeals(activeOnly);
+          setProductsLoading(false);
+          setLoading(false);
+        } else {
+          // Fallback to local seed products if cache is empty
+          const repoRes = await localDataRepository.getProducts();
+          if (repoRes.data && repoRes.data.length > 0) {
+            setNearbyDeals(repoRes.data as any);
+          }
           setProductsLoading(false);
           setLoading(false);
         }
       } catch (err) {
         console.warn('Failed to load local DB cache for products', err);
+        setProductsLoading(false);
+        setLoading(false);
       }
     };
 
@@ -169,7 +180,7 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
       const allProducts = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      } as Product)).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      } as Product)).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
       
       setNearbyDeals(allProducts);
       setProductsLoading(false);
@@ -193,6 +204,8 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
       }
     }, (error) => {
       handleFirestoreError(error, OperationType.GET, 'products-feed');
+      setProductsLoading(false);
+      setLoading(false);
     });
 
     // Start Stores Loading
@@ -201,11 +214,19 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
         const cachedStoresDoc = await localDB.cache.where('collection').equals('stores').toArray();
         if (cachedStoresDoc.length > 0) {
           const cachedStores = cachedStoresDoc.map(c => c.data as StoreType);
-          cachedStores.sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+          cachedStores.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
           setNearbyStores(cachedStores);
           setStoresLoading(false);
+        } else {
+          const repoStores = await localDataRepository.getStores();
+          if (repoStores.data && repoStores.data.length > 0) {
+            setNearbyStores(repoStores.data as any);
+          }
+          setStoresLoading(false);
         }
-      } catch (err) {}
+      } catch (err) {
+        setStoresLoading(false);
+      }
     };
     loadStores();
 
@@ -214,7 +235,7 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
       const allStores = snapshot.docs.map(doc => ({
         id: doc.id,
         ...doc.data()
-      } as StoreType)).sort((a, b) => new Date(b.createdAt).getTime() - new Date(a.createdAt).getTime());
+      } as StoreType)).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
       
       setNearbyStores(allStores);
       setStoresLoading(false);
@@ -241,7 +262,7 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
         const item = { id: d.id, ...d.data() } as Spotlight;
         if (item.expiresAt && new Date(item.expiresAt) < now) {
           // Auto-delete expired classified ad and video from database to save space and bandwidth
-          deleteDoc(doc(db, 'spotlights', d.id)).catch(console.error);
+          deleteDoc(doc(db, 'spotlights', d.id)).catch(() => {});
         } else if (item.isApproved !== false) {
           // Only show approved ads (or legacy ads where isApproved is undefined)
           validSpotlights.push(item);

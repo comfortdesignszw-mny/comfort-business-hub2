@@ -6,6 +6,7 @@ import {
   ChevronLeft, ChevronRight, Zap, Store as StoreIcon, ShieldCheck, Clock, Send, Heart, Check
 } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
+import { localDB } from '../lib/db';
 import { 
   doc, getDoc, collection, query, where, getDocs, addDoc, serverTimestamp, 
   orderBy, limit, updateDoc, increment, runTransaction, onSnapshot 
@@ -62,16 +63,27 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
             if (sSnap.exists()) {
               setStore({ id: sSnap.id, ...sSnap.data() } as Store);
             }
-          });
+          }, (err) => console.warn('ProductDetail store query notice:', err));
           return () => storeUnsub();
         }
       } else {
         if (!product) setError("Product not found in local inventory");
         setLoading(false);
       }
-    }, (err) => {
+    }, async (err) => {
       handleFirestoreError(err, OperationType.GET, `product-realtime-${id}`);
-      setError("Something went wrong on our end. We're retrying automatically.");
+      // Fallback to local Dexie cache if network is offline
+      try {
+        const cachedDoc = await localDB.cache.get(`products:${id}`);
+        if (cachedDoc && cachedDoc.data) {
+          setProduct(cachedDoc.data as Product);
+          setError(null);
+        } else {
+          setError("Viewing from offline cache");
+        }
+      } catch (e) {
+        setError("Viewing from offline cache");
+      }
       setLoading(false);
     });
 
@@ -84,7 +96,7 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
     );
     const reviewsUnsub = onSnapshot(reviewsQuery, (snap) => {
       setReviews(snap.docs.map(d => ({ id: d.id, ...d.data() } as Review)));
-    });
+    }, (err) => console.warn('ProductDetail reviews query notice:', err));
 
     return () => {
       productUnsub();

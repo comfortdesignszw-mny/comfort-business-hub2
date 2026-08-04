@@ -89,6 +89,8 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
       const fetchedUsers = snap.docs.map(d => ({ uid: d.id, ...d.data() } as UserProfile));
       setUsers(fetchedUsers);
       import('../lib/dexieSyncManager').then(({ cacheCollection }) => cacheCollection('users', fetchedUsers)).catch(() => {});
+    }, (err) => {
+      console.warn('Admin users query notice:', err);
     });
 
     // Listen for stores
@@ -97,6 +99,8 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
       const fetchedStores = snap.docs.map(d => ({ id: d.id, ...d.data() } as StoreType));
       setStores(fetchedStores);
       import('../lib/dexieSyncManager').then(({ cacheCollection }) => cacheCollection('stores', fetchedStores)).catch(() => {});
+    }, (err) => {
+      console.warn('Admin stores query notice:', err);
     });
 
     // Listen for products
@@ -105,6 +109,8 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
       const fetchedProducts = snap.docs.map(d => ({ id: d.id, ...d.data() } as Product));
       setProducts(fetchedProducts);
       import('../lib/dexieSyncManager').then(({ cacheCollection }) => cacheCollection('products', fetchedProducts)).catch(() => {});
+    }, (err) => {
+      console.warn('Admin products query notice:', err);
     });
 
     // Listen for spotlights / classified ads
@@ -113,6 +119,8 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
       const fetchedSpotlights = snap.docs.map(d => ({ id: d.id, ...d.data() } as Spotlight));
       setSpotlights(fetchedSpotlights);
       import('../lib/dexieSyncManager').then(({ cacheCollection }) => cacheCollection('spotlights', fetchedSpotlights)).catch(() => {});
+    }, (err) => {
+      console.warn('Admin spotlights query notice:', err);
     });
 
     return () => {

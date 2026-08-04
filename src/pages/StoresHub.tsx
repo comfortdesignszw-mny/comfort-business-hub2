@@ -49,13 +49,20 @@ export default function StoresHub({ profile }: { profile: UserProfile | null }) 
     setLoading(true);
 
     // 1. Prioritize local cache / browser sandbox for instant zero-connectivity startup!
-    import('../lib/dexieSyncManager').then(({ getCachedCollection, cacheCollection }) => {
+    import('../lib/dexieSyncManager').then(({ getCachedCollection }) => {
       getCachedCollection<StoreType>('stores').then((cached) => {
         if (cached && cached.length > 0) {
           setStores(cached);
           setLoading(false);
+        } else {
+          import('../lib/localDataRepository').then(({ localDataRepository }) => {
+            localDataRepository.getStores().then(res => {
+              if (res.data && res.data.length > 0) setStores(res.data as any);
+              setLoading(false);
+            });
+          });
         }
-      }).catch(() => {});
+      }).catch(() => { setLoading(false); });
     });
 
     const sq = query(collection(db, 'stores'), limit(50));

@@ -217,6 +217,8 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
         }
       });
       setEngagementStats(stats);
+    }, (err) => {
+      console.warn('Supplier engagement listener notice:', err);
     });
     
     const productsQuery = query(collection(db, 'products'), where('storeId', '==', activeStore.id));

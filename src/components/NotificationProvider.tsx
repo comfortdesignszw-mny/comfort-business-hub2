@@ -341,7 +341,12 @@ export function NotificationProvider({ children, profile }: { children: React.Re
   const [buyerOrdersCount, setBuyerOrdersCount] = useState(0);
 
   useEffect(() => {
-    const savedGuestIds: string[] = JSON.parse(localStorage.getItem('guest_deal_ids') || '[]');
+    let savedGuestIds: string[] = [];
+    try {
+      savedGuestIds = JSON.parse(localStorage.getItem('guest_deal_ids') || '[]');
+    } catch (e) {
+      savedGuestIds = [];
+    }
     const q = query(collection(db, 'deals'), orderBy('updatedAt', 'desc'));
 
     const unsubscribe = onSnapshot(q, (snapshot) => {

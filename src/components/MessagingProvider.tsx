@@ -91,7 +91,12 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode, profile: U
       guestId = `guest_${Date.now()}_${Math.random().toString(36).substring(7)}`;
       localStorage.setItem('guest_uid', guestId);
     }
-    const savedContact = JSON.parse(localStorage.getItem('guest_contact_info') || '{}');
+    let savedContact: any = {};
+    try {
+      savedContact = JSON.parse(localStorage.getItem('guest_contact_info') || '{}');
+    } catch (e) {
+      savedContact = {};
+    }
     return {
       uid: guestId,
       name: savedContact.name || 'Guest Buyer',
@@ -300,19 +305,6 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode, profile: U
     }}>
       {children}
       <AnimatePresence>
-        {/* Connection Status Toast */}
-        {!isOnline && (
-          <motion.div
-            initial={{ opacity: 0, y: -20 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, scale: 0.9 }}
-            className="fixed top-24 left-1/2 -translate-x-1/2 z-[100] bg-red-500/10 border border-red-500/20 backdrop-blur-md px-4 py-2 rounded-full flex items-center gap-2"
-          >
-            <WifiOff size={12} className="text-red-500 animate-pulse" />
-            <span className="text-[9px] font-black text-red-500 uppercase tracking-widest">Connection Severed • Local Cache Active</span>
-          </motion.div>
-        )}
-        
         {notification && (
           <motion.div
             initial={{ opacity: 0, y: -50 }}

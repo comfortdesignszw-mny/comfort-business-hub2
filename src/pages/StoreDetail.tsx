@@ -108,10 +108,10 @@ export function StoreDetailContent({ store, profile, onGuestLogin, showMap = tru
 
     const unsub1 = onSnapshot(q1, (snap) => {
       if (!snap.empty) setConnection({ id: snap.docs[0].id, ...snap.docs[0].data() } as Connection);
-    });
+    }, (err) => console.warn('StoreDetail connection q1 notice:', err));
     const unsub2 = onSnapshot(q2, (snap) => {
       if (!snap.empty) setConnection({ id: snap.docs[0].id, ...snap.docs[0].data() } as Connection);
-    });
+    }, (err) => console.warn('StoreDetail connection q2 notice:', err));
 
     return () => {
       unsub1();
@@ -222,6 +222,9 @@ export function StoreDetailContent({ store, profile, onGuestLogin, showMap = tru
       cacheCollection('products', dbProducts);
 
       setProducts(dbProducts);
+      setLoading(false);
+    }, (err) => {
+      console.warn('StoreDetail products listener notice:', err);
       setLoading(false);
     });
 
