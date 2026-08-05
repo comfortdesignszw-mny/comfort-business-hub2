@@ -234,12 +234,11 @@ export function StoreDetailContent({ store, profile, onGuestLogin, showMap = tru
   useEffect(() => {
     if (store) {
       const shortId = getShortId(store.id);
-      const storeSlug = slugifyStoreName(store.name);
       updateMetaTags({
         title: `${store.name} - Comfort Business Hub`,
         description: store.description || `Visit ${store.name}'s official store on Comfort Business Hub`,
         image: store.logo || store.coverPhoto,
-        url: `${window.location.origin}/s/${storeSlug}/${shortId}`
+        url: `${window.location.origin}/s/${shortId}`
       });
     }
   }, [store]);

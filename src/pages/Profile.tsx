@@ -355,7 +355,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
     await executeShare({
       type: 'profile',
       title: `${profile?.name || 'User Profile'} - Comfort Business Hub`,
-      text: `Check out ${profile?.name || 'User Profile'}'s profile on Comfort Business Hub:\n${url}`,
+      text: `Check out ${profile?.name || 'User Profile'}'s profile on Comfort Business Hub:`,
       url,
       imageUrl: profile?.avatar || `${origin}/icons/icon-512x512.png`,
       description: `View profile and connections of ${profile?.name || 'Member'} on Comfort Business Hub.`
@@ -369,7 +369,7 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
     await executeShare({
       type: 'profile',
       title: `${observedProfile.name} - Comfort Business Hub`,
-      text: `Check out ${observedProfile.name}'s profile on Comfort Business Hub:\n${url}`,
+      text: `Check out ${observedProfile.name}'s profile on Comfort Business Hub:`,
       url,
       imageUrl: observedProfile.avatar || `${origin}/icons/icon-512x512.png`,
       description: `View profile and connections of ${observedProfile.name} on Comfort Business Hub.`

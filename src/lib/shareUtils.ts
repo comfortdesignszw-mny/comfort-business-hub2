@@ -325,7 +325,7 @@ export function getAppSharePayload(): SharePayload {
   return {
     type: 'app',
     title: 'Comfort Business Hub',
-    text: `🚀 Join me on Comfort Business Hub! Discover verified local stores, products & direct supplier deals:\n${url}`,
+    text: `🚀 Join me on Comfort Business Hub! Discover verified local stores, products & direct supplier deals:`,
     url,
     imageUrl: `${origin}/icons/icon-512x512.png`,
     description: 'Explore verified stores, products, and direct trading on Comfort Business Hub.'
@@ -334,7 +334,7 @@ export function getAppSharePayload(): SharePayload {
 
 /**
  * Constructs structured share payload for a Store / Shop
- * Generates shortened store URL containing: App URL + Store Name + Short Store ID (< 6 chars)
+ * Generates clean shortened store URL containing: App URL + short store ID
  */
 export function getStoreSharePayload(store: {
   id: string;
@@ -346,17 +346,16 @@ export function getStoreSharePayload(store: {
   verified?: boolean;
 }): SharePayload {
   const origin = window.location.origin;
-  const storeSlug = slugifyStoreName(store.name);
   const shortId = getShortId(store.id);
-  // Shortened Storefront URL: App URL + store name + short store ID (< 6 chars)
-  const url = `${origin}/s/${storeSlug}/${shortId}`;
+  // Shortened Storefront URL
+  const url = `${origin}/s/${shortId}`;
   const image = store.logo || store.coverPhoto || `${origin}/icons/icon-512x512.png`;
   const categoryText = store.category ? ` | ${store.category}` : '';
 
   return {
     type: 'store',
     title: `${store.name}${categoryText} - Comfort Business Hub`,
-    text: `🏬 Explore ${store.name} on Comfort Business Hub!\nCheck out verified products and get in touch directly:\n${url}`,
+    text: `🏬 Explore ${store.name} on Comfort Business Hub!\nCheck out verified products and get in touch directly:`,
     url,
     imageUrl: image,
     storeName: store.name,
@@ -366,7 +365,7 @@ export function getStoreSharePayload(store: {
 
 /**
  * Constructs structured share payload for a Product
- * Generates shortened product URL containing: App URL + Short Product ID (< 6 chars)
+ * Generates clean shortened product URL containing: App URL + short product ID
  */
 export function getProductSharePayload(
   product: {
@@ -381,9 +380,9 @@ export function getProductSharePayload(
   storeName?: string
 ): SharePayload {
   const origin = window.location.origin;
-  const productSlug = slugifyProductName(product.name);
-  // Full precision product link embedding product slug and exact unique product ID
-  const url = `${origin}/p/${productSlug}/${product.id}`;
+  const shortId = getShortId(product);
+  // Clean, short product link
+  const url = `${origin}/p/${shortId}`;
   const image = product.images?.[0] || `${origin}/icons/icon-512x512.png`;
   const formattedPrice = formatCurrency(product.price, product.currency || 'USD');
   const storeBranding = storeName ? ` at ${storeName}` : '';
@@ -391,7 +390,7 @@ export function getProductSharePayload(
   return {
     type: 'product',
     title: `${product.name} (${formattedPrice}) ${storeBranding}`,
-    text: `🛍️ ${product.name}\n💰 Price: ${formattedPrice}${storeName ? '\n🏪 Store: ' + storeName : ''}\n\nView product details & order on Comfort Business Hub:\n${url}`,
+    text: `🛍️ ${product.name}\n💰 Price: ${formattedPrice}${storeName ? '\n🏪 Store: ' + storeName : ''}\n\nView product details & order on Comfort Business Hub:`,
     url,
     imageUrl: image,
     storeName,

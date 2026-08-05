@@ -177,12 +177,12 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
 
   useEffect(() => {
     if (product) {
-      const productSlug = slugifyProductName(product.name);
+      const shortId = getShortId(product);
       updateMetaTags({
         title: `${product.name} - ${store?.name || 'Comfort Business Hub'}`,
         description: product.description || `Buy ${product.name} on Comfort Business Hub`,
         image: product.images?.[0],
-        url: `${window.location.origin}/p/${productSlug}/${product.id}`
+        url: `${window.location.origin}/p/${shortId}`
       });
     }
   }, [product, store]);

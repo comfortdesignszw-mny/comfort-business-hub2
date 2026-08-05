@@ -30,7 +30,10 @@ export default function ShareModal({ isOpen, onClose, payload }: ShareModalProps
 
   const handleCopyText = async () => {
     try {
-      await navigator.clipboard.writeText(payload.text);
+      const fullMessage = payload.text.includes(payload.url)
+        ? payload.text
+        : `${payload.text}\n${payload.url}`;
+      await navigator.clipboard.writeText(fullMessage);
       setCopiedText(true);
       setTimeout(() => setCopiedText(false), 2500);
     } catch (e) {
@@ -39,7 +42,10 @@ export default function ShareModal({ isOpen, onClose, payload }: ShareModalProps
   };
 
   const handleWhatsAppShare = () => {
-    openWhatsApp('', payload.text);
+    const fullMessage = payload.text.includes(payload.url)
+      ? payload.text
+      : `${payload.text}\n${payload.url}`;
+    openWhatsApp('', fullMessage);
   };
 
   const handleNativeShare = async () => {
