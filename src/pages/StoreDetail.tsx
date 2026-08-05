@@ -9,7 +9,7 @@ import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { doc, getDoc, collection, query, where, getDocs, onSnapshot, limit, updateDoc } from 'firebase/firestore';
 import { UserProfile, Product, Store as StoreType, Connection } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
-import { executeShare, getStoreSharePayload, updateMetaTags } from '../lib/shareUtils';
+import { executeShare, getStoreSharePayload, updateMetaTags, resolveStoreByIdOrShortId, getShortId, slugifyStoreName } from '../lib/shareUtils';
 import ProductCard from '../components/ProductCard';
 import AuthGuard from '../components/AuthGuard';
 import ImageInput from '../components/ImageInput';
@@ -233,11 +233,13 @@ export function StoreDetailContent({ store, profile, onGuestLogin, showMap = tru
 
   useEffect(() => {
     if (store) {
+      const shortId = getShortId(store.id);
+      const storeSlug = slugifyStoreName(store.name);
       updateMetaTags({
         title: `${store.name} - Comfort Business Hub`,
         description: store.description || `Visit ${store.name}'s official store on Comfort Business Hub`,
         image: store.logo || store.coverPhoto,
-        url: `${window.location.origin}/store/${store.id}?store=${encodeURIComponent(store.name)}`
+        url: `${window.location.origin}/s/${storeSlug}/${shortId}`
       });
     }
   }, [store]);
@@ -896,35 +898,36 @@ export function StoreDetailContent({ store, profile, onGuestLogin, showMap = tru
 }
 
 export default function StoreDetail({ profile, onGuestLogin }: { profile: UserProfile | null, onGuestLogin?: () => void }) {
-  const { id } = useParams<{ id: string }>();
+  const { id, storeName } = useParams<{ id?: string; storeName?: string }>();
   const navigate = useNavigate();
   const [store, setStore] = useState<StoreType | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  const targetId = id || storeName;
+
   useEffect(() => {
-    if (!id) return;
+    if (!targetId) return;
 
     setLoading(true);
+    let isMounted = true;
     
-    // Real-time Store Listener
-    const storeUnsub = onSnapshot(doc(db, 'stores', id), (snap) => {
-      if (snap.exists()) {
-        const storeData = { id: snap.id, ...snap.data() } as StoreType;
-        setStore(storeData);
-        viewHistoryService.recordStoreView(storeData.id, storeData.name, storeData.category);
+    resolveStoreByIdOrShortId(targetId).then((foundStore) => {
+      if (!isMounted) return;
+      if (foundStore) {
+        setStore(foundStore);
+        viewHistoryService.recordStoreView(foundStore.id, foundStore.name, foundStore.category);
+        setError(null);
       } else {
         setError("Store not found");
       }
       setLoading(false);
-    }, (error) => {
-      handleFirestoreError(error, OperationType.GET, `store-realtime-${id}`);
-      setError("Error loading store");
-      setLoading(false);
     });
 
-    return () => storeUnsub();
-  }, [id]);
+    return () => {
+      isMounted = false;
+    };
+  }, [targetId]);
 
   if (loading) {
     return (

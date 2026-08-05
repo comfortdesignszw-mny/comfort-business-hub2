@@ -73,6 +73,7 @@ export interface UserProfile {
 
 export interface Store {
   id: string;
+  shortId?: string;
   ownerId: string;
   name: string;
   description: string;
@@ -104,6 +105,7 @@ export type BuyButtonType = 'checkout' | 'chat' | 'link' | 'ecocash' | 'pod';
 
 export interface Product {
   id: string;
+  shortId?: string;
   storeId: string;
   ownerId: string;
   name: string;

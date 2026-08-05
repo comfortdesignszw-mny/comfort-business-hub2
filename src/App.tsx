@@ -460,7 +460,13 @@ function AppRoutes({
                       {/* Public Routes */}
                       <Route path="/" element={<Discovery profile={profile} setProfile={setProfile} onGuestLogin={handleGuestLogin} />} />
                       <Route path="/store/:id" element={<StoreDetail profile={profile} onGuestLogin={handleGuestLogin} />} />
+                      <Route path="/store/:storeName/:id" element={<StoreDetail profile={profile} onGuestLogin={handleGuestLogin} />} />
+                      <Route path="/s/:storeName/:id" element={<StoreDetail profile={profile} onGuestLogin={handleGuestLogin} />} />
+                      <Route path="/s/:id" element={<StoreDetail profile={profile} onGuestLogin={handleGuestLogin} />} />
                       <Route path="/product/:id" element={<ProductDetail profile={profile} onGuestLogin={handleGuestLogin} />} />
+                      <Route path="/product/:productSlug/:id" element={<ProductDetail profile={profile} onGuestLogin={handleGuestLogin} />} />
+                      <Route path="/p/:productSlug/:id" element={<ProductDetail profile={profile} onGuestLogin={handleGuestLogin} />} />
+                      <Route path="/p/:id" element={<ProductDetail profile={profile} onGuestLogin={handleGuestLogin} />} />
                       <Route path="/profile/:id" element={<Profile profile={profile} setProfile={setProfile} />} />
                       <Route path="/terms" element={<TermsOfService />} />
                       <Route path="/privacy" element={<PrivacyPolicy />} />

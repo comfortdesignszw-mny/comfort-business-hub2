@@ -13,7 +13,7 @@ import {
 } from 'firebase/firestore';
 import { UserProfile, Product, Store, Review } from '../types';
 import { cn, formatCurrency, openWhatsApp } from '../lib/utils';
-import { executeShare, getProductSharePayload, updateMetaTags } from '../lib/shareUtils';
+import { executeShare, getProductSharePayload, updateMetaTags, resolveProductByIdOrShortId, resolveStoreByIdOrShortId, getShortId, slugifyProductName } from '../lib/shareUtils';
 import { interactionService } from '../services/interactionService';
 import { useMessaging } from '../components/MessagingProvider';
 import { useNotifications } from '../components/NotificationProvider';
@@ -24,7 +24,7 @@ import { viewHistoryService } from '../services/viewHistory';
 import { UnifiedCheckoutModal, EcoCashModal, PodModal, PayPalModal, StripeModal, PaynowModal, BankModal } from '../components/CheckoutModals';
 
 export default function ProductDetail({ profile, onGuestLogin }: { profile: UserProfile | null, onGuestLogin?: () => void }) {
-  const { id } = useParams<{ id: string }>();
+  const { id, productSlug } = useParams<{ id?: string; productSlug?: string }>();
   const navigate = useNavigate();
   const location = useLocation();
   const { triggerFeedback } = useNotifications();
@@ -46,51 +46,46 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
   const [activeTab, setActiveTab] = useState<'insight' | 'feedback'>('insight');
   const { startConversation } = useMessaging();
 
+  const targetId = id || productSlug;
+
   useEffect(() => {
-    if (!id) return;
+    if (!targetId) return;
 
-    // Real-time Product Listener
-    const productUnsub = onSnapshot(doc(db, 'products', id), (snap) => {
-      if (snap.exists()) {
-        const productData = { id: snap.id, ...snap.data() } as Product;
-        setProduct(productData);
+    setLoading(true);
+    let isMounted = true;
+
+    resolveProductByIdOrShortId(targetId).then((foundProduct) => {
+      if (!isMounted) return;
+      if (foundProduct) {
+        setProduct(foundProduct);
+        setError(null);
         setLoading(false);
-        viewHistoryService.recordProductView(productData.id, productData.name, productData.category, productData.storeId);
+        viewHistoryService.recordProductView(foundProduct.id, foundProduct.name, foundProduct.category, foundProduct.storeId);
 
-        // Fetch/Listen to Store if not yet done or different
-        if (!store || store.id !== productData.storeId) {
-          const storeUnsub = onSnapshot(doc(db, 'stores', productData.storeId), (sSnap) => {
-            if (sSnap.exists()) {
-              setStore({ id: sSnap.id, ...sSnap.data() } as Store);
-            }
-          }, (err) => console.warn('ProductDetail store query notice:', err));
-          return () => storeUnsub();
+        // Fetch store for this product
+        if (foundProduct.storeId) {
+          resolveStoreByIdOrShortId(foundProduct.storeId).then((s) => {
+            if (s && isMounted) setStore(s);
+          });
         }
       } else {
-        if (!product) setError("Product not found in local inventory");
+        setError("Product not found in local inventory");
         setLoading(false);
       }
-    }, async (err) => {
-      handleFirestoreError(err, OperationType.GET, `product-realtime-${id}`);
-      // Fallback to local Dexie cache if network is offline
-      try {
-        const cachedDoc = await localDB.cache.get(`products:${id}`);
-        if (cachedDoc && cachedDoc.data) {
-          setProduct(cachedDoc.data as Product);
-          setError(null);
-        } else {
-          setError("Viewing from offline cache");
-        }
-      } catch (e) {
-        setError("Viewing from offline cache");
-      }
-      setLoading(false);
     });
 
-    // Fetch Reviews
+    return () => {
+      isMounted = false;
+    };
+  }, [targetId]);
+
+  // Fetch Reviews when product.id is known
+  useEffect(() => {
+    if (!product?.id) return;
+
     const reviewsQuery = query(
       collection(db, 'reviews'),
-      where('productId', '==', id),
+      where('productId', '==', product.id),
       orderBy('createdAt', 'desc'),
       limit(20)
     );
@@ -98,11 +93,8 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
       setReviews(snap.docs.map(d => ({ id: d.id, ...d.data() } as Review)));
     }, (err) => console.warn('ProductDetail reviews query notice:', err));
 
-    return () => {
-      productUnsub();
-      reviewsUnsub();
-    };
-  }, [id]);
+    return () => reviewsUnsub();
+  }, [product?.id]);
 
   const [isEngaging, setIsEngaging] = useState(false);
 
@@ -185,11 +177,12 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
 
   useEffect(() => {
     if (product) {
+      const productSlug = slugifyProductName(product.name);
       updateMetaTags({
         title: `${product.name} - ${store?.name || 'Comfort Business Hub'}`,
         description: product.description || `Buy ${product.name} on Comfort Business Hub`,
         image: product.images?.[0],
-        url: `${window.location.origin}/product/${product.id}?name=${encodeURIComponent(product.name)}${store?.name ? '&store=' + encodeURIComponent(store.name) : ''}`
+        url: `${window.location.origin}/p/${productSlug}/${product.id}`
       });
     }
   }, [product, store]);
