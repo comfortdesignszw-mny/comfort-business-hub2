@@ -665,7 +665,7 @@ function Header({ profile, onMenuClick, onLogout }: { profile: UserProfile | nul
 
 function Sidebar({ profile, onClose, onLogout }: { profile: UserProfile | null, onClose: () => void, onLogout?: () => void }) {
   const { unreadMessagesCount } = useMessaging();
-  const { activeOrdersCount } = useNotifications();
+  const { activeOrdersCount, pendingApprovalsCount } = useNotifications();
   const location = useLocation();
   const navItems = [
     { path: '/', icon: Search, label: 'Explore' },
@@ -739,6 +739,11 @@ function Sidebar({ profile, onClose, onLogout }: { profile: UserProfile | null, 
                 {item.path === '/deals' && activeOrdersCount > 0 && (
                   <span className="ml-auto min-w-[16px] h-4 px-1 bg-red-600 rounded-lg flex items-center justify-center text-[8px] font-black text-white shadow-[0_0_8px_rgba(255,0,0,0.4)] animate-pulse">
                     {activeOrdersCount}
+                  </span>
+                )}
+                {item.path === '/admin' && pendingApprovalsCount > 0 && (
+                  <span className="ml-auto min-w-[16px] h-4 px-1 bg-red-600 rounded-lg flex items-center justify-center text-[8px] font-black text-white shadow-[0_0_8px_rgba(255,0,0,0.4)] animate-pulse">
+                    {pendingApprovalsCount}
                   </span>
                 )}
                 {isActive && item.label !== 'Comms' && item.path !== '/deals' && (
@@ -1077,7 +1082,7 @@ function getNotificationIcon(type: AppNotification['type']) {
 
 function Navigation({ profile }: { profile: UserProfile | null }) {
   const { unreadMessagesCount } = useMessaging();
-  const { activeOrdersCount } = useNotifications();
+  const { activeOrdersCount, pendingApprovalsCount } = useNotifications();
   const location = useLocation();
   
   const navItems = [
@@ -1128,6 +1133,11 @@ function Navigation({ profile }: { profile: UserProfile | null }) {
               {item.path === '/deals' && activeOrdersCount > 0 && (
                 <span className="absolute top-1.5 right-1.5 min-w-[14px] h-[14px] px-1 bg-red-600 rounded-full border border-[#05070a] flex items-center justify-center text-[7px] font-black text-white z-20 shadow-[0_0_8px_rgba(255,0,0,0.5)] animate-pulse">
                   {activeOrdersCount}
+                </span>
+              )}
+              {item.path === '/admin' && pendingApprovalsCount > 0 && (
+                <span className="absolute top-1.5 right-1.5 min-w-[14px] h-[14px] px-1 bg-red-600 rounded-full border border-[#05070a] flex items-center justify-center text-[7px] font-black text-white z-20 shadow-[0_0_8px_rgba(255,0,0,0.5)] animate-pulse">
+                  {pendingApprovalsCount}
                 </span>
               )}
               <span className={cn("text-[9px] font-black uppercase tracking-widest relative z-10 transition-all", isActive ? "opacity-100" : "opacity-0 group-hover:opacity-100")}>

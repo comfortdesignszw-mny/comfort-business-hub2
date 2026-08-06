@@ -4,7 +4,7 @@ import { db, auth, handleFirestoreError, OperationType } from '../lib/firebase';
 import { UserProfile, AppNotification, PushNotificationSettings, Deal } from '../types';
 import { formatAuditableStamp } from '../lib/utils';
 import { AnimatePresence, motion } from 'motion/react';
-import { Bell, X, Info, Star, ShoppingBag, Zap, Heart, UserPlus, MessageSquare, Store as StoreIcon, ShieldAlert } from 'lucide-react';
+import { Bell, X, Info, Star, ShoppingBag, Zap, Heart, UserPlus, MessageSquare, Store as StoreIcon, ShieldAlert, Megaphone } from 'lucide-react';
 
 interface NotificationContextType {
   notifications: AppNotification[];
@@ -12,6 +12,7 @@ interface NotificationContextType {
   activeOrdersCount: number;
   sellerOrdersCount: number;
   buyerOrdersCount: number;
+  pendingApprovalsCount: number;
   markAsRead: (id: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
   triggerFeedback: (title: string, message: string, type: AppNotification['type']) => void;
@@ -381,6 +382,27 @@ export function NotificationProvider({ children, profile }: { children: React.Re
     return () => unsubscribe();
   }, [profile?.uid, profile?.phone]);
 
+  const [pendingApprovalsCount, setPendingApprovalsCount] = useState(0);
+
+  useEffect(() => {
+    const isAdmin = profile?.email === 'comfort.designszw@gmail.com' || profile?.isAdmin;
+    if (!isAdmin) {
+      setPendingApprovalsCount(0);
+      return;
+    }
+
+    const q = query(collection(db, 'spotlights'));
+    const unsubscribe = onSnapshot(q, (snapshot) => {
+      const spotlights = snapshot.docs.map(doc => doc.data());
+      const count = spotlights.filter(s => s.isApproved === false).length;
+      setPendingApprovalsCount(count);
+    }, (err) => {
+      console.warn("Pending approvals listener notice:", err);
+    });
+
+    return () => unsubscribe();
+  }, [profile?.email, profile?.isAdmin]);
+
   const activeOrdersCount = profile?.currentRole === 'supplier' ? (sellerOrdersCount > 0 ? sellerOrdersCount : buyerOrdersCount) : buyerOrdersCount;
 
   const unreadCount = notifications.filter(n => !n.read).length;
@@ -392,6 +414,7 @@ export function NotificationProvider({ children, profile }: { children: React.Re
       activeOrdersCount,
       sellerOrdersCount,
       buyerOrdersCount,
+      pendingApprovalsCount,
       markAsRead, 
       markAllAsRead, 
       triggerFeedback,

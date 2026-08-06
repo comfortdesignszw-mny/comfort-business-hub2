@@ -130,6 +130,11 @@
         "agreedPrice": { "type": "number" },
         "customerNotes": { "type": "string" },
         "supplierNotes": { "type": "string" },
+        "popReference": { "type": "string" },
+        "popAttachmentUrl": { "type": "string" },
+        "popAttachmentName": { "type": "string" },
+        "popAttachmentType": { "type": "string" },
+        "popStatus": { "type": "string", "enum": ["pending", "submitted", "verified"] },
         "updatedAt": { "type": "string", "format": "date-time" }
       }
     },
