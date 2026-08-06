@@ -466,7 +466,7 @@ export default function DealRoom({ profile }: { profile: UserProfile | null }) {
                 { id: 'purchases', label: `My Purchases (${totalPurchasesCount})` }
               ].map(f => (
                 <button
-                  key={f.id}
+                  key={`rf-${f.id}`}
                   onClick={() => setRoleFilter(f.id as any)}
                   className={cn(
                     "px-3 py-1.5 rounded-xl text-[9.5px] font-black uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap border",
@@ -490,7 +490,7 @@ export default function DealRoom({ profile }: { profile: UserProfile | null }) {
                 { id: 'outgoing', label: 'Outgoing (To Suppliers)' }
               ].map(f => (
                 <button
-                  key={f.id}
+                  key={`ff-${f.id}`}
                   onClick={() => setFeedFilter(f.id as any)}
                   className={cn(
                     "px-3 py-1.5 rounded-xl text-[9.5px] font-black uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap border",
@@ -531,7 +531,7 @@ export default function DealRoom({ profile }: { profile: UserProfile | null }) {
               { id: 'delivered', label: 'Delivered & Completed' }
             ].map(s => (
               <button
-                key={s.id}
+                key={`sf-${s.id}`}
                 onClick={() => setStatusFilter(s.id as any)}
                 className={cn(
                   "px-2.5 py-1 rounded-lg text-[8.5px] font-bold uppercase tracking-wider transition-all cursor-pointer whitespace-nowrap border",

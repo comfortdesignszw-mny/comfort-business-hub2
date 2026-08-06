@@ -734,9 +734,9 @@ export function StoreDetailContent({ store, profile, onGuestLogin, showMap = tru
         {/* Reviews List */}
         <div className="grid gap-4">
           {storeReviews.length > 0 ? (
-            storeReviews.map((rev) => (
+            storeReviews.map((rev, idx) => (
               <div
-                key={rev.id}
+                key={`sd-rev-${rev.id || idx}-${idx}`}
                 className="p-4 bg-white/5 border border-white/5 rounded-2xl flex flex-col sm:flex-row sm:items-start justify-between gap-3 hover:border-amber-400/20 transition-all"
               >
                 <div className="flex items-start gap-3">
