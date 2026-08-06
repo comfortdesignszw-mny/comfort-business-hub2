@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { motion } from 'motion/react';
 import { useNavigate } from 'react-router-dom';
 import { 
-  X, ChevronDown, ChevronUp, MapPinned, CreditCard, Phone, Loader2, CheckCircle2, ShieldAlert,
+  X, ChevronDown, ChevronUp, MapPinned, MapPin, CreditCard, Phone, Loader2, CheckCircle2, ShieldAlert,
   Landmark, Copy, Check, ExternalLink, Star, Wallet, Zap, User, MessageCircle, Send, FileText
 } from 'lucide-react';
 import { doc, getDoc } from 'firebase/firestore';
@@ -142,6 +142,10 @@ export function SalesOrderConfirmationModal({
   const buyerEmail = dealData.customerEmail || 'N/A';
 
   const handleWhatsAppRedirect = () => {
+    const deliveryAddressLine = dealData.deliveryAddress
+      ? `• *Delivery Address:* ${dealData.deliveryAddress}\n`
+      : `• *Delivery Choice:* No Delivery / In-Person Pickup\n`;
+
     const messageText = `🛒 *SALES ORDER PAYMENT INFO*\n` +
       `━━━━━━━━━━━━━━━━━━━━\n` +
       `• *Order ID:* ${dealData.id}\n` +
@@ -152,6 +156,7 @@ export function SalesOrderConfirmationModal({
       `• *Unit Price:* ${formatCurrency(product.price, product.currency)}\n` +
       `• *Total Purchase:* ${formatCurrency(totalAmount, product.currency)}\n` +
       `• *Payment System:* ${paymentMethodLabel}\n` +
+      deliveryAddressLine +
       `• *Date:* ${new Date().toLocaleDateString()}\n` +
       `━━━━━━━━━━━━━━━━━━━━\n` +
       `*Status:* Sales Order Created & Seller Notified. Please confirm order processing.\n\n` +
@@ -257,6 +262,14 @@ export function SalesOrderConfirmationModal({
                 {paymentMethodLabel}
               </span>
             </div>
+            {dealData.deliveryAddress && (
+              <div className="col-span-2 bg-primary/10 p-2.5 rounded-xl border border-primary/20 mt-1">
+                <p className="text-[9px] text-primary font-black uppercase tracking-wider flex items-center gap-1">
+                  <MapPin size={11} /> Delivery Address
+                </p>
+                <p className="text-xs text-white font-semibold mt-0.5">{dealData.deliveryAddress}</p>
+              </div>
+            )}
           </div>
 
           <div className="pt-2 border-t border-white/5 flex justify-between items-center">
@@ -1495,6 +1508,23 @@ export function PodModal({ product, profile, onClose, initialQuantity = 1 }: {
   });
   const [submitting, setSubmitting] = useState(false);
   const [success, setSuccess] = useState(false);
+  const [supplierPhone, setSupplierPhone] = useState<string>('');
+
+  useEffect(() => {
+    const fetchSupplier = async () => {
+      try {
+        const userSnap = await getDoc(doc(db, 'public_profiles', product.ownerId));
+        if (userSnap.exists()) {
+          const data = userSnap.data();
+          const phone = data.whatsappNumber || data.phone || data.phoneNumber || '';
+          setSupplierPhone(phone);
+        }
+      } catch (e) {
+        console.error("Error fetching supplier phone:", e);
+      }
+    };
+    fetchSupplier();
+  }, [product.ownerId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -1585,6 +1615,28 @@ export function PodModal({ product, profile, onClose, initialQuantity = 1 }: {
                 The Seller will get in touch to finalize delivery
               </p>
             </div>
+
+            {supplierPhone && (
+              <button
+                onClick={() => {
+                  const podMsg = `🚀 *PAY ON DELIVERY ORDER INITIATED*\n` +
+                    `━━━━━━━━━━━━━━━━━━━━\n` +
+                    `• *Item:* ${product.name} (x${formData.quantity})\n` +
+                    `• *Total:* ${formatCurrency(product.price * formData.quantity, product.currency)}\n` +
+                    `• *Buyer Name:* ${formData.name}\n` +
+                    `• *Buyer Phone:* ${formData.phone}\n` +
+                    `• *Buyer Email:* ${formData.email || 'N/A'}\n` +
+                    `• *Delivery Address:* ${formData.address}\n` +
+                    `━━━━━━━━━━━━━━━━━━━━\n` +
+                    `*Status:* Pay on Delivery order placed. Please confirm delivery processing.\n\n` +
+                    `This order was initiated in The Comfort Business Hub. Join Comfort Business Hub and deal here; https://comfort-business-hub.comfort-designszw.workers.dev/`;
+                  openWhatsApp(supplierPhone, podMsg);
+                }}
+                className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-3 px-4 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all cursor-pointer"
+              >
+                <MessageCircle size={16} /> Send Delivery Address via WhatsApp
+              </button>
+            )}
             <button
               onClick={() => {
                 onClose();

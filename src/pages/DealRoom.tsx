@@ -765,6 +765,10 @@ function DealCard({
   const handleWirePaymentWhatsApp = () => {
     const buyerName = deal.customerName || 'Customer';
     const totalAmount = deal.agreedPrice;
+    const deliveryAddressLine = deal.deliveryAddress
+      ? `• *Delivery Address:* ${deal.deliveryAddress}\n`
+      : `• *Delivery Choice:* No Delivery / In-Person Pickup\n`;
+
     const messageText = `🛒 *SALES ORDER PAYMENT INFO*\n` +
       `━━━━━━━━━━━━━━━━━━━━\n` +
       `• *Order ID:* ${deal.id}\n` +
@@ -774,6 +778,7 @@ function DealCard({
       `• *Product/Service:* ${deal.productName || product?.name || 'Item'} (x${deal.quantity || 1})\n` +
       `• *Total Purchase:* ${formatCurrency(totalAmount, product?.currency || 'USD')}\n` +
       `• *Payment System:* ${(deal.paymentMethod || 'Non-POD').toUpperCase()}\n` +
+      deliveryAddressLine +
       `• *Date:* ${formatAuditableStamp(deal.createdAt)}\n` +
       `━━━━━━━━━━━━━━━━━━━━\n` +
       `*Status:* Sales Order logged in Deal Room. Please confirm processing.\n\n` +

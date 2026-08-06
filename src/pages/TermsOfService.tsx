@@ -57,15 +57,15 @@ const TOS_ENGLISH: TOSContent = {
   sec1Body: "The Platform is a business hub and multi-vendor marketplace built to allow users to sign up, create business profiles, establish customizable storefronts, and list products or services for sale. The Platform serves as an intermediary venue connecting sellers (\"Sellers\") with customers (\"Buyers\"). We provide real-time order tracking controls, 4-stage fulfillment management, and auditable transaction timestamp logs to assist Buyers and Sellers in transaction verification.",
   sec1NoteTitle: "Guest Checkout & Order Lookup Systems:",
   sec1NoteBody: "In addition to registered accounts, the Platform supports Guest Checkout and Anonymous Order Tracking modes. Guest buyers can place orders using their phone number and client-side session tokens. Guests and suppliers can track guest order progress using phone number or Order ID lookup inside the Sales and Buyer Orders Tracking control center without requiring central account creation.",
-  recentUpdatesTitle: "Recent Platform & Order Tracking Updates (August 2026)",
+  recentUpdatesTitle: "Recent Platform & PWA Database Architecture Updates (August 2026)",
   recentUpdates: [
+    "Zero-Connection PWA Startup: Core HTML, CSS, and JS assets are precached via Service Workers, allowing instant app shell launch without any active internet connection.",
+    "Local-First Boot & Stale-While-Revalidate: The app renders initial data straight from IndexedDB storage instantly on boot, then asynchronously fetches fresh server updates in the background when connected.",
+    "Client-Side Indexing & Pagination: Key path indexes on stores, products, deals, and messages allow sub-millisecond local queries, with paginated lazy loading to prevent client memory overload.",
+    "Granular State Writes & Deferred Outbox Queues: Changes update individual records locally rather than rewriting full state trees. Offline actions are safely queued in an outbox and reconciled via background sync upon reconnection.",
     "Unified Sales & Buyer Orders Tracking: All store sales, received supplier orders, and buyer purchases (both guest and registered) are managed in a single 'Sales and Buyer Orders Tracking' hub.",
-    "Real-Time Supplier Visual Order Counters: Suppliers receive real-time red notification badges and badge counters in Markets/DealRoom whenever a buyer places an order, ensuring prompt order preparation and dispatch.",
-    "Guest Checkout & Phone Lookup: Guest buyers can complete purchases and immediately track their orders via phone number search or Order ID without mandating password creation.",
-    "4-Stage Order Tracking & Auditable Timestamp Logs: Real-time fulfillment pipeline (Order Confirmed → Being Prepared → In Transit → Delivered) with exact UTC/ISO timestamp logs for transaction transparency and dispute auditability.",
-    "Buyer Delivery Confirmation: Buyers retain authority to issue a final digital delivery confirmation token upon physical receipt of goods, marking deals as successfully won.",
-    "Multi-Gateway Payment Configuration: Suppliers can configure PayPal, Stripe, EcoCash USSD, Pay on Delivery (POD), and PayNow payment options.",
-    "Direct WhatsApp App Uplink: 'Talk on WhatsApp' buttons intelligently launch WhatsApp Business or Regular WhatsApp natively based on device capabilities."
+    "Real-Time Supplier Visual Order Counters: Suppliers receive real-time notification badges and badge counters in Markets/DealRoom whenever a buyer places an order.",
+    "Guest Checkout & Phone Lookup: Guest buyers can complete purchases and immediately track their orders via phone number search or Order ID without mandating password creation."
   ],
   sec2Title: "02. Account Registration & Security",
   sec2Items: [
@@ -119,15 +119,14 @@ const TOS_SHONA: TOSContent = {
   sec1Body: "Platform inzvimbo yebhizimisi nevatengesi vakawanda yakavakirwa kubvumidza vashandisi kunyoresa, kugadzira maprofile ebhizimisi, kumisa zvitoro, nekuisa zvigadzirwa kana masevhisi ekutengesa. Hatitengese kana kubata zvigadzirwa zvinotsikiswa nevatengesi.",
   sec1NoteTitle: "Maitiro eVasina Akaunti (Guest Mode):",
   sec1NoteBody: "Pamusoro pekuva nhengo izere, Platform inotsigira maitiro eGuest Access. Vashandisi vanokwanisa kuongorora zvitoro zvezvinhu, kutumira mharidzo dzekubvunza, nekuongorora maitiro e-Order Now vasina kunyoresa zvachose.",
-  recentUpdatesTitle: "Zvakavandudzwa Zvazvino (Chikunguru 2026)",
+  recentUpdatesTitle: "Zvakavandudzwa Zvazvino zv ePlatform neDatabase (Nyamavhuvhu 2026)",
   recentUpdates: [
+    "Zero-Connection PWA Startup: Core HTML, CSS ne JS macode anochengetwa pafoni (App Shell precaching) kuitira kuti app ivhure nekukasika pasina internet connection.",
+    "Local-First Boot ne Stale-While-Revalidate: App inoratidza data iri muIndexedDB pafoni ipapo ipapo payavhurwa, yozozviporofita zvitsva zvakabva kuserver kumashure kana paano connection.",
+    "Client-Side Indexing ne Pagination: Maintanho e-indexing pane zvitoro nezvigadzirwa anobvumidza tsvagurudzo ye-sub-millisecond pasina kuremedza memory yefoni.",
+    "Granular State Writes ne Outbox Queuing: Zvakashandurwa zvinonyorwa pane yega yega record pachinzvimbo che-state yese. Zvaitwa pasina internet zvinoiswa mu-outbox queue yozowirirana zvakanaka pakudzoka kwe-network.",
     "Kugadziriswa Kwekubhadhara Kakawanda: Vatengesi vanokwanisa kusarudza nzira dzekubhadhara dzinosanganisira PayPal, Stripe, EcoCash USSD, Cash on Delivery, nePayNow.",
-    "Bhatani reWhatsApp: Bhatani re \"Talk on WhatsApp\" rinovhura zvakananga WhatsApp Business kana yeMazuva Ese pafoni yako.",
-    "Dzora Inventory Yenyu: Vatengesi vanowana mukana wekutonga nekuongorora \"Live Inventory\" kubva paprofile yavo.",
-    "Verified Operator Status: Platform inopa Verified Operator Status (nemufananidzo we-shield ye green) kune vaoneswa chokwadi neAdmin.",
-    "Masevhisi eNzvimbo: Ndangariro dzenzvimbo dzinoshandiswa kuratidza zvigadzirwa zviri pedyo nemi.",
-    "Zvinyorwa Zvekushambadza (Classified Ads): Vashandisi vanowana mikana 5 yekushambadza pamwedzi panguva inosvika mazuva makumi matatu.",
-    "Kuisa Mifananidzo: Mifananidzo ye zvinhu inogona kuiswa kusvika pa-2 assets pa-local mudziyo kana pa-5 kubudikidza ma-URL."
+    "Bhatani reWhatsApp: Bhatani re \"Talk on WhatsApp\" rinovhura zvakananga WhatsApp Business kana yeMazuva Ese pafoni yako."
   ],
   sec2Title: "02. Kunyoresa Akaunti neKuchengeteka",
   sec2Items: [
@@ -181,15 +180,14 @@ const TOS_NDEBELE: TOSContent = {
   sec1Body: "I-Platform iyipulatifomu yebhizinisi labathengisi abanengi eyakhelwe ukulungiselela abasebenzisi ukuthi babhalise, bakhe izitolo baye bakhiphe impahla kumbe amasevisi azathengiswa. Katithengisi amaphahla ezitolo ezizimeleyo.",
   sec1NoteTitle: "Indlela yoLuhlu ye-Guest (Guest Session):",
   sec1NoteBody: "Ngaphandle kwabantu ababhalise ngokugcweleyo, i-Platform isekela indlela ye-Guest Access lapho abantu abangena kumalinki abangahlola izitolo bathumele imilayezo ye-Talk kumbe Order Now pasina ukungena nge-Google Auth.",
-  recentUpdatesTitle: "Okusanda Kwelulwa (July 2026)",
+  recentUpdatesTitle: "Okusanda Kwelulwa kwePlatform leDatabase (August 2026)",
   recentUpdates: [
+    "Zero-Connection PWA Startup: Amakhodi e-HTML, CSS le JS agcinwa efonini yakho (App Shell precaching) ukuze i-app ivuleke ngokushesha pasina i-internet.",
+    "Local-First Boot le Stale-While-Revalidate: I-app ikhomba i-data kwi-IndexedDB khona lapho ivuleka, bese ilandela i-update entsha kuseva emuva nxa kule-network.",
+    "Client-Side Indexing le Pagination: Ukwenza i-indexing kumathebula ezitolo lezinto kuvumela ukudinga okusheshayo ngaphandle kokugcwalisa imemori yefoni.",
+    "Granular State Writes le Deferred Outbox Queuing: Izinguquko zibhalwa kwi-record ngayinye esikhundleni se-state yonke. Izinto ezenziwe ungelaneti zigcinwa kwi-outbox sync queue eyokwenza ukubuyisana nxa inethiwekhi ibuya.",
     "Ukulungiswa kweziNdlela zokubhadhala: Abathengisi bangakhetha PayPal, Stripe, EcoCash USSD, Cash on Delivery, le-PayNow.",
-    "Inkinobho ye-WhatsApp: Inkinobho \"Talk on WhatsApp\" ivula khona lapho WhatsApp Business kumbe eyeNjwayelo efoni yakho.",
-    "Lawula Izitolo Zakho: Abathengisi balamandla okulawula nohlola \"Live Inventory\" kwi-profile yabo.",
-    "Isimo se-Verified Operator: I-Platform inika i-Verified Operator Status kumi-partner abahlolisiswe nguAdmin.",
-    "Amasevisi eNdawo: Indawo yakho iyasiza ukukhomba impahla eseduze nawe.",
-    "Izikhangiso ze-Classified Ads: Abasebenzisi balelungelo lezikhangiso ezi-5 ngenyanga okwamalanga angu-30.",
-    "Ukulayisha Imifanekiso: Imifanekiso ye-local mudziyo ingaba yi-2 per item, kuthi eye-URL iye ku-5."
+    "Inkinobho ye-WhatsApp: Inkinobho \"Talk on WhatsApp\" ivula khona lapho WhatsApp Business kumbe eyeNjwayelo efoni yakho."
   ],
   sec2Title: "02. Ukubhalisa I-Akhawunti Nokuvikeleka",
   sec2Items: [
