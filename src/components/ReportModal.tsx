@@ -5,6 +5,7 @@ import { ReportType, Report } from '../types';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { collection, query, where, getDocs, serverTimestamp, setDoc, doc, updateDoc, writeBatch } from 'firebase/firestore';
 import { cn } from '../lib/utils';
+import { interactionService } from '../services/interactionService';
 
 interface ReportModalProps {
   isOpen: boolean;
@@ -87,6 +88,10 @@ export default function ReportModal({
 
       // 1. Save the report
       await setDoc(doc(db, 'reports', reportId), reportData);
+
+      if (targetType === 'product') {
+        interactionService.logProductReport(targetId).catch(() => {});
+      }
 
       // Check total pending reports on the owner (after saving this report)
       if (ownerId && ownerId !== 'system') {

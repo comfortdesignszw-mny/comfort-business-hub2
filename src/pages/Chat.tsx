@@ -361,7 +361,7 @@ function ConversationView({ convo, profile, onBack }: { convo: any, profile: Use
     if (!localId) {
       localId = await localDB.queuedMessages.add({
         convoId: convo.id,
-        senderId: profile.uid,
+        senderId: profile?.uid || activeUid,
         text: type === 'image' ? '[Image]' : type === 'video' ? '[Video]' : '[File]',
         type,
         payload: { url: previewUrl, name: file.name, size: file.size, mimeType: file.type },

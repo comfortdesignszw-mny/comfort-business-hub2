@@ -226,6 +226,7 @@ export default function ProductCard({
 
   const handleShare = async (e: React.MouseEvent) => {
     e.stopPropagation();
+    interactionService.logProductShare(product.id).catch(() => {});
     const payload = getProductSharePayload(
       {
         id: product.id,
@@ -248,6 +249,7 @@ export default function ProductCard({
         whileHover={{ scale: 1.01, y: -2 }}
         transition={{ type: "spring", stiffness: 400, damping: 25 }}
         onClick={() => {
+          interactionService.logProductClick(product.id, 'detail').catch(() => {});
           viewHistoryService.recordProductView(product.id, product.name, product.category, product.storeId);
           navigate(`/product/${product.id}`, { 
             state: { 

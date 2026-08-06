@@ -124,6 +124,11 @@ export interface Product {
   reviewCount?: number;
   followerCount?: number;
   likeCount?: number;
+  clickCount?: number;
+  detailClicks?: number;
+  ctaClicks?: number;
+  shareCount?: number;
+  reportCount?: number;
   isVerified?: boolean;
   isActive: boolean;
   createdAt: any;
@@ -192,6 +197,9 @@ export interface Deal {
   isGuestOrder?: boolean;
   popReference?: string;
   popStatus?: 'pending' | 'submitted' | 'verified';
+  popAttachmentUrl?: string;
+  popAttachmentName?: string;
+  popAttachmentType?: 'image' | 'pdf' | 'document' | string;
   customerNotes?: string;
   supplierNotes?: string;
   history?: DealHistoryItem[];

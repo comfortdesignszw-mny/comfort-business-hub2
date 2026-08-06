@@ -381,5 +381,53 @@ export const interactionService = {
     } catch (err) {
       console.error('Failed logging store engagement stats:', err);
     }
+  },
+
+  async logProductClick(productId: string, clickType: 'detail' | 'cta' = 'detail') {
+    if (!productId) return;
+    try {
+      const { updateDoc, doc, increment } = await import('firebase/firestore');
+      const pRef = doc(db, 'products', productId);
+      const updates: any = {
+        clickCount: increment(1),
+        updatedAt: new Date().toISOString()
+      };
+      if (clickType === 'detail') {
+        updates.detailClicks = increment(1);
+      } else {
+        updates.ctaClicks = increment(1);
+      }
+      await updateDoc(pRef, updates);
+    } catch (err) {
+      console.error('Failed logging product click:', err);
+    }
+  },
+
+  async logProductShare(productId: string) {
+    if (!productId) return;
+    try {
+      const { updateDoc, doc, increment } = await import('firebase/firestore');
+      const pRef = doc(db, 'products', productId);
+      await updateDoc(pRef, {
+        shareCount: increment(1),
+        updatedAt: new Date().toISOString()
+      });
+    } catch (err) {
+      console.error('Failed logging product share:', err);
+    }
+  },
+
+  async logProductReport(productId: string) {
+    if (!productId) return;
+    try {
+      const { updateDoc, doc, increment } = await import('firebase/firestore');
+      const pRef = doc(db, 'products', productId);
+      await updateDoc(pRef, {
+        reportCount: increment(1),
+        updatedAt: new Date().toISOString()
+      });
+    } catch (err) {
+      console.error('Failed logging product report:', err);
+    }
   }
 };

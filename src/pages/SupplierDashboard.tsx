@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Store as StoreIcon, 
@@ -23,7 +23,8 @@ import {
   Zap,
   RefreshCw,
   Wrench,
-  HelpCircle
+  HelpCircle,
+  Download
 } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { 
@@ -48,6 +49,7 @@ import ImageInput from '../components/ImageInput';
 import LocationPicker from '../components/LocationPicker';
 import { geohashForLocation } from 'geofire-common';
 import { MapContainer, TileLayer, Marker } from 'react-leaflet';
+import ExpandableProductInventoryCard from '../components/ExpandableProductInventoryCard';
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
@@ -518,6 +520,96 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
     }
   };
 
+  // Determine top performing product by CTR and engagement
+  const topPerformerProductId = useMemo(() => {
+    if (!products || products.length === 0) return null;
+    let maxScore = -1;
+    let topId: string | null = null;
+
+    products.forEach((p) => {
+      const detail = p.detailClicks || 0;
+      const cta = p.ctaClicks || 0;
+      const totalC = (p.clickCount || 0) > (detail + cta) ? (p.clickCount || 0) : (detail + cta);
+      const ctr = totalC > 0 ? (cta / totalC) * 100 : 0;
+      
+      const score = ctr * 100 + totalC * 10 + (p.likeCount || 0) * 5;
+      if (score > maxScore && (totalC > 0 || (p.likeCount || 0) > 0)) {
+        maxScore = score;
+        topId = p.id;
+      }
+    });
+
+    return topId;
+  }, [products]);
+
+  // Bulk CSV Export for all store inventory performance data
+  const handleExportAllInventoryCSV = () => {
+    if (!products || products.length === 0) return;
+    const headers = [
+      "Product ID",
+      "Product Name",
+      "Category",
+      "Price",
+      "Currency",
+      "Status",
+      "Total Clicks",
+      "Detail Card Views",
+      "CTA Order Clicks",
+      "Likes",
+      "Rating",
+      "Review Count",
+      "Shares",
+      "Reports",
+      "CTA Conversion Rate (%)",
+      "Top Performer Flag"
+    ];
+
+    const rows = products.map((product) => {
+      const detailClicks = product.detailClicks || 0;
+      const ctaClicks = product.ctaClicks || 0;
+      const totalClicks = (product.clickCount || 0) > (detailClicks + ctaClicks) 
+        ? (product.clickCount || 0) 
+        : (detailClicks + ctaClicks);
+      const likes = product.likeCount || 0;
+      const rating = product.rating ? Number(product.rating.toFixed(1)) : 5.0;
+      const reviewCount = product.reviewCount || 0;
+      const shares = product.shareCount || 0;
+      const reports = product.reportCount || 0;
+      const ctaConversionRate = totalClicks > 0 
+        ? ((ctaClicks / totalClicks) * 100).toFixed(1) 
+        : '0.0';
+      const isTop = product.id === topPerformerProductId;
+
+      return [
+        `"${product.id}"`,
+        `"${product.name.replace(/"/g, '""')}"`,
+        `"${(product.category || 'General').replace(/"/g, '""')}"`,
+        product.price,
+        `"${product.currency || 'USD'}"`,
+        product.isActive ? "Active" : "Offline",
+        totalClicks,
+        detailClicks,
+        ctaClicks,
+        likes,
+        rating,
+        reviewCount,
+        shares,
+        reports,
+        `"${ctaConversionRate}%"`,
+        isTop ? "Yes" : "No"
+      ].join(",");
+    });
+
+    const csvContent = "data:text/csv;charset=utf-8," + [headers.join(","), ...rows].join("\n");
+    const encodedUri = encodeURI(csvContent);
+    const link = document.createElement("a");
+    link.setAttribute("href", encodedUri);
+    link.setAttribute("download", `${(activeStore?.name || 'inventory').toLowerCase().replace(/[^a-z0-9]/g, '_')}_all_products_performance.csv`);
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
+  };
+
   if (loading || isWaitingForSync) {
     return (
       <div className="flex flex-col items-center justify-center h-64 space-y-4">
@@ -879,12 +971,21 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
 
       {/* Product List */}
       <section className="space-y-6">
-        <div className="flex items-center justify-between px-1">
+        <div className="flex items-center justify-between px-1 flex-wrap gap-2">
           <div className="flex items-center gap-2">
             <h2 className="font-black text-white uppercase tracking-tighter text-lg">Inventory</h2>
             <span className="px-2 py-0.5 bg-primary/10 text-primary text-[8px] font-black rounded border border-primary/20 uppercase tracking-widest">{products.length} Items</span>
           </div>
           <div className="flex items-center gap-2">
+            {products.length > 0 && (
+              <button 
+                onClick={handleExportAllInventoryCSV}
+                className="flex items-center gap-1.5 bg-emerald-500/10 border border-emerald-500/20 text-emerald-400 px-3 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-emerald-500/20 transition-all shadow-lg shadow-emerald-500/5 cursor-pointer"
+                title="Export all inventory metrics to CSV"
+              >
+                <Download size={14} /> Export All CSV
+              </button>
+            )}
             <button 
               onClick={() => setShowWhatsAppModal(true)}
               className="flex items-center gap-2 bg-neon-green/10 border border-neon-green/20 text-neon-green px-4 py-2.5 rounded-xl text-[10px] font-black uppercase tracking-widest hover:bg-neon-green/20 transition-all shadow-lg shadow-neon-green/5"
@@ -902,60 +1003,15 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
 
         <div className="space-y-4">
           {Array.from(new Map<string, Product>(products.filter(p => p && p.id).map(p => [p.id, p])).values()).map((product, index) => (
-            <motion.div 
+            <ExpandableProductInventoryCard
               key={`sup-prod-${product.id || index}-${index}`}
-              initial={{ opacity: 0, y: 20 }}
-              animate={{ opacity: 1, y: 0 }}
-              transition={{ delay: index * 0.05 }}
-              layout
-              className="neon-card p-4 flex gap-4 items-center group"
-            >
-              <div className="w-16 h-16 bg-white/5 rounded-xl overflow-hidden border border-white/5">
-                <img 
-                  src={product.images[0]} 
-                  className="w-full h-full object-cover" 
-                  alt={product.name} 
-                  referrerPolicy="no-referrer" 
-                  onError={(e) => {
-                    const target = e.target as HTMLImageElement;
-                    target.src = "https://images.unsplash.com/photo-1541701494587-cb58502866ab?q=80&w=400&auto=format&fit=crop";
-                  }}
-                />
-              </div>
-              <div className="flex-1 space-y-1">
-                <h4 className="font-black text-white italic uppercase tracking-wider text-xs">{product.name}</h4>
-                <div className="flex items-center gap-2">
-                  <span className="text-primary font-black text-sm tracking-tighter">{formatCurrency(product.price, product.currency)}</span>
-                  <div className="flex items-center gap-2">
-                    <span className={cn(
-                      "px-1.5 py-0.5 text-[7px] font-black rounded uppercase tracking-widest",
-                      product.isActive ? "bg-neon-green/10 text-neon-green" : "bg-red-500/10 text-red-500"
-                    )}>
-                      {product.isActive ? 'Active' : 'Offline'}
-                    </span>
-                    {product.isActive && (
-                      <span className="px-1.5 py-0.5 text-[7px] font-black rounded bg-primary/10 text-primary uppercase tracking-widest flex items-center gap-1">
-                        <Sparkles size={8} /> Live on Discovery
-                      </span>
-                    )}
-                  </div>
-                </div>
-              </div>
-              <div className="flex items-center gap-2 opacity-50 group-hover:opacity-100 transition-opacity">
-                <button 
-                  onClick={() => handleOpenForm(product)}
-                  className="p-2 hover:text-primary transition-colors"
-                >
-                  <Edit3 size={16} />
-                </button>
-                <button 
-                  onClick={() => setProductToDelete(product)}
-                  className="p-2 hover:text-red-500 transition-colors"
-                >
-                  <Trash2 size={16} />
-                </button>
-              </div>
-            </motion.div>
+              product={product}
+              storeName={activeStore?.name}
+              isTopPerformer={product.id === topPerformerProductId}
+              onEdit={(prod) => handleOpenForm(prod)}
+              onDelete={(prod) => setProductToDelete(prod)}
+              index={index}
+            />
           ))}
 
           {products.length === 0 && (

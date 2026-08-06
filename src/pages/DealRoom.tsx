@@ -39,6 +39,7 @@ import { collection, query, where, getDocs, doc, getDoc, onSnapshot, updateDoc }
 import { useLocation, useNavigate } from 'react-router-dom';
 import { offlineResilientWrite } from '../lib/sync';
 import { useNotifications } from '../components/NotificationProvider';
+import { POPForm, POPDisplay, POPAttachmentData } from '../components/PopAttachmentSection';
 
 export default function DealRoom({ profile }: { profile: UserProfile | null }) {
   // Main Subsections:
@@ -772,15 +773,22 @@ function DealCard({
     }
   };
 
-  const handleSubmitPopInDeal = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!popInput.trim()) return;
+  const [editingPop, setEditingPop] = useState(false);
+
+  const handleSubmitPopInDeal = async (data: POPAttachmentData) => {
     setSubmittingPop(true);
 
     try {
+      const refPart = data.popReference ? `Ref: ${data.popReference}` : '';
+      const attPart = data.popAttachmentName ? `File: ${data.popAttachmentName}` : '';
+      const noteDetails = [refPart, attPart].filter(Boolean).join(' | ') || 'Proof attached';
+
       const updatedDeal: Deal = {
         ...deal,
-        popReference: popInput.trim(),
+        popReference: data.popReference,
+        popAttachmentUrl: data.popAttachmentUrl,
+        popAttachmentName: data.popAttachmentName,
+        popAttachmentType: data.popAttachmentType,
         popStatus: 'submitted',
         updatedAt: new Date().toISOString(),
         history: [
@@ -790,13 +798,13 @@ function DealCard({
             status: 'confirmed',
             timestamp: new Date().toISOString(),
             updatedBy: deal.customerName || 'Customer',
-            note: `Proof of payment submitted: ${popInput.trim()}`
+            note: `Proof of payment submitted (${noteDetails})`
           }
         ]
       };
 
       await offlineResilientWrite('deals', deal.id, 'update', updatedDeal);
-      setPopInput('');
+      setEditingPop(false);
     } catch (err) {
       console.error("POP submission error in DealCard:", err);
     } finally {
@@ -943,48 +951,24 @@ function DealCard({
               <FileText size={12} /> Proof of Payment (POP) Status
             </p>
 
-            {deal.popReference ? (
-              <div className="bg-amber-500/10 border border-amber-500/30 rounded-xl p-3 flex flex-col sm:flex-row justify-between items-start sm:items-center gap-2">
-                <div>
-                  <p className="text-[10px] font-mono font-bold text-white">
-                    Ref / Code: <span className="text-amber-300 font-black">{deal.popReference}</span>
-                  </p>
-                  <p className="text-[9px] text-gray-400">
-                    Status: {deal.popStatus === 'verified' ? (
-                      <span className="text-emerald-400 font-black">Verified by Supplier ✓</span>
-                    ) : (
-                      <span className="text-amber-400 font-bold">Awaiting Supplier Verification</span>
-                    )}
-                  </p>
-                </div>
-
-                {isSeller && deal.popStatus !== 'verified' && (
-                  <button
-                    onClick={handleVerifyPopBySupplier}
-                    className="bg-emerald-500 hover:bg-emerald-400 text-black px-3 py-1.5 rounded-lg text-[9px] font-black uppercase tracking-wider flex items-center gap-1 cursor-pointer shrink-0"
-                  >
-                    <CheckCircle2 size={12} /> Verify POP & Conclude Sale
-                  </button>
-                )}
-              </div>
+            {(deal.popReference || deal.popAttachmentUrl) && !editingPop ? (
+              <POPDisplay
+                popReference={deal.popReference}
+                popAttachmentUrl={deal.popAttachmentUrl}
+                popAttachmentName={deal.popAttachmentName}
+                popAttachmentType={deal.popAttachmentType}
+                popStatus={deal.popStatus}
+                isSeller={isSeller}
+                onVerify={handleVerifyPopBySupplier}
+                onReupload={() => setEditingPop(true)}
+              />
             ) : (
-              <form onSubmit={handleSubmitPopInDeal} className="flex gap-2">
-                <input
-                  type="text"
-                  required
-                  value={popInput}
-                  onChange={e => setPopInput(e.target.value)}
-                  placeholder="Enter POP Ref / Transaction Code (e.g. EC12345678)"
-                  className="flex-1 bg-black/50 border border-white/10 rounded-xl px-3 py-1.5 text-white text-xs font-mono outline-none focus:border-amber-400"
-                />
-                <button
-                  type="submit"
-                  disabled={submittingPop}
-                  className="bg-amber-500 hover:bg-amber-400 text-black px-3 py-1.5 rounded-xl font-black text-[9px] uppercase tracking-wider flex items-center gap-1 cursor-pointer shrink-0"
-                >
-                  {submittingPop ? <Loader2 className="animate-spin" size={12} /> : <Send size={12} />} Submit POP
-                </button>
-              </form>
+              <POPForm
+                initialReference={deal.popReference || ''}
+                submitting={submittingPop}
+                onSubmit={handleSubmitPopInDeal}
+                buttonText={editingPop ? 'Update Proof of Payment' : 'Submit Proof of Payment (Screenshot / PDF)'}
+              />
             )}
           </div>
         </div>

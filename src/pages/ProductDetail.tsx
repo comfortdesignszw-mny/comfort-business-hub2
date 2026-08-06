@@ -177,6 +177,7 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
 
   useEffect(() => {
     if (product) {
+      interactionService.logProductClick(product.id, 'detail').catch(() => {});
       const shortId = getShortId(product);
       updateMetaTags({
         title: `${product.name} - ${store?.name || 'Comfort Business Hub'}`,
@@ -189,6 +190,7 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
 
   const handleShare = async () => {
     if (!product) return;
+    interactionService.logProductShare(product.id).catch(() => {});
     const payload = getProductSharePayload(
       {
         id: product.id,

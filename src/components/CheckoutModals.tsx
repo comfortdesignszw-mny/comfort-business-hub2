@@ -12,6 +12,7 @@ import { cn, formatCurrency, openWhatsApp } from '../lib/utils';
 import { interactionService } from '../services/interactionService';
 import { useMessaging } from './MessagingProvider';
 import { offlineResilientWrite } from '../lib/sync';
+import { POPForm, POPDisplay, POPAttachmentData } from './PopAttachmentSection';
 
 export function getSavedGuestContact(profile: UserProfile | null) {
   if (profile) {
@@ -107,8 +108,15 @@ export function SalesOrderConfirmationModal({
 }) {
   const navigate = useNavigate();
   const [supplierPhone, setSupplierPhone] = useState<string>('');
-  const [popInput, setPopInput] = useState<string>('');
-  const [popSubmitted, setPopSubmitted] = useState<boolean>(!!dealData.popReference);
+  const [submittedPopData, setSubmittedPopData] = useState<POPAttachmentData | null>(
+    dealData.popReference || dealData.popAttachmentUrl ? {
+      popReference: dealData.popReference || '',
+      popAttachmentUrl: dealData.popAttachmentUrl,
+      popAttachmentName: dealData.popAttachmentName,
+      popAttachmentType: dealData.popAttachmentType
+    } : null
+  );
+  const [popSubmitted, setPopSubmitted] = useState<boolean>(!!(dealData.popReference || dealData.popAttachmentUrl));
   const [submittingPop, setSubmittingPop] = useState<boolean>(false);
   const [copiedText, setCopiedText] = useState<boolean>(false);
 
@@ -157,15 +165,20 @@ export function SalesOrderConfirmationModal({
     }
   };
 
-  const handleSubmitPop = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!popInput.trim()) return;
+  const handleSubmitPop = async (data: POPAttachmentData) => {
     setSubmittingPop(true);
 
     try {
+      const refPart = data.popReference ? `Ref: ${data.popReference}` : '';
+      const attPart = data.popAttachmentName ? `File: ${data.popAttachmentName}` : '';
+      const noteDetails = [refPart, attPart].filter(Boolean).join(' | ') || 'Proof attached';
+
       const updatedDeal: Deal = {
         ...dealData,
-        popReference: popInput.trim(),
+        popReference: data.popReference,
+        popAttachmentUrl: data.popAttachmentUrl,
+        popAttachmentName: data.popAttachmentName,
+        popAttachmentType: data.popAttachmentType,
         popStatus: 'submitted',
         updatedAt: new Date().toISOString(),
         history: [
@@ -175,7 +188,7 @@ export function SalesOrderConfirmationModal({
             status: 'confirmed',
             timestamp: new Date().toISOString(),
             updatedBy: buyerName,
-            note: `Proof of payment submitted: ${popInput.trim()}`
+            note: `Proof of payment submitted (${noteDetails})`
           }
         ]
       };
@@ -188,9 +201,10 @@ export function SalesOrderConfirmationModal({
         buildUserProfileForNotification(profile, dealData.customerId, buyerName, buyerPhone, buyerEmail),
         product.id,
         'Proof of Payment (POP) Received!',
-        `${buyerName} submitted POP (${popInput.trim()}) for ${product.name} (${paymentMethodLabel}).`
+        `${buyerName} submitted POP (${noteDetails}) for ${product.name} (${paymentMethodLabel}).`
       );
 
+      setSubmittedPopData(data);
       setPopSubmitted(true);
     } catch (err) {
       console.error("POP submission error:", err);
@@ -281,32 +295,31 @@ export function SalesOrderConfirmationModal({
             </span>
           </div>
           <p className="text-[9.5px] text-gray-300 leading-relaxed font-medium">
-            Enter your payment transaction reference code (e.g. EcoCash Approval Code, Bank Reference Number, or Receipt ID) to conclude the sale.
+            Attach a screenshot or PDF document receipt, and/or enter your payment reference code (e.g. EcoCash Approval Code, Bank Ref) to confirm product payment.
           </p>
 
           {popSubmitted ? (
-            <div className="bg-emerald-500/20 border border-emerald-500/40 p-3 rounded-xl flex items-center gap-2 text-emerald-300 text-xs font-bold">
-              <CheckCircle2 size={16} className="shrink-0" />
-              <span>Proof of Payment (POP) submitted successfully! Supplier notified to conclude sale.</span>
+            <div className="space-y-2">
+              <div className="bg-emerald-500/20 border border-emerald-500/40 p-3 rounded-xl flex items-center gap-2 text-emerald-300 text-xs font-bold">
+                <CheckCircle2 size={16} className="shrink-0" />
+                <span>Proof of Payment (POP) submitted successfully! Supplier notified to conclude sale.</span>
+              </div>
+              <POPDisplay
+                popReference={dealData.popReference || submittedPopData?.popReference}
+                popAttachmentUrl={dealData.popAttachmentUrl || submittedPopData?.popAttachmentUrl}
+                popAttachmentName={dealData.popAttachmentName || submittedPopData?.popAttachmentName}
+                popAttachmentType={dealData.popAttachmentType || submittedPopData?.popAttachmentType}
+                popStatus={dealData.popStatus || 'submitted'}
+                isSeller={false}
+              />
             </div>
           ) : (
-            <form onSubmit={handleSubmitPop} className="space-y-2">
-              <input
-                type="text"
-                required
-                value={popInput}
-                onChange={e => setPopInput(e.target.value)}
-                placeholder="Enter POP Ref / Transaction Code (e.g. EC12345678)"
-                className="w-full bg-black/50 border border-white/10 rounded-xl px-3.5 py-2.5 text-white text-xs font-mono outline-none focus:border-amber-400"
-              />
-              <button
-                type="submit"
-                disabled={submittingPop}
-                className="w-full bg-amber-500 hover:bg-amber-400 text-black py-2.5 rounded-xl font-black text-[9.5px] uppercase tracking-widest flex items-center justify-center gap-2 transition-all cursor-pointer"
-              >
-                {submittingPop ? <Loader2 className="animate-spin" size={14} /> : <Send size={14} />} Send Proof of Payment (POP) to Conclude Sale
-              </button>
-            </form>
+            <POPForm
+              initialReference=""
+              submitting={submittingPop}
+              onSubmit={handleSubmitPop}
+              buttonText="Send Proof of Payment (POP) to Conclude Sale"
+            />
           )}
         </div>
 
