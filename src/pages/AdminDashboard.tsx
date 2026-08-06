@@ -31,6 +31,8 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
   const [products, setProducts] = useState<Product[]>([]);
   const [spotlights, setSpotlights] = useState<Spotlight[]>([]);
   const [adFilter, setAdFilter] = useState<'pending' | 'approved' | 'all'>('pending');
+  const [storeFilter, setStoreFilter] = useState<'all' | 'pending' | 'verified'>('all');
+  const [productFilter, setProductFilter] = useState<'all' | 'pending' | 'verified'>('all');
   const [loading, setLoading] = useState(true);
   const [searchTerm, setSearchTerm] = useState('');
   const [statusFilter, setStatusFilter] = useState<'all' | 'pending' | 'resolved' | 'dismissed'>('all');
@@ -192,8 +194,18 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
       await updateDoc(doc(db, 'users', userId), { isVerified, updatedAt: serverTimestamp() });
       await updateDoc(doc(db, 'public_profiles', userId), { isVerified, updatedAt: serverTimestamp() });
       setUsers(prev => prev.map(u => u.uid === userId ? { ...u, isVerified } : u));
+      if (isVerified && profile) {
+        interactionService.sendNotification(
+          userId,
+          'connect_accept',
+          profile,
+          userId,
+          '🛡️ Account Verified!',
+          'Your account operator status has been verified by the Platform Admin.'
+        ).catch(() => {});
+      }
     } catch (err) {
-      console.error(err);
+      console.error('Failed to verify user:', err);
     } finally {
       setIsProcessing(null);
     }
@@ -204,8 +216,19 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
     try {
       await updateDoc(doc(db, 'stores', storeId), { isVerified, updatedAt: new Date().toISOString() });
       setStores(prev => prev.map(s => s.id === storeId ? { ...s, isVerified } : s));
+      const targetStore = stores.find(s => s.id === storeId);
+      if (isVerified && targetStore?.ownerId && profile) {
+        interactionService.sendNotification(
+          targetStore.ownerId,
+          'connect_accept',
+          profile,
+          storeId,
+          '🏬 Store Verified Badge Granted!',
+          `Your store storefront "${targetStore.name}" has been granted a Verified Store Badge by Admin!`
+        ).catch(() => {});
+      }
     } catch (err) {
-      console.error(err);
+      console.error('Failed to verify store:', err);
     } finally {
       setIsProcessing(null);
     }
@@ -216,8 +239,19 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
     try {
       await updateDoc(doc(db, 'products', productId), { isVerified, updatedAt: new Date().toISOString() });
       setProducts(prev => prev.map(p => p.id === productId ? { ...p, isVerified } : p));
+      const targetProduct = products.find(p => p.id === productId);
+      if (isVerified && targetProduct?.ownerId && profile) {
+        interactionService.sendNotification(
+          targetProduct.ownerId,
+          'connect_accept',
+          profile,
+          productId,
+          '⭐ Product Verified Badge Granted!',
+          `Your product listing "${targetProduct.name}" has been granted a Verified Badge by Admin!`
+        ).catch(() => {});
+      }
     } catch (err) {
-      console.error(err);
+      console.error('Failed to verify product:', err);
     } finally {
       setIsProcessing(null);
     }
@@ -351,18 +385,28 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
 
   const filteredStores = stores.filter(s => {
     const search = searchTerm.toLowerCase();
-    return s.name?.toLowerCase().includes(search) ||
+    const matchesSearch = s.name?.toLowerCase().includes(search) ||
            s.category?.toLowerCase().includes(search) ||
            s.ownerId?.toLowerCase().includes(search) ||
            s.address?.toLowerCase().includes(search);
+    if (!matchesSearch) return false;
+
+    if (storeFilter === 'pending') return !s.isVerified && !(s as any).verified;
+    if (storeFilter === 'verified') return Boolean(s.isVerified || (s as any).verified);
+    return true;
   });
 
   const filteredProducts = products.filter(p => {
     const search = searchTerm.toLowerCase();
-    return p.name?.toLowerCase().includes(search) ||
+    const matchesSearch = p.name?.toLowerCase().includes(search) ||
            p.category?.toLowerCase().includes(search) ||
            p.ownerId?.toLowerCase().includes(search) ||
            p.description?.toLowerCase().includes(search);
+    if (!matchesSearch) return false;
+
+    if (productFilter === 'pending') return !p.isVerified;
+    if (productFilter === 'verified') return Boolean(p.isVerified);
+    return true;
   });
 
   const pendingAdsCount = spotlights.filter(s => s.isApproved === false).length;
@@ -422,6 +466,11 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
           >
             <Store size={14} />
             Stores ({stores.length})
+            {stores.filter(s => !s.isVerified && !(s as any).verified).length > 0 && (
+              <span className="bg-amber-400 text-black px-1.5 py-0.5 rounded-full text-[8px] font-black">
+                {stores.filter(s => !s.isVerified && !(s as any).verified).length}
+              </span>
+            )}
           </button>
           <button 
             onClick={() => setActiveTab('products')}
@@ -432,6 +481,11 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
           >
             <ShoppingBag size={14} />
             Products ({products.length})
+            {products.filter(p => !p.isVerified).length > 0 && (
+              <span className="bg-amber-400 text-black px-1.5 py-0.5 rounded-full text-[8px] font-black">
+                {products.filter(p => !p.isVerified).length}
+              </span>
+            )}
           </button>
           <button 
             onClick={() => setActiveTab('reports')}
@@ -512,6 +566,48 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
                   )}
                 >
                   {s}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {activeTab === 'stores' && (
+            <div className="flex gap-2 flex-wrap">
+              {[
+                { id: 'all', label: `All (${stores.length})` },
+                { id: 'pending', label: `Pending (${stores.filter(s => !s.isVerified && !(s as any).verified).length})` },
+                { id: 'verified', label: `Verified (${stores.filter(s => s.isVerified || (s as any).verified).length})` }
+              ].map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => setStoreFilter(f.id as any)}
+                  className={cn(
+                    "px-4 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest border transition-all",
+                    storeFilter === f.id ? "bg-red-500/10 border-red-500/30 text-red-500" : "bg-[#0d1117] border-white/5 text-gray-500 hover:text-white"
+                  )}
+                >
+                  {f.label}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {activeTab === 'products' && (
+            <div className="flex gap-2 flex-wrap">
+              {[
+                { id: 'all', label: `All (${products.length})` },
+                { id: 'pending', label: `Pending (${products.filter(p => !p.isVerified).length})` },
+                { id: 'verified', label: `Verified (${products.filter(p => p.isVerified).length})` }
+              ].map((f) => (
+                <button
+                  key={f.id}
+                  onClick={() => setProductFilter(f.id as any)}
+                  className={cn(
+                    "px-4 py-2 rounded-xl text-[8px] font-black uppercase tracking-widest border transition-all",
+                    productFilter === f.id ? "bg-red-500/10 border-red-500/30 text-red-500" : "bg-[#0d1117] border-white/5 text-gray-500 hover:text-white"
+                  )}
+                >
+                  {f.label}
                 </button>
               ))}
             </div>

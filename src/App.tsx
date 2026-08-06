@@ -267,8 +267,8 @@ export default function App() {
             let needsUpdate = false;
             const updates: any = {};
 
-            if (profileData.isVerified !== firebaseUser.emailVerified) {
-              updates.isVerified = firebaseUser.emailVerified;
+            if (firebaseUser.emailVerified && !profileData.isVerified) {
+              updates.isVerified = true;
               needsUpdate = true;
             }
 

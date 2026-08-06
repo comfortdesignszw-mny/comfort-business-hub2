@@ -292,7 +292,7 @@ export default function DealRoom({ profile }: { profile: UserProfile | null }) {
 
   // Filtered Deals for "Sales and Buyer Order Tracking"
   const filteredDeals = useMemo(() => {
-    return deals.filter(deal => {
+    const list = deals.filter(deal => {
       // 1. Role Filter (Sales vs Purchases)
       if (roleFilter === 'sales' && deal.supplierId !== profile?.uid) return false;
       if (roleFilter === 'purchases' && deal.customerId !== profile?.uid) return false;
@@ -313,6 +313,19 @@ export default function DealRoom({ profile }: { profile: UserProfile | null }) {
       }
 
       return true;
+    });
+
+    // Unfinished/active orders and latest transactions placed on top
+    return list.sort((a, b) => {
+      const isUnfinishedA = a.status !== 'delivered' && a.status !== 'won' && a.status !== 'cancelled';
+      const isUnfinishedB = b.status !== 'delivered' && b.status !== 'won' && b.status !== 'cancelled';
+
+      if (isUnfinishedA && !isUnfinishedB) return -1;
+      if (!isUnfinishedA && isUnfinishedB) return 1;
+
+      const dateA = new Date(a.updatedAt || a.createdAt || 0).getTime();
+      const dateB = new Date(b.updatedAt || b.createdAt || 0).getTime();
+      return dateB - dateA;
     });
   }, [deals, roleFilter, statusFilter, searchQuery, profile?.uid]);
 

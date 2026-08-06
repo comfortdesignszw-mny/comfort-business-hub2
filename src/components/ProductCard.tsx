@@ -379,6 +379,11 @@ export default function ProductCard({
                 )}>
                   {product.itemType === 'service' ? 'Service' : 'Product'}
                 </span>
+                {product.isVerified && (
+                  <span className="px-1 py-0.2 rounded text-[6.5px] sm:text-[7.5px] font-black uppercase tracking-wider shrink-0 bg-emerald-500/20 border border-emerald-400/50 text-emerald-400 flex items-center gap-0.5 shadow-[0_0_8px_rgba(16,185,129,0.3)]">
+                    <Check size={8} className="stroke-[3]" /> Verified
+                  </span>
+                )}
                 {recommendationReason && (
                   <span className="px-1.5 py-0.2 rounded-full bg-primary/20 border border-primary/40 text-primary text-[6.5px] sm:text-[7.5px] font-black uppercase tracking-wider flex items-center gap-0.5 shrink-0 truncate max-w-[120px]">
                     <Zap size={7} className="text-primary fill-primary shrink-0" /> <span className="truncate">{recommendationReason}</span>
@@ -425,6 +430,11 @@ export default function ProductCard({
               <div className="flex-1 min-w-0">
                 <div className="flex items-center gap-1 min-w-0">
                   <p className="text-[8.5px] sm:text-[9.5px] text-white font-black uppercase tracking-tight truncate group-hover/store:text-primary transition-colors">{storeData.name}</p>
+                  {(storeData.isVerified || (initialStore as any)?.isVerified) && (
+                    <span className="inline-flex items-center gap-0.5 text-emerald-400 text-[6.5px] font-black uppercase tracking-wider bg-emerald-500/20 border border-emerald-400/40 px-1 py-0.2 rounded shrink-0" title="Verified Store">
+                      <Check size={7} className="stroke-[3]" /> Verified
+                    </span>
+                  )}
                 </div>
               </div>
             </div>

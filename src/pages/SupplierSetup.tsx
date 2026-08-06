@@ -80,7 +80,7 @@ export default function SupplierSetup({ profile, onComplete, existingStore }: { 
           lng: location.lng,
           geohash: hash,
           address: location.address,
-          isVerified: existingStore ? (existingStore.isVerified || false) : Boolean(profile.isVerified),
+          isVerified: existingStore ? Boolean(existingStore.isVerified || (existingStore as any)?.verified || profile?.isVerified) : Boolean(profile?.isVerified),
           updatedAt: new Date().toISOString()
       };
 

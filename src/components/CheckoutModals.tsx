@@ -400,6 +400,146 @@ export function GuestContactFields({
   );
 }
 
+export function DeliveryOptionSelector({
+  needsDelivery,
+  setNeedsDelivery,
+  deliveryAddress,
+  setDeliveryAddress
+}: {
+  needsDelivery: boolean;
+  setNeedsDelivery: (val: boolean) => void;
+  deliveryAddress?: string;
+  setDeliveryAddress?: (val: string) => void;
+}) {
+  return (
+    <div className="bg-white/5 border border-white/10 rounded-2xl p-4 space-y-3 text-left">
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2 text-primary">
+          <MapPinned size={14} />
+          <span className="text-[10px] font-black uppercase tracking-widest">Delivery & Tracking Choice</span>
+        </div>
+        <span className="text-[9px] font-bold text-gray-400">Select Option</span>
+      </div>
+
+      <div className="grid grid-cols-2 gap-2">
+        <button
+          type="button"
+          onClick={() => setNeedsDelivery(true)}
+          className={cn(
+            "p-3 rounded-xl border text-left flex flex-col gap-1 transition-all cursor-pointer",
+            needsDelivery
+              ? "bg-primary/10 border-primary text-white shadow-[0_0_15px_rgba(0,242,254,0.15)]"
+              : "bg-black/30 border-white/10 text-gray-400 hover:text-white"
+          )}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-black uppercase tracking-wider">With Delivery</span>
+            {needsDelivery && <CheckCircle2 size={12} className="text-primary" />}
+          </div>
+          <span className="text-[8.5px] text-gray-400 leading-tight">Order tracking & delivery service initiated</span>
+        </button>
+
+        <button
+          type="button"
+          onClick={() => setNeedsDelivery(false)}
+          className={cn(
+            "p-3 rounded-xl border text-left flex flex-col gap-1 transition-all cursor-pointer",
+            !needsDelivery
+              ? "bg-emerald-500/10 border-emerald-500 text-white shadow-[0_0_15px_rgba(16,185,129,0.15)]"
+              : "bg-black/30 border-white/10 text-gray-400 hover:text-white"
+          )}
+        >
+          <div className="flex items-center justify-between">
+            <span className="text-[10px] font-black uppercase tracking-wider">No Delivery</span>
+            {!needsDelivery && <CheckCircle2 size={12} className="text-emerald-400" />}
+          </div>
+          <span className="text-[8.5px] text-gray-400 leading-tight">In-person pickup / Direct WhatsApp order</span>
+        </button>
+      </div>
+
+      {needsDelivery && setDeliveryAddress !== undefined && (
+        <div className="space-y-1 pt-1">
+          <label className="text-[9px] font-black text-gray-300 uppercase tracking-wider block">
+            Delivery Address / City Landmark <span className="text-red-400">*</span>
+          </label>
+          <input
+            type="text"
+            required={needsDelivery}
+            value={deliveryAddress}
+            onChange={e => setDeliveryAddress(e.target.value)}
+            placeholder="Enter full physical address for delivery..."
+            className="w-full bg-black/40 border border-white/10 rounded-xl px-3.5 py-2.5 text-white text-xs outline-none focus:border-primary/50 font-bold"
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
+export function DirectWhatsAppSuccessModal({
+  product,
+  quantity,
+  paymentMethodLabel,
+  guestName,
+  guestPhone,
+  supplierPhone,
+  onClose
+}: {
+  product: Product;
+  quantity: number;
+  paymentMethodLabel: string;
+  guestName: string;
+  guestPhone: string;
+  supplierPhone: string;
+  onClose: () => void;
+}) {
+  const handleReopenWhatsApp = () => {
+    const msg = `🛒 DIRECT ORDER (NO DELIVERY REQUESTED)\n\n` +
+      `• Product: ${product.name} (x${quantity})\n` +
+      `• Total: ${formatCurrency(product.price * quantity, product.currency)}\n` +
+      `• Payment System: ${paymentMethodLabel}\n` +
+      `• Buyer Name: ${guestName}\n` +
+      `• Buyer Phone: ${guestPhone}\n\n` +
+      `Hello! I placed an order for in-person pickup / direct WhatsApp arrangement.`;
+    openWhatsApp(supplierPhone, msg);
+  };
+
+  return (
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto bg-black/80 backdrop-blur-md">
+      <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-md my-auto neon-card p-6 text-center space-y-5 border border-white/10 bg-[#0d1117] shadow-2xl">
+        <div className="w-16 h-16 bg-emerald-500/20 text-emerald-400 rounded-3xl flex items-center justify-center mx-auto border border-emerald-500/40 shadow-[0_0_20px_rgba(16,185,129,0.3)] animate-bounce">
+          <MessageCircle size={36} />
+        </div>
+        <div className="space-y-2">
+          <h3 className="text-lg font-black text-emerald-400 italic uppercase tracking-tight">Order Details Sent to WhatsApp!</h3>
+          <p className="text-xs font-bold text-gray-200 leading-relaxed max-w-xs mx-auto">
+            Your order information has been generated and sent directly to the seller via WhatsApp.
+          </p>
+          <div className="bg-white/5 border border-white/10 p-3.5 rounded-2xl text-[10px] text-gray-300 text-left space-y-1">
+            <p className="font-black text-emerald-400 uppercase tracking-wider">No Delivery Requested</p>
+            <p className="leading-relaxed">Because you chose 'No Delivery', no delivery tracking has been initiated in Markets. You can arrange pickup or payment directly with the seller on WhatsApp.</p>
+          </div>
+        </div>
+
+        <div className="space-y-2">
+          <button
+            onClick={handleReopenWhatsApp}
+            className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-3.5 px-4 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all cursor-pointer"
+          >
+            <MessageCircle size={16} /> Re-Open Seller WhatsApp Chat
+          </button>
+          <button
+            onClick={onClose}
+            className="w-full bg-white/10 hover:bg-white/20 text-white py-3 px-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all cursor-pointer"
+          >
+            Done & Close
+          </button>
+        </div>
+      </motion.div>
+    </div>
+  );
+}
+
 export function UnifiedCheckoutModal({ product, profile, onClose, onSwitchModal, quantity, setQuantity }: {
   product: Product;
   profile: UserProfile | null;
@@ -568,10 +708,10 @@ export function UnifiedCheckoutModal({ product, profile, onClose, onSwitchModal,
   });
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto bg-black/80 backdrop-blur-md">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[#05070a]/90 backdrop-blur-md" onClick={onClose} />
-      <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-md neon-card p-0 overflow-hidden">
-        <div className="p-5 border-b border-white/5 flex justify-between items-center bg-white/5">
+      <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-md my-auto neon-card p-0 flex flex-col max-h-[92vh] overflow-hidden border border-white/10 bg-[#0d1117] shadow-2xl">
+        <div className="p-4 sm:p-5 border-b border-white/10 flex justify-between items-center bg-white/5 shrink-0">
           <div className="space-y-0.5">
             <h3 className="text-xl font-black text-white italic uppercase tracking-tighter">Checkout Gateway</h3>
             <p className="text-[9px] text-primary font-black uppercase tracking-widest leading-none">Configured Payment Methods for {supplierProfile?.name || 'Supplier'}</p>
@@ -579,7 +719,7 @@ export function UnifiedCheckoutModal({ product, profile, onClose, onSwitchModal,
           <button onClick={onClose} className="text-gray-500 hover:text-white p-1"><X size={20} /></button>
         </div>
 
-        <div className="p-5 space-y-5 max-h-[80vh] overflow-y-auto custom-scrollbar">
+        <div className="p-4 sm:p-5 space-y-4 overflow-y-auto custom-scrollbar flex-1 pb-8 text-left">
           <BuyerDisclaimerNotice />
 
           {/* Guest Contact Details Input */}
@@ -713,10 +853,14 @@ export function EcoCashModal({ product, profile, onClose, quantity }: {
   const [guestName, setGuestName] = useState(initialContact.name);
   const [guestPhone, setGuestPhone] = useState(initialContact.phone);
   const [guestEmail, setGuestEmail] = useState(initialContact.email);
+  const [needsDelivery, setNeedsDelivery] = useState(true);
+  const [deliveryAddress, setDeliveryAddress] = useState(profile?.location?.address || '');
+  const [supplierPhone, setSupplierPhone] = useState('');
+  const [directWhatsAppComplete, setDirectWhatsAppComplete] = useState(false);
   const [confirmedDeal, setConfirmedDeal] = useState<Deal | null>(null);
 
   useEffect(() => {
-    const fetchUSSD = async () => {
+    const fetchSupplier = async () => {
       try {
         const userSnap = await getDoc(doc(db, 'public_profiles', product.ownerId));
         if (userSnap.exists()) {
@@ -725,59 +869,33 @@ export function EcoCashModal({ product, profile, onClose, quantity }: {
             ? data.paymentMethods.ecocash.details
             : data.gateway?.provider === 'ecocash' ? data.gateway.details : '';
 
+          const phone = data.whatsappNumber || data.phone || data.phoneNumber || '';
+          setSupplierPhone(phone);
+
           if (ecocashDetail) {
             setUssd(ecocashDetail);
           } else {
-            const rawPhone = data.whatsappNumber || data.phone || data.phoneNumber || '';
-            const cleanPhone = rawPhone.replace(/[^0-9]/g, '') || '0770000000';
+            const cleanPhone = phone.replace(/[^0-9]/g, '') || '0770000000';
             setUssd(`*151*2*2*${cleanPhone}*${Math.round(product.price * quantity)}#`);
           }
         } else {
           setUssd(`*151*2*2*0770000000*${Math.round(product.price * quantity)}#`);
         }
       } catch (e) {
-        console.error("Error fetching supplier gateway details:", e);
+        console.error("Error fetching supplier details:", e);
         setUssd(`*151*2*2*0770000000*${Math.round(product.price * quantity)}#`);
       } finally {
         setLoading(false);
       }
     };
-    fetchUSSD();
+    fetchSupplier();
   }, [product.ownerId, product.price, quantity]);
 
   const handleDial = async () => {
     saveGuestContact({ name: guestName, phone: guestPhone, email: guestEmail });
-
-    const dealId = `deal_${Date.now()}_${Math.random().toString(36).substring(7)}`;
     const guestId = profile?.uid || `guest_${Date.now()}`;
 
-    const dealData: Deal = {
-      id: dealId,
-      customerId: guestId,
-      customerName: guestName,
-      customerPhone: guestPhone,
-      customerEmail: guestEmail || '',
-      supplierId: product.ownerId,
-      productId: product.id,
-      productName: product.name,
-      productImage: product.images?.[0] || '',
-      quantity: quantity,
-      agreedPrice: product.price * quantity,
-      status: 'confirmed',
-      trackingStage: 'Order Confirmed',
-      paymentMethod: 'ecocash',
-      isGuestOrder: !profile,
-      history: [{ stage: 'Order Confirmed', status: 'confirmed', timestamp: new Date().toISOString(), updatedBy: guestName || 'Customer' }],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
-
-    try {
-      await offlineResilientWrite('deals', dealId, 'create', dealData);
-      const existing = JSON.parse(localStorage.getItem('guest_deal_ids') || '[]');
-      localStorage.setItem('guest_deal_ids', JSON.stringify([...existing, dealId]));
-    } catch (e) {}
-
+    // Notification to seller
     await interactionService.sendNotification(
       product.ownerId,
       'buy',
@@ -793,7 +911,52 @@ export function EcoCashModal({ product, profile, onClose, quantity }: {
       window.location.href = `tel:${encodedUssd}`;
     } catch (err) {}
 
-    setConfirmedDeal(dealData);
+    if (needsDelivery) {
+      const dealId = `deal_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+      const dealData: Deal = {
+        id: dealId,
+        customerId: guestId,
+        customerName: guestName,
+        customerPhone: guestPhone,
+        customerEmail: guestEmail || '',
+        supplierId: product.ownerId,
+        productId: product.id,
+        productName: product.name,
+        productImage: product.images?.[0] || '',
+        quantity: quantity,
+        agreedPrice: product.price * quantity,
+        status: 'confirmed',
+        trackingStage: 'Order Confirmed',
+        paymentMethod: 'ecocash',
+        deliveryAddress: deliveryAddress,
+        isGuestOrder: !profile,
+        history: [{ stage: 'Order Confirmed', status: 'confirmed', timestamp: new Date().toISOString(), updatedBy: guestName || 'Customer' }],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+
+      try {
+        await offlineResilientWrite('deals', dealId, 'create', dealData);
+        const existing = JSON.parse(localStorage.getItem('guest_deal_ids') || '[]');
+        localStorage.setItem('guest_deal_ids', JSON.stringify([...existing, dealId]));
+      } catch (e) {}
+
+      setConfirmedDeal(dealData);
+    } else {
+      // Direct WhatsApp order without delivery tracking
+      const directMsg = `🛒 DIRECT ECOCASH ORDER (NO DELIVERY REQUESTED)\n\n` +
+        `• Product: ${product.name} (x${quantity})\n` +
+        `• Total: ${formatCurrency(product.price * quantity, product.currency)}\n` +
+        `• Payment Command: ${command}\n` +
+        `• Buyer Name: ${guestName}\n` +
+        `• Buyer Phone: ${guestPhone}\n\n` +
+        `Hello! I initiated an EcoCash payment for this order for direct in-person pickup.`;
+
+      if (supplierPhone) {
+        openWhatsApp(supplierPhone, directMsg);
+      }
+      setDirectWhatsAppComplete(true);
+    }
   };
 
   if (confirmedDeal) {
@@ -808,39 +971,69 @@ export function EcoCashModal({ product, profile, onClose, quantity }: {
     );
   }
 
+  if (directWhatsAppComplete) {
+    return (
+      <DirectWhatsAppSuccessModal
+        product={product}
+        quantity={quantity}
+        paymentMethodLabel="EcoCash Direct"
+        guestName={guestName}
+        guestPhone={guestPhone}
+        supplierPhone={supplierPhone}
+        onClose={onClose}
+      />
+    );
+  }
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto bg-black/80 backdrop-blur-md">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[#05070a]/90 backdrop-blur-md" onClick={onClose} />
-      <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-sm neon-card p-6 text-center space-y-5">
-        <BuyerDisclaimerNotice />
-        <div className="w-16 h-16 bg-primary/20 rounded-3xl flex items-center justify-center mx-auto text-primary border border-primary/30">
-          <Phone size={40} className="animate-pulse" />
-        </div>
-        <div className="space-y-1">
-          <h3 className="text-xl font-black text-white italic uppercase tracking-tighter">EcoCash Direct Payment</h3>
-          <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest leading-none">Quantity: {quantity} Unit(s)</p>
-          <p className="text-sm font-black text-primary">Total: {formatCurrency(product.price * quantity, product.currency)}</p>
-          {ussd && (
-            <div className="pt-2">
-              <p className="text-[9px] text-gray-400 font-mono bg-white/5 py-2 px-3 rounded-xl border border-white/10 break-all">{ussd}</p>
-            </div>
-          )}
+      <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-md my-auto neon-card p-0 flex flex-col max-h-[92vh] overflow-hidden border border-white/10 bg-[#0d1117] shadow-2xl">
+        <div className="p-4 sm:p-5 border-b border-white/10 flex justify-between items-center bg-white/5 shrink-0">
+          <div className="flex items-center gap-2">
+            <Phone size={18} className="text-primary" />
+            <h3 className="text-lg font-black text-white italic uppercase tracking-tighter">EcoCash Direct Payment</h3>
+          </div>
+          <button onClick={onClose} className="text-gray-500 hover:text-white p-1"><X size={18} /></button>
         </div>
 
-        <GuestContactFields 
-          name={guestName} 
-          setName={setGuestName} 
-          phone={guestPhone} 
-          setPhone={setGuestPhone} 
-          email={guestEmail} 
-          setEmail={setGuestEmail} 
-        />
+        <div className="p-4 sm:p-5 space-y-4 overflow-y-auto custom-scrollbar flex-1 pb-8 text-left text-center">
+          <BuyerDisclaimerNotice />
+          <div className="w-16 h-16 bg-primary/20 rounded-3xl flex items-center justify-center mx-auto text-primary border border-primary/30">
+            <Phone size={40} className="animate-pulse" />
+          </div>
+          <div className="space-y-1">
+            <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest leading-none">Quantity: {quantity} Unit(s)</p>
+            <p className="text-sm font-black text-primary">Total: {formatCurrency(product.price * quantity, product.currency)}</p>
+            {ussd && (
+              <div className="pt-2">
+                <p className="text-[9px] text-gray-400 font-mono bg-white/5 py-2 px-3 rounded-xl border border-white/10 break-all">{ussd}</p>
+              </div>
+            )}
+          </div>
 
-        <div className="space-y-2">
-          <button onClick={handleDial} disabled={loading} className="w-full btn-neon py-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer">
-            {loading ? <Loader2 className="animate-spin" size={14} /> : <Phone size={14} />} Dial EcoCash Command
-          </button>
-          <LegalDisclaimerNotice />
+          <GuestContactFields 
+            name={guestName} 
+            setName={setGuestName} 
+            phone={guestPhone} 
+            setPhone={setGuestPhone} 
+            email={guestEmail} 
+            setEmail={setGuestEmail} 
+          />
+
+          <DeliveryOptionSelector
+            needsDelivery={needsDelivery}
+            setNeedsDelivery={setNeedsDelivery}
+            deliveryAddress={deliveryAddress}
+            setDeliveryAddress={setDeliveryAddress}
+          />
+
+          <div className="space-y-2 pt-2">
+            <button onClick={handleDial} disabled={loading} className="w-full btn-neon py-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer">
+              {loading ? <Loader2 className="animate-spin" size={14} /> : <Phone size={14} />} Dial EcoCash Command
+            </button>
+            <LegalDisclaimerNotice />
+          </div>
         </div>
       </motion.div>
     </div>
@@ -859,67 +1052,101 @@ export function PayPalModal({ product, profile, onClose, quantity }: {
   const [guestPhone, setGuestPhone] = useState(initialContact.phone);
   const [guestEmail, setGuestEmail] = useState(initialContact.email);
   const [paypalEmail, setPaypalEmail] = useState(initialContact.email || '');
+  const [needsDelivery, setNeedsDelivery] = useState(true);
+  const [deliveryAddress, setDeliveryAddress] = useState(profile?.location?.address || '');
+  const [supplierPhone, setSupplierPhone] = useState('');
+  const [directWhatsAppComplete, setDirectWhatsAppComplete] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [confirmedDeal, setConfirmedDeal] = useState<Deal | null>(null);
+
+  useEffect(() => {
+    const fetchSupplier = async () => {
+      try {
+        const userSnap = await getDoc(doc(db, 'public_profiles', product.ownerId));
+        if (userSnap.exists()) {
+          const data = userSnap.data();
+          const phone = data.whatsappNumber || data.phone || data.phoneNumber || '';
+          setSupplierPhone(phone);
+        }
+      } catch (e) {}
+    };
+    fetchSupplier();
+  }, [product.ownerId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     saveGuestContact({ name: guestName, phone: guestPhone, email: guestEmail });
-
-    const dealId = `deal_${Date.now()}_${Math.random().toString(36).substring(7)}`;
     const guestId = profile?.uid || `guest_${Date.now()}`;
 
-    const dealData: Deal = {
-      id: dealId,
-      customerId: guestId,
-      customerName: guestName,
-      customerPhone: guestPhone,
-      customerEmail: guestEmail || paypalEmail,
-      supplierId: product.ownerId,
-      productId: product.id,
-      productName: product.name,
-      productImage: product.images?.[0] || '',
-      quantity: quantity,
-      agreedPrice: product.price * quantity,
-      status: 'confirmed',
-      trackingStage: 'Order Confirmed',
-      paymentMethod: 'paypal',
-      isGuestOrder: !profile,
-      history: [{ stage: 'Order Confirmed', status: 'confirmed', timestamp: new Date().toISOString(), updatedBy: guestName || 'Customer' }],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
+    await interactionService.sendNotification(
+      product.ownerId,
+      'buy',
+      buildUserProfileForNotification(profile, guestId, guestName, guestPhone, guestEmail),
+      product.id,
+      'New PayPal Sales Order Received!',
+      `${guestName} placed a PayPal order for ${product.name} (x${quantity}).`
+    );
 
-    try {
-      await offlineResilientWrite('deals', dealId, 'create', dealData);
-      const existing = JSON.parse(localStorage.getItem('guest_deal_ids') || '[]');
-      localStorage.setItem('guest_deal_ids', JSON.stringify([...existing, dealId]));
+    if (needsDelivery) {
+      const dealId = `deal_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+      const dealData: Deal = {
+        id: dealId,
+        customerId: guestId,
+        customerName: guestName,
+        customerPhone: guestPhone,
+        customerEmail: guestEmail || paypalEmail,
+        supplierId: product.ownerId,
+        productId: product.id,
+        productName: product.name,
+        productImage: product.images?.[0] || '',
+        quantity: quantity,
+        agreedPrice: product.price * quantity,
+        status: 'confirmed',
+        trackingStage: 'Order Confirmed',
+        paymentMethod: 'paypal',
+        deliveryAddress: deliveryAddress,
+        isGuestOrder: !profile,
+        history: [{ stage: 'Order Confirmed', status: 'confirmed', timestamp: new Date().toISOString(), updatedBy: guestName || 'Customer' }],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
 
-      await interactionService.sendNotification(
-        product.ownerId,
-        'buy',
-        buildUserProfileForNotification(profile, guestId, guestName, guestPhone, guestEmail),
-        product.id,
-        'New PayPal Sales Order Received!',
-        `${guestName} placed a PayPal order for ${product.name} (x${quantity}).`
-      );
+      try {
+        await offlineResilientWrite('deals', dealId, 'create', dealData);
+        const existing = JSON.parse(localStorage.getItem('guest_deal_ids') || '[]');
+        localStorage.setItem('guest_deal_ids', JSON.stringify([...existing, dealId]));
 
-      const orderMsg = `💳 PAYPAL ORDER AUTHORIZED\n\n` +
+        const orderMsg = `💳 PAYPAL ORDER AUTHORIZED\n\n` +
+          `• ITEM: ${product.name}\n` +
+          `• QUANTITY: ${quantity}\n` +
+          `• TOTAL: ${formatCurrency(product.price * quantity, product.currency)}\n` +
+          `• PAYPAL ACCOUNT: ${paypalEmail}\n` +
+          `• BUYER: ${guestName} (${guestPhone})`;
+
+        startConversation(product.ownerId, orderMsg).catch(console.error);
+
+        setConfirmedDeal(dealData);
+      } catch (e) {
+        console.error(e);
+        setConfirmedDeal(dealData);
+      } finally {
+        setSubmitting(false);
+      }
+    } else {
+      const orderMsg = `💳 DIRECT PAYPAL ORDER (NO DELIVERY REQUESTED)\n\n` +
         `• ITEM: ${product.name}\n` +
         `• QUANTITY: ${quantity}\n` +
         `• TOTAL: ${formatCurrency(product.price * quantity, product.currency)}\n` +
         `• PAYPAL ACCOUNT: ${paypalEmail}\n` +
-        `• BUYER: ${guestName} (${guestPhone})`;
+        `• BUYER: ${guestName} (${guestPhone})\n\n` +
+        `Hello! I authorized a PayPal payment for this order for in-person pickup.`;
 
-      startConversation(product.ownerId, orderMsg).catch(console.error);
-
-      setConfirmedDeal(dealData);
-    } catch (e) {
-      console.error(e);
-      setConfirmedDeal(dealData);
-    } finally {
+      if (supplierPhone) {
+        openWhatsApp(supplierPhone, orderMsg);
+      }
       setSubmitting(false);
+      setDirectWhatsAppComplete(true);
     }
   };
 
@@ -935,52 +1162,73 @@ export function PayPalModal({ product, profile, onClose, quantity }: {
     );
   }
 
+  if (directWhatsAppComplete) {
+    return (
+      <DirectWhatsAppSuccessModal
+        product={product}
+        quantity={quantity}
+        paymentMethodLabel="PayPal Gateway"
+        guestName={guestName}
+        guestPhone={guestPhone}
+        supplierPhone={supplierPhone}
+        onClose={onClose}
+      />
+    );
+  }
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto bg-black/80 backdrop-blur-md">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[#05070a]/90 backdrop-blur-md" onClick={onClose} />
-      <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-sm neon-card p-6 space-y-6">
-        <div className="flex justify-between items-center border-b border-white/10 pb-4">
+      <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-md my-auto neon-card p-0 flex flex-col max-h-[92vh] overflow-hidden border border-white/10 bg-[#0d1117] shadow-2xl">
+        <div className="p-4 sm:p-5 border-b border-white/10 flex justify-between items-center bg-white/5 shrink-0">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-black">P</div>
             <h3 className="text-lg font-black text-white italic uppercase tracking-tighter">PayPal Gateway</h3>
           </div>
-          <button onClick={onClose} className="text-gray-500 hover:text-white"><X size={18} /></button>
+          <button onClick={onClose} className="text-gray-500 hover:text-white p-1"><X size={18} /></button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-5 space-y-4 overflow-y-auto custom-scrollbar flex-1 pb-8 text-left">
           <div className="bg-white/5 p-4 rounded-2xl border border-white/10 space-y-1">
-              <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">{product.name} (x{quantity})</p>
-              <p className="text-lg font-black text-primary">{formatCurrency(product.price * quantity, product.currency)}</p>
-            </div>
+            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">{product.name} (x{quantity})</p>
+            <p className="text-lg font-black text-primary">{formatCurrency(product.price * quantity, product.currency)}</p>
+          </div>
 
-            <GuestContactFields 
-              name={guestName} 
-              setName={setGuestName} 
-              phone={guestPhone} 
-              setPhone={setGuestPhone} 
-              email={guestEmail} 
-              setEmail={setGuestEmail} 
+          <GuestContactFields 
+            name={guestName} 
+            setName={setGuestName} 
+            phone={guestPhone} 
+            setPhone={setGuestPhone} 
+            email={guestEmail} 
+            setEmail={setGuestEmail} 
+          />
+
+          <DeliveryOptionSelector
+            needsDelivery={needsDelivery}
+            setNeedsDelivery={setNeedsDelivery}
+            deliveryAddress={deliveryAddress}
+            setDeliveryAddress={setDeliveryAddress}
+          />
+
+          <div className="space-y-1">
+            <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">PayPal Account Email</label>
+            <input 
+              type="email" 
+              required 
+              value={paypalEmail}
+              onChange={e => setPaypalEmail(e.target.value)}
+              placeholder="your.email@example.com"
+              className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs outline-none focus:border-primary/50 font-medium"
             />
+          </div>
 
-            <div className="space-y-1">
-              <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">PayPal Account Email</label>
-              <input 
-                type="email" 
-                required 
-                value={paypalEmail}
-                onChange={e => setPaypalEmail(e.target.value)}
-                placeholder="your.email@example.com"
-                className="w-full bg-white/5 border border-white/10 rounded-xl px-4 py-3 text-white text-xs outline-none focus:border-primary/50 font-medium"
-              />
-            </div>
-
-            <div className="space-y-2">
-              <button type="submit" disabled={submitting} className="w-full btn-neon py-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer">
-                {submitting ? <Loader2 className="animate-spin" size={14} /> : <Zap size={14} />} Confirm & Pay via PayPal
-              </button>
-              <LegalDisclaimerNotice />
-            </div>
-          </form>
+          <div className="space-y-2 pt-2">
+            <button type="submit" disabled={submitting} className="w-full btn-neon py-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer">
+              {submitting ? <Loader2 className="animate-spin" size={14} /> : <Zap size={14} />} Confirm & Pay via PayPal
+            </button>
+            <LegalDisclaimerNotice />
+          </div>
+        </form>
       </motion.div>
     </div>
   );
@@ -1001,67 +1249,101 @@ export function StripeModal({ product, profile, onClose, quantity }: {
   const [cardNumber, setCardNumber] = useState('');
   const [expiry, setExpiry] = useState('');
   const [cvc, setCvc] = useState('');
+  const [needsDelivery, setNeedsDelivery] = useState(true);
+  const [deliveryAddress, setDeliveryAddress] = useState(profile?.location?.address || '');
+  const [supplierPhone, setSupplierPhone] = useState('');
+  const [directWhatsAppComplete, setDirectWhatsAppComplete] = useState(false);
   const [submitting, setSubmitting] = useState(false);
   const [confirmedDeal, setConfirmedDeal] = useState<Deal | null>(null);
+
+  useEffect(() => {
+    const fetchSupplier = async () => {
+      try {
+        const userSnap = await getDoc(doc(db, 'public_profiles', product.ownerId));
+        if (userSnap.exists()) {
+          const data = userSnap.data();
+          const phone = data.whatsappNumber || data.phone || data.phoneNumber || '';
+          setSupplierPhone(phone);
+        }
+      } catch (e) {}
+    };
+    fetchSupplier();
+  }, [product.ownerId]);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     setSubmitting(true);
     saveGuestContact({ name: guestName, phone: guestPhone, email: guestEmail });
-
-    const dealId = `deal_${Date.now()}_${Math.random().toString(36).substring(7)}`;
     const guestId = profile?.uid || `guest_${Date.now()}`;
 
-    const dealData: Deal = {
-      id: dealId,
-      customerId: guestId,
-      customerName: guestName,
-      customerPhone: guestPhone,
-      customerEmail: guestEmail,
-      supplierId: product.ownerId,
-      productId: product.id,
-      productName: product.name,
-      productImage: product.images?.[0] || '',
-      quantity: quantity,
-      agreedPrice: product.price * quantity,
-      status: 'confirmed',
-      trackingStage: 'Order Confirmed',
-      paymentMethod: 'stripe',
-      isGuestOrder: !profile,
-      history: [{ stage: 'Order Confirmed', status: 'confirmed', timestamp: new Date().toISOString(), updatedBy: guestName || 'Customer' }],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
+    await interactionService.sendNotification(
+      product.ownerId,
+      'buy',
+      buildUserProfileForNotification(profile, guestId, guestName, guestPhone, guestEmail),
+      product.id,
+      'New Stripe Sales Order Received!',
+      `${guestName} placed a Stripe card order for ${product.name} (x${quantity}).`
+    );
 
-    try {
-      await offlineResilientWrite('deals', dealId, 'create', dealData);
-      const existing = JSON.parse(localStorage.getItem('guest_deal_ids') || '[]');
-      localStorage.setItem('guest_deal_ids', JSON.stringify([...existing, dealId]));
+    if (needsDelivery) {
+      const dealId = `deal_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+      const dealData: Deal = {
+        id: dealId,
+        customerId: guestId,
+        customerName: guestName,
+        customerPhone: guestPhone,
+        customerEmail: guestEmail,
+        supplierId: product.ownerId,
+        productId: product.id,
+        productName: product.name,
+        productImage: product.images?.[0] || '',
+        quantity: quantity,
+        agreedPrice: product.price * quantity,
+        status: 'confirmed',
+        trackingStage: 'Order Confirmed',
+        paymentMethod: 'stripe',
+        deliveryAddress: deliveryAddress,
+        isGuestOrder: !profile,
+        history: [{ stage: 'Order Confirmed', status: 'confirmed', timestamp: new Date().toISOString(), updatedBy: guestName || 'Customer' }],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
 
-      await interactionService.sendNotification(
-        product.ownerId,
-        'buy',
-        buildUserProfileForNotification(profile, guestId, guestName, guestPhone, guestEmail),
-        product.id,
-        'New Stripe Sales Order Received!',
-        `${guestName} placed a Stripe card order for ${product.name} (x${quantity}).`
-      );
+      try {
+        await offlineResilientWrite('deals', dealId, 'create', dealData);
+        const existing = JSON.parse(localStorage.getItem('guest_deal_ids') || '[]');
+        localStorage.setItem('guest_deal_ids', JSON.stringify([...existing, dealId]));
 
-      const orderMsg = `💳 STRIPE CARD ORDER PROCESSED\n\n` +
+        const orderMsg = `💳 STRIPE CARD ORDER PROCESSED\n\n` +
+          `• ITEM: ${product.name}\n` +
+          `• QUANTITY: ${quantity}\n` +
+          `• TOTAL: ${formatCurrency(product.price * quantity, product.currency)}\n` +
+          `• CARD HOLDER: ${cardName}\n` +
+          `• BUYER: ${guestName} (${guestPhone})`;
+
+        startConversation(product.ownerId, orderMsg).catch(console.error);
+
+        setConfirmedDeal(dealData);
+      } catch (e) {
+        console.error(e);
+        setConfirmedDeal(dealData);
+      } finally {
+        setSubmitting(false);
+      }
+    } else {
+      const orderMsg = `💳 DIRECT STRIPE CARD ORDER (NO DELIVERY REQUESTED)\n\n` +
         `• ITEM: ${product.name}\n` +
         `• QUANTITY: ${quantity}\n` +
         `• TOTAL: ${formatCurrency(product.price * quantity, product.currency)}\n` +
         `• CARD HOLDER: ${cardName}\n` +
-        `• BUYER: ${guestName} (${guestPhone})`;
+        `• BUYER: ${guestName} (${guestPhone})\n\n` +
+        `Hello! I completed a Stripe payment for this order for in-person pickup.`;
 
-      startConversation(product.ownerId, orderMsg).catch(console.error);
-
-      setConfirmedDeal(dealData);
-    } catch (e) {
-      console.error(e);
-      setConfirmedDeal(dealData);
-    } finally {
+      if (supplierPhone) {
+        openWhatsApp(supplierPhone, orderMsg);
+      }
       setSubmitting(false);
+      setDirectWhatsAppComplete(true);
     }
   };
 
@@ -1077,32 +1359,53 @@ export function StripeModal({ product, profile, onClose, quantity }: {
     );
   }
 
+  if (directWhatsAppComplete) {
+    return (
+      <DirectWhatsAppSuccessModal
+        product={product}
+        quantity={quantity}
+        paymentMethodLabel="Stripe Card Gateway"
+        guestName={guestName}
+        guestPhone={guestPhone}
+        supplierPhone={supplierPhone}
+        onClose={onClose}
+      />
+    );
+  }
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto bg-black/80 backdrop-blur-md">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[#05070a]/90 backdrop-blur-md" onClick={onClose} />
-      <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-sm neon-card p-6 space-y-6">
-        <div className="flex justify-between items-center border-b border-white/10 pb-4">
+      <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-md my-auto neon-card p-0 flex flex-col max-h-[92vh] overflow-hidden border border-white/10 bg-[#0d1117] shadow-2xl">
+        <div className="p-4 sm:p-5 border-b border-white/10 flex justify-between items-center bg-white/5 shrink-0">
           <div className="flex items-center gap-2">
             <CreditCard size={20} className="text-purple-400" />
             <h3 className="text-lg font-black text-white italic uppercase tracking-tighter">Stripe Card Gateway</h3>
           </div>
-          <button onClick={onClose} className="text-gray-500 hover:text-white"><X size={18} /></button>
+          <button onClick={onClose} className="text-gray-500 hover:text-white p-1"><X size={18} /></button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-5 space-y-4 overflow-y-auto custom-scrollbar flex-1 pb-8 text-left">
           <div className="bg-white/5 p-4 rounded-2xl border border-white/10 space-y-1">
-              <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">{product.name} (x{quantity})</p>
-              <p className="text-lg font-black text-primary">{formatCurrency(product.price * quantity, product.currency)}</p>
-            </div>
+            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">{product.name} (x{quantity})</p>
+            <p className="text-lg font-black text-primary">{formatCurrency(product.price * quantity, product.currency)}</p>
+          </div>
 
-            <GuestContactFields 
-              name={guestName} 
-              setName={setGuestName} 
-              phone={guestPhone} 
-              setPhone={setGuestPhone} 
-              email={guestEmail} 
-              setEmail={setGuestEmail} 
-            />
+          <GuestContactFields 
+            name={guestName} 
+            setName={setGuestName} 
+            phone={guestPhone} 
+            setPhone={setGuestPhone} 
+            email={guestEmail} 
+            setEmail={setGuestEmail} 
+          />
+
+          <DeliveryOptionSelector
+            needsDelivery={needsDelivery}
+            setNeedsDelivery={setNeedsDelivery}
+            deliveryAddress={deliveryAddress}
+            setDeliveryAddress={setDeliveryAddress}
+          />
 
             <div className="space-y-1">
               <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest ml-1">Cardholder Name</label>
@@ -1256,16 +1559,16 @@ export function PodModal({ product, profile, onClose, initialQuantity = 1 }: {
   };
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto bg-black/80 backdrop-blur-md">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[#05070a]/90 backdrop-blur-md" onClick={onClose} />
-      <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-lg neon-card p-6 flex flex-col max-h-[90vh] overflow-hidden">
-        <div className="flex justify-between items-center mb-4">
+      <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-md my-auto neon-card p-0 flex flex-col max-h-[92vh] overflow-hidden border border-white/10 bg-[#0d1117] shadow-2xl">
+        <div className="p-4 sm:p-5 border-b border-white/10 flex justify-between items-center bg-white/5 shrink-0">
           <h3 className="text-xl font-black text-white italic uppercase tracking-tighter">Pay on Delivery Checkout</h3>
-          <button onClick={onClose} className="text-gray-500 hover:text-white"><X size={20} /></button>
+          <button onClick={onClose} className="text-gray-500 hover:text-white p-1"><X size={20} /></button>
         </div>
 
         {success ? (
-          <div className="py-6 text-center space-y-4">
+          <div className="p-6 text-center space-y-4">
             <div className="w-16 h-16 bg-emerald-500/20 text-emerald-400 rounded-2xl flex items-center justify-center mx-auto border border-emerald-500/40 shadow-[0_0_20px_rgba(16,185,129,0.3)] animate-bounce">
               <CheckCircle2 size={36} />
             </div>
@@ -1288,7 +1591,7 @@ export function PodModal({ product, profile, onClose, initialQuantity = 1 }: {
             </button>
           </div>
         ) : (
-          <form onSubmit={handleSubmit} className="space-y-4 overflow-y-auto custom-scrollbar pr-2">
+          <form onSubmit={handleSubmit} className="p-4 sm:p-5 space-y-4 overflow-y-auto custom-scrollbar flex-1 pb-8 text-left">
             <div className="space-y-1">
               <label className="text-[10px] font-black text-gray-300 uppercase tracking-widest ml-1">
                 Full Name <span className="text-red-400">*</span>
@@ -1372,6 +1675,9 @@ export function BankModal({ product, profile, onClose, quantity }: {
   const [guestName, setGuestName] = useState(initialContact.name);
   const [guestPhone, setGuestPhone] = useState(initialContact.phone);
   const [guestEmail, setGuestEmail] = useState(initialContact.email);
+  const [needsDelivery, setNeedsDelivery] = useState(true);
+  const [deliveryAddress, setDeliveryAddress] = useState(profile?.location?.address || '');
+  const [supplierPhone, setSupplierPhone] = useState('');
   const [bankDetails, setBankDetails] = useState<{
     bankName?: string;
     accountName?: string;
@@ -1381,6 +1687,7 @@ export function BankModal({ product, profile, onClose, quantity }: {
   }>({});
   const [copiedField, setCopiedField] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
+  const [directWhatsAppComplete, setDirectWhatsAppComplete] = useState(false);
   const [confirmedDeal, setConfirmedDeal] = useState<Deal | null>(null);
 
   useEffect(() => {
@@ -1389,6 +1696,9 @@ export function BankModal({ product, profile, onClose, quantity }: {
         const docSnap = await getDoc(doc(db, 'public_profiles', product.ownerId));
         if (docSnap.exists()) {
           const data = docSnap.data();
+          const phone = data.whatsappNumber || data.phone || data.phoneNumber || '';
+          setSupplierPhone(phone);
+
           const b = data.paymentMethods?.bank;
           if (b && b.enabled) {
             setBankDetails({
@@ -1424,59 +1734,74 @@ export function BankModal({ product, profile, onClose, quantity }: {
     e.preventDefault();
     setSubmitting(true);
     saveGuestContact({ name: guestName, phone: guestPhone, email: guestEmail });
-
-    const dealId = `deal_${Date.now()}_${Math.random().toString(36).substring(7)}`;
     const guestId = profile?.uid || `guest_${Date.now()}`;
 
-    const dealData: Deal = {
-      id: dealId,
-      customerId: guestId,
-      customerName: guestName,
-      customerPhone: guestPhone,
-      customerEmail: guestEmail,
-      supplierId: product.ownerId,
-      productId: product.id,
-      productName: product.name,
-      productImage: product.images?.[0] || '',
-      quantity: quantity,
-      agreedPrice: product.price * quantity,
-      status: 'confirmed',
-      trackingStage: 'Order Confirmed',
-      paymentMethod: 'bank',
-      isGuestOrder: !profile,
-      history: [{ stage: 'Order Confirmed', status: 'confirmed', timestamp: new Date().toISOString(), updatedBy: guestName || 'Customer' }],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
+    await interactionService.sendNotification(
+      product.ownerId,
+      'buy',
+      buildUserProfileForNotification(profile, guestId, guestName, guestPhone, guestEmail),
+      product.id,
+      'New Bank Transfer Order Received!',
+      `${guestName} initiated a bank transfer order for ${product.name} (x${quantity}).`
+    );
 
-    try {
-      await offlineResilientWrite('deals', dealId, 'create', dealData);
-      const existing = JSON.parse(localStorage.getItem('guest_deal_ids') || '[]');
-      localStorage.setItem('guest_deal_ids', JSON.stringify([...existing, dealId]));
+    if (needsDelivery) {
+      const dealId = `deal_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+      const dealData: Deal = {
+        id: dealId,
+        customerId: guestId,
+        customerName: guestName,
+        customerPhone: guestPhone,
+        customerEmail: guestEmail,
+        supplierId: product.ownerId,
+        productId: product.id,
+        productName: product.name,
+        productImage: product.images?.[0] || '',
+        quantity: quantity,
+        agreedPrice: product.price * quantity,
+        status: 'confirmed',
+        trackingStage: 'Order Confirmed',
+        paymentMethod: 'bank',
+        deliveryAddress: deliveryAddress,
+        isGuestOrder: !profile,
+        history: [{ stage: 'Order Confirmed', status: 'confirmed', timestamp: new Date().toISOString(), updatedBy: guestName || 'Customer' }],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
 
-      await interactionService.sendNotification(
-        product.ownerId,
-        'buy',
-        buildUserProfileForNotification(profile, guestId, guestName, guestPhone, guestEmail),
-        product.id,
-        'New Bank Transfer Order Received!',
-        `${guestName} initiated a bank transfer order for ${product.name} (x${quantity}).`
-      );
+      try {
+        await offlineResilientWrite('deals', dealId, 'create', dealData);
+        const existing = JSON.parse(localStorage.getItem('guest_deal_ids') || '[]');
+        localStorage.setItem('guest_deal_ids', JSON.stringify([...existing, dealId]));
 
-      const orderMsg = `🏦 BANK TRANSFER ORDER INITIATED\n\n` +
+        const orderMsg = `🏦 BANK TRANSFER ORDER INITIATED\n\n` +
+          `• ITEM: ${product.name}\n` +
+          `• QUANTITY: ${quantity}\n` +
+          `• TOTAL: ${formatCurrency(product.price * quantity, product.currency)}\n\n` +
+          `• BUYER: ${guestName} (${guestPhone})`;
+
+        startConversation(product.ownerId, orderMsg).catch(console.error);
+
+        setConfirmedDeal(dealData);
+      } catch (e) {
+        console.error(e);
+        setConfirmedDeal(dealData);
+      } finally {
+        setSubmitting(false);
+      }
+    } else {
+      const orderMsg = `🏦 DIRECT BANK TRANSFER ORDER (NO DELIVERY REQUESTED)\n\n` +
         `• ITEM: ${product.name}\n` +
         `• QUANTITY: ${quantity}\n` +
-        `• TOTAL: ${formatCurrency(product.price * quantity, product.currency)}\n\n` +
-        `• BUYER: ${guestName} (${guestPhone})`;
+        `• TOTAL: ${formatCurrency(product.price * quantity, product.currency)}\n` +
+        `• BUYER: ${guestName} (${guestPhone})\n\n` +
+        `Hello! I initiated a Bank Transfer for this order for in-person pickup.`;
 
-      startConversation(product.ownerId, orderMsg).catch(console.error);
-
-      setConfirmedDeal(dealData);
-    } catch (e) {
-      console.error(e);
-      setConfirmedDeal(dealData);
-    } finally {
+      if (supplierPhone) {
+        openWhatsApp(supplierPhone, orderMsg);
+      }
       setSubmitting(false);
+      setDirectWhatsAppComplete(true);
     }
   };
 
@@ -1492,11 +1817,25 @@ export function BankModal({ product, profile, onClose, quantity }: {
     );
   }
 
+  if (directWhatsAppComplete) {
+    return (
+      <DirectWhatsAppSuccessModal
+        product={product}
+        quantity={quantity}
+        paymentMethodLabel="Bank Direct Transfer"
+        guestName={guestName}
+        guestPhone={guestPhone}
+        supplierPhone={supplierPhone}
+        onClose={onClose}
+      />
+    );
+  }
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto bg-black/80 backdrop-blur-md">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[#05070a]/90 backdrop-blur-md" onClick={onClose} />
-      <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-sm neon-card p-6 space-y-6">
-        <div className="flex justify-between items-center border-b border-white/10 pb-4">
+      <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-md my-auto neon-card p-0 flex flex-col max-h-[92vh] overflow-hidden border border-white/10 bg-[#0d1117] shadow-2xl">
+        <div className="p-4 sm:p-5 border-b border-white/10 flex justify-between items-center bg-white/5 shrink-0">
           <div className="flex items-center gap-2">
             <Landmark size={20} className="text-amber-400" />
             <h3 className="text-lg font-black text-white italic uppercase tracking-tighter">Bank Direct Transfer</h3>
@@ -1504,72 +1843,79 @@ export function BankModal({ product, profile, onClose, quantity }: {
           <button onClick={onClose} className="text-gray-500 hover:text-white p-1"><X size={18} /></button>
         </div>
 
-        <form onSubmit={handleSubmit} className="space-y-4">
+        <form onSubmit={handleSubmit} className="p-4 sm:p-5 space-y-4 overflow-y-auto custom-scrollbar flex-1 pb-8 text-left">
           <div className="bg-white/5 p-4 rounded-2xl border border-white/10 space-y-1">
-              <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">{product.name} (x{quantity})</p>
-              <p className="text-lg font-black text-primary">{formatCurrency(product.price * quantity, product.currency)}</p>
+            <p className="text-[9px] text-gray-400 font-bold uppercase tracking-wider">{product.name} (x{quantity})</p>
+            <p className="text-lg font-black text-primary">{formatCurrency(product.price * quantity, product.currency)}</p>
+          </div>
+
+          <GuestContactFields 
+            name={guestName} 
+            setName={setGuestName} 
+            phone={guestPhone} 
+            setPhone={setGuestPhone} 
+            email={guestEmail} 
+            setEmail={setGuestEmail} 
+          />
+
+          <DeliveryOptionSelector
+            needsDelivery={needsDelivery}
+            setNeedsDelivery={setNeedsDelivery}
+            deliveryAddress={deliveryAddress}
+            setDeliveryAddress={setDeliveryAddress}
+          />
+
+          <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-2xl space-y-2.5">
+            <p className="text-[9px] font-black text-amber-300 uppercase tracking-widest">Supplier Bank Coordinates:</p>
+
+            <div className="flex justify-between items-center bg-black/40 p-2.5 rounded-xl border border-white/5">
+              <div>
+                <p className="text-[8px] text-gray-400 uppercase font-bold">Bank Name</p>
+                <p className="text-xs font-black text-white">{bankDetails.bankName || 'Standard Bank'}</p>
+              </div>
             </div>
 
-            <GuestContactFields 
-              name={guestName} 
-              setName={setGuestName} 
-              phone={guestPhone} 
-              setPhone={setGuestPhone} 
-              email={guestEmail} 
-              setEmail={setGuestEmail} 
-            />
-
-            <div className="bg-amber-500/10 border border-amber-500/20 p-4 rounded-2xl space-y-2.5">
-              <p className="text-[9px] font-black text-amber-300 uppercase tracking-widest">Supplier Bank Coordinates:</p>
-
-              <div className="flex justify-between items-center bg-black/40 p-2.5 rounded-xl border border-white/5">
-                <div>
-                  <p className="text-[8px] text-gray-400 uppercase font-bold">Bank Name</p>
-                  <p className="text-xs font-black text-white">{bankDetails.bankName || 'Standard Bank'}</p>
-                </div>
+            <div className="flex justify-between items-center bg-black/40 p-2.5 rounded-xl border border-white/5">
+              <div>
+                <p className="text-[8px] text-gray-400 uppercase font-bold">Account Name</p>
+                <p className="text-xs font-black text-white">{bankDetails.accountName || 'Supplier'}</p>
               </div>
-
-              <div className="flex justify-between items-center bg-black/40 p-2.5 rounded-xl border border-white/5">
-                <div>
-                  <p className="text-[8px] text-gray-400 uppercase font-bold">Account Name</p>
-                  <p className="text-xs font-black text-white">{bankDetails.accountName || 'Supplier'}</p>
-                </div>
-                {bankDetails.accountName && (
-                  <button type="button" onClick={() => copyToClipboard(bankDetails.accountName!, 'accountName')} className="text-gray-400 hover:text-amber-300 p-1">
-                    {copiedField === 'accountName' ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
-                  </button>
-                )}
-              </div>
-
-              <div className="flex justify-between items-center bg-black/40 p-2.5 rounded-xl border border-white/5">
-                <div>
-                  <p className="text-[8px] text-gray-400 uppercase font-bold">Account Number</p>
-                  <p className="text-xs font-mono font-black text-amber-300">{bankDetails.accountNumber || 'Contact Supplier'}</p>
-                </div>
-                {bankDetails.accountNumber && (
-                  <button type="button" onClick={() => copyToClipboard(bankDetails.accountNumber!, 'accountNumber')} className="text-gray-400 hover:text-amber-300 p-1">
-                    {copiedField === 'accountNumber' ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
-                  </button>
-                )}
-              </div>
-
-              {bankDetails.branchCode && (
-                <div className="flex justify-between items-center bg-black/40 p-2.5 rounded-xl border border-white/5">
-                  <div>
-                    <p className="text-[8px] text-gray-400 uppercase font-bold">Branch Code / Swift</p>
-                    <p className="text-xs font-mono font-bold text-white">{bankDetails.branchCode}</p>
-                  </div>
-                </div>
+              {bankDetails.accountName && (
+                <button type="button" onClick={() => copyToClipboard(bankDetails.accountName!, 'accountName')} className="text-gray-400 hover:text-amber-300 p-1">
+                  {copiedField === 'accountName' ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                </button>
               )}
             </div>
 
-            <div className="space-y-2">
-              <button type="submit" disabled={submitting} className="w-full btn-neon py-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer">
-                {submitting ? <Loader2 className="animate-spin" size={14} /> : <Landmark size={14} />} Confirm Bank Deposit & Notify Supplier
-              </button>
-              <LegalDisclaimerNotice />
+            <div className="flex justify-between items-center bg-black/40 p-2.5 rounded-xl border border-white/5">
+              <div>
+                <p className="text-[8px] text-gray-400 uppercase font-bold">Account Number</p>
+                <p className="text-xs font-mono font-black text-amber-300">{bankDetails.accountNumber || 'Contact Supplier'}</p>
+              </div>
+              {bankDetails.accountNumber && (
+                <button type="button" onClick={() => copyToClipboard(bankDetails.accountNumber!, 'accountNumber')} className="text-gray-400 hover:text-amber-300 p-1">
+                  {copiedField === 'accountNumber' ? <Check size={14} className="text-emerald-400" /> : <Copy size={14} />}
+                </button>
+              )}
             </div>
-          </form>
+
+            {bankDetails.branchCode && (
+              <div className="flex justify-between items-center bg-black/40 p-2.5 rounded-xl border border-white/5">
+                <div>
+                  <p className="text-[8px] text-gray-400 uppercase font-bold">Branch Code / Swift</p>
+                  <p className="text-xs font-mono font-bold text-white">{bankDetails.branchCode}</p>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="space-y-2 pt-2">
+            <button type="submit" disabled={submitting} className="w-full btn-neon py-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer">
+              {submitting ? <Loader2 className="animate-spin" size={14} /> : <Landmark size={14} />} Confirm Bank Deposit & Notify Supplier
+            </button>
+            <LegalDisclaimerNotice />
+          </div>
+        </form>
       </motion.div>
     </div>
   );
@@ -1586,8 +1932,12 @@ export function PaynowModal({ product, profile, onClose, quantity }: {
   const [guestName, setGuestName] = useState(initialContact.name);
   const [guestPhone, setGuestPhone] = useState(initialContact.phone);
   const [guestEmail, setGuestEmail] = useState(initialContact.email);
+  const [needsDelivery, setNeedsDelivery] = useState(true);
+  const [deliveryAddress, setDeliveryAddress] = useState(profile?.location?.address || '');
+  const [supplierPhone, setSupplierPhone] = useState('');
   const [paynowDetail, setPaynowDetail] = useState<string>('');
   const [loading, setLoading] = useState(true);
+  const [directWhatsAppComplete, setDirectWhatsAppComplete] = useState(false);
   const [confirmedDeal, setConfirmedDeal] = useState<Deal | null>(null);
 
   useEffect(() => {
@@ -1596,6 +1946,9 @@ export function PaynowModal({ product, profile, onClose, quantity }: {
         const userSnap = await getDoc(doc(db, 'public_profiles', product.ownerId));
         if (userSnap.exists()) {
           const data = userSnap.data();
+          const phone = data.whatsappNumber || data.phone || data.phoneNumber || '';
+          setSupplierPhone(phone);
+
           const detail = data.paymentMethods?.paynow?.enabled && data.paymentMethods.paynow.details
             ? data.paymentMethods.paynow.details
             : data.gateway?.provider === 'paynow' ? data.gateway.details : '';
@@ -1613,60 +1966,77 @@ export function PaynowModal({ product, profile, onClose, quantity }: {
 
   const handlePaynowAction = async () => {
     saveGuestContact({ name: guestName, phone: guestPhone, email: guestEmail });
-
-    const dealId = `deal_${Date.now()}_${Math.random().toString(36).substring(7)}`;
     const guestId = profile?.uid || `guest_${Date.now()}`;
 
-    const dealData: Deal = {
-      id: dealId,
-      customerId: guestId,
-      customerName: guestName,
-      customerPhone: guestPhone,
-      customerEmail: guestEmail,
-      supplierId: product.ownerId,
-      productId: product.id,
-      productName: product.name,
-      productImage: product.images?.[0] || '',
-      quantity: quantity,
-      agreedPrice: product.price * quantity,
-      status: 'confirmed',
-      trackingStage: 'Order Confirmed',
-      paymentMethod: 'paynow',
-      isGuestOrder: !profile,
-      history: [{ stage: 'Order Confirmed', status: 'confirmed', timestamp: new Date().toISOString(), updatedBy: guestName || 'Customer' }],
-      createdAt: new Date().toISOString(),
-      updatedAt: new Date().toISOString()
-    };
+    await interactionService.sendNotification(
+      product.ownerId,
+      'buy',
+      buildUserProfileForNotification(profile, guestId, guestName, guestPhone, guestEmail),
+      product.id,
+      'New Paynow Sales Order Received!',
+      `${guestName} initiated a Paynow order for ${product.name} (x${quantity}).`
+    );
 
-    try {
-      await offlineResilientWrite('deals', dealId, 'create', dealData);
-      const existing = JSON.parse(localStorage.getItem('guest_deal_ids') || '[]');
-      localStorage.setItem('guest_deal_ids', JSON.stringify([...existing, dealId]));
+    if (needsDelivery) {
+      const dealId = `deal_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+      const dealData: Deal = {
+        id: dealId,
+        customerId: guestId,
+        customerName: guestName,
+        customerPhone: guestPhone,
+        customerEmail: guestEmail,
+        supplierId: product.ownerId,
+        productId: product.id,
+        productName: product.name,
+        productImage: product.images?.[0] || '',
+        quantity: quantity,
+        agreedPrice: product.price * quantity,
+        status: 'confirmed',
+        trackingStage: 'Order Confirmed',
+        paymentMethod: 'paynow',
+        deliveryAddress: deliveryAddress,
+        isGuestOrder: !profile,
+        history: [{ stage: 'Order Confirmed', status: 'confirmed', timestamp: new Date().toISOString(), updatedBy: guestName || 'Customer' }],
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
 
-      await interactionService.sendNotification(
-        product.ownerId,
-        'buy',
-        buildUserProfileForNotification(profile, guestId, guestName, guestPhone, guestEmail),
-        product.id,
-        'New Paynow Sales Order Received!',
-        `${guestName} initiated a Paynow order for ${product.name} (x${quantity}).`
-      );
+      try {
+        await offlineResilientWrite('deals', dealId, 'create', dealData);
+        const existing = JSON.parse(localStorage.getItem('guest_deal_ids') || '[]');
+        localStorage.setItem('guest_deal_ids', JSON.stringify([...existing, dealId]));
 
-      const orderMsg = `💳 PAYNOW ORDER INITIATED\n\n` +
+        const orderMsg = `💳 PAYNOW ORDER INITIATED\n\n` +
+          `• ITEM: ${product.name}\n` +
+          `• QUANTITY: ${quantity}\n` +
+          `• TOTAL: ${formatCurrency(product.price * quantity, product.currency)}\n` +
+          `• BUYER: ${guestName} (${guestPhone})`;
+
+        startConversation(product.ownerId, orderMsg).catch(console.error);
+
+        if (paynowDetail.startsWith('http://') || paynowDetail.startsWith('https://')) {
+          window.open(paynowDetail, '_blank');
+        }
+        setConfirmedDeal(dealData);
+      } catch (e) {
+        console.error(e);
+        setConfirmedDeal(dealData);
+      }
+    } else {
+      const orderMsg = `💳 DIRECT PAYNOW ORDER (NO DELIVERY REQUESTED)\n\n` +
         `• ITEM: ${product.name}\n` +
         `• QUANTITY: ${quantity}\n` +
         `• TOTAL: ${formatCurrency(product.price * quantity, product.currency)}\n` +
-        `• BUYER: ${guestName} (${guestPhone})`;
-
-      startConversation(product.ownerId, orderMsg).catch(console.error);
+        `• BUYER: ${guestName} (${guestPhone})\n\n` +
+        `Hello! I initiated a Paynow payment for this order for in-person pickup.`;
 
       if (paynowDetail.startsWith('http://') || paynowDetail.startsWith('https://')) {
         window.open(paynowDetail, '_blank');
       }
-      setConfirmedDeal(dealData);
-    } catch (e) {
-      console.error(e);
-      setConfirmedDeal(dealData);
+      if (supplierPhone) {
+        openWhatsApp(supplierPhone, orderMsg);
+      }
+      setDirectWhatsAppComplete(true);
     }
   };
 
@@ -1682,38 +2052,68 @@ export function PaynowModal({ product, profile, onClose, quantity }: {
     );
   }
 
+  if (directWhatsAppComplete) {
+    return (
+      <DirectWhatsAppSuccessModal
+        product={product}
+        quantity={quantity}
+        paymentMethodLabel="Paynow Gateway"
+        guestName={guestName}
+        guestPhone={guestPhone}
+        supplierPhone={supplierPhone}
+        onClose={onClose}
+      />
+    );
+  }
+
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+    <div className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto bg-black/80 backdrop-blur-md">
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[#05070a]/90 backdrop-blur-md" onClick={onClose} />
-      <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-sm neon-card p-6 space-y-6 text-center">
-        <div className="w-16 h-16 bg-cyan-500/20 rounded-3xl flex items-center justify-center mx-auto text-cyan-400 border border-cyan-500/30">
-          <Wallet size={32} />
-        </div>
-        <div className="space-y-1">
-          <h3 className="text-xl font-black text-white italic uppercase tracking-tighter">Paynow Gateway</h3>
-          <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-none">Quantity: {quantity} Unit(s)</p>
-          <p className="text-sm font-black text-cyan-400">Total: {formatCurrency(product.price * quantity, product.currency)}</p>
-          {paynowDetail && (
-            <p className="text-[9px] font-mono text-gray-400 bg-white/5 py-2 px-3 rounded-xl border border-white/10 break-all mt-2">
-              {paynowDetail}
-            </p>
-          )}
+      <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-md my-auto neon-card p-0 flex flex-col max-h-[92vh] overflow-hidden border border-white/10 bg-[#0d1117] shadow-2xl">
+        <div className="p-4 sm:p-5 border-b border-white/10 flex justify-between items-center bg-white/5 shrink-0">
+          <div className="flex items-center gap-2">
+            <Wallet size={20} className="text-cyan-400" />
+            <h3 className="text-lg font-black text-white italic uppercase tracking-tighter">Paynow Gateway</h3>
+          </div>
+          <button onClick={onClose} className="text-gray-500 hover:text-white p-1"><X size={18} /></button>
         </div>
 
-        <GuestContactFields 
-          name={guestName} 
-          setName={setGuestName} 
-          phone={guestPhone} 
-          setPhone={setGuestPhone} 
-          email={guestEmail} 
-          setEmail={setGuestEmail} 
-        />
+        <div className="p-4 sm:p-5 space-y-4 overflow-y-auto custom-scrollbar flex-1 pb-8 text-left text-center">
+          <div className="w-16 h-16 bg-cyan-500/20 rounded-3xl flex items-center justify-center mx-auto text-cyan-400 border border-cyan-500/30">
+            <Wallet size={32} />
+          </div>
+          <div className="space-y-1">
+            <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest leading-none">Quantity: {quantity} Unit(s)</p>
+            <p className="text-sm font-black text-cyan-400">Total: {formatCurrency(product.price * quantity, product.currency)}</p>
+            {paynowDetail && (
+              <p className="text-[9px] font-mono text-gray-400 bg-white/5 py-2 px-3 rounded-xl border border-white/10 break-all mt-2">
+                {paynowDetail}
+              </p>
+            )}
+          </div>
 
-        <div className="space-y-2">
-          <button onClick={handlePaynowAction} disabled={loading} className="w-full btn-neon py-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer">
-            {loading ? <Loader2 className="animate-spin" size={14} /> : <ExternalLink size={14} />} Launch Paynow Checkout
-          </button>
-          <LegalDisclaimerNotice />
+          <GuestContactFields 
+            name={guestName} 
+            setName={setGuestName} 
+            phone={guestPhone} 
+            setPhone={setGuestPhone} 
+            email={guestEmail} 
+            setEmail={setGuestEmail} 
+          />
+
+          <DeliveryOptionSelector
+            needsDelivery={needsDelivery}
+            setNeedsDelivery={setNeedsDelivery}
+            deliveryAddress={deliveryAddress}
+            setDeliveryAddress={setDeliveryAddress}
+          />
+
+          <div className="space-y-2 pt-2">
+            <button onClick={handlePaynowAction} disabled={loading} className="w-full btn-neon py-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer">
+              {loading ? <Loader2 className="animate-spin" size={14} /> : <ExternalLink size={14} />} Launch Paynow Checkout
+            </button>
+            <LegalDisclaimerNotice />
+          </div>
         </div>
       </motion.div>
     </div>
