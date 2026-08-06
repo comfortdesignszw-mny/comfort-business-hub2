@@ -99,9 +99,17 @@ service cloud.firestore {
     }
 
     match /deals/{id} {
-      allow get, list: if true;
+      allow get, list: if isHardcodedAdmin() || isAdmin() || (
+        resource.data.supplierId == request.auth.uid ||
+        resource.data.customerId == request.auth.uid ||
+        resource.data.isGuestOrder == true
+      );
       allow create: if isValidId(id);
-      allow update: if true;
+      allow update: if isHardcodedAdmin() || isAdmin() || (
+        resource.data.supplierId == request.auth.uid ||
+        resource.data.customerId == request.auth.uid ||
+        resource.data.isGuestOrder == true
+      );
       allow delete: if isSignedIn() && (isOwner(existing().supplierId) || isOwner(existing().customerId) || isAdmin());
     }
 
@@ -141,8 +149,19 @@ service cloud.firestore {
     }
     
     match /engagements/{id} {
-      allow get, list, delete: if isSignedIn();
+      allow get, list: if isHardcodedAdmin() || isAdmin() || (
+        isSignedIn() && (
+          resource.data.supplierId == request.auth.uid ||
+          resource.data.customerId == request.auth.uid
+        )
+      );
       allow create: if true;
+      allow update, delete: if isHardcodedAdmin() || isAdmin() || (
+        isSignedIn() && (
+          resource.data.supplierId == request.auth.uid ||
+          resource.data.customerId == request.auth.uid
+        )
+      );
     }
 
     match /spotlights/{id} {
