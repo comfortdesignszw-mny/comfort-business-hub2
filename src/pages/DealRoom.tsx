@@ -776,7 +776,8 @@ function DealCard({
       `• *Payment System:* ${(deal.paymentMethod || 'Non-POD').toUpperCase()}\n` +
       `• *Date:* ${formatAuditableStamp(deal.createdAt)}\n` +
       `━━━━━━━━━━━━━━━━━━━━\n` +
-      `*Status:* Sales Order logged in Deal Room. Please confirm processing.`;
+      `*Status:* Sales Order logged in Deal Room. Please confirm processing.\n\n` +
+      `This order was initiated in The Comfort Business Hub. Join Comfort Business Hub and deal here; https://comfort-business-hub.comfort-designszw.workers.dev/`;
 
     if (supplierPhone) {
       openWhatsApp(supplierPhone, messageText);

@@ -154,7 +154,8 @@ export function SalesOrderConfirmationModal({
       `• *Payment System:* ${paymentMethodLabel}\n` +
       `• *Date:* ${new Date().toLocaleDateString()}\n` +
       `━━━━━━━━━━━━━━━━━━━━\n` +
-      `*Status:* Sales Order Created & Seller Notified. Please confirm order processing.`;
+      `*Status:* Sales Order Created & Seller Notified. Please confirm order processing.\n\n` +
+      `This order was initiated in The Comfort Business Hub. Join Comfort Business Hub and deal here; https://comfort-business-hub.comfort-designszw.workers.dev/`;
 
     if (supplierPhone) {
       openWhatsApp(supplierPhone, messageText);
@@ -500,7 +501,8 @@ export function DirectWhatsAppSuccessModal({
       `• Payment System: ${paymentMethodLabel}\n` +
       `• Buyer Name: ${guestName}\n` +
       `• Buyer Phone: ${guestPhone}\n\n` +
-      `Hello! I placed an order for in-person pickup / direct WhatsApp arrangement.`;
+      `Hello! I placed an order for in-person pickup / direct WhatsApp arrangement.\n\n` +
+      `This order was initiated in The Comfort Business Hub. Join Comfort Business Hub and deal here; https://comfort-business-hub.comfort-designszw.workers.dev/`;
     openWhatsApp(supplierPhone, msg);
   };
 
@@ -950,7 +952,8 @@ export function EcoCashModal({ product, profile, onClose, quantity }: {
         `• Payment Command: ${command}\n` +
         `• Buyer Name: ${guestName}\n` +
         `• Buyer Phone: ${guestPhone}\n\n` +
-        `Hello! I initiated an EcoCash payment for this order for direct in-person pickup.`;
+        `Hello! I initiated an EcoCash payment for this order for direct in-person pickup.\n\n` +
+        `This order was initiated in The Comfort Business Hub. Join Comfort Business Hub and deal here; https://comfort-business-hub.comfort-designszw.workers.dev/`;
 
       if (supplierPhone) {
         openWhatsApp(supplierPhone, directMsg);
@@ -1140,7 +1143,8 @@ export function PayPalModal({ product, profile, onClose, quantity }: {
         `• TOTAL: ${formatCurrency(product.price * quantity, product.currency)}\n` +
         `• PAYPAL ACCOUNT: ${paypalEmail}\n` +
         `• BUYER: ${guestName} (${guestPhone})\n\n` +
-        `Hello! I authorized a PayPal payment for this order for in-person pickup.`;
+        `Hello! I authorized a PayPal payment for this order for in-person pickup.\n\n` +
+        `This order was initiated in The Comfort Business Hub. Join Comfort Business Hub and deal here; https://comfort-business-hub.comfort-designszw.workers.dev/`;
 
       if (supplierPhone) {
         openWhatsApp(supplierPhone, orderMsg);
@@ -1337,7 +1341,8 @@ export function StripeModal({ product, profile, onClose, quantity }: {
         `• TOTAL: ${formatCurrency(product.price * quantity, product.currency)}\n` +
         `• CARD HOLDER: ${cardName}\n` +
         `• BUYER: ${guestName} (${guestPhone})\n\n` +
-        `Hello! I completed a Stripe payment for this order for in-person pickup.`;
+        `Hello! I completed a Stripe payment for this order for in-person pickup.\n\n` +
+        `This order was initiated in The Comfort Business Hub. Join Comfort Business Hub and deal here; https://comfort-business-hub.comfort-designszw.workers.dev/`;
 
       if (supplierPhone) {
         openWhatsApp(supplierPhone, orderMsg);
@@ -1795,7 +1800,8 @@ export function BankModal({ product, profile, onClose, quantity }: {
         `• QUANTITY: ${quantity}\n` +
         `• TOTAL: ${formatCurrency(product.price * quantity, product.currency)}\n` +
         `• BUYER: ${guestName} (${guestPhone})\n\n` +
-        `Hello! I initiated a Bank Transfer for this order for in-person pickup.`;
+        `Hello! I initiated a Bank Transfer for this order for in-person pickup.\n\n` +
+        `This order was initiated in The Comfort Business Hub. Join Comfort Business Hub and deal here; https://comfort-business-hub.comfort-designszw.workers.dev/`;
 
       if (supplierPhone) {
         openWhatsApp(supplierPhone, orderMsg);
@@ -2028,7 +2034,8 @@ export function PaynowModal({ product, profile, onClose, quantity }: {
         `• QUANTITY: ${quantity}\n` +
         `• TOTAL: ${formatCurrency(product.price * quantity, product.currency)}\n` +
         `• BUYER: ${guestName} (${guestPhone})\n\n` +
-        `Hello! I initiated a Paynow payment for this order for in-person pickup.`;
+        `Hello! I initiated a Paynow payment for this order for in-person pickup.\n\n` +
+        `This order was initiated in The Comfort Business Hub. Join Comfort Business Hub and deal here; https://comfort-business-hub.comfort-designszw.workers.dev/`;
 
       if (paynowDetail.startsWith('http://') || paynowDetail.startsWith('https://')) {
         window.open(paynowDetail, '_blank');
