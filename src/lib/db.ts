@@ -106,16 +106,6 @@ export class ComfortOfflineDB extends Dexie {
       products: 'id, storeId, updatedAt, lastSynced, expiresAt',
       deals: 'id, supplierId, customerId, updatedAt, lastSynced, expiresAt'
     });
-
-    this.version(5).stores({
-      users: 'id, role, isVerified, lastSynced, expiresAt',
-      outbox: '++id, collection, docId, action, createdAt',
-      cache: 'id, collection, docId, updatedAt, lastSynced, expiresAt',
-      queuedMessages: '++id, convoId, senderId, status, createdAt',
-      stores: 'id, name, category, city, ownerId, isVerified, updatedAt, lastSynced, expiresAt',
-      products: 'id, storeId, name, category, price, inStock, isVerified, updatedAt, lastSynced, expiresAt',
-      deals: 'id, supplierId, customerId, status, updatedAt, lastSynced, expiresAt'
-    });
   }
 }
 

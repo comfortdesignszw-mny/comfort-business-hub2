@@ -54,11 +54,8 @@ const PRIVACY_ENGLISH: PrivacyContent = {
   lastUpdated: "Last Updated: August 4, 2026",
   welcome1: "Comfort Business Hub (\"we,\" \"our,\" or \"us\") is committed to protecting your privacy. This Privacy Policy explains how we collect, use, disclose, and safeguard your information when you use our Web Application, order tracking tools, and marketplace services (\"the Platform\").",
   welcome2: "By accessing or using the Platform, including placing guest orders or tracking delivery status, you agree to the collection and use of information in accordance with this policy.",
-  recentUpdatesTitle: "Recent Data, PWA & Order Tracking Updates (August 2026)",
+  recentUpdatesTitle: "Recent Data & Order Tracking Updates (August 2026)",
   recentUpdates: [
-    "PWA Offline Database Architecture: The Platform uses IndexedDB (Dexie engine) to store normalized records (stores, products, deals, outbox items) directly on your local device for zero-connection startup.",
-    "Deferred Outbox Queue & Local Sync: Actions performed offline are queued locally in an encrypted outbox table and synchronized atomically to backend servers upon network restoration.",
-    "Client-Side Indexing & TTL Retention: Local IndexedDB caches enforce explicit TTL (Time-To-Live) expiration rules and client-side key indexing to protect device storage from overstress.",
     "Order Tracking Telemetry: Order records process customer phone numbers, delivery coordinates, and product preferences to power the 4-stage fulfillment pipeline and auditable history logs.",
     "Guest Checkout Data Protocols: Guest orders store local order tokens in client-side HTML5 localStorage (`guest_deal_ids`). Phone numbers provided during guest checkout are used strictly for supplier dispatch and status lookup.",
     "Supplier Order Notification Telemetry: Unfulfilled order counts are queried in real time to generate supplier notification badges in Markets/DealRoom."
@@ -119,11 +116,8 @@ const PRIVACY_SHONA: PrivacyContent = {
   lastUpdated: "Kupedzisira Kuvandudzwa: May 17, 2026",
   welcome1: "Comfort Business Hub (\"isusu\") yakazvipira kuchengetedza chivande chenyu. Mutemo wePrivacy uyu unotsanangura munganidzo yekutora, kushandisa, nekuvanza ruzivo rwenyu.",
   welcome2: "Nekushandisa Platform iyi, unobvuma kuunganidzwa nekushandiswa kweruzivo zvinoenderana nemutemo uyu.",
-  recentUpdatesTitle: "Zvakavandudzwa Zvazvino reRuzivo neDatabase (Nyamavhuvhu 2026)",
+  recentUpdatesTitle: "Zvakavandudzwa Zvazvino reRuzivo (Nyamavhuvhu 2026)",
   recentUpdates: [
-    "PWA Offline Database Storage: Platform inoshandisa IndexedDB pafoni yako kuchengetedza zvitoro, zvigadzirwa ne ma-deals kuitira kuti app ivhure nekukasika pasina internet.",
-    "Outbox Sync Queue: Zvinhu zvawashandura usina internet zvinochengetwa mu-outbox pafoni yako zvogozotumirwa ku-server pachangodzoka internet.",
-    "Local Retention Policy: Data iri pafoni inochengetwa ne-TTL expiration system kudzivirira kuremedza memory yefoni.",
     "Ruzivo rweKubhadhara kwemutengesi: Zvirimwa zvePayPal, Stripe, EcoCash USSD, nePOD zvakachengetedzwa kuitira kuratidza nzira dzekubhadhara kune vatengi.",
     "WhatsApp App Link: \"Talk on WhatsApp\" inoshandisa zvakananga WhatsApp Business pafoni yako."
   ],
@@ -183,11 +177,8 @@ const PRIVACY_NDEBELE: PrivacyContent = {
   lastUpdated: "Kugcina ukulungiswa: May 17, 2026",
   welcome1: "Comfort Business Hub (\"isisebenzi\") izibophezele ekuvikela imfihlo yakho. I-Privacy Policy le ichaza indlela esoqoqa, sisebenzise, sondeze i-data yakho.",
   welcome2: "Ngokusebenzisa i-Platform le, uyavuma ukuqoqwa lokusebenziswa kwemininingwane le.",
-  recentUpdatesTitle: "Okusanda Kwelulwa kwi-Data leDatabase (August 2026)",
+  recentUpdatesTitle: "Okusanda Kwelulwa kwi-Data (August 2026)",
   recentUpdates: [
-    "PWA Offline Database Storage: I-Platform isebenzisa i-IndexedDB efonini yakho ukugcina amathebula ezitolo lezinto ukuze i-app ivuleke ngokushesha pasina i-internet.",
-    "Outbox Sync Queue: Izinto ezenziwe ungelaneti zigcinwa kwi-outbox efonini yakho bese zithunyelwa kuseva nxa inethiwekhi ibuya.",
-    "Local Retention Policy: I-data efonini igcinwa nge-TTL expiration system ukuze ingagcwalisi imemori yefoni.",
     "Imininingwane yeziNdlela zokuBhadhala: I-PayPal, Stripe, EcoCash USSD, le-POD ezigcinwe kumetadata kuze abathengi babone ngezifanele.",
     "WhatsApp Uplink: Inkinobho \"Talk on WhatsApp\" ivula WhatsApp Business khona lapho efoni yakho."
   ],
