@@ -72,12 +72,12 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
   const [nearbyOnly, setNearbyOnly] = useState(false);
   const radiusKm = 50;
 
-  // Auto-rotate spotlights
+  // Auto-rotate spotlights / classified ads (60 seconds per slide)
   useEffect(() => {
     if (spotlights.length <= 1) return;
     const interval = setInterval(() => {
       setActiveSpotlightIndex(prev => (prev + 1) % spotlights.length);
-    }, 6000);
+    }, 60000);
     return () => clearInterval(interval);
   }, [spotlights.length]);
 
