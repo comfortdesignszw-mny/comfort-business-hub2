@@ -27,8 +27,9 @@ export default function GuestLoginPrompt({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[5000] flex items-center justify-center p-4 sm:p-6">
+        <div key="guest-login-wrapper" className="fixed inset-0 z-[5000] flex items-center justify-center p-4 sm:p-6">
           <motion.div
+            key="guest-login-backdrop"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -36,6 +37,7 @@ export default function GuestLoginPrompt({
             className="absolute inset-0 bg-[#05070a]/90 backdrop-blur-md"
           />
           <motion.div
+            key="guest-login-dialog"
             initial={{ scale: 0.9, opacity: 0, y: 20 }}
             animate={{ scale: 1, opacity: 1, y: 0 }}
             exit={{ scale: 0.9, opacity: 0, y: 20 }}

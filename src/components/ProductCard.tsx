@@ -555,6 +555,7 @@ export default function ProductCard({
       <AnimatePresence>
         {showRatingModal && (
           <div 
+            key={`product-rating-wrapper-${product.id}`}
             className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
             onClick={(e) => {
               e.stopPropagation();
@@ -562,6 +563,7 @@ export default function ProductCard({
             }}
           >
             <motion.div
+              key={`product-rating-dialog-${product.id}`}
               initial={{ opacity: 0, scale: 0.9, y: 20 }}
               animate={{ opacity: 1, scale: 1, y: 0 }}
               exit={{ opacity: 0, scale: 0.9, y: 20 }}

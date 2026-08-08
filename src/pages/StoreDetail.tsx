@@ -778,10 +778,12 @@ export function StoreDetailContent({ store, profile, onGuestLogin, showMap = tru
       <AnimatePresence>
         {showStoreRatingModal && (
           <div 
+            key={`store-rating-wrapper-${store.id}`}
             className="fixed inset-0 z-[9999] flex items-center justify-center p-4 bg-black/80 backdrop-blur-md"
             onClick={() => setShowStoreRatingModal(false)}
           >
             <motion.div 
+              key={`store-rating-dialog-${store.id}`}
               initial={{ scale: 0.9, opacity: 0 }}
               animate={{ scale: 1, opacity: 1 }}
               exit={{ scale: 0.9, opacity: 0 }}

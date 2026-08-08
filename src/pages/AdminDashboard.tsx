@@ -310,6 +310,23 @@ export default function AdminDashboard({ profile }: { profile: UserProfile | nul
       const batch = writeBatch(db);
       batch.update(doc(db, 'users', userId), updates);
       batch.update(doc(db, 'public_profiles', userId), updates);
+
+      if (makeAdmin) {
+        // Send a high-priority notification to the promoted user
+        const notifRef = doc(collection(db, 'notifications'));
+        batch.set(notifRef, {
+          userId: userId,
+          type: 'admin_promotion',
+          fromUserId: profile?.uid || 'system',
+          fromUserName: profile?.displayName || profile?.businessName || 'Platform Administrator',
+          targetId: '/admin',
+          title: '🎉 Promoted to Executive Admin Status!',
+          message: `Congratulations ${targetUser?.name || targetUser?.businessName || 'Operator'}! You have been promoted to an Admin in Comfort Business Hub. You now have full immediate access to the Command page & Admin Dashboard to execute admin duties.`,
+          read: false,
+          createdAt: serverTimestamp()
+        });
+      }
+
       await batch.commit();
 
       setUsers(prev => prev.map(u => u.uid === userId ? { ...u, isAdmin: makeAdmin } : u));

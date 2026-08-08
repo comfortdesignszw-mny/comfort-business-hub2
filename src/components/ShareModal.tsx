@@ -90,9 +90,10 @@ export default function ShareModal({ isOpen, onClose, payload }: ShareModalProps
 
   return (
     <AnimatePresence>
-      <div className="fixed inset-0 z-[500] flex items-center justify-center p-4">
+      <div key="share-modal-wrapper" className="fixed inset-0 z-[500] flex items-center justify-center p-4">
         {/* Backdrop */}
         <motion.div
+          key="share-modal-backdrop"
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
@@ -102,6 +103,7 @@ export default function ShareModal({ isOpen, onClose, payload }: ShareModalProps
 
         {/* Modal Window */}
         <motion.div
+          key="share-modal-window"
           initial={{ scale: 0.9, opacity: 0, y: 20 }}
           animate={{ scale: 1, opacity: 1, y: 0 }}
           exit={{ scale: 0.9, opacity: 0, y: 20 }}

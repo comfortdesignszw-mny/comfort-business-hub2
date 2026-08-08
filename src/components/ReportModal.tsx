@@ -142,8 +142,9 @@ export default function ReportModal({
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
+        <div key="report-modal-wrapper" className="fixed inset-0 z-[1000] flex items-center justify-center p-4">
           <motion.div 
+            key="report-modal-backdrop"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -152,6 +153,7 @@ export default function ReportModal({
           />
           
           <motion.div 
+            key="report-modal-dialog"
             initial={{ opacity: 0, scale: 0.95, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95, y: 20 }}

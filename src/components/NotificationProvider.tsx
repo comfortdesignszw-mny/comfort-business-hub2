@@ -472,6 +472,7 @@ function getIcon(type: AppNotification['type']) {
     case 'message': return <MessageSquare size={20} />;
     case 'reminder': return <StoreIcon size={20} className="text-neon-green" />;
     case 'report': return <ShieldAlert size={20} className="text-red-500" />;
+    case 'admin_promotion': return <ShieldAlert size={20} className="text-purple-400" />;
     default: return <Bell size={20} />;
   }
 }

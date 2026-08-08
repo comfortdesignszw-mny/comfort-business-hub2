@@ -307,6 +307,7 @@ export const MessagingProvider: React.FC<{ children: React.ReactNode, profile: U
       <AnimatePresence>
         {notification && (
           <motion.div
+            key="messaging-fcm-notification-toast"
             initial={{ opacity: 0, y: -50 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.95 }}

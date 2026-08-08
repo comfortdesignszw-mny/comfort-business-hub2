@@ -127,8 +127,9 @@ export default function UserProfileModal({ userId, isOpen, onClose, currentUserP
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[3000] flex items-center justify-center p-4 sm:p-6">
+        <div key="user-profile-modal-wrapper" className="fixed inset-0 z-[3000] flex items-center justify-center p-4 sm:p-6">
           <motion.div 
+            key="user-profile-modal-backdrop"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -136,6 +137,7 @@ export default function UserProfileModal({ userId, isOpen, onClose, currentUserP
             className="absolute inset-0 bg-[#05070a]/90 backdrop-blur-xl"
           />
           <motion.div 
+            key="user-profile-modal-dialog"
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}

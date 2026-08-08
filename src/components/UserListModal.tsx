@@ -55,8 +55,9 @@ export default function UserListModal({ isOpen, onClose, onUserClick }: UserList
   return (
     <AnimatePresence>
       {isOpen && (
-        <div className="fixed inset-0 z-[2500] flex items-center justify-center p-4 sm:p-6">
+        <div key="user-list-modal-wrapper" className="fixed inset-0 z-[2500] flex items-center justify-center p-4 sm:p-6">
           <motion.div 
+            key="user-list-modal-backdrop"
             initial={{ opacity: 0 }}
             animate={{ opacity: 1 }}
             exit={{ opacity: 0 }}
@@ -64,6 +65,7 @@ export default function UserListModal({ isOpen, onClose, onUserClick }: UserList
             className="absolute inset-0 bg-[#05070a]/90 backdrop-blur-xl"
           />
           <motion.div 
+            key="user-list-modal-dialog"
             initial={{ opacity: 0, scale: 0.9, y: 20 }}
             animate={{ opacity: 1, scale: 1, y: 0 }}
             exit={{ opacity: 0, scale: 0.9, y: 20 }}

@@ -146,6 +146,7 @@ export default function PWAPrompt() {
     <AnimatePresence>
       {isVisible && (
         <motion.div 
+          key="pwa-prompt-container"
           initial={{ y: 200, opacity: 0 }}
           animate={{ y: 0, opacity: 1 }}
           exit={{ y: 200, opacity: 0 }}

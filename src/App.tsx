@@ -7,7 +7,7 @@ import React, { useState, useEffect, lazy, Suspense } from 'react';
 import { BrowserRouter as Router, Routes, Route, Navigate, Link, useLocation, useNavigate } from 'react-router-dom';
 import { onAuthStateChanged, User } from 'firebase/auth';
 import { auth, db, handleFirestoreError, OperationType, syncPublicProfile, getDocCacheFirst } from './lib/firebase';
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp, onSnapshot } from 'firebase/firestore';
 import { 
   Search, ShoppingBag, MessageSquare, User as UserIcon, Store, LayoutGrid, 
   Zap, Menu, Bell, ArrowLeft, ArrowRight, X, Heart, Star, UserPlus, Check, Loader2, Users, ShieldAlert,
@@ -327,6 +327,35 @@ export default function App() {
     };
   }, []);
 
+  // Real-time listener for current user profile changes (e.g. instant Admin role promotion)
+  useEffect(() => {
+    if (!user?.uid || isGuest) return;
+
+    const unsub = onSnapshot(doc(db, 'users', user.uid), (snap) => {
+      if (snap.exists()) {
+        const freshData = snap.data() as UserProfile;
+        setProfile(prev => {
+          if (!prev) return freshData;
+          if (
+            prev.isAdmin !== freshData.isAdmin ||
+            prev.currentRole !== freshData.currentRole ||
+            prev.isVerified !== freshData.isVerified ||
+            prev.status !== freshData.status
+          ) {
+            localStorage.setItem(`profile_cache_${user.uid}`, JSON.stringify({
+              ...freshData,
+              _cachedAt: Date.now()
+            }));
+            return { ...prev, ...freshData };
+          }
+          return prev;
+        });
+      }
+    });
+
+    return () => unsub();
+  }, [user?.uid, isGuest]);
+
   const handleGuestLogin = () => {
     const guestUid = `guest_${Math.random().toString(36).substring(2, 11)}`;
     const guestProfile: UserProfile = {
@@ -445,6 +474,7 @@ function AppRoutes({
           <AnimatePresence>
             {showSidebar && (
               <Sidebar 
+                key="app-sidebar"
                 profile={profile} 
                 onClose={() => setShowSidebar(false)} 
                 onLogout={handleLogout}
@@ -455,8 +485,8 @@ function AppRoutes({
             <div className="max-w-7xl mx-auto w-full min-h-full flex flex-col">
               <div className="flex-1">
                 <AnimatePresence mode="wait">
-                  <Suspense fallback={<PageLoader />}>
-                    <Routes location={location} key={location.pathname}>
+                  <Suspense key={location.pathname} fallback={<PageLoader />}>
+                    <Routes location={location}>
                       {/* Public Routes */}
                       <Route path="/" element={<Discovery profile={profile} setProfile={setProfile} onGuestLogin={handleGuestLogin} />} />
                       <Route path="/store/:id" element={<StoreDetail profile={profile} onGuestLogin={handleGuestLogin} />} />
@@ -617,7 +647,7 @@ function Header({ profile, onMenuClick, onLogout }: { profile: UserProfile | nul
               
               <AnimatePresence>
                 {showNotifications && (
-                  <NotificationsModal profile={profile} onClose={() => setShowNotifications(false)} />
+                  <NotificationsModal key="notifications-modal" profile={profile} onClose={() => setShowNotifications(false)} />
                 )}
               </AnimatePresence>
 
@@ -972,7 +1002,7 @@ function NotificationsModal({ profile, onClose }: { profile: UserProfile | null,
   );
 }
 
-function NotificationItem({ n, markAsRead, onSelect, onClose, navigate, profile }: { n: AppNotification, markAsRead: (id: string) => Promise<void>, onSelect?: (item: AppNotification) => void, onClose: () => void, navigate: any, profile: UserProfile | null, key?: string }) {
+function NotificationItem({ n, markAsRead, onSelect, onClose, navigate, profile }: { n: AppNotification, markAsRead: (id: string) => Promise<void>, onSelect?: (item: AppNotification) => void, onClose: () => void, navigate: any, profile: UserProfile | null }) {
   const [isProcessing, setIsProcessing] = useState(false);
 
   const handleConnectionAction = async (e: React.MouseEvent, action: 'accept' | 'decline') => {
@@ -1008,6 +1038,7 @@ function NotificationItem({ n, markAsRead, onSelect, onClose, navigate, profile 
           if (n.type === 'like_product' || n.type === 'rate') navigate(`/product/${n.targetId}`);
           if (n.type === 'follow' || n.type === 'like_store') navigate(`/store/${n.targetId}`);
           if (n.type === 'spotlight_approval' || n.targetId === 'admin_spotlights') navigate('/admin?tab=ads', { state: { tab: 'ads' } });
+          if (n.type === 'admin_promotion' || n.targetId === '/admin') navigate('/admin');
           onClose();
         }
       }}
@@ -1076,6 +1107,7 @@ function getNotificationIcon(type: AppNotification['type']) {
     case 'reminder': return <Store size={18} className="text-neon-green" />;
     case 'report': return <ShieldAlert size={18} className="text-red-500" />;
     case 'spotlight_approval': return <Megaphone size={18} className="text-amber-400" />;
+    case 'admin_promotion': return <ShieldAlert size={18} className="text-purple-400" />;
     default: return <Bell size={18} />;
   }
 }

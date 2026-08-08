@@ -335,8 +335,9 @@ export function POPDisplay({
       {/* Lightbox Modal for Image Screenshot */}
       <AnimatePresence>
         {showImageLightbox && popAttachmentUrl && (
-          <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
+          <div key="pop-lightbox-wrapper" className="fixed inset-0 z-50 flex items-center justify-center p-4">
             <motion.div 
+              key="pop-lightbox-backdrop"
               initial={{ opacity: 0 }} 
               animate={{ opacity: 1 }} 
               exit={{ opacity: 0 }} 
@@ -344,6 +345,7 @@ export function POPDisplay({
               onClick={() => setShowImageLightbox(false)} 
             />
             <motion.div 
+              key="pop-lightbox-dialog"
               initial={{ scale: 0.9, opacity: 0 }} 
               animate={{ scale: 1, opacity: 1 }} 
               exit={{ scale: 0.9, opacity: 0 }} 

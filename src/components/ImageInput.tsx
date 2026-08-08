@@ -243,6 +243,7 @@ export default function ImageInput({ value, onChange, label, className, aspectRa
       <AnimatePresence>
         {uploadError && (
           <motion.div
+            key="image-input-upload-error-toast"
             initial={{ opacity: 0, y: -20, scale: 0.95 }}
             animate={{ opacity: 1, y: 0, scale: 1 }}
             exit={{ opacity: 0, scale: 0.95 }}
