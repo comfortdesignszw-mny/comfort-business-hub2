@@ -69,17 +69,17 @@ export function BuyerDisclaimerNotice() {
   );
 }
 
-export function LegalDisclaimerNotice() {
+export function LegalDisclaimerNotice({ actionText = "finalise delivery order" }: { actionText?: string }) {
   return (
     <p className="text-[10px] text-gray-400 text-center font-medium leading-relaxed pt-3 border-t border-white/5 mt-3">
-      By clicking finalize Delivery order, you agree to Comfort Business Hub{' '}
+      By Clicking {actionText}, you agree to Comfort Business Hub{' '}
       <a 
         href="/terms" 
         target="_blank" 
         rel="noopener noreferrer" 
         className="text-primary font-bold underline hover:text-cyan-300 transition-colors"
       >
-        Terms of Use
+        Terms of Service
       </a>{' '}
       and{' '}
       <a 
@@ -88,7 +88,7 @@ export function LegalDisclaimerNotice() {
         rel="noopener noreferrer" 
         className="text-primary font-bold underline hover:text-cyan-300 transition-colors"
       >
-        Privacy Policy
+        Privacy policy
       </a>
     </p>
   );
@@ -964,7 +964,7 @@ export function EcoCashModal({ product, profile, onClose, quantity }: {
     const orderMsg = `🛒 ECOCASH PAYMENT ORDER\n\n` +
       `• Product: ${product.name} (x${quantity})\n` +
       `• Total Amount: ${formatCurrency(product.price * quantity, product.currency)}\n` +
-      `• Payment Method: EcoCash Direct Payment\n` +
+      `• Payment Method: Ecocash Payment Order\n` +
       `• Buyer Name: ${guestName}\n` +
       `• Buyer Phone: ${guestPhone}\n` +
       (needsDelivery ? `• Delivery Address: ${deliveryAddress}\n` : `• Delivery Option: In-Person Pickup (No Delivery)\n`) +
@@ -1060,7 +1060,7 @@ export function EcoCashModal({ product, profile, onClose, quantity }: {
         <div className="p-4 sm:p-5 border-b border-white/10 flex justify-between items-center bg-white/5 shrink-0">
           <div className="flex items-center gap-2">
             <EcoCashLogo className="h-5 w-auto" />
-            <h3 className="text-lg font-black text-white italic uppercase tracking-tighter">EcoCash Direct Payment</h3>
+            <h3 className="text-lg font-black text-white italic uppercase tracking-tighter">Ecocash Payment Order</h3>
           </div>
           <button onClick={onClose} className="text-gray-500 hover:text-white p-1"><X size={18} /></button>
         </div>
@@ -1100,7 +1100,7 @@ export function EcoCashModal({ product, profile, onClose, quantity }: {
             <button onClick={handlePlaceOrder} disabled={loading} className="w-full btn-neon py-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer">
               {loading ? <Loader2 className="animate-spin" size={14} /> : <EcoCashLogo className="h-4 w-auto" />} Place an Ecocash payment Order
             </button>
-            <LegalDisclaimerNotice />
+            <LegalDisclaimerNotice actionText="place an Ecocash Payment Order" />
           </div>
         </div>
       </motion.div>
@@ -1190,9 +1190,14 @@ export function PayPalModal({ product, profile, onClose, quantity }: {
           `• QUANTITY: ${quantity}\n` +
           `• TOTAL: ${formatCurrency(product.price * quantity, product.currency)}\n` +
           `• PAYPAL ACCOUNT: ${paypalEmail}\n` +
-          `• BUYER: ${guestName} (${guestPhone})`;
+          `• BUYER: ${guestName} (${guestPhone})\n` +
+          `• DELIVERY ADDRESS: ${deliveryAddress}`;
 
         startConversation(product.ownerId, orderMsg).catch(console.error);
+
+        if (supplierPhone) {
+          openWhatsApp(supplierPhone, orderMsg);
+        }
 
         setConfirmedDeal(dealData);
       } catch (e) {
@@ -1388,9 +1393,14 @@ export function StripeModal({ product, profile, onClose, quantity }: {
           `• QUANTITY: ${quantity}\n` +
           `• TOTAL: ${formatCurrency(product.price * quantity, product.currency)}\n` +
           `• CARD HOLDER: ${cardName}\n` +
-          `• BUYER: ${guestName} (${guestPhone})`;
+          `• BUYER: ${guestName} (${guestPhone})\n` +
+          `• DELIVERY ADDRESS: ${deliveryAddress}`;
 
         startConversation(product.ownerId, orderMsg).catch(console.error);
+
+        if (supplierPhone) {
+          openWhatsApp(supplierPhone, orderMsg);
+        }
 
         setConfirmedDeal(dealData);
       } catch (e) {
@@ -1635,6 +1645,21 @@ export function PodModal({ product, profile, onClose, initialQuantity = 1 }: {
         `• ADDRESS: ${formData.address}`;
 
       startConversation(product.ownerId, orderMessage).catch(console.error);
+
+      if (supplierPhone) {
+        const podMsg = `🚀 *PAY ON DELIVERY ORDER INITIATED*\n` +
+          `━━━━━━━━━━━━━━━━━━━━\n` +
+          `• *Item:* ${product.name} (x${formData.quantity})\n` +
+          `• *Total:* ${formatCurrency(product.price * formData.quantity, product.currency)}\n` +
+          `• *Buyer Name:* ${formData.name}\n` +
+          `• *Buyer Phone:* ${formData.phone}\n` +
+          `• *Buyer Email:* ${formData.email || 'N/A'}\n` +
+          `• *Delivery Address:* ${formData.address}\n` +
+          `━━━━━━━━━━━━━━━━━━━━\n` +
+          `*Status:* Pay on Delivery order placed. Please confirm delivery processing.\n\n` +
+          `This order was initiated in The Comfort Business Hub. Join Comfort Business Hub and deal here; https://comfort-business-hub.comfort-designszw.workers.dev/`;
+        openWhatsApp(supplierPhone, podMsg);
+      }
 
       setSuccess(true);
     } catch (err) {
@@ -1886,10 +1911,15 @@ export function BankModal({ product, profile, onClose, quantity }: {
         const orderMsg = `🏦 BANK TRANSFER ORDER INITIATED\n\n` +
           `• ITEM: ${product.name}\n` +
           `• QUANTITY: ${quantity}\n` +
-          `• TOTAL: ${formatCurrency(product.price * quantity, product.currency)}\n\n` +
-          `• BUYER: ${guestName} (${guestPhone})`;
+          `• TOTAL: ${formatCurrency(product.price * quantity, product.currency)}\n` +
+          `• BUYER: ${guestName} (${guestPhone})\n` +
+          `• DELIVERY ADDRESS: ${deliveryAddress}`;
 
         startConversation(product.ownerId, orderMsg).catch(console.error);
+
+        if (supplierPhone) {
+          openWhatsApp(supplierPhone, orderMsg);
+        }
 
         setConfirmedDeal(dealData);
       } catch (e) {
@@ -2120,9 +2150,14 @@ export function PaynowModal({ product, profile, onClose, quantity }: {
           `• ITEM: ${product.name}\n` +
           `• QUANTITY: ${quantity}\n` +
           `• TOTAL: ${formatCurrency(product.price * quantity, product.currency)}\n` +
-          `• BUYER: ${guestName} (${guestPhone})`;
+          `• BUYER: ${guestName} (${guestPhone})\n` +
+          `• DELIVERY ADDRESS: ${deliveryAddress}`;
 
         startConversation(product.ownerId, orderMsg).catch(console.error);
+
+        if (supplierPhone) {
+          openWhatsApp(supplierPhone, orderMsg);
+        }
 
         if (paynowDetail.startsWith('http://') || paynowDetail.startsWith('https://')) {
           window.open(paynowDetail, '_blank');
