@@ -23,6 +23,7 @@ import ImageInput from '../components/ImageInput';
 import VideoInput from '../components/VideoInput';
 import LocationPicker from '../components/LocationPicker';
 import ProductCard from '../components/ProductCard';
+import EcoCashLogo from '../components/EcoCashLogo';
 import AuthGuard from '../components/AuthGuard';
 
 export default function Profile({ profile, setProfile }: { profile: UserProfile | null, setProfile: (p: UserProfile) => void }) {
@@ -1809,7 +1810,7 @@ function GatewayConfig({ profile, onSave }: { profile: UserProfile, onSave: (dat
   const providerInfo = [
     { id: 'paypal', label: 'PayPal', icon: CreditCard, color: 'text-blue-400', badgeBg: 'bg-blue-500/20 text-blue-400 border-blue-500/30' },
     { id: 'stripe', label: 'Stripe', icon: CreditCard, color: 'text-purple-400', badgeBg: 'bg-purple-500/20 text-purple-400 border-purple-500/30' },
-    { id: 'ecocash', label: 'EcoCash', icon: Phone, color: 'text-emerald-400', badgeBg: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
+    { id: 'ecocash', label: 'EcoCash', icon: EcoCashLogo, color: 'text-emerald-400', badgeBg: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' },
     { id: 'paynow', label: 'Paynow', icon: Wallet, color: 'text-cyan-400', badgeBg: 'bg-cyan-500/20 text-cyan-400 border-cyan-500/30' },
     { id: 'bank', label: 'Bank Transfer', icon: Landmark, color: 'text-amber-400', badgeBg: 'bg-amber-500/20 text-amber-400 border-amber-500/30' },
     { id: 'pod', label: 'Cash / POD', icon: MapPinned, color: 'text-rose-400', badgeBg: 'bg-rose-500/20 text-rose-400 border-rose-500/30' }

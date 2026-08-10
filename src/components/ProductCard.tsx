@@ -20,6 +20,7 @@ import ReportModal from './ReportModal';
 
 import { useMessaging } from '../components/MessagingProvider';
 import { UnifiedCheckoutModal, EcoCashModal, PodModal, PayPalModal, StripeModal, PaynowModal, BankModal } from './CheckoutModals';
+import EcoCashLogo from './EcoCashLogo';
 
 export default function ProductCard({ 
   product, 
@@ -216,7 +217,7 @@ export default function ProductCard({
     switch (product.buyButtonType) {
       case 'link': return <ArrowRight size={14} />;
       case 'chat': return <MessageSquare size={14} />;
-      case 'ecocash': return <Phone size={14} />;
+      case 'ecocash': return <EcoCashLogo className="h-3.5 w-auto" />;
       case 'pod': return <MapPinned size={14} />;
       default: return <Zap size={14} className="fill-current" />;
     }

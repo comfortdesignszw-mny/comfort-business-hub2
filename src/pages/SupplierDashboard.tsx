@@ -40,6 +40,7 @@ import { UserProfile, Store, Product, BuyButtonType } from '../types';
 import { cn, formatCurrency } from '../lib/utils';
 import { executeShare, getStoreSharePayload } from '../lib/shareUtils';
 import { useNotifications } from '../components/NotificationProvider';
+import EcoCashLogo from '../components/EcoCashLogo';
 import { PRODUCT_CATEGORIES, BUSINESS_CATEGORIES } from '../constants';
 import SupplierSetup from './SupplierSetup';
 import { offlineResilientWrite } from '../lib/sync';
@@ -1350,7 +1351,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
                               { id: 'checkout', icon: ShoppingBag, label: 'Direct' },
                               { id: 'chat', icon: MessageSquare, label: 'Inbox' },
                               { id: 'link', icon: LinkIcon, label: 'Gateway' },
-                              { id: 'ecocash', icon: Phone, label: 'EcoCash' },
+                              { id: 'ecocash', icon: EcoCashLogo, label: 'EcoCash' },
                               { id: 'pod', icon: Package, label: 'POD' }
                             ].map((t) => (
                               <button

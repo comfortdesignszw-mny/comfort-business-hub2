@@ -13,6 +13,7 @@ import { interactionService } from '../services/interactionService';
 import { useMessaging } from './MessagingProvider';
 import { offlineResilientWrite } from '../lib/sync';
 import { POPForm, POPDisplay, POPAttachmentData } from './PopAttachmentSection';
+import EcoCashLogo from './EcoCashLogo';
 
 export function getSavedGuestContact(profile: UserProfile | null) {
   if (profile) {
@@ -686,11 +687,7 @@ export function UnifiedCheckoutModal({ product, profile, onClose, onSwitchModal,
     { 
       id: 'ecocash', 
       label: 'EcoCash', 
-      icon: (
-        <div className="w-5 h-5 bg-primary rounded-full flex items-center justify-center text-[#05070a] font-black text-[10px]">
-          e
-        </div>
-      )
+      icon: <EcoCashLogo className="h-4 w-auto" />
     },
     { 
       id: 'paynow', 
@@ -863,6 +860,7 @@ export function EcoCashModal({ product, profile, onClose, quantity }: {
   quantity: number;
 }) {
   const [ussd, setUssd] = useState<string | null>(null);
+  const [sellerEcocashNum, setSellerEcocashNum] = useState('');
   const [loading, setLoading] = useState(true);
   const initialContact = getSavedGuestContact(profile);
   const [guestName, setGuestName] = useState(initialContact.name);
@@ -871,8 +869,8 @@ export function EcoCashModal({ product, profile, onClose, quantity }: {
   const [needsDelivery, setNeedsDelivery] = useState(true);
   const [deliveryAddress, setDeliveryAddress] = useState(profile?.location?.address || '');
   const [supplierPhone, setSupplierPhone] = useState('');
-  const [directWhatsAppComplete, setDirectWhatsAppComplete] = useState(false);
-  const [confirmedDeal, setConfirmedDeal] = useState<Deal | null>(null);
+  const [orderPlaced, setOrderPlaced] = useState(false);
+  const [copiedUssd, setCopiedUssd] = useState(false);
 
   useEffect(() => {
     const fetchSupplier = async () => {
@@ -887,18 +885,22 @@ export function EcoCashModal({ product, profile, onClose, quantity }: {
           const phone = data.whatsappNumber || data.phone || data.phoneNumber || '';
           setSupplierPhone(phone);
 
-          if (ecocashDetail) {
-            setUssd(ecocashDetail);
-          } else {
-            const cleanPhone = phone.replace(/[^0-9]/g, '') || '0770000000';
-            setUssd(`*151*2*2*${cleanPhone}*${Math.round(product.price * quantity)}#`);
-          }
+          const extractedDigits = ecocashDetail
+            ? (ecocashDetail.match(/(?:07\d{8}|2637\d{8}|\d{9,12})/)?.[0] || ecocashDetail.replace(/[^0-9]/g, ''))
+            : (phone.replace(/[^0-9]/g, ''));
+
+          const cleanNum = extractedDigits || '0770000000';
+          setSellerEcocashNum(cleanNum);
+          const amt = Math.round(product.price * quantity);
+          setUssd(`*151*1*1*${cleanNum}*${amt}#`);
         } else {
-          setUssd(`*151*2*2*0770000000*${Math.round(product.price * quantity)}#`);
+          setSellerEcocashNum('0770000000');
+          setUssd(`*151*1*1*0770000000*${Math.round(product.price * quantity)}#`);
         }
       } catch (e) {
         console.error("Error fetching supplier details:", e);
-        setUssd(`*151*2*2*0770000000*${Math.round(product.price * quantity)}#`);
+        setSellerEcocashNum('0770000000');
+        setUssd(`*151*1*1*0770000000*${Math.round(product.price * quantity)}#`);
       } finally {
         setLoading(false);
       }
@@ -906,7 +908,12 @@ export function EcoCashModal({ product, profile, onClose, quantity }: {
     fetchSupplier();
   }, [product.ownerId, product.price, quantity]);
 
-  const handleDial = async () => {
+  const handlePlaceOrder = async () => {
+    if (!guestName.trim() || !guestPhone.trim()) {
+      alert('Please enter your name and phone number to place the EcoCash order.');
+      return;
+    }
+
     saveGuestContact({ name: guestName, phone: guestPhone, email: guestEmail });
     const guestId = profile?.uid || `guest_${Date.now()}`;
 
@@ -920,84 +927,129 @@ export function EcoCashModal({ product, profile, onClose, quantity }: {
       `${guestName} placed an EcoCash order for ${product.name} (x${quantity}).`
     );
 
-    const command = ussd || `*151*2*2*0770000000*${Math.round(product.price * quantity)}#`;
-    const encodedUssd = command.replace(/#/g, '%23');
+    const cleanNum = sellerEcocashNum || '0770000000';
+    const amt = Math.round(product.price * quantity);
+    const ussdCode = `*151*1*1*${cleanNum}*${amt}#`;
+
+    const dealId = `deal_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    const dealData: Deal = {
+      id: dealId,
+      customerId: guestId,
+      customerName: guestName,
+      customerPhone: guestPhone,
+      customerEmail: guestEmail || '',
+      supplierId: product.ownerId,
+      productId: product.id,
+      productName: product.name,
+      productImage: product.images?.[0] || '',
+      quantity: quantity,
+      agreedPrice: product.price * quantity,
+      status: 'confirmed',
+      trackingStage: 'Order Confirmed',
+      paymentMethod: 'ecocash',
+      deliveryAddress: needsDelivery ? deliveryAddress : 'In-Person Pickup',
+      isGuestOrder: !profile,
+      history: [{ stage: 'Order Confirmed', status: 'confirmed', timestamp: new Date().toISOString(), updatedBy: guestName || 'Customer' }],
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+
     try {
-      window.location.href = `tel:${encodedUssd}`;
-    } catch (err) {}
+      await offlineResilientWrite('deals', dealId, 'create', dealData);
+      const existing = JSON.parse(localStorage.getItem('guest_deal_ids') || '[]');
+      localStorage.setItem('guest_deal_ids', JSON.stringify([...existing, dealId]));
+    } catch (e) {}
 
-    if (needsDelivery) {
-      const dealId = `deal_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-      const dealData: Deal = {
-        id: dealId,
-        customerId: guestId,
-        customerName: guestName,
-        customerPhone: guestPhone,
-        customerEmail: guestEmail || '',
-        supplierId: product.ownerId,
-        productId: product.id,
-        productName: product.name,
-        productImage: product.images?.[0] || '',
-        quantity: quantity,
-        agreedPrice: product.price * quantity,
-        status: 'confirmed',
-        trackingStage: 'Order Confirmed',
-        paymentMethod: 'ecocash',
-        deliveryAddress: deliveryAddress,
-        isGuestOrder: !profile,
-        history: [{ stage: 'Order Confirmed', status: 'confirmed', timestamp: new Date().toISOString(), updatedBy: guestName || 'Customer' }],
-        createdAt: new Date().toISOString(),
-        updatedAt: new Date().toISOString()
-      };
+    // Send order message automatically to seller's whatsapp
+    const orderMsg = `🛒 ECOCASH PAYMENT ORDER\n\n` +
+      `• Product: ${product.name} (x${quantity})\n` +
+      `• Total Amount: ${formatCurrency(product.price * quantity, product.currency)}\n` +
+      `• Payment Method: EcoCash Direct Payment\n` +
+      `• Buyer Name: ${guestName}\n` +
+      `• Buyer Phone: ${guestPhone}\n` +
+      (needsDelivery ? `• Delivery Address: ${deliveryAddress}\n` : `• Delivery Option: In-Person Pickup (No Delivery)\n`) +
+      `• EcoCash Payment Code: ${ussdCode}\n\n` +
+      `Hello! I placed an EcoCash payment order for ${product.name} (x${quantity}). Please confirm the order so I can dial the payment code on my phone.\n\n` +
+      `Order placed on Comfort Business Hub: https://comfort-business-hub.comfort-designszw.workers.dev/`;
 
-      try {
-        await offlineResilientWrite('deals', dealId, 'create', dealData);
-        const existing = JSON.parse(localStorage.getItem('guest_deal_ids') || '[]');
-        localStorage.setItem('guest_deal_ids', JSON.stringify([...existing, dealId]));
-      } catch (e) {}
-
-      setConfirmedDeal(dealData);
-    } else {
-      // Direct WhatsApp order without delivery tracking
-      const directMsg = `🛒 DIRECT ECOCASH ORDER (NO DELIVERY REQUESTED)\n\n` +
-        `• Product: ${product.name} (x${quantity})\n` +
-        `• Total: ${formatCurrency(product.price * quantity, product.currency)}\n` +
-        `• Payment Command: ${command}\n` +
-        `• Buyer Name: ${guestName}\n` +
-        `• Buyer Phone: ${guestPhone}\n\n` +
-        `Hello! I initiated an EcoCash payment for this order for direct in-person pickup.\n\n` +
-        `This order was initiated in The Comfort Business Hub. Join Comfort Business Hub and deal here; https://comfort-business-hub.comfort-designszw.workers.dev/`;
-
-      if (supplierPhone) {
-        openWhatsApp(supplierPhone, directMsg);
-      }
-      setDirectWhatsAppComplete(true);
+    if (supplierPhone) {
+      openWhatsApp(supplierPhone, orderMsg);
     }
+
+    setOrderPlaced(true);
   };
 
-  if (confirmedDeal) {
-    return (
-      <SalesOrderConfirmationModal
-        dealData={confirmedDeal}
-        product={product}
-        profile={profile}
-        onClose={onClose}
-        paymentMethodLabel="EcoCash Direct"
-      />
-    );
-  }
+  if (orderPlaced) {
+    const cleanNum = sellerEcocashNum || '0770000000';
+    const amt = Math.round(product.price * quantity);
+    const ussdCode = `*151*1*1*${cleanNum}*${amt}#`;
 
-  if (directWhatsAppComplete) {
     return (
-      <DirectWhatsAppSuccessModal
-        product={product}
-        quantity={quantity}
-        paymentMethodLabel="EcoCash Direct"
-        guestName={guestName}
-        guestPhone={guestPhone}
-        supplierPhone={supplierPhone}
-        onClose={onClose}
-      />
+      <div key={`ecocash-placed-modal-${product.id}`} className="fixed inset-0 z-50 flex items-center justify-center p-3 sm:p-4 overflow-y-auto bg-black/80 backdrop-blur-md">
+        <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[#05070a]/90 backdrop-blur-md" onClick={onClose} />
+        <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-md my-auto neon-card p-6 text-center space-y-5 border border-white/10 bg-[#0d1117] shadow-2xl">
+          <div className="w-16 h-16 bg-emerald-500/20 text-emerald-400 rounded-3xl flex items-center justify-center mx-auto border border-emerald-500/40 shadow-[0_0_20px_rgba(16,185,129,0.3)] animate-bounce">
+            <CheckCircle2 size={36} />
+          </div>
+
+          <div className="space-y-3">
+            <h3 className="text-lg font-black text-emerald-400 italic uppercase tracking-tight">EcoCash Order Sent!</h3>
+
+            {/* Green message box for buyer */}
+            <div className="bg-emerald-500/10 border-2 border-emerald-500/40 rounded-2xl p-4 sm:p-5 text-left space-y-3 shadow-[0_0_20px_rgba(16,185,129,0.15)]">
+              <p className="text-xs sm:text-sm font-bold text-emerald-300 leading-relaxed">
+                Ecocash Payment Order for <span className="text-white font-black underline">{product.name}</span> created and send to the Seller's WhatsApp number.
+              </p>
+              <p className="text-xs sm:text-sm font-semibold text-emerald-200/90 leading-relaxed">
+                If the Order is Confirmed, please dial this Ecocash USSD Code to make the payment on your phone:
+              </p>
+              <div className="bg-black/60 border border-emerald-500/50 rounded-xl p-3 flex items-center justify-between gap-2">
+                <code className="text-sm sm:text-base font-black text-emerald-400 font-mono tracking-wider break-all">
+                  {ussdCode}
+                </code>
+                <button
+                  type="button"
+                  onClick={() => {
+                    navigator.clipboard.writeText(ussdCode);
+                    setCopiedUssd(true);
+                    setTimeout(() => setCopiedUssd(false), 2000);
+                  }}
+                  className="px-3 py-1.5 bg-emerald-500/20 hover:bg-emerald-500/30 text-emerald-300 text-[10px] font-black uppercase tracking-wider rounded-lg border border-emerald-500/40 shrink-0 transition-colors cursor-pointer flex items-center gap-1"
+                >
+                  {copiedUssd ? <Check size={12} /> : <Copy size={12} />}
+                  {copiedUssd ? 'Copied' : 'Copy'}
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div className="space-y-2 pt-2">
+            <button
+              onClick={() => {
+                const cleanNum = sellerEcocashNum || '0770000000';
+                const amt = Math.round(product.price * quantity);
+                const code = `*151*1*1*${cleanNum}*${amt}#`;
+                const msg = `🛒 ECOCASH PAYMENT ORDER\n\n` +
+                  `• Product: ${product.name} (x${quantity})\n` +
+                  `• Total: ${formatCurrency(product.price * quantity, product.currency)}\n` +
+                  `• Buyer: ${guestName} (${guestPhone})\n` +
+                  `• USSD Code: ${code}\n\n` +
+                  `Hello! Re-sending my EcoCash order details for ${product.name}.`;
+                if (supplierPhone) openWhatsApp(supplierPhone, msg);
+              }}
+              className="w-full bg-emerald-600 hover:bg-emerald-500 text-white py-3.5 px-4 rounded-xl font-black text-[10px] uppercase tracking-widest flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(16,185,129,0.3)] transition-all cursor-pointer"
+            >
+              <MessageCircle size={16} /> Re-Open Seller's WhatsApp Chat
+            </button>
+            <button
+              onClick={onClose}
+              className="w-full bg-white/10 hover:bg-white/20 text-white py-3 px-4 rounded-xl font-black text-[10px] uppercase tracking-widest transition-all cursor-pointer"
+            >
+              Done & Close
+            </button>
+          </div>
+        </motion.div>
+      </div>
     );
   }
 
@@ -1007,7 +1059,7 @@ export function EcoCashModal({ product, profile, onClose, quantity }: {
       <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-md my-auto neon-card p-0 flex flex-col max-h-[92vh] overflow-hidden border border-white/10 bg-[#0d1117] shadow-2xl">
         <div className="p-4 sm:p-5 border-b border-white/10 flex justify-between items-center bg-white/5 shrink-0">
           <div className="flex items-center gap-2">
-            <Phone size={18} className="text-primary" />
+            <EcoCashLogo className="h-5 w-auto" />
             <h3 className="text-lg font-black text-white italic uppercase tracking-tighter">EcoCash Direct Payment</h3>
           </div>
           <button onClick={onClose} className="text-gray-500 hover:text-white p-1"><X size={18} /></button>
@@ -1015,8 +1067,8 @@ export function EcoCashModal({ product, profile, onClose, quantity }: {
 
         <div className="p-4 sm:p-5 space-y-4 overflow-y-auto custom-scrollbar flex-1 pb-8 text-left text-center">
           <BuyerDisclaimerNotice />
-          <div className="w-16 h-16 bg-primary/20 rounded-3xl flex items-center justify-center mx-auto text-primary border border-primary/30">
-            <Phone size={40} className="animate-pulse" />
+          <div className="w-28 h-16 bg-white/10 rounded-2xl flex items-center justify-center mx-auto border border-white/20 p-2 shadow-inner">
+            <EcoCashLogo className="h-8 w-auto" />
           </div>
           <div className="space-y-1">
             <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest leading-none">Quantity: {quantity} Unit(s)</p>
@@ -1045,8 +1097,8 @@ export function EcoCashModal({ product, profile, onClose, quantity }: {
           />
 
           <div className="space-y-2 pt-2">
-            <button onClick={handleDial} disabled={loading} className="w-full btn-neon py-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer">
-              {loading ? <Loader2 className="animate-spin" size={14} /> : <Phone size={14} />} Dial EcoCash Command
+            <button onClick={handlePlaceOrder} disabled={loading} className="w-full btn-neon py-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer">
+              {loading ? <Loader2 className="animate-spin" size={14} /> : <EcoCashLogo className="h-4 w-auto" />} Place an Ecocash payment Order
             </button>
             <LegalDisclaimerNotice />
           </div>
