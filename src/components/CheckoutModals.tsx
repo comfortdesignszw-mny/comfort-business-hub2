@@ -1185,13 +1185,14 @@ export function PayPalModal({ product, profile, onClose, quantity }: {
         const existing = JSON.parse(localStorage.getItem('guest_deal_ids') || '[]');
         localStorage.setItem('guest_deal_ids', JSON.stringify([...existing, dealId]));
 
-        const orderMsg = `💳 PAYPAL ORDER AUTHORIZED\n\n` +
-          `• ITEM: ${product.name}\n` +
-          `• QUANTITY: ${quantity}\n` +
-          `• TOTAL: ${formatCurrency(product.price * quantity, product.currency)}\n` +
-          `• PAYPAL ACCOUNT: ${paypalEmail}\n` +
-          `• BUYER: ${guestName} (${guestPhone})\n` +
-          `• DELIVERY ADDRESS: ${deliveryAddress}`;
+        const orderMsg = `🛒 PAYPAL PAYMENT ORDER\n\n` +
+          `• Product: ${product.name} (x${quantity})\n` +
+          `• Total Amount: ${formatCurrency(product.price * quantity, product.currency)}\n` +
+          `• Payment Method: PayPal Payment Order\n` +
+          `• Buyer Name: ${guestName}\n` +
+          `• Buyer Phone: ${guestPhone}\n` +
+          `• PayPal Account: ${paypalEmail}\n` +
+          `• Delivery Address: ${deliveryAddress}`;
 
         startConversation(product.ownerId, orderMsg).catch(console.error);
 
@@ -1207,13 +1208,14 @@ export function PayPalModal({ product, profile, onClose, quantity }: {
         setSubmitting(false);
       }
     } else {
-      const orderMsg = `💳 DIRECT PAYPAL ORDER (NO DELIVERY REQUESTED)\n\n` +
-        `• ITEM: ${product.name}\n` +
-        `• QUANTITY: ${quantity}\n` +
-        `• TOTAL: ${formatCurrency(product.price * quantity, product.currency)}\n` +
-        `• PAYPAL ACCOUNT: ${paypalEmail}\n` +
-        `• BUYER: ${guestName} (${guestPhone})\n\n` +
-        `Hello! I authorized a PayPal payment for this order for in-person pickup.\n\n` +
+      const orderMsg = `🛒 PAYPAL PAYMENT ORDER\n\n` +
+        `• Product: ${product.name} (x${quantity})\n` +
+        `• Total Amount: ${formatCurrency(product.price * quantity, product.currency)}\n` +
+        `• Payment Method: PayPal Payment Order (In-Person Pickup)\n` +
+        `• Buyer Name: ${guestName}\n` +
+        `• Buyer Phone: ${guestPhone}\n` +
+        `• PayPal Account: ${paypalEmail}\n\n` +
+        `Hello! I placed a PayPal payment order for this item for in-person pickup.\n\n` +
         `This order was initiated in The Comfort Business Hub. Join Comfort Business Hub and deal here; https://comfort-business-hub.comfort-designszw.workers.dev/`;
 
       if (supplierPhone) {
@@ -1231,7 +1233,7 @@ export function PayPalModal({ product, profile, onClose, quantity }: {
         product={product}
         profile={profile}
         onClose={onClose}
-        paymentMethodLabel="PayPal Gateway"
+        paymentMethodLabel="PayPal Payment Order"
       />
     );
   }
@@ -1241,7 +1243,7 @@ export function PayPalModal({ product, profile, onClose, quantity }: {
       <DirectWhatsAppSuccessModal
         product={product}
         quantity={quantity}
-        paymentMethodLabel="PayPal Gateway"
+        paymentMethodLabel="PayPal Payment Order"
         guestName={guestName}
         guestPhone={guestPhone}
         supplierPhone={supplierPhone}
@@ -1257,7 +1259,7 @@ export function PayPalModal({ product, profile, onClose, quantity }: {
         <div className="p-4 sm:p-5 border-b border-white/10 flex justify-between items-center bg-white/5 shrink-0">
           <div className="flex items-center gap-2">
             <div className="w-8 h-8 rounded-xl bg-blue-500/20 text-blue-400 flex items-center justify-center font-black">P</div>
-            <h3 className="text-lg font-black text-white italic uppercase tracking-tighter">PayPal Gateway</h3>
+            <h3 className="text-lg font-black text-white italic uppercase tracking-tighter">PayPal Payment Order</h3>
           </div>
           <button onClick={onClose} className="text-gray-500 hover:text-white p-1"><X size={18} /></button>
         </div>
@@ -1298,9 +1300,9 @@ export function PayPalModal({ product, profile, onClose, quantity }: {
 
           <div className="space-y-2 pt-2">
             <button type="submit" disabled={submitting} className="w-full btn-neon py-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer">
-              {submitting ? <Loader2 className="animate-spin" size={14} /> : <Zap size={14} />} Confirm & Pay via PayPal
+              {submitting ? <Loader2 className="animate-spin" size={14} /> : <Zap size={14} />} Place a PayPal Payment Order
             </button>
-            <LegalDisclaimerNotice />
+            <LegalDisclaimerNotice actionText="place a PayPal Payment Order" />
           </div>
         </form>
       </motion.div>
@@ -1388,13 +1390,14 @@ export function StripeModal({ product, profile, onClose, quantity }: {
         const existing = JSON.parse(localStorage.getItem('guest_deal_ids') || '[]');
         localStorage.setItem('guest_deal_ids', JSON.stringify([...existing, dealId]));
 
-        const orderMsg = `💳 STRIPE CARD ORDER PROCESSED\n\n` +
-          `• ITEM: ${product.name}\n` +
-          `• QUANTITY: ${quantity}\n` +
-          `• TOTAL: ${formatCurrency(product.price * quantity, product.currency)}\n` +
-          `• CARD HOLDER: ${cardName}\n` +
-          `• BUYER: ${guestName} (${guestPhone})\n` +
-          `• DELIVERY ADDRESS: ${deliveryAddress}`;
+        const orderMsg = `🛒 STRIPE PAYMENT ORDER\n\n` +
+          `• Product: ${product.name} (x${quantity})\n` +
+          `• Total Amount: ${formatCurrency(product.price * quantity, product.currency)}\n` +
+          `• Payment Method: Stripe Payment Order\n` +
+          `• Buyer Name: ${guestName}\n` +
+          `• Buyer Phone: ${guestPhone}\n` +
+          `• Card Holder: ${cardName}\n` +
+          `• Delivery Address: ${deliveryAddress}`;
 
         startConversation(product.ownerId, orderMsg).catch(console.error);
 
@@ -1410,13 +1413,14 @@ export function StripeModal({ product, profile, onClose, quantity }: {
         setSubmitting(false);
       }
     } else {
-      const orderMsg = `💳 DIRECT STRIPE CARD ORDER (NO DELIVERY REQUESTED)\n\n` +
-        `• ITEM: ${product.name}\n` +
-        `• QUANTITY: ${quantity}\n` +
-        `• TOTAL: ${formatCurrency(product.price * quantity, product.currency)}\n` +
-        `• CARD HOLDER: ${cardName}\n` +
-        `• BUYER: ${guestName} (${guestPhone})\n\n` +
-        `Hello! I completed a Stripe payment for this order for in-person pickup.\n\n` +
+      const orderMsg = `🛒 STRIPE PAYMENT ORDER\n\n` +
+        `• Product: ${product.name} (x${quantity})\n` +
+        `• Total Amount: ${formatCurrency(product.price * quantity, product.currency)}\n` +
+        `• Payment Method: Stripe Payment Order (In-Person Pickup)\n` +
+        `• Buyer Name: ${guestName}\n` +
+        `• Buyer Phone: ${guestPhone}\n` +
+        `• Card Holder: ${cardName}\n\n` +
+        `Hello! I placed a Stripe payment order for this item for in-person pickup.\n\n` +
         `This order was initiated in The Comfort Business Hub. Join Comfort Business Hub and deal here; https://comfort-business-hub.comfort-designszw.workers.dev/`;
 
       if (supplierPhone) {
@@ -1434,7 +1438,7 @@ export function StripeModal({ product, profile, onClose, quantity }: {
         product={product}
         profile={profile}
         onClose={onClose}
-        paymentMethodLabel="Stripe Card Gateway"
+        paymentMethodLabel="Stripe Payment Order"
       />
     );
   }
@@ -1444,7 +1448,7 @@ export function StripeModal({ product, profile, onClose, quantity }: {
       <DirectWhatsAppSuccessModal
         product={product}
         quantity={quantity}
-        paymentMethodLabel="Stripe Card Gateway"
+        paymentMethodLabel="Stripe Payment Order"
         guestName={guestName}
         guestPhone={guestPhone}
         supplierPhone={supplierPhone}
@@ -1460,7 +1464,7 @@ export function StripeModal({ product, profile, onClose, quantity }: {
         <div className="p-4 sm:p-5 border-b border-white/10 flex justify-between items-center bg-white/5 shrink-0">
           <div className="flex items-center gap-2">
             <CreditCard size={20} className="text-purple-400" />
-            <h3 className="text-lg font-black text-white italic uppercase tracking-tighter">Stripe Card Gateway</h3>
+            <h3 className="text-lg font-black text-white italic uppercase tracking-tighter">Stripe Payment Order</h3>
           </div>
           <button onClick={onClose} className="text-gray-500 hover:text-white p-1"><X size={18} /></button>
         </div>
@@ -1541,9 +1545,9 @@ export function StripeModal({ product, profile, onClose, quantity }: {
 
             <div className="space-y-2">
               <button type="submit" disabled={submitting} className="w-full btn-neon py-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer">
-                {submitting ? <Loader2 className="animate-spin" size={14} /> : <CreditCard size={14} />} Pay with Stripe
+                {submitting ? <Loader2 className="animate-spin" size={14} /> : <CreditCard size={14} />} Place a Stripe Payment Order
               </button>
-              <LegalDisclaimerNotice />
+              <LegalDisclaimerNotice actionText="place a Stripe Payment Order" />
             </div>
           </form>
       </motion.div>
@@ -1634,29 +1638,29 @@ export function PodModal({ product, profile, onClose, initialQuantity = 1 }: {
         `${formData.name} placed a Pay on Delivery order for ${product.name} (x${formData.quantity}).`
       );
 
-      const orderMessage = `🚀 PAY ON DELIVERY ORDER INITIATED\n\n` +
-        `• ITEM: ${product.name}\n` +
-        `• QUANTITY: ${formData.quantity}\n` +
-        `• TOTAL: ${formatCurrency(product.price * formData.quantity, product.currency)}\n\n` +
-        `📦 CUSTOMER DETAILS:\n` +
-        `• NAME: ${formData.name}\n` +
-        `• PHONE: ${formData.phone}\n` +
-        `• EMAIL: ${formData.email || 'N/A'}\n` +
-        `• ADDRESS: ${formData.address}`;
+      const orderMessage = `🛒 PAY ON DELIVERY PAYMENT ORDER\n\n` +
+        `• Product: ${product.name} (x${formData.quantity})\n` +
+        `• Total Amount: ${formatCurrency(product.price * formData.quantity, product.currency)}\n` +
+        `• Payment Method: Pay on Delivery Payment Order\n` +
+        `• Buyer Name: ${formData.name}\n` +
+        `• Buyer Phone: ${formData.phone}\n` +
+        `• Buyer Email: ${formData.email || 'N/A'}\n` +
+        `• Delivery Address: ${formData.address}`;
 
       startConversation(product.ownerId, orderMessage).catch(console.error);
 
       if (supplierPhone) {
-        const podMsg = `🚀 *PAY ON DELIVERY ORDER INITIATED*\n` +
+        const podMsg = `🛒 *PAY ON DELIVERY PAYMENT ORDER*\n` +
           `━━━━━━━━━━━━━━━━━━━━\n` +
           `• *Item:* ${product.name} (x${formData.quantity})\n` +
           `• *Total:* ${formatCurrency(product.price * formData.quantity, product.currency)}\n` +
+          `• *Payment Method:* Pay on Delivery Payment Order\n` +
           `• *Buyer Name:* ${formData.name}\n` +
           `• *Buyer Phone:* ${formData.phone}\n` +
           `• *Buyer Email:* ${formData.email || 'N/A'}\n` +
           `• *Delivery Address:* ${formData.address}\n` +
           `━━━━━━━━━━━━━━━━━━━━\n` +
-          `*Status:* Pay on Delivery order placed. Please confirm delivery processing.\n\n` +
+          `*Status:* Pay on Delivery payment order placed. Please confirm delivery processing.\n\n` +
           `This order was initiated in The Comfort Business Hub. Join Comfort Business Hub and deal here; https://comfort-business-hub.comfort-designszw.workers.dev/`;
         openWhatsApp(supplierPhone, podMsg);
       }
@@ -1675,7 +1679,7 @@ export function PodModal({ product, profile, onClose, initialQuantity = 1 }: {
       <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="absolute inset-0 bg-[#05070a]/90 backdrop-blur-md" onClick={onClose} />
       <motion.div initial={{ scale: 0.9, opacity: 0 }} animate={{ scale: 1, opacity: 1 }} exit={{ scale: 0.9, opacity: 0 }} className="relative w-full max-w-md my-auto neon-card p-0 flex flex-col max-h-[92vh] overflow-hidden border border-white/10 bg-[#0d1117] shadow-2xl">
         <div className="p-4 sm:p-5 border-b border-white/10 flex justify-between items-center bg-white/5 shrink-0">
-          <h3 className="text-xl font-black text-white italic uppercase tracking-tighter">Pay on Delivery Checkout</h3>
+          <h3 className="text-xl font-black text-white italic uppercase tracking-tighter">Pay on Delivery Payment Order</h3>
           <button onClick={onClose} className="text-gray-500 hover:text-white p-1"><X size={20} /></button>
         </div>
 
@@ -1686,26 +1690,27 @@ export function PodModal({ product, profile, onClose, initialQuantity = 1 }: {
             </div>
             <div className="space-y-1.5">
               <h4 className="text-base font-black text-emerald-400 uppercase italic tracking-tight">
-                Delivery Order created successfully
+                Pay on Delivery Payment Order Created!
               </h4>
               <p className="text-xs font-bold text-gray-200 max-w-xs mx-auto leading-relaxed">
-                The Seller will get in touch to finalize delivery
+                Order details sent to Seller's WhatsApp. The Seller will get in touch to finalize delivery.
               </p>
             </div>
 
             {supplierPhone && (
               <button
                 onClick={() => {
-                  const podMsg = `🚀 *PAY ON DELIVERY ORDER INITIATED*\n` +
+                  const podMsg = `🛒 *PAY ON DELIVERY PAYMENT ORDER*\n` +
                     `━━━━━━━━━━━━━━━━━━━━\n` +
                     `• *Item:* ${product.name} (x${formData.quantity})\n` +
                     `• *Total:* ${formatCurrency(product.price * formData.quantity, product.currency)}\n` +
+                    `• *Payment Method:* Pay on Delivery Payment Order\n` +
                     `• *Buyer Name:* ${formData.name}\n` +
                     `• *Buyer Phone:* ${formData.phone}\n` +
                     `• *Buyer Email:* ${formData.email || 'N/A'}\n` +
                     `• *Delivery Address:* ${formData.address}\n` +
                     `━━━━━━━━━━━━━━━━━━━━\n` +
-                    `*Status:* Pay on Delivery order placed. Please confirm delivery processing.\n\n` +
+                    `*Status:* Pay on Delivery payment order placed. Please confirm delivery processing.\n\n` +
                     `This order was initiated in The Comfort Business Hub. Join Comfort Business Hub and deal here; https://comfort-business-hub.comfort-designszw.workers.dev/`;
                   openWhatsApp(supplierPhone, podMsg);
                 }}
@@ -1787,9 +1792,9 @@ export function PodModal({ product, profile, onClose, initialQuantity = 1 }: {
 
             <div className="pt-2">
               <button type="submit" disabled={submitting} className="w-full btn-neon py-4 text-[10px] font-black uppercase tracking-[0.25em] shadow-xl shadow-primary/20 cursor-pointer">
-                {submitting ? <Loader2 className="animate-spin" size={18} /> : 'Finalize Delivery Order'}
+                {submitting ? <Loader2 className="animate-spin" size={18} /> : 'Place a Pay on Delivery Payment Order'}
               </button>
-              <LegalDisclaimerNotice />
+              <LegalDisclaimerNotice actionText="place a Pay on Delivery Payment Order" />
             </div>
           </form>
         )}
@@ -1908,12 +1913,13 @@ export function BankModal({ product, profile, onClose, quantity }: {
         const existing = JSON.parse(localStorage.getItem('guest_deal_ids') || '[]');
         localStorage.setItem('guest_deal_ids', JSON.stringify([...existing, dealId]));
 
-        const orderMsg = `🏦 BANK TRANSFER ORDER INITIATED\n\n` +
-          `• ITEM: ${product.name}\n` +
-          `• QUANTITY: ${quantity}\n` +
-          `• TOTAL: ${formatCurrency(product.price * quantity, product.currency)}\n` +
-          `• BUYER: ${guestName} (${guestPhone})\n` +
-          `• DELIVERY ADDRESS: ${deliveryAddress}`;
+        const orderMsg = `🛒 BANK TRANSFER PAYMENT ORDER\n\n` +
+          `• Product: ${product.name} (x${quantity})\n` +
+          `• Total Amount: ${formatCurrency(product.price * quantity, product.currency)}\n` +
+          `• Payment Method: Bank Transfer Payment Order\n` +
+          `• Buyer Name: ${guestName}\n` +
+          `• Buyer Phone: ${guestPhone}\n` +
+          `• Delivery Address: ${deliveryAddress}`;
 
         startConversation(product.ownerId, orderMsg).catch(console.error);
 
@@ -1929,12 +1935,13 @@ export function BankModal({ product, profile, onClose, quantity }: {
         setSubmitting(false);
       }
     } else {
-      const orderMsg = `🏦 DIRECT BANK TRANSFER ORDER (NO DELIVERY REQUESTED)\n\n` +
-        `• ITEM: ${product.name}\n` +
-        `• QUANTITY: ${quantity}\n` +
-        `• TOTAL: ${formatCurrency(product.price * quantity, product.currency)}\n` +
-        `• BUYER: ${guestName} (${guestPhone})\n\n` +
-        `Hello! I initiated a Bank Transfer for this order for in-person pickup.\n\n` +
+      const orderMsg = `🛒 BANK TRANSFER PAYMENT ORDER\n\n` +
+        `• Product: ${product.name} (x${quantity})\n` +
+        `• Total Amount: ${formatCurrency(product.price * quantity, product.currency)}\n` +
+        `• Payment Method: Bank Transfer Payment Order (In-Person Pickup)\n` +
+        `• Buyer Name: ${guestName}\n` +
+        `• Buyer Phone: ${guestPhone}\n\n` +
+        `Hello! I placed a Bank Transfer payment order for this item for in-person pickup.\n\n` +
         `This order was initiated in The Comfort Business Hub. Join Comfort Business Hub and deal here; https://comfort-business-hub.comfort-designszw.workers.dev/`;
 
       if (supplierPhone) {
@@ -1952,7 +1959,7 @@ export function BankModal({ product, profile, onClose, quantity }: {
         product={product}
         profile={profile}
         onClose={onClose}
-        paymentMethodLabel="Bank Direct Transfer"
+        paymentMethodLabel="Bank Transfer Payment Order"
       />
     );
   }
@@ -1962,7 +1969,7 @@ export function BankModal({ product, profile, onClose, quantity }: {
       <DirectWhatsAppSuccessModal
         product={product}
         quantity={quantity}
-        paymentMethodLabel="Bank Direct Transfer"
+        paymentMethodLabel="Bank Transfer Payment Order"
         guestName={guestName}
         guestPhone={guestPhone}
         supplierPhone={supplierPhone}
@@ -1978,7 +1985,7 @@ export function BankModal({ product, profile, onClose, quantity }: {
         <div className="p-4 sm:p-5 border-b border-white/10 flex justify-between items-center bg-white/5 shrink-0">
           <div className="flex items-center gap-2">
             <Landmark size={20} className="text-amber-400" />
-            <h3 className="text-lg font-black text-white italic uppercase tracking-tighter">Bank Direct Transfer</h3>
+            <h3 className="text-lg font-black text-white italic uppercase tracking-tighter">Bank Transfer Payment Order</h3>
           </div>
           <button onClick={onClose} className="text-gray-500 hover:text-white p-1"><X size={18} /></button>
         </div>
@@ -2051,9 +2058,9 @@ export function BankModal({ product, profile, onClose, quantity }: {
 
           <div className="space-y-2 pt-2">
             <button type="submit" disabled={submitting} className="w-full btn-neon py-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer">
-              {submitting ? <Loader2 className="animate-spin" size={14} /> : <Landmark size={14} />} Confirm Bank Deposit & Notify Supplier
+              {submitting ? <Loader2 className="animate-spin" size={14} /> : <Landmark size={14} />} Place a Bank Transfer Payment Order
             </button>
-            <LegalDisclaimerNotice />
+            <LegalDisclaimerNotice actionText="place a Bank Transfer Payment Order" />
           </div>
         </form>
       </motion.div>
@@ -2146,12 +2153,13 @@ export function PaynowModal({ product, profile, onClose, quantity }: {
         const existing = JSON.parse(localStorage.getItem('guest_deal_ids') || '[]');
         localStorage.setItem('guest_deal_ids', JSON.stringify([...existing, dealId]));
 
-        const orderMsg = `💳 PAYNOW ORDER INITIATED\n\n` +
-          `• ITEM: ${product.name}\n` +
-          `• QUANTITY: ${quantity}\n` +
-          `• TOTAL: ${formatCurrency(product.price * quantity, product.currency)}\n` +
-          `• BUYER: ${guestName} (${guestPhone})\n` +
-          `• DELIVERY ADDRESS: ${deliveryAddress}`;
+        const orderMsg = `🛒 PAYNOW PAYMENT ORDER\n\n` +
+          `• Product: ${product.name} (x${quantity})\n` +
+          `• Total Amount: ${formatCurrency(product.price * quantity, product.currency)}\n` +
+          `• Payment Method: Paynow Payment Order\n` +
+          `• Buyer Name: ${guestName}\n` +
+          `• Buyer Phone: ${guestPhone}\n` +
+          `• Delivery Address: ${deliveryAddress}`;
 
         startConversation(product.ownerId, orderMsg).catch(console.error);
 
@@ -2168,12 +2176,13 @@ export function PaynowModal({ product, profile, onClose, quantity }: {
         setConfirmedDeal(dealData);
       }
     } else {
-      const orderMsg = `💳 DIRECT PAYNOW ORDER (NO DELIVERY REQUESTED)\n\n` +
-        `• ITEM: ${product.name}\n` +
-        `• QUANTITY: ${quantity}\n` +
-        `• TOTAL: ${formatCurrency(product.price * quantity, product.currency)}\n` +
-        `• BUYER: ${guestName} (${guestPhone})\n\n` +
-        `Hello! I initiated a Paynow payment for this order for in-person pickup.\n\n` +
+      const orderMsg = `🛒 PAYNOW PAYMENT ORDER\n\n` +
+        `• Product: ${product.name} (x${quantity})\n` +
+        `• Total Amount: ${formatCurrency(product.price * quantity, product.currency)}\n` +
+        `• Payment Method: Paynow Payment Order (In-Person Pickup)\n` +
+        `• Buyer Name: ${guestName}\n` +
+        `• Buyer Phone: ${guestPhone}\n\n` +
+        `Hello! I placed a Paynow payment order for this item for in-person pickup.\n\n` +
         `This order was initiated in The Comfort Business Hub. Join Comfort Business Hub and deal here; https://comfort-business-hub.comfort-designszw.workers.dev/`;
 
       if (paynowDetail.startsWith('http://') || paynowDetail.startsWith('https://')) {
@@ -2193,7 +2202,7 @@ export function PaynowModal({ product, profile, onClose, quantity }: {
         product={product}
         profile={profile}
         onClose={onClose}
-        paymentMethodLabel="Paynow Gateway"
+        paymentMethodLabel="Paynow Payment Order"
       />
     );
   }
@@ -2203,7 +2212,7 @@ export function PaynowModal({ product, profile, onClose, quantity }: {
       <DirectWhatsAppSuccessModal
         product={product}
         quantity={quantity}
-        paymentMethodLabel="Paynow Gateway"
+        paymentMethodLabel="Paynow Payment Order"
         guestName={guestName}
         guestPhone={guestPhone}
         supplierPhone={supplierPhone}
@@ -2219,7 +2228,7 @@ export function PaynowModal({ product, profile, onClose, quantity }: {
         <div className="p-4 sm:p-5 border-b border-white/10 flex justify-between items-center bg-white/5 shrink-0">
           <div className="flex items-center gap-2">
             <Wallet size={20} className="text-cyan-400" />
-            <h3 className="text-lg font-black text-white italic uppercase tracking-tighter">Paynow Gateway</h3>
+            <h3 className="text-lg font-black text-white italic uppercase tracking-tighter">Paynow Payment Order</h3>
           </div>
           <button onClick={onClose} className="text-gray-500 hover:text-white p-1"><X size={18} /></button>
         </div>
@@ -2256,9 +2265,9 @@ export function PaynowModal({ product, profile, onClose, quantity }: {
 
           <div className="space-y-2 pt-2">
             <button onClick={handlePaynowAction} disabled={loading} className="w-full btn-neon py-4 text-[10px] font-black uppercase tracking-widest flex items-center justify-center gap-2 cursor-pointer">
-              {loading ? <Loader2 className="animate-spin" size={14} /> : <ExternalLink size={14} />} Launch Paynow Checkout
+              {loading ? <Loader2 className="animate-spin" size={14} /> : <ExternalLink size={14} />} Place a Paynow Payment Order
             </button>
-            <LegalDisclaimerNotice />
+            <LegalDisclaimerNotice actionText="place a Paynow Payment Order" />
           </div>
         </div>
       </motion.div>
