@@ -158,12 +158,16 @@ export interface PushNotificationSettings {
 
 export interface Review {
   id: string;
-  productId: string;
+  productId?: string;
+  storeId?: string;
   userId: string;
   userName: string;
   userAvatar?: string;
+  userRole?: string;
+  businessName?: string;
   rating: number;
   comment?: string;
+  tags?: string[];
   createdAt: any;
 }
 

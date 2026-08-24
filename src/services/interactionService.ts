@@ -250,7 +250,7 @@ export const interactionService = {
     }
   },
 
-  async submitReview(productId: string, storeId: string, profile: UserProfile, rating: number, comment: string, productOwnerId: string) {
+  async submitReview(productId: string, storeId: string, profile: UserProfile, rating: number, comment: string, productOwnerId: string, tags?: string[]) {
     try {
       await runTransaction(db, async (transaction) => {
         const productRef = doc(db, 'products', productId);
@@ -293,23 +293,28 @@ export const interactionService = {
         const reviewRef = doc(collection(db, 'reviews'));
         transaction.set(reviewRef, {
           productId,
+          storeId: storeId || '',
           userId: profile.uid,
-          userName: profile.name || 'Anonymous',
+          userName: profile.name || profile.businessName || 'Anonymous Buyer',
+          businessName: profile.businessName || '',
+          userRole: profile.currentRole || 'customer',
           userAvatar: profile.avatar || '',
           rating,
-          comment,
+          comment: comment || '',
+          tags: tags || [],
           createdAt: serverTimestamp()
         });
       });
 
       // Notification
-      await this.sendNotification(productOwnerId, 'rate', profile, productId, "New Product Rating", `${profile.name || 'A user'} rated your product ${rating} stars.`);
+      const quickTagSummary = tags && tags.length > 0 ? ` [${tags.join(', ')}]` : '';
+      await this.sendNotification(productOwnerId, 'rate', profile, productId, "New Product Rating & Review", `${profile.name || 'A customer'} rated your product ${rating} stars${quickTagSummary}.`);
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, 'submit-review');
     }
   },
 
-  async submitStoreReview(storeId: string, storeOwnerId: string, profile: UserProfile, rating: number, comment: string) {
+  async submitStoreReview(storeId: string, storeOwnerId: string, profile: UserProfile, rating: number, comment: string, tags?: string[]) {
     try {
       await runTransaction(db, async (transaction) => {
         const storeRef = doc(db, 'stores', storeId);
@@ -332,15 +337,19 @@ export const interactionService = {
         transaction.set(reviewRef, {
           storeId,
           userId: profile.uid,
-          userName: profile.name || 'Anonymous',
+          userName: profile.name || profile.businessName || 'Anonymous Customer',
+          businessName: profile.businessName || '',
+          userRole: profile.currentRole || 'customer',
           userAvatar: profile.avatar || '',
           rating,
-          comment,
+          comment: comment || '',
+          tags: tags || [],
           createdAt: serverTimestamp()
         });
       });
 
-      await this.sendNotification(storeOwnerId, 'rate', profile, storeId, "New Storefront Rating", `${profile.name || 'A customer'} rated your store ${rating} stars.`);
+      const quickTagSummary = tags && tags.length > 0 ? ` [${tags.join(', ')}]` : '';
+      await this.sendNotification(storeOwnerId, 'rate', profile, storeId, "New Storefront Rating & Review", `${profile.name || 'A customer'} rated your store ${rating} stars${quickTagSummary}.`);
     } catch (err) {
       handleFirestoreError(err, OperationType.WRITE, 'submit-store-review');
     }

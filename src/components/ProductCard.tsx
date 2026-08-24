@@ -56,6 +56,7 @@ export default function ProductCard({
   const [showRatingModal, setShowRatingModal] = useState(false);
   const [userRating, setUserRating] = useState(5);
   const [userComment, setUserComment] = useState('');
+  const [selectedTags, setSelectedTags] = useState<string[]>([]);
   const [isSubmittingRating, setIsSubmittingRating] = useState(false);
   const [purchaseQuantity, setPurchaseQuantity] = useState(1);
   const navigate = useNavigate();
@@ -73,10 +74,12 @@ export default function ProductCard({
         profile,
         userRating,
         userComment,
-        product.ownerId
+        product.ownerId,
+        selectedTags
       );
       triggerFeedback('Rating Submitted', `You submitted a ${userRating}-star rating for ${product.name}!`, 'rate');
       setUserComment('');
+      setSelectedTags([]);
       setShowRatingModal(false);
     } catch (err) {
       console.error('Failed to submit product rating:', err);
@@ -605,21 +608,31 @@ export default function ProductCard({
 
               <form onSubmit={handleSubmitProductRating} className="space-y-3">
                 <div className="space-y-1.5">
-                  <label className="text-[9px] font-black uppercase tracking-wider text-gray-400 block">Quick Review Highlights</label>
+                  <label className="text-[9px] font-black uppercase tracking-wider text-gray-400 block">Quick Review Highlights (Tap to select)</label>
                   <div className="flex flex-wrap gap-1.5">
-                    {['Top Quality', 'Fast Delivery', 'Great Customer Service', 'Highly Recommended', 'Best Price'].map((tag) => (
-                      <button
-                        key={tag}
-                        type="button"
-                        onClick={(e) => {
-                          e.stopPropagation();
-                          setUserComment((prev) => prev ? `${prev} - ${tag}` : tag);
-                        }}
-                        className="px-2 py-1 rounded-lg bg-white/5 hover:bg-amber-400/20 border border-white/10 hover:border-amber-400/40 text-[9px] font-bold text-gray-300 hover:text-amber-300 transition-all active:scale-95"
-                      >
-                        + {tag}
-                      </button>
-                    ))}
+                    {['Top Quality', 'Fast Delivery', 'Great Customer Service', 'Highly Recommended', 'Best Price', 'Authentic Item'].map((tag) => {
+                      const isSelected = selectedTags.includes(tag);
+                      return (
+                        <button
+                          key={tag}
+                          type="button"
+                          onClick={(e) => {
+                            e.stopPropagation();
+                            setSelectedTags(prev => 
+                              isSelected ? prev.filter(t => t !== tag) : [...prev, tag]
+                            );
+                          }}
+                          className={cn(
+                            "px-2 py-1 rounded-lg text-[9px] font-bold transition-all active:scale-95 border",
+                            isSelected
+                              ? "bg-amber-400 text-black border-amber-400 font-black shadow-[0_0_10px_rgba(251,191,36,0.4)]"
+                              : "bg-white/5 hover:bg-amber-400/20 border-white/10 hover:border-amber-400/40 text-gray-300 hover:text-amber-300"
+                          )}
+                        >
+                          {isSelected ? '✓ ' : '+ '} {tag}
+                        </button>
+                      );
+                    })}
                   </div>
                 </div>
 

@@ -580,6 +580,7 @@ function AppRoutes({
             onClose={() => setIsShareModalOpen(false)} 
             payload={sharePayload} 
           />
+          <SyncIndicator />
         </ModalProvider>
       </MessagingProvider>
     </NotificationProvider>
@@ -618,9 +619,7 @@ function Header({ profile, onMenuClick, onLogout }: { profile: UserProfile | nul
             <AppLogo size="md" />
             <div>
               <h1 className="text-sm font-black text-white uppercase tracking-tighter leading-none italic">Comfort Hub</h1>
-              <div className="flex items-center gap-2 mt-1">
-                <SyncIndicator />
-              </div>
+              <p className="text-[8px] font-bold text-gray-500 uppercase tracking-widest mt-0.5">Business Network</p>
             </div>
           </div>
         </div>

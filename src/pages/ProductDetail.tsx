@@ -3,7 +3,7 @@ import { useParams, useNavigate, Link, useLocation } from 'react-router-dom';
 import { motion, AnimatePresence } from 'motion/react';
 import { 
   Star, MessageSquare, ArrowLeft, Share2, Info, Loader2, Sparkles, ShoppingBag, 
-  ChevronLeft, ChevronRight, Zap, Store as StoreIcon, ShieldCheck, Clock, Send, Heart, Check
+  ChevronLeft, ChevronRight, Zap, Store as StoreIcon, ShieldCheck, Clock, Send, Heart, Check, CheckCircle2
 } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { localDB } from '../lib/db';
@@ -40,7 +40,11 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
   const [error, setError] = useState<string | null>(null);
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const [isSubmittingReview, setIsSubmittingReview] = useState(false);
-  const [newReview, setNewReview] = useState({ rating: 5, comment: '' });
+  const [newReview, setNewReview] = useState<{ rating: number; comment: string; selectedTags: string[] }>({
+    rating: 5,
+    comment: '',
+    selectedTags: []
+  });
   const [activeModal, setActiveModal] = useState<'checkout' | 'ecocash' | 'pod' | 'paypal' | 'stripe' | 'paynow' | 'bank' | null>(null);
   const [purchaseQuantity, setPurchaseQuantity] = useState(1);
   const [activeTab, setActiveTab] = useState<'insight' | 'feedback'>('insight');
@@ -165,11 +169,12 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
         profile,
         newReview.rating,
         newReview.comment,
-        product.ownerId
+        product.ownerId,
+        newReview.selectedTags
       );
       
-      triggerFeedback('Neural Feedback Received', `You rated ${product.name} with ${newReview.rating} stars`, 'rate');
-      setNewReview({ rating: 5, comment: '' });
+      triggerFeedback('Rating Submitted', `You rated ${product.name} with ${newReview.rating} stars!`, 'rate');
+      setNewReview({ rating: 5, comment: '', selectedTags: [] });
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, 'submit-review');
     } finally {
@@ -471,81 +476,206 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
               initial={{ opacity: 0, y: 5 }}
               animate={{ opacity: 1, y: 0 }}
               exit={{ opacity: 0, y: -5 }}
-              className="space-y-3 py-1"
+              className="space-y-4 py-1"
             >
+              {/* Product Rating Summary & Distribution Widget */}
+              {(() => {
+                const totalRevs = reviews.length || product.reviewCount || 0;
+                const avgRating = totalRevs > 0 && reviews.length > 0 
+                  ? (reviews.reduce((acc, r) => acc + (r.rating || 5), 0) / reviews.length) 
+                  : (product.rating || 5.0);
+                const starCounts = [5, 4, 3, 2, 1].map(stars => ({
+                  stars,
+                  count: reviews.filter(r => Math.round(r.rating || 5) === stars).length,
+                  pct: reviews.length > 0 ? (reviews.filter(r => Math.round(r.rating || 5) === stars).length / reviews.length) * 100 : (stars === 5 ? 100 : 0)
+                }));
+
+                return (
+                  <div className="p-4 bg-[#0d1117] border border-amber-400/20 rounded-2xl space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                      <div className="flex items-center gap-3">
+                        <div className="text-center bg-black/40 border border-amber-400/30 rounded-2xl p-3 min-w-[80px]">
+                          <p className="text-2xl font-black text-amber-400 italic leading-none">{avgRating.toFixed(1)}</p>
+                          <p className="text-[8px] font-bold text-gray-400 uppercase tracking-wider mt-1">out of 5.0</p>
+                          <div className="flex justify-center mt-1">
+                            <FiveStarRating value={avgRating} size="sm" readOnly />
+                          </div>
+                        </div>
+                        <div>
+                          <h4 className="text-xs font-black text-white uppercase tracking-wider">Product Rating & Reviews</h4>
+                          <p className="text-[10px] text-gray-400 font-medium mt-0.5">
+                            Based on {totalRevs} verified customer {totalRevs === 1 ? 'rating' : 'ratings'}
+                          </p>
+                          <div className="flex items-center gap-1.5 mt-1.5">
+                            <span className="px-2 py-0.5 rounded-full bg-emerald-500/10 text-emerald-400 border border-emerald-500/30 text-[8px] font-black uppercase tracking-wider flex items-center gap-1">
+                              <ShieldCheck size={10} /> 100% Verified Community Feedback
+                            </span>
+                          </div>
+                        </div>
+                      </div>
+
+                      {/* Star Bars Breakdown */}
+                      <div className="flex-1 max-w-xs space-y-1">
+                        {starCounts.map(({ stars, count, pct }) => (
+                          <div key={`star-bar-${stars}`} className="flex items-center gap-2 text-[9px]">
+                            <span className="w-6 font-mono font-bold text-gray-400 text-right">{stars} ★</span>
+                            <div className="flex-1 h-1.5 bg-white/5 rounded-full overflow-hidden">
+                              <div 
+                                className="h-full bg-amber-400 rounded-full transition-all duration-500" 
+                                style={{ width: `${pct}%` }} 
+                              />
+                            </div>
+                            <span className="w-5 font-mono text-gray-500 text-left text-[8px]">{count}</span>
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                  </div>
+                );
+              })()}
+
               {/* Post Experience Signal form */}
               <AuthGuard
                 title="Rate Product"
                 message="Sign in to rate and review this product."
                 profile={profile}
               >
-                <div className="p-3 bg-[#0d1117] border border-amber-400/30 rounded-xl space-y-2">
+                <div className="p-4 bg-[#0d1117] border border-amber-400/30 rounded-2xl space-y-3 shadow-[0_0_20px_rgba(251,191,36,0.1)]">
                   <div className="flex items-center justify-between">
-                    <p className="text-[9px] font-black text-amber-300 uppercase tracking-wider flex items-center gap-1">
-                      <Star size={10} className="fill-amber-400 text-amber-400" />
-                      Submit 5-Star Product Rating
+                    <p className="text-[10px] font-black text-amber-300 uppercase tracking-wider flex items-center gap-1.5">
+                      <Star size={12} className="fill-amber-400 text-amber-400" />
+                      Submit Your Product Rating & Review
                     </p>
+                    <span className="text-[8px] font-bold text-gray-500 uppercase tracking-widest">Instant Sync</span>
                   </div>
-                  <form onSubmit={handleSubmitReview} className="space-y-2">
-                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-2 bg-black/40 p-2 rounded-lg border border-white/5">
-                      <FiveStarRating 
-                        value={newReview.rating} 
-                        onChange={(r) => setNewReview({ ...newReview, rating: r })} 
-                        size="md"
-                        showLabel
-                      />
+
+                  <form onSubmit={handleSubmitReview} className="space-y-3">
+                    <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3 bg-black/60 p-3 rounded-xl border border-white/5">
+                      <div className="space-y-1">
+                        <span className="text-[8px] font-black text-gray-400 uppercase tracking-widest block">Choose Star Rating</span>
+                        <FiveStarRating 
+                          value={newReview.rating} 
+                          onChange={(r) => setNewReview({ ...newReview, rating: r })} 
+                          size="md"
+                          showLabel
+                        />
+                      </div>
                       <button 
                         type="submit"
                         disabled={isSubmittingReview}
-                        className="px-3 py-1.5 bg-amber-400 text-black font-black uppercase text-[9px] tracking-wider rounded-lg flex items-center justify-center gap-1 hover:bg-amber-300 active:scale-95 transition-all shadow-[0_0_10px_rgba(251,191,36,0.3)] shrink-0"
+                        className="px-4 py-2 bg-amber-400 text-black font-black uppercase text-[10px] tracking-wider rounded-xl flex items-center justify-center gap-1.5 hover:bg-amber-300 active:scale-95 transition-all shadow-[0_0_15px_rgba(251,191,36,0.3)] shrink-0 disabled:opacity-50"
                       >
-                        {isSubmittingReview ? <Loader2 className="animate-spin" size={10} /> : <Send size={10} />}
+                        {isSubmittingReview ? <Loader2 className="animate-spin" size={12} /> : <Send size={12} />}
                         Submit Rating
                       </button>
                     </div>
-                    <input
-                      type="text"
-                      placeholder="Share your thoughts about this product..."
-                      className="w-full bg-black/60 border border-white/10 rounded-lg px-2.5 py-1.5 text-white text-[10px] outline-none focus:border-amber-400/50 transition-colors placeholder:text-gray-600"
-                      value={newReview.comment}
-                      onChange={(e) => setNewReview({ ...newReview, comment: e.target.value })}
-                      required
-                    />
+
+                    {/* Quick Review Tags / Message Selector */}
+                    <div className="space-y-1.5">
+                      <label className="text-[8px] font-black uppercase tracking-widest text-gray-400 block">Quick Review Highlights (Tap to add)</label>
+                      <div className="flex flex-wrap gap-1.5">
+                        {['Top Quality', 'Fast Delivery', 'Great Customer Service', 'Highly Recommended', 'Best Price', 'Authentic Item', 'Prompt Response', 'Smooth Deal'].map((tag) => {
+                          const isSelected = newReview.selectedTags.includes(tag);
+                          return (
+                            <button
+                              key={tag}
+                              type="button"
+                              onClick={() => {
+                                setNewReview(prev => {
+                                  const tags = isSelected 
+                                    ? prev.selectedTags.filter(t => t !== tag)
+                                    : [...prev.selectedTags, tag];
+                                  return { ...prev, selectedTags: tags };
+                                });
+                              }}
+                              className={cn(
+                                "px-2.5 py-1 rounded-lg text-[9px] font-black uppercase tracking-wider transition-all border",
+                                isSelected
+                                  ? "bg-amber-400 text-black border-amber-400 shadow-[0_0_10px_rgba(251,191,36,0.4)]"
+                                  : "bg-white/5 text-gray-300 border-white/10 hover:border-amber-400/40 hover:text-amber-300"
+                              )}
+                            >
+                              {isSelected ? '✓ ' : '+ '} {tag}
+                            </button>
+                          );
+                        })}
+                      </div>
+                    </div>
+
+                    <div className="space-y-1">
+                      <label className="text-[8px] font-black uppercase tracking-widest text-gray-400 block">Review Feedback Details</label>
+                      <textarea
+                        rows={2}
+                        placeholder="Share your detailed experience with this product or service..."
+                        className="w-full bg-black/60 border border-white/10 rounded-xl px-3 py-2 text-white text-xs outline-none focus:border-amber-400/50 transition-colors placeholder:text-gray-600 resize-none"
+                        value={newReview.comment}
+                        onChange={(e) => setNewReview({ ...newReview, comment: e.target.value })}
+                        required
+                      />
+                    </div>
                   </form>
                 </div>
               </AuthGuard>
 
               {/* Reviews List */}
-              <div className="space-y-2">
+              <div className="space-y-2.5">
+                <div className="flex items-center justify-between px-1">
+                  <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                    Customer Reviews & Feedback ({reviews.length})
+                  </h4>
+                </div>
+
                 {reviews.length > 0 ? (
                   reviews.map((review, idx) => (
-                    <div key={`pd-review-${review.id ? `${review.id}-${idx}` : idx}`} className="p-3 bg-[#0d1117] border border-white/10 rounded-xl space-y-1.5">
-                      <div className="flex justify-between items-center">
-                        <div className="flex items-center gap-2">
-                          <div className="w-6 h-6 rounded-full bg-black flex items-center justify-center text-[9px] font-black text-amber-400 border border-amber-400/20 overflow-hidden shrink-0">
+                    <div key={`pd-review-${review.id ? `${review.id}-${idx}` : idx}`} className="p-3.5 bg-[#0d1117] border border-white/10 rounded-2xl space-y-2 hover:border-amber-400/30 transition-all">
+                      <div className="flex justify-between items-start">
+                        <div className="flex items-center gap-2.5">
+                          <div className="w-8 h-8 rounded-xl bg-black flex items-center justify-center text-[10px] font-black text-amber-400 border border-amber-400/20 overflow-hidden shrink-0 shadow-sm">
                             {review.userAvatar ? (
-                               <img src={review.userAvatar} className="w-full h-full object-cover" />
+                               <img src={review.userAvatar} className="w-full h-full object-cover" alt={review.userName} />
                             ) : review.userName?.charAt(0) || 'U'}
                           </div>
                           <div>
-                            <p className="text-[9px] font-black text-white uppercase tracking-tight leading-none">{review.userName}</p>
-                            <FiveStarRating value={review.rating || 5} size="sm" readOnly />
+                            <div className="flex items-center gap-1.5">
+                              <p className="text-[10px] font-black text-white uppercase tracking-tight leading-none">{review.userName || 'Verified Buyer'}</p>
+                              <span className="px-1.5 py-0.2 bg-amber-400/10 text-amber-300 border border-amber-400/30 rounded text-[7px] font-black uppercase tracking-wider">
+                                {review.userRole === 'supplier' ? 'Supplier' : 'Verified Buyer'}
+                              </span>
+                            </div>
+                            <div className="flex items-center gap-1.5 mt-1">
+                              <FiveStarRating value={review.rating || 5} size="sm" readOnly />
+                              <span className="text-[8px] font-mono font-bold text-amber-300">({(review.rating || 5).toFixed(1)})</span>
+                            </div>
                           </div>
                         </div>
-                        <span className="text-[7px] font-black text-gray-500 uppercase tracking-widest font-mono">
-                           {review.createdAt?.toDate ? review.createdAt.toDate().toLocaleDateString() : 'Recent'}
+                        <span className="text-[7.5px] font-mono font-bold text-gray-500 uppercase tracking-wider">
+                           {review.createdAt?.toDate ? review.createdAt.toDate().toLocaleDateString(undefined, { month: 'short', day: 'numeric', year: 'numeric' }) : 'Recent'}
                         </span>
                       </div>
-                      <p className="text-[10px] text-gray-300 font-medium leading-relaxed italic pl-8">
-                        "{review.comment}"
-                      </p>
+
+                      {/* Quick Review Tags display */}
+                      {review.tags && review.tags.length > 0 && (
+                        <div className="flex flex-wrap gap-1 pt-1">
+                          {review.tags.map((t, tidx) => (
+                            <span key={`rtag-${tidx}`} className="px-2 py-0.5 bg-amber-400/10 border border-amber-400/20 text-amber-300 rounded-md text-[8px] font-bold uppercase tracking-wider flex items-center gap-1">
+                              <CheckCircle2 size={8} className="text-amber-400" /> {t}
+                            </span>
+                          ))}
+                        </div>
+                      )}
+
+                      {review.comment && (
+                        <p className="text-xs text-gray-300 font-medium leading-relaxed italic bg-black/30 p-2.5 rounded-xl border border-white/5">
+                          "{review.comment}"
+                        </p>
+                      )}
                     </div>
                   ))
                 ) : (
-                  <div className="py-6 text-center bg-[#0d1117] rounded-xl border border-white/5 space-y-1">
-                    <Star size={20} className="mx-auto text-amber-400/40" />
-                    <h4 className="text-[9px] font-black text-gray-400 uppercase tracking-widest italic">No product ratings yet</h4>
-                    <p className="text-[8px] text-gray-600">Be the first user to submit a 5-star rating for this product!</p>
+                  <div className="py-8 text-center bg-[#0d1117] rounded-2xl border border-white/5 space-y-1.5">
+                    <Star size={24} className="mx-auto text-amber-400/40" />
+                    <h4 className="text-[10px] font-black text-gray-400 uppercase tracking-widest italic">No product ratings yet</h4>
+                    <p className="text-[9px] text-gray-600">Be the first customer to submit a 5-star rating and review for this product!</p>
                   </div>
                 )}
               </div>

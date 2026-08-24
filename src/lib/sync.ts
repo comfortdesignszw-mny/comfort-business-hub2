@@ -10,6 +10,38 @@ import {
 import { db } from './firebase';
 import { localDB, OutboxItem, calculateTTL } from './db';
 
+export interface SyncErrorInfo {
+  id?: number;
+  collection: string;
+  docId: string;
+  itemName: string;
+  action: string;
+  errorMessage: string;
+  timestamp: number;
+}
+
+let currentSyncError: SyncErrorInfo | null = null;
+const syncErrorListeners = new Set<(error: SyncErrorInfo | null) => void>();
+
+export function subscribeToSyncErrors(listener: (error: SyncErrorInfo | null) => void) {
+  syncErrorListeners.add(listener);
+  listener(currentSyncError);
+  return () => {
+    syncErrorListeners.delete(listener);
+  };
+}
+
+export function setSyncError(error: SyncErrorInfo | null) {
+  currentSyncError = error;
+  syncErrorListeners.forEach(fn => {
+    try { fn(error); } catch (e) { console.error(e); }
+  });
+}
+
+export function clearSyncError() {
+  setSyncError(null);
+}
+
 export async function addToOutbox(item: Omit<OutboxItem, 'createdAt'>) {
   const fullItem: OutboxItem = {
     ...item,
@@ -17,8 +49,8 @@ export async function addToOutbox(item: Omit<OutboxItem, 'createdAt'>) {
   };
   await localDB.outbox.add(fullItem);
   
-  // Notify user or UI (could use a global state or simple console log)
-  console.log(`[Sync] Operation queued for ${item.collection}/${item.docId} while offline.`);
+  // Silent background queuing
+  console.log(`[Sync] Operation queued for ${item.collection}/${item.docId} silently in background.`);
   
   if (navigator.onLine) {
     triggerSync();
@@ -78,6 +110,19 @@ export async function triggerSync() {
       } catch (error) {
         console.error('[Sync] Failed to sync item:', item, error);
         allSucceeded = false;
+
+        const rawName = item.payload?.name || item.payload?.title || item.payload?.productName || item.payload?.storeName || item.payload?.text || '';
+        const itemName = rawName ? String(rawName).slice(0, 30) : `${item.collection.charAt(0).toUpperCase() + item.collection.slice(1)} item`;
+        
+        setSyncError({
+          id: item.id,
+          collection: item.collection,
+          docId: item.docId,
+          itemName,
+          action: item.action,
+          errorMessage: error instanceof Error ? error.message : 'Network sync failed',
+          timestamp: Date.now()
+        });
         
         // Unrecoverable permission error => drop it
         if (error instanceof Error && error.message.toLowerCase().includes('permission')) {
@@ -88,7 +133,10 @@ export async function triggerSync() {
       }
     }
 
-    if (!allSucceeded && navigator.onLine) {
+    if (allSucceeded) {
+      retryCount = 0;
+      clearSyncError();
+    } else if (navigator.onLine) {
       // Exponential backoff
       retryCount++;
       const delay = Math.min(1000 * Math.pow(2, retryCount), 60000); // Max 1 minute
@@ -97,8 +145,6 @@ export async function triggerSync() {
       backoffTimer = setTimeout(() => {
         triggerSync();
       }, delay);
-    } else if (allSucceeded) {
-      retryCount = 0;
     }
 
   } finally {

@@ -478,7 +478,7 @@ useEffect(() => {
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
       exit={{ opacity: 0 }}
-      className="p-4 space-y-8"
+      className="p-3 sm:p-4 space-y-4"
     >
       <AnimatePresence>
         {selectedStore && (
@@ -668,72 +668,72 @@ useEffect(() => {
         </motion.div>
       )}
 
-      {/* Top 2-Column Horizontal Grid layout on Desktop */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4 lg:items-stretch pt-2">
+      {/* Top 2-Column Horizontal Grid layout on Desktop (Compact Landscape Height) */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-3 lg:items-stretch">
         
         {/* 1. Search Bar and Filters Section (Synchronized Discover) */}
-        <section className="bg-[#0d1117]/90 backdrop-blur-md border border-white/10 rounded-[2rem] p-4 flex flex-col justify-between space-y-3 shadow-xl">
-          <div className="space-y-3">
+        <section className="bg-[#0d1117]/90 backdrop-blur-md border border-white/10 rounded-2xl p-3 sm:p-3.5 flex flex-col justify-between space-y-2 shadow-lg h-auto lg:h-[175px]">
+          <div className="space-y-2">
             <div className="flex items-center justify-between">
               <div className="flex items-center gap-2">
-                <div className="w-1 h-4 bg-primary rounded-full shadow-[0_0_10px_rgba(0,242,254,0.5)]" />
-                <h2 className="text-xs sm:text-sm font-black text-white italic tracking-tighter uppercase leading-none">
+                <div className="w-1 h-3.5 bg-primary rounded-full shadow-[0_0_10px_rgba(0,242,254,0.5)]" />
+                <h2 className="text-xs font-black text-white italic tracking-tighter uppercase leading-none">
                   {profile ? 'Synchronized' : 'Guest'}{' '}
                   <span className="text-primary drop-shadow-[0_0_8px_rgba(0,242,254,0.3)]">Discover</span>
                 </h2>
               </div>
               {profile && !profile.isGuest && (
-                <div className="flex items-center gap-1 bg-[#05070a] border border-white/5 p-1 rounded-xl">
+                <div className="flex items-center gap-1 bg-[#05070a] border border-white/5 p-0.5 rounded-lg">
                   <button 
                     onClick={() => setViewMode('list')}
                     className={cn(
-                      "p-1.5 rounded-lg transition-all",
+                      "p-1 rounded-md transition-all",
                       viewMode === 'list' ? "bg-primary text-[#05070a]" : "text-gray-500 hover:text-white"
                     )}
                     title="List View"
                   >
-                    <List size={13} />
+                    <List size={12} />
                   </button>
                   <button 
                     onClick={() => setViewMode('map')}
                     className={cn(
-                      "p-1.5 rounded-lg transition-all",
+                      "p-1 rounded-md transition-all",
                       viewMode === 'map' ? "bg-primary text-[#05070a]" : "text-gray-500 hover:text-white"
                     )}
                     title="Map View"
                   >
-                    <MapIcon size={13} />
+                    <MapIcon size={12} />
                   </button>
                 </div>
               )}
             </div>
 
-            <div className="relative flex items-center bg-[#05070a] border border-white/10 rounded-2xl overflow-hidden shadow-inner">
-              <Search size={14} className="absolute left-3 text-primary/50 pointer-events-none" />
+            <div className="relative flex items-center bg-[#05070a] border border-white/10 rounded-xl overflow-hidden shadow-inner">
+              <Search size={13} className="absolute left-2.5 text-primary/50 pointer-events-none" />
               <input 
                 type="text"
                 placeholder="Search suppliers, items or patterns..."
                 value={searchTerm}
                 onChange={(e) => setSearchTerm(e.target.value)}
-                className="w-full py-2 pl-9 pr-8 text-[10px] font-medium text-white placeholder:text-gray-600 outline-none bg-transparent"
+                className="w-full py-1.5 pl-8 pr-7 text-[10px] font-medium text-white placeholder:text-gray-600 outline-none bg-transparent"
               />
               {searchTerm && (
-                <button onClick={() => setSearchTerm('')} className="absolute right-2.5 text-gray-500 hover:text-white">
+                <button onClick={() => setSearchTerm('')} className="absolute right-2 text-gray-500 hover:text-white">
                   <X size={12} />
                 </button>
               )}
             </div>
 
             {profile && (
-              <div className="flex gap-1.5 overflow-x-auto pb-1 no-scrollbar scroll-smooth">
+              <div className="flex gap-1 overflow-x-auto pb-0.5 no-scrollbar scroll-smooth">
                 {categories.map((cat, idx) => (
                   <button
                     key={`disc-cat-${cat}-${idx}`}
                     onClick={() => setActiveCategory(cat)}
                     className={cn(
-                      "whitespace-nowrap px-2.5 py-1 rounded-lg text-[8px] font-black uppercase tracking-wider transition-all border shrink-0",
+                      "whitespace-nowrap px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider transition-all border shrink-0",
                       activeCategory === cat 
-                        ? "bg-primary text-[#05070a] border-primary shadow-[0_0_10px_rgba(0,242,254,0.3)]" 
+                        ? "bg-primary text-[#05070a] border-primary shadow-[0_0_8px_rgba(0,242,254,0.3)]" 
                         : "bg-white/5 text-gray-400 border-white/5 hover:bg-white/10 hover:text-white"
                     )}
                   >
@@ -747,13 +747,13 @@ useEffect(() => {
           {profile && !profile.isGuest && (
             <div 
               onClick={handleGetLocation}
-              className="flex items-center justify-between bg-white/5 border border-white/5 p-2 rounded-xl group cursor-pointer hover:border-primary/30 transition-all text-left mt-auto"
+              className="flex items-center justify-between bg-white/5 border border-white/5 px-2.5 py-1.5 rounded-xl group cursor-pointer hover:border-primary/30 transition-all text-left mt-auto"
             >
               <div className="flex items-center gap-2 min-w-0">
-                <MapPin size={13} className="text-primary shrink-0 group-hover:scale-110 transition-transform" />
+                <MapPin size={12} className="text-primary shrink-0 group-hover:scale-110 transition-transform" />
                 <div className="min-w-0">
-                  <p className="text-[8px] text-gray-500 font-bold uppercase tracking-wider leading-none">Your Location</p>
-                  <p className="text-[9px] font-bold text-white group-hover:text-primary transition-colors truncate">
+                  <p className="text-[7.5px] text-gray-500 font-bold uppercase tracking-wider leading-none">Your Location</p>
+                  <p className="text-[8.5px] font-bold text-white group-hover:text-primary transition-colors truncate">
                     {userLocation ? `${userLocation[0].toFixed(2)}, ${userLocation[1].toFixed(2)}` : (profile?.location?.city ? profile.location.city.toUpperCase() : 'Harare CBD')}
                   </p>
                 </div>
@@ -764,7 +764,7 @@ useEffect(() => {
                   setNearbyOnly(!nearbyOnly);
                 }}
                 className={cn(
-                  "text-[8px] font-black uppercase tracking-wider px-2 py-1 rounded-lg border transition-all shrink-0 ml-2",
+                  "text-[7.5px] font-black uppercase tracking-wider px-2 py-0.5 rounded-md border transition-all shrink-0 ml-2",
                   nearbyOnly ? "bg-primary text-[#05070a] border-primary" : "bg-white/5 text-gray-400 border-white/10 hover:text-white"
                 )}
               >
@@ -774,8 +774,8 @@ useEffect(() => {
           )}
         </section>
 
-        {/* 2. Market Spotlight / Classified Carousel Section (Marketing Spotlight) */}
-        <section className="relative overflow-hidden rounded-[2.5rem] border border-primary/30 shadow-2xl bg-[#05070a] min-h-[220px]">
+        {/* 2. Market Spotlight / Classified Carousel Section (Constant Landscape Ad Shape) */}
+        <section className="relative overflow-hidden rounded-2xl border border-primary/30 shadow-xl bg-[#05070a] h-[175px] max-h-[175px]">
           <AnimatePresence mode="wait">
             {spotlights.length > 0 ? (
               (() => {
@@ -787,103 +787,101 @@ useEffect(() => {
                 return (
                   <motion.div 
                     key={currentSpotlight.id ? `spotlight-${currentSpotlight.id}-${activeSpotlightIndex}` : `spotlight-idx-${activeSpotlightIndex}`}
-                    initial={{ opacity: 0, y: 10, scale: 0.98 }}
+                    initial={{ opacity: 0, y: 5, scale: 0.99 }}
                     animate={{ opacity: 1, y: 0, scale: 1 }}
-                    exit={{ opacity: 0, y: -10, scale: 0.98 }}
-                    transition={{ duration: 0.35, ease: 'easeOut' }}
+                    exit={{ opacity: 0, y: -5, scale: 0.99 }}
+                    transition={{ duration: 0.25, ease: 'easeOut' }}
                     onClick={() => setSelectedSpotlightAd(currentSpotlight)}
                     className={cn(
-                      "relative h-full min-h-[230px] p-4 sm:p-6 group cursor-pointer overflow-hidden rounded-[2.5rem] border transition-all text-left shadow-2xl flex flex-col justify-between",
+                      "relative h-full p-3 group cursor-pointer overflow-hidden rounded-2xl border transition-all text-left shadow-lg flex flex-col justify-between",
                       isClassified 
-                        ? "border-amber-500/40 shadow-[0_0_35px_rgba(245,158,11,0.2)] bg-gradient-to-br from-[#181108] via-[#0d1017] to-[#05070a]" 
-                        : "border-primary/40 shadow-[0_0_35px_rgba(0,242,254,0.18)] bg-gradient-to-br from-[#07131e] via-[#080d14] to-[#05070a]"
+                        ? "border-amber-500/40 shadow-[0_0_25px_rgba(245,158,11,0.15)] bg-gradient-to-br from-[#181108] via-[#0d1017] to-[#05070a]" 
+                        : "border-primary/40 shadow-[0_0_25px_rgba(0,242,254,0.15)] bg-gradient-to-br from-[#07131e] via-[#080d14] to-[#05070a]"
                     )}
                   >
                     {/* Background Subtle Ambient Glow */}
                     <div className="absolute inset-0 z-0 overflow-hidden pointer-events-none">
                       {currentSpotlight.videoUrl ? (
-                        <div className="absolute -right-20 -top-20 w-80 h-80 bg-primary/20 rounded-full blur-3xl animate-pulse" />
+                        <div className="absolute -right-16 -top-16 w-60 h-60 bg-primary/20 rounded-full blur-2xl animate-pulse" />
                       ) : (
-                        <div className="absolute -right-20 -top-20 w-80 h-80 bg-amber-500/15 rounded-full blur-3xl animate-pulse" />
+                        <div className="absolute -right-16 -top-16 w-60 h-60 bg-amber-500/15 rounded-full blur-2xl animate-pulse" />
                       )}
                     </div>
 
-                    {/* Main Content Layout - Split Grid when Media Exists */}
-                    <div className="relative z-10 flex flex-col sm:flex-row items-stretch gap-4 sm:gap-6 flex-1">
+                    {/* Main Content Layout - Side-by-Side Landscape View */}
+                    <div className="relative z-10 flex flex-row items-stretch gap-3 flex-1 min-h-0">
                       
                       {/* Left Column: Badges, Title, Details, Action */}
-                      <div className="flex-1 flex flex-col justify-between space-y-3 min-w-0">
+                      <div className="flex-1 flex flex-col justify-between min-w-0 pr-1">
                         {/* Header Row: Badges, Timer */}
-                        <div className="flex flex-wrap items-center justify-between gap-2 border-b border-white/10 pb-2">
-                          <div className="flex items-center gap-1.5 min-w-0">
+                        <div className="flex items-center justify-between gap-1.5 pb-1 border-b border-white/10">
+                          <div className="flex items-center gap-1 min-w-0">
                             {isClassified ? (
-                              <div className="px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1 shrink-0 shadow-[0_0_10px_rgba(245,158,11,0.3)]">
-                                <Tag size={11} /> Classified Ad
+                              <div className="px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider bg-amber-500/20 text-amber-300 border border-amber-500/40 flex items-center gap-1 shrink-0">
+                                <Tag size={9} /> Classified
                               </div>
                             ) : (
-                              <div className="px-2.5 py-1 rounded-full text-[9px] font-black uppercase tracking-wider bg-primary/20 text-primary border border-primary/40 flex items-center gap-1 shrink-0 shadow-[0_0_10px_rgba(0,242,254,0.3)]">
-                                <Megaphone size={11} className="animate-pulse" /> Spotlight Broadcast
+                              <div className="px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider bg-primary/20 text-primary border border-primary/40 flex items-center gap-1 shrink-0">
+                                <Megaphone size={9} className="animate-pulse" /> Spotlight
                               </div>
                             )}
 
                             {currentSpotlight.videoUrl && (
-                              <div className="px-2 py-0.5 rounded-full text-[8px] font-black uppercase tracking-wider bg-red-500/20 text-red-400 border border-red-500/30 flex items-center gap-1 animate-pulse">
-                                <span className="w-1.5 h-1.5 rounded-full bg-red-500 animate-ping" /> LIVE VIDEO
+                              <div className="px-1.5 py-0.5 rounded-full text-[7.5px] font-black uppercase tracking-wider bg-red-500/20 text-red-400 border border-red-500/30 flex items-center gap-1 animate-pulse">
+                                <span className="w-1.5 h-1.5 rounded-full bg-red-500" /> VIDEO
                               </div>
                             )}
                           </div>
 
-                          <div className="flex items-center gap-1.5 shrink-0">
-                            {timeInfo && (
-                              <span className={cn(
-                                "px-2.5 py-1 rounded-full text-[8px] font-black uppercase tracking-wider border flex items-center gap-1 backdrop-blur-md",
-                                timeInfo.expired 
-                                  ? "bg-red-500/20 text-red-400 border-red-500/30" 
-                                  : "bg-white/10 text-gray-300 border-white/15"
-                              )}>
-                                <Clock size={10} className="text-primary" /> {timeInfo.text}
-                              </span>
-                            )}
-                          </div>
+                          {timeInfo && (
+                            <span className={cn(
+                              "px-2 py-0.5 rounded-full text-[7.5px] font-black uppercase tracking-wider border flex items-center gap-1 shrink-0",
+                              timeInfo.expired 
+                                ? "bg-red-500/20 text-red-400 border-red-500/30" 
+                                : "bg-white/10 text-gray-300 border-white/15"
+                            )}>
+                              <Clock size={9} className="text-primary" /> {timeInfo.text}
+                            </span>
+                          )}
                         </div>
 
                         {/* Title & Price */}
-                        <div className="space-y-1.5">
-                          <div className="flex items-start justify-between gap-2">
-                            <h3 className="text-sm sm:text-base font-black text-white uppercase tracking-tight leading-snug group-hover:text-primary transition-colors line-clamp-2">
+                        <div className="space-y-0.5 py-1">
+                          <div className="flex items-start justify-between gap-1.5">
+                            <h3 className="text-xs sm:text-sm font-black text-white uppercase tracking-tight leading-tight group-hover:text-primary transition-colors line-clamp-1">
                               {currentSpotlight.title}
                             </h3>
                             {currentSpotlight.price && (
-                              <span className="px-2.5 py-1 bg-gradient-to-r from-primary to-accent text-[#05070a] font-black text-[10px] rounded-lg shrink-0 shadow-md">
+                              <span className="px-2 py-0.5 bg-gradient-to-r from-primary to-accent text-[#05070a] font-black text-[9px] rounded-md shrink-0">
                                 {currentSpotlight.price}
                               </span>
                             )}
                           </div>
 
                           {currentSpotlight.content && (
-                            <p className="text-[11px] text-gray-300 font-normal leading-relaxed line-clamp-2">
+                            <p className="text-[10px] text-gray-300 font-normal leading-tight line-clamp-2">
                               {currentSpotlight.content}
                             </p>
                           )}
                         </div>
 
                         {/* Author & Footer Controls */}
-                        <div className="flex items-center justify-between gap-2 pt-2 border-t border-white/10 mt-auto">
+                        <div className="flex items-center justify-between gap-1.5 pt-1 border-t border-white/10 mt-auto">
                           {currentSpotlight.authorName ? (
-                            <span className="text-[9px] text-gray-400 font-bold uppercase tracking-widest truncate">
+                            <span className="text-[8px] text-gray-400 font-bold uppercase tracking-widest truncate">
                               By <span className="text-primary">{currentSpotlight.authorName}</span>
                             </span>
                           ) : <div />}
 
-                          <button className="px-3.5 py-1.5 bg-primary hover:bg-primary/90 text-[#05070a] rounded-xl text-[9px] font-black uppercase tracking-wider flex items-center gap-1.5 shadow-[0_0_15px_rgba(0,242,254,0.3)] hover:scale-105 active:scale-95 transition-all ml-auto">
-                            View Ad <ArrowRight size={11} />
+                          <button className="px-2.5 py-1 bg-primary hover:bg-primary/90 text-[#05070a] rounded-lg text-[8px] font-black uppercase tracking-wider flex items-center gap-1 shadow-sm hover:scale-105 active:scale-95 transition-all ml-auto shrink-0">
+                            View <ArrowRight size={10} />
                           </button>
                         </div>
                       </div>
 
-                      {/* Right Column: Featured Crystal-Clear Media Frame with Animation */}
+                      {/* Right Column: Landscape Oriented Constant-Shape Media Frame */}
                       {hasMedia && (
-                        <div className="w-full sm:w-48 md:w-56 h-36 sm:h-auto rounded-2xl border border-white/20 overflow-hidden relative group/media shrink-0 shadow-xl bg-black/80 flex items-center justify-center">
+                        <div className="w-32 sm:w-44 h-full rounded-xl border border-white/20 overflow-hidden relative group/media shrink-0 shadow-md bg-black/80 flex items-center justify-center aspect-[16/10]">
                           {currentSpotlight.videoUrl ? (
                             <div className="relative w-full h-full">
                               <video 
@@ -892,14 +890,12 @@ useEffect(() => {
                                 loop 
                                 muted 
                                 playsInline 
-                                className="w-full h-full object-cover transition-transform duration-700 group-hover/media:scale-105"
+                                className="w-full h-full object-cover"
                               />
                               <div className="absolute inset-0 bg-gradient-to-t from-black/60 via-transparent to-transparent pointer-events-none" />
-                              <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between pointer-events-none">
-                                <span className="px-2 py-0.5 bg-black/70 backdrop-blur-md text-neon-green border border-neon-green/40 rounded-md text-[8px] font-black uppercase tracking-widest flex items-center gap-1">
-                                  <Video size={10} className="animate-pulse" /> Animated Ad
-                                </span>
-                              </div>
+                              <span className="absolute bottom-1 left-1 px-1.5 py-0.2 bg-black/70 backdrop-blur-md text-neon-green border border-neon-green/40 rounded text-[7px] font-black uppercase tracking-widest flex items-center gap-0.5">
+                                <Video size={8} /> Ad
+                              </span>
                             </div>
                           ) : (
                             <div className="relative w-full h-full overflow-hidden">
@@ -908,12 +904,10 @@ useEffect(() => {
                                 className="w-full h-full object-cover transition-transform duration-700 ease-out group-hover/media:scale-110" 
                                 alt={currentSpotlight.title} 
                               />
-                              <div className="absolute inset-0 bg-gradient-to-t from-black/50 via-transparent to-transparent pointer-events-none" />
+                              <div className="absolute inset-0 bg-gradient-to-t from-black/40 via-transparent to-transparent pointer-events-none" />
                             </div>
                           )}
-
-                          {/* Subtle glowing frame border animation */}
-                          <div className="absolute inset-0 border border-primary/30 rounded-2xl pointer-events-none group-hover/media:border-primary/70 transition-colors" />
+                          <div className="absolute inset-0 border border-primary/20 rounded-xl pointer-events-none group-hover/media:border-primary/60 transition-colors" />
                         </div>
                       )}
 
@@ -921,7 +915,7 @@ useEffect(() => {
 
                     {/* Pagination Dots at Bottom */}
                     {spotlights.length > 1 && (
-                      <div className="relative z-10 flex justify-center gap-1.5 items-center pt-3 border-t border-white/10 mt-3">
+                      <div className="relative z-10 flex justify-center gap-1.5 items-center pt-1.5 border-t border-white/10 mt-1">
                         {spotlights.map((s, idx) => (
                           <div 
                             key={`spotlight-dot-${s.id ? `${s.id}-${idx}` : idx}`} 
@@ -930,8 +924,8 @@ useEffect(() => {
                               setActiveSpotlightIndex(idx);
                             }}
                             className={cn(
-                              "h-1.5 rounded-full transition-all duration-300 cursor-pointer",
-                              idx === activeSpotlightIndex ? "w-6 bg-primary shadow-[0_0_8px_#00f2fe]" : "w-1.5 bg-white/30 hover:bg-white/60"
+                              "h-1 rounded-full transition-all duration-300 cursor-pointer",
+                              idx === activeSpotlightIndex ? "w-4 bg-primary shadow-[0_0_6px_#00f2fe]" : "w-1 bg-white/30 hover:bg-white/60"
                             )}
                           />
                         ))}
@@ -941,11 +935,11 @@ useEffect(() => {
                 );
               })()
             ) : (
-              <div className="relative h-full min-h-[220px] flex flex-col justify-end p-5 group cursor-pointer">
-                <div className="relative z-10 space-y-1 text-left">
-                  <div className="glass-pill inline-block mb-1 !text-primary !border-primary/20 text-[8px]">Market Spotlight</div>
-                  <h3 className="text-base font-black text-white italic leading-tight uppercase">Global Network Active</h3>
-                  <p className="text-[9px] text-gray-400 font-medium uppercase tracking-widest">Scanning local news feeds & classified ads...</p>
+              <div className="relative h-full flex flex-col justify-center p-4 group cursor-pointer text-left">
+                <div className="relative z-10 space-y-1">
+                  <div className="px-2 py-0.5 bg-primary/10 text-primary border border-primary/20 rounded-full text-[8px] font-black uppercase tracking-widest inline-block">Market Spotlight</div>
+                  <h3 className="text-sm font-black text-white italic leading-tight uppercase">Global Network Active</h3>
+                  <p className="text-[8.5px] text-gray-400 font-medium uppercase tracking-widest">Scanning local news feeds & classified ads...</p>
                 </div>
               </div>
             )}
