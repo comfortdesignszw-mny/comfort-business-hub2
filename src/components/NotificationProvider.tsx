@@ -15,6 +15,7 @@ interface NotificationContextType {
   pendingApprovalsCount: number;
   markAsRead: (id: string) => Promise<void>;
   markAllAsRead: () => Promise<void>;
+  resetAllNotificationsAndTransactions: () => Promise<void>;
   triggerFeedback: (title: string, message: string, type: AppNotification['type']) => void;
   pushSettings: PushNotificationSettings;
   updatePushSettings: (newSettings: Partial<PushNotificationSettings>) => void;
@@ -328,6 +329,25 @@ export function NotificationProvider({ children, profile }: { children: React.Re
     }
   };
 
+  const [transactionsResetCutoff, setTransactionsResetCutoff] = useState<number>(() => {
+    try {
+      const stored = localStorage.getItem(`cbh_tx_reset_cutoff_${profile?.uid || 'guest'}`);
+      return stored ? parseInt(stored, 10) : 0;
+    } catch {
+      return 0;
+    }
+  });
+
+  // Keep cutoff in sync if profile changes
+  useEffect(() => {
+    try {
+      const stored = localStorage.getItem(`cbh_tx_reset_cutoff_${profile?.uid || 'guest'}`);
+      setTransactionsResetCutoff(stored ? parseInt(stored, 10) : 0);
+    } catch {
+      setTransactionsResetCutoff(0);
+    }
+  }, [profile?.uid]);
+
   const markAllAsRead = async () => {
     try {
       const unread = notifications.filter(n => !n.read);
@@ -335,6 +355,26 @@ export function NotificationProvider({ children, profile }: { children: React.Re
       await Promise.all(promises);
     } catch (err) {
       console.error('Failed to mark all as read:', err);
+    }
+  };
+
+  const resetAllNotificationsAndTransactions = async () => {
+    try {
+      // 1. Mark all existing notifications as read
+      await markAllAsRead();
+
+      // 2. Set the transactions cutoff timestamp to now
+      const now = Date.now();
+      localStorage.setItem(`cbh_tx_reset_cutoff_${profile?.uid || 'guest'}`, now.toString());
+      setTransactionsResetCutoff(now);
+      
+      // 3. Immediately clear visible counts
+      setSellerOrdersCount(0);
+      setBuyerOrdersCount(0);
+
+      triggerFeedback('Alerts Reset', 'All transactions marked as read. Counters reset until new transaction activity occurs.', 'message');
+    } catch (err) {
+      console.error('Failed to reset notifications and transactions:', err);
     }
   };
 
@@ -359,6 +399,19 @@ export function NotificationProvider({ children, profile }: { children: React.Re
       allDeals.forEach(d => {
         const isUnfulfilled = d.status !== 'delivered' && d.status !== 'won' && d.status !== 'cancelled';
         
+        // Check if deal was updated or created AFTER reset cutoff
+        let dealTimestamp = 0;
+        if (d.updatedAt) {
+          dealTimestamp = new Date(d.updatedAt).getTime();
+        } else if (d.createdAt) {
+          dealTimestamp = new Date(d.createdAt).getTime();
+        }
+        
+        // If user performed a reset, only transactions occurring after the cutoff count as needing attention
+        const isFreshAfterReset = transactionsResetCutoff === 0 || (dealTimestamp && dealTimestamp > transactionsResetCutoff);
+
+        if (!isFreshAfterReset) return;
+
         if (profile?.uid && d.supplierId === profile.uid && isUnfulfilled) {
           sCount++;
         }
@@ -380,7 +433,7 @@ export function NotificationProvider({ children, profile }: { children: React.Re
     });
 
     return () => unsubscribe();
-  }, [profile?.uid, profile?.phone]);
+  }, [profile?.uid, profile?.phone, transactionsResetCutoff]);
 
   const [pendingApprovalsCount, setPendingApprovalsCount] = useState(0);
 
@@ -417,6 +470,7 @@ export function NotificationProvider({ children, profile }: { children: React.Re
       pendingApprovalsCount,
       markAsRead, 
       markAllAsRead, 
+      resetAllNotificationsAndTransactions,
       triggerFeedback,
       pushSettings,
       updatePushSettings,

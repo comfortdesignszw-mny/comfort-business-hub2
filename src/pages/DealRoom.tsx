@@ -42,7 +42,22 @@ import { useNotifications } from '../components/NotificationProvider';
 import { POPForm, POPDisplay, POPAttachmentData } from '../components/PopAttachmentSection';
 
 export default function DealRoom({ profile }: { profile: UserProfile | null }) {
-  // Main Subsections:
+  // Use Notification Context
+  const { resetAllNotificationsAndTransactions } = useNotifications();
+  const [resettingAlerts, setResettingAlerts] = useState(false);
+
+  const handleResetAttentionCounters = async () => {
+    setResettingAlerts(true);
+    try {
+      await resetAllNotificationsAndTransactions();
+    } finally {
+      setResettingAlerts(false);
+    }
+  };
+
+  const handleUpdateDealLocally = (updatedDeal: Deal) => {
+    setDeals(prev => prev.map(d => d.id === updatedDeal.id ? updatedDeal : d));
+  };
   // 1. "Sales and Buyer Order Tracking" ('tracking')
   // 2. "Network Feed" ('feed')
   const [activeTab, setActiveTab] = useState<'tracking' | 'feed'>('tracking');
@@ -379,7 +394,7 @@ export default function DealRoom({ profile }: { profile: UserProfile | null }) {
             </div>
           </div>
 
-          {/* Quick Metrics Bar */}
+          {/* Quick Metrics Bar & Reset Action */}
           <div className="flex items-center gap-2 sm:gap-3 flex-wrap">
             <div className="bg-white/5 border border-white/10 px-3 py-2 rounded-2xl flex items-center gap-2.5">
               <div className="w-7 h-7 rounded-xl bg-emerald-500/10 border border-emerald-500/20 flex items-center justify-center text-emerald-400">
@@ -400,6 +415,16 @@ export default function DealRoom({ profile }: { profile: UserProfile | null }) {
                 <p className="text-sm font-black text-white">{totalPurchasesCount}</p>
               </div>
             </div>
+
+            <button
+              onClick={handleResetAttentionCounters}
+              disabled={resettingAlerts}
+              className="bg-white/5 hover:bg-white/10 border border-white/10 hover:border-primary/40 px-3 py-2 rounded-2xl flex items-center gap-2 text-gray-300 hover:text-white transition-all cursor-pointer text-[9px] font-black uppercase tracking-wider shadow-sm"
+              title="Reset transactions attention counters to 0 until new transaction updates occur"
+            >
+              {resettingAlerts ? <Loader2 size={13} className="animate-spin text-primary" /> : <CheckCircle2 size={13} className="text-primary" />}
+              <span>Reset Attention Alerts</span>
+            </button>
           </div>
         </div>
       </header>
@@ -611,6 +636,7 @@ export default function DealRoom({ profile }: { profile: UserProfile | null }) {
                   profile={profile}
                   onUpdateStage={handleUpdateStage}
                   onConfirmDelivery={handleConfirmDelivery}
+                  onUpdateDeal={handleUpdateDealLocally}
                 />
               ))}
             </div>
@@ -709,12 +735,14 @@ function DealCard({
   deal, 
   profile,
   onUpdateStage,
-  onConfirmDelivery
+  onConfirmDelivery,
+  onUpdateDeal
 }: { 
   deal: Deal; 
   profile: UserProfile | null;
   onUpdateStage: (dealId: string, stage: string, currentHistory?: DealHistoryItem[]) => void;
   onConfirmDelivery: (dealId: string, currentHistory?: DealHistoryItem[]) => void;
+  onUpdateDeal?: (updated: Deal) => void;
 }) {
   const [product, setProduct] = useState<Product | null>(null);
   const [showTimestamps, setShowTimestamps] = useState(false);
@@ -822,6 +850,10 @@ function DealCard({
         ]
       };
 
+      if (onUpdateDeal) {
+        onUpdateDeal(updatedDeal);
+      }
+
       await offlineResilientWrite('deals', deal.id, 'update', updatedDeal);
       setEditingPop(false);
     } catch (err) {
@@ -848,6 +880,10 @@ function DealCard({
           }
         ]
       };
+
+      if (onUpdateDeal) {
+        onUpdateDeal(updatedDeal);
+      }
 
       await offlineResilientWrite('deals', deal.id, 'update', updatedDeal);
     } catch (err) {

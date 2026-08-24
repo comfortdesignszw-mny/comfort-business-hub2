@@ -47,10 +47,16 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
   });
   const [activeModal, setActiveModal] = useState<'checkout' | 'ecocash' | 'pod' | 'paypal' | 'stripe' | 'paynow' | 'bank' | null>(null);
   const [purchaseQuantity, setPurchaseQuantity] = useState(1);
-  const [activeTab, setActiveTab] = useState<'insight' | 'feedback'>('insight');
+  const [activeTab, setActiveTab] = useState<'insight' | 'feedback'>(location.state?.activeTab || 'insight');
   const { startConversation } = useMessaging();
 
   const targetId = id || productSlug;
+
+  useEffect(() => {
+    if (location.state?.activeTab) {
+      setActiveTab(location.state.activeTab);
+    }
+  }, [location.state?.activeTab]);
 
   useEffect(() => {
     if (!targetId) return;
@@ -85,7 +91,7 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
     };
   }, [targetId]);
 
-  // Fetch Reviews when product.id is known
+  // Fetch Reviews when product.id is known with fallback
   useEffect(() => {
     if (!product?.id) return;
 
@@ -93,11 +99,26 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
       collection(db, 'reviews'),
       where('productId', '==', product.id),
       orderBy('createdAt', 'desc'),
-      limit(20)
+      limit(50)
     );
     const reviewsUnsub = onSnapshot(reviewsQuery, (snap) => {
       setReviews(snap.docs.map(d => ({ id: d.id, ...d.data() } as Review)));
-    }, (err) => console.warn('ProductDetail reviews query notice:', err));
+    }, (err) => {
+      console.warn('ProductDetail reviews query notice, falling back without orderBy:', err);
+      const fallbackQuery = query(
+        collection(db, 'reviews'),
+        where('productId', '==', product.id),
+        limit(50)
+      );
+      getDocs(fallbackQuery).then(snap => {
+        const sorted = snap.docs.map(d => ({ id: d.id, ...d.data() } as Review)).sort((a, b) => {
+          const timeA = a.createdAt?.toDate ? a.createdAt.toDate().getTime() : (typeof a.createdAt === 'string' ? new Date(a.createdAt).getTime() : 0);
+          const timeB = b.createdAt?.toDate ? b.createdAt.toDate().getTime() : (typeof b.createdAt === 'string' ? new Date(b.createdAt).getTime() : 0);
+          return timeB - timeA;
+        });
+        setReviews(sorted);
+      }).catch(e => console.warn('Reviews fallback error:', e));
+    });
 
     return () => reviewsUnsub();
   }, [product?.id]);
@@ -159,21 +180,43 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
 
   const handleSubmitReview = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!profile || !id || !product) return;
+    if (!profile || !product) return;
 
     setIsSubmittingReview(true);
+    const revRating = newReview.rating;
+    const revComment = newReview.comment;
+    const revTags = [...newReview.selectedTags];
+
+    // Optimistic review preview
+    const tempReview: Review = {
+      id: `temp-${Date.now()}`,
+      productId: product.id,
+      storeId: store?.id || product.storeId || '',
+      userId: profile.uid,
+      userName: profile.name || profile.businessName || 'Verified Buyer',
+      businessName: profile.businessName || '',
+      userRole: profile.currentRole || 'customer',
+      userAvatar: profile.avatar || '',
+      rating: revRating,
+      comment: revComment,
+      tags: revTags,
+      createdAt: { toDate: () => new Date() } as any
+    };
+
+    setReviews(prev => [tempReview, ...prev]);
+
     try {
       await interactionService.submitReview(
-        id,
-        store?.id || product.storeId,
+        product.id,
+        store?.id || product.storeId || '',
         profile,
-        newReview.rating,
-        newReview.comment,
+        revRating,
+        revComment,
         product.ownerId,
-        newReview.selectedTags
+        revTags
       );
       
-      triggerFeedback('Rating Submitted', `You rated ${product.name} with ${newReview.rating} stars!`, 'rate');
+      triggerFeedback('Rating Submitted', `You rated ${product.name} with ${revRating} stars!`, 'rate');
       setNewReview({ rating: 5, comment: '', selectedTags: [] });
     } catch (err) {
       handleFirestoreError(err, OperationType.CREATE, 'submit-review');
@@ -454,7 +497,7 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
       </div>
 
       {/* Tab Content Window */}
-      <div className="flex-grow overflow-y-auto custom-scrollbar px-2 sm:px-4 text-xs font-semibold max-h-[30vh]">
+      <div className="flex-grow overflow-y-auto custom-scrollbar px-2 sm:px-4 text-xs font-semibold min-h-[180px] max-h-[55vh]">
         <AnimatePresence mode="wait">
           {activeTab === 'insight' ? (
             <motion.div

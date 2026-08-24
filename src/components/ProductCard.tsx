@@ -584,14 +584,28 @@ export default function ProductCard({
                 <X size={18} />
               </button>
 
-              <div className="flex items-center gap-3 pr-8">
-                <div className="w-12 h-12 rounded-xl border border-amber-400/30 overflow-hidden shrink-0 bg-black">
-                  <img src={images[0]} alt={product.name} className="w-full h-full object-cover" />
+              <div className="flex items-center justify-between gap-3 pr-8">
+                <div className="flex items-center gap-3 min-w-0">
+                  <div className="w-12 h-12 rounded-xl border border-amber-400/30 overflow-hidden shrink-0 bg-black">
+                    <img src={images[0]} alt={product.name} className="w-full h-full object-cover" />
+                  </div>
+                  <div className="min-w-0">
+                    <h3 className="font-black text-white uppercase text-sm sm:text-base italic leading-tight truncate">{product.name}</h3>
+                    <p className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">{product.category}</p>
+                  </div>
                 </div>
-                <div>
-                  <h3 className="font-black text-white uppercase text-sm sm:text-base italic leading-tight truncate">{product.name}</h3>
-                  <p className="text-[10px] text-amber-400 font-bold uppercase tracking-wider">{product.category}</p>
-                </div>
+                <button
+                  type="button"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowRatingModal(false);
+                    navigate(`/product/${product.id}`, { state: { activeTab: 'feedback', product } });
+                  }}
+                  className="px-2.5 py-1.5 bg-amber-400/10 hover:bg-amber-400/20 border border-amber-400/30 rounded-xl text-amber-300 text-[9px] font-black uppercase tracking-wider shrink-0 transition-all cursor-pointer"
+                  title="View all existing reviews and customer ratings"
+                >
+                  View Reviews ({product.reviewCount || 0})
+                </button>
               </div>
 
               <div className="p-3.5 bg-black/60 rounded-2xl border border-amber-400/20 space-y-3 text-center">
@@ -610,7 +624,7 @@ export default function ProductCard({
                 <div className="space-y-1.5">
                   <label className="text-[9px] font-black uppercase tracking-wider text-gray-400 block">Quick Review Highlights (Tap to select)</label>
                   <div className="flex flex-wrap gap-1.5">
-                    {['Top Quality', 'Fast Delivery', 'Great Customer Service', 'Highly Recommended', 'Best Price', 'Authentic Item'].map((tag) => {
+                    {['Top Quality', 'Fast Delivery', 'Great Customer Service', 'Highly Recommended', 'Best Price', 'Authentic Item', 'Prompt Response', 'Smooth Deal'].map((tag) => {
                       const isSelected = selectedTags.includes(tag);
                       return (
                         <button

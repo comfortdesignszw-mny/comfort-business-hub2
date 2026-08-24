@@ -24,7 +24,11 @@ import {
   RefreshCw,
   Wrench,
   HelpCircle,
-  Download
+  Download,
+  CreditCard,
+  ChevronRight,
+  AlertCircle,
+  CheckCircle2
 } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { 
@@ -54,7 +58,7 @@ import ExpandableProductInventoryCard from '../components/ExpandableProductInven
 import L from 'leaflet';
 import 'leaflet/dist/leaflet.css';
 
-import { useLocation } from 'react-router-dom';
+import { useLocation, useNavigate } from 'react-router-dom';
 import MarketTrendsChart from '../components/MarketTrendsChart';
 
 // Fix for default marker icon in Leaflet
@@ -100,7 +104,7 @@ const initialForm: ProductForm = {
   quantityUnit: 'per item',
   category: 'Electronics',
   images: [],
-  buyButtonType: 'chat',
+  buyButtonType: 'ecocash',
   buyButtonLink: '',
   isActive: true,
   itemType: 'product',
@@ -109,6 +113,7 @@ const initialForm: ProductForm = {
 
 export default function SupplierDashboard({ profile }: { profile: UserProfile }) {
   const location = useLocation();
+  const navigate = useNavigate();
   const { triggerFeedback } = useNotifications();
   const [stores, setStores] = useState<Store[]>([]);
   const [activeStore, setActiveStore] = useState<Store | null>(null);
@@ -128,6 +133,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
   const [customQuantityUnit, setCustomQuantityUnit] = useState('');
   const [isEditingLocation, setIsEditingLocation] = useState(false);
   const [showWhatsAppModal, setShowWhatsAppModal] = useState(false);
+  const [showPaymentNoticeModal, setShowPaymentNoticeModal] = useState(false);
   const [waUrl, setWaUrl] = useState('');
   const [isWaParsing, setIsWaParsing] = useState(false);
   const [waImportedProducts, setWaImportedProducts] = useState<any[]>([]);
@@ -136,6 +142,32 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
   const [engagementStats, setEngagementStats] = useState({ engaged: 0, interested: 0, volume: 0 });
 
   const [waitingForId, setWaitingForId] = useState<string | null>(null);
+
+  // Check if supplier has configured a custom payment method
+  const hasCustomPaymentConfigured = useMemo(() => {
+    if (!profile) return true;
+    const gw = profile.gateway;
+    const pm = profile.paymentMethods;
+    if (gw && gw.provider && gw.isActive) return true;
+    if (pm) {
+      if (pm.ecocash?.enabled && pm.ecocash?.details) return true;
+      if (pm.bank?.enabled && (pm.bank?.accountNumber || pm.bank?.details)) return true;
+      if (pm.paypal?.enabled && pm.paypal?.details) return true;
+      if (pm.stripe?.enabled && pm.stripe?.details) return true;
+      if (pm.paynow?.enabled && pm.paynow?.details) return true;
+      if (pm.pod?.enabled) return true;
+    }
+    return false;
+  }, [profile]);
+
+  useEffect(() => {
+    if (!hasCustomPaymentConfigured && !loading && stores.length > 0) {
+      const dismissed = sessionStorage.getItem('dismissed_supplier_payment_prompt');
+      if (!dismissed) {
+        setShowPaymentNoticeModal(true);
+      }
+    }
+  }, [hasCustomPaymentConfigured, loading, stores.length]);
 
   // Autosave product form draft to localStorage
   useEffect(() => {
@@ -192,9 +224,42 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
     return () => storesUnsub();
   }, [profile.uid, location.key, waitingForId]);
 
-  // Real-time Products Listener for Active Store
+  // Real-time Products Listener for Active Store or Direct Listings
   useEffect(() => {
-    if (!activeStore?.id) return;
+    if (!profile?.uid) return;
+
+    // Supplier onboarding welcome prompt & notification (triggered once per supplier)
+    const notifiedKey = `supplier_onboarding_notified_${profile.uid}`;
+    if (!localStorage.getItem(notifiedKey)) {
+      localStorage.setItem(notifiedKey, 'true');
+      triggerFeedback(
+        'Welcome to Supplier Hub! 🛍️',
+        'You can now create your official storefront or enlist products and services directly to start selling.',
+        'connect_accept'
+      );
+
+      if ('Notification' in window && Notification.permission === 'granted') {
+        try {
+          new Notification('Welcome to Comfort Hub Supplier Mode! 🛍️', {
+            body: 'Create your first store or enlist products/services directly to start receiving buyer leads.',
+            icon: '/icon.png'
+          });
+        } catch (e) {
+          console.log('Notification dispatch notice:', e);
+        }
+      } else if ('Notification' in window && Notification.permission === 'default') {
+        Notification.requestPermission().then((perm) => {
+          if (perm === 'granted') {
+            try {
+              new Notification('Welcome to Comfort Hub Supplier Mode! 🛍️', {
+                body: 'Create your first store or enlist products/services directly to start receiving buyer leads.',
+                icon: '/icon.png'
+              });
+            } catch (e) {}
+          }
+        }).catch(() => {});
+      }
+    }
     
     // Engagement stats listener
     const q = query(collection(db, 'engagements'), where('supplierId', '==', profile.uid));
@@ -202,7 +267,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
       const stats = { engaged: 0, interested: 0, volume: 0 };
       
       // Get the last reset timestamp for this store (if any)
-      const resetAt = activeStore.statsResetAt ? new Date(activeStore.statsResetAt) : new Date(0);
+      const resetAt = activeStore?.statsResetAt ? new Date(activeStore.statsResetAt) : new Date(0);
 
       snap.docs.forEach(d => {
         const data = d.data();
@@ -213,9 +278,6 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
           if (data.type === 'interested') stats.interested++;
           if (data.type === 'order_now') {
             stats.volume += data.price || 0;
-            // Also count order_now as interested for the "Interested to Buy" stat if needed, 
-            // but the user said "Interested to Buy" should be "interested" type clicks?
-            // Actually they said "Active Leads should be number of clicks on the 'engage' button".
           }
         }
       });
@@ -224,7 +286,9 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
       console.warn('Supplier engagement listener notice:', err);
     });
     
-    const productsQuery = query(collection(db, 'products'), where('storeId', '==', activeStore.id));
+    const productsQuery = activeStore?.id 
+      ? query(collection(db, 'products'), where('storeId', '==', activeStore.id))
+      : query(collection(db, 'products'), where('ownerId', '==', profile.uid));
     
     // 1. Instantly pull and render from saved app files for super fast, zero-delay preview!
     localDB.cache
@@ -234,7 +298,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
       .then((cachedDocs) => {
         const storeCachedProducts = cachedDocs
           .map((item) => item.data as Product)
-          .filter((p) => p.storeId === activeStore.id);
+          .filter((p) => activeStore?.id ? p.storeId === activeStore.id : p.ownerId === profile.uid);
         
         if (storeCachedProducts.length > 0) {
           storeCachedProducts.sort((a, b) => new Date(b.createdAt || b.updatedAt).getTime() - new Date(a.createdAt || a.updatedAt).getTime());
@@ -253,7 +317,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
       const cachedDocs = await localDB.cache.where('collection').equals('products').toArray();
       const storeCachedProducts = cachedDocs
         .map((item) => item.data as Product)
-        .filter((p) => p.storeId === activeStore.id);
+        .filter((p) => activeStore?.id ? p.storeId === activeStore.id : p.ownerId === profile.uid);
 
       const mergedMap = new Map<string, Product>();
       storeCachedProducts.forEach(p => mergedMap.set(p.id, p));
@@ -265,14 +329,14 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
       setProducts(mergedProducts);
       setIsWaitingForSync(false);
     }, (err) => {
-      handleFirestoreError(err, OperationType.GET, `supplier-products-${activeStore.id}`);
+      handleFirestoreError(err, OperationType.GET, `supplier-products-${activeStore?.id || profile.uid}`);
     });
 
     return () => {
       productsUnsub();
       unsubEng();
     };
-  }, [activeStore?.id, activeStore?.statsResetAt]);
+  }, [activeStore?.id, activeStore?.statsResetAt, profile.uid]);
 
   const handleResetStats = async () => {
     if (!activeStore) return;
@@ -387,18 +451,20 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!activeStore || !profile) return;
+    if (!profile) return;
     
     const finalCategory = formData.category === 'Other' ? customCategory : formData.category;
     const finalQuantityUnit = formData.quantityUnit === 'custom' || (!PRESET_QUANTITY_UNITS.includes(formData.quantityUnit || ''))
       ? (customQuantityUnit.trim() || 'per item')
       : (formData.quantityUnit || 'per item');
     
+    const storeIdentifier = activeStore?.id || 'direct';
+
     const data = {
       ...formData,
       category: finalCategory,
       quantityUnit: finalQuantityUnit,
-      storeId: activeStore.id,
+      storeId: storeIdentifier,
       ownerId: profile.uid,
       images: formData.images.length > 0 ? formData.images : [`https://api.dicebear.com/7.x/shapes/svg?seed=${encodeURIComponent(formData.name)}`],
       updatedAt: new Date().toISOString()
@@ -411,7 +477,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
       } as Product;
       // Instant UI update
       setProducts(prev => prev.map(p => p.id === editingProduct.id ? updatedProduct : p));
-      offlineResilientWrite('products', editingProduct.id, 'update', data).catch(() => {});
+      offlineResilientWrite('products', editingProduct.id, 'update', data, profile.uid).catch(() => {});
     } else {
       const newId = `prod_${Date.now()}_${Math.random().toString(36).substring(7)}`;
       const newProduct: Product = {
@@ -421,12 +487,13 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
       } as Product;
       // Instant UI update
       setProducts(prev => [newProduct, ...prev]);
-      offlineResilientWrite('products', newId, 'create', newProduct).catch(() => {});
+      offlineResilientWrite('products', newId, 'create', newProduct, profile.uid).catch(() => {});
     }
     
     localStorage.removeItem('supplier_product_form_draft');
     setIsWaitingForSync(false);
     setShowProductForm(false);
+    triggerFeedback('Listing Published', formData.itemType === 'service' ? 'Service enlisted successfully!' : 'Product enlisted successfully!', 'connect_accept');
   };
 
   const handleDeleteProduct = async (id: string) => {
@@ -1497,6 +1564,88 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
                   </button>
                 </div>
               )}
+            </motion.div>
+          </div>
+        )}
+      </AnimatePresence>
+
+      {/* Preferred Payment Method Notice Modal for Suppliers */}
+      <AnimatePresence>
+        {showPaymentNoticeModal && (
+          <div key="supplier-payment-notice-modal" className="fixed inset-0 z-[70] flex items-center justify-center p-4">
+            <motion.div 
+              initial={{ opacity: 0 }}
+              animate={{ opacity: 1 }}
+              exit={{ opacity: 0 }}
+              className="absolute inset-0 bg-[#05070a]/90 backdrop-blur-md"
+              onClick={() => {
+                sessionStorage.setItem('dismissed_supplier_payment_prompt', 'true');
+                setShowPaymentNoticeModal(false);
+              }}
+            />
+            <motion.div 
+              initial={{ opacity: 0, scale: 0.9, y: 20 }}
+              animate={{ opacity: 1, scale: 1, y: 0 }}
+              exit={{ opacity: 0, scale: 0.9, y: 20 }}
+              className="relative w-full max-w-md bg-[#0a0f18] border border-primary/40 rounded-3xl p-6 shadow-[0_0_50px_rgba(0,242,254,0.2)] space-y-5"
+            >
+              <button 
+                onClick={() => {
+                  sessionStorage.setItem('dismissed_supplier_payment_prompt', 'true');
+                  setShowPaymentNoticeModal(false);
+                }}
+                className="absolute top-4 right-4 p-2 bg-white/5 hover:bg-white/10 rounded-full text-gray-400 hover:text-white transition-colors"
+              >
+                <X size={18} />
+              </button>
+
+              <div className="flex items-center gap-3">
+                <div className="w-12 h-12 rounded-2xl bg-primary/10 border border-primary/30 flex items-center justify-center text-primary shrink-0 shadow-[0_0_15px_rgba(0,242,254,0.25)]">
+                  <CreditCard size={24} />
+                </div>
+                <div>
+                  <h3 className="text-base font-black text-white italic uppercase tracking-tight">Payment Gateway Notice</h3>
+                  <p className="text-[10px] text-primary font-bold uppercase tracking-wider">Default: EcoCash Instant Buy</p>
+                </div>
+              </div>
+
+              <div className="p-4 bg-black/50 rounded-2xl border border-white/10 space-y-2.5 text-xs text-gray-300">
+                <p className="leading-relaxed">
+                  By default, all your supplier products and services are configured with <strong className="text-primary font-black">EcoCash</strong> payment gateway options for instant buyer orders.
+                </p>
+                <p className="text-[11px] text-gray-400 leading-relaxed">
+                  You can link a specific EcoCash Merchant/Phone number, Bank Account, Paynow, PayPal, Stripe, or Cash on Delivery in your account settings.
+                </p>
+                <div className="p-2.5 bg-primary/5 border border-primary/20 rounded-xl flex items-start gap-2 text-[10px] text-cyan-300">
+                  <AlertCircle size={14} className="shrink-0 mt-0.5 text-primary" />
+                  <span>
+                    Configure globally in <strong>Hub &gt; Financial Gateway</strong>, or customize individual items in <strong>Stores &gt; Product &gt; Edit Product &gt; Buy Logic Gateway</strong>.
+                  </span>
+                </div>
+              </div>
+
+              <div className="flex flex-col sm:flex-row gap-2 pt-1">
+                <button 
+                  onClick={() => {
+                    sessionStorage.setItem('dismissed_supplier_payment_prompt', 'true');
+                    setShowPaymentNoticeModal(false);
+                    navigate('/profile', { state: { activeTab: 'gateway' } });
+                  }}
+                  className="flex-1 py-3 px-4 bg-primary hover:bg-cyan-300 text-black font-black text-xs uppercase tracking-wider rounded-xl transition-all flex items-center justify-center gap-2 shadow-[0_0_20px_rgba(0,242,254,0.4)] cursor-pointer"
+                >
+                  <CreditCard size={14} /> Configure Gateway <ChevronRight size={14} />
+                </button>
+                <button 
+                  onClick={() => {
+                    sessionStorage.setItem('dismissed_supplier_payment_prompt', 'true');
+                    setShowPaymentNoticeModal(false);
+                    triggerFeedback('EcoCash Default Confirmed', 'All items will use EcoCash checkout flow by default.', 'buy');
+                  }}
+                  className="py-3 px-4 bg-white/5 hover:bg-white/10 border border-white/10 text-gray-300 hover:text-white font-black text-xs uppercase tracking-wider rounded-xl transition-all cursor-pointer"
+                >
+                  Keep EcoCash Default
+                </button>
+              </div>
             </motion.div>
           </div>
         )}

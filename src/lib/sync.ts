@@ -7,7 +7,7 @@ import {
   Timestamp,
   getDoc
 } from 'firebase/firestore';
-import { db } from './firebase';
+import { db, auth } from './firebase';
 import { localDB, OutboxItem, calculateTTL } from './db';
 
 export interface SyncErrorInfo {
@@ -18,10 +18,17 @@ export interface SyncErrorInfo {
   action: string;
   errorMessage: string;
   timestamp: number;
+  userRetries: number;
+  status: 'error' | 'delayed_error' | 'waiting_connection' | 'cancelled';
+  nextVisibleAt?: number;
+  userId?: string;
 }
 
 let currentSyncError: SyncErrorInfo | null = null;
 const syncErrorListeners = new Set<(error: SyncErrorInfo | null) => void>();
+
+// Delay timer for 2-minute error repetition
+let delayedErrorTimer: NodeJS.Timeout | null = null;
 
 export function subscribeToSyncErrors(listener: (error: SyncErrorInfo | null) => void) {
   syncErrorListeners.add(listener);
@@ -39,18 +46,119 @@ export function setSyncError(error: SyncErrorInfo | null) {
 }
 
 export function clearSyncError() {
+  if (delayedErrorTimer) {
+    clearTimeout(delayedErrorTimer);
+    delayedErrorTimer = null;
+  }
   setSyncError(null);
 }
 
+/**
+ * Cancels a specific outbox sync item and terminates all future retries for it.
+ */
+export async function cancelSyncItem(outboxId?: number) {
+  if (delayedErrorTimer) {
+    clearTimeout(delayedErrorTimer);
+    delayedErrorTimer = null;
+  }
+
+  if (outboxId) {
+    try {
+      await localDB.outbox.delete(outboxId);
+      console.log(`[Sync] Cancelled and removed outbox item #${outboxId}. Sync terminated.`);
+    } catch (e) {
+      console.warn('[Sync] Failed to remove cancelled outbox item:', e);
+    }
+  } else if (currentSyncError?.id) {
+    try {
+      await localDB.outbox.delete(currentSyncError.id);
+      console.log(`[Sync] Cancelled and removed outbox item #${currentSyncError.id}. Sync terminated.`);
+    } catch (e) {
+      console.warn('[Sync] Failed to remove cancelled outbox item:', e);
+    }
+  }
+
+  setSyncError(null);
+}
+
+/**
+ * Explicit user retry for sync error.
+ */
+export async function retrySyncFromError() {
+  if (!currentSyncError) return;
+
+  const currentItem = { ...currentSyncError };
+  const currentRetries = (currentItem.userRetries || 0) + 1;
+
+  if (delayedErrorTimer) {
+    clearTimeout(delayedErrorTimer);
+    delayedErrorTimer = null;
+  }
+
+  // If user has attempted 3 retries, transition to auto-queue waiting for connection
+  if (currentRetries >= 3) {
+    console.log('[Sync] 3 user retries reached. Queuing item to wait for active connection...');
+    setSyncError({
+      ...currentItem,
+      userRetries: currentRetries,
+      status: 'waiting_connection',
+      errorMessage: 'Waiting for stable connection. Queued in background.'
+    });
+    return;
+  }
+
+  // Attempt sync immediately
+  try {
+    const success = await triggerSync();
+    if (success) {
+      clearSyncError();
+    } else {
+      handleSyncRetryFailure(currentItem, currentRetries);
+    }
+  } catch (err) {
+    handleSyncRetryFailure(currentItem, currentRetries);
+  }
+}
+
+function handleSyncRetryFailure(currentItem: SyncErrorInfo, retries: number) {
+  // If another error occurs after retry:
+  // Hide popup for 2 minutes, then repeat the error message after 2 minutes
+  const TWO_MINUTES_MS = 2 * 60 * 1000;
+  const nextTime = Date.now() + TWO_MINUTES_MS;
+
+  // Temporarily set status to delayed_error (hidden from visible banner)
+  setSyncError({
+    ...currentItem,
+    userRetries: retries,
+    status: 'delayed_error',
+    nextVisibleAt: nextTime
+  });
+
+  if (delayedErrorTimer) clearTimeout(delayedErrorTimer);
+
+  delayedErrorTimer = setTimeout(() => {
+    // If still failing after 2 minutes and not cancelled
+    if (currentSyncError && currentSyncError.status === 'delayed_error') {
+      setSyncError({
+        ...currentSyncError,
+        status: 'error',
+        timestamp: Date.now()
+      });
+    }
+  }, TWO_MINUTES_MS);
+}
+
 export async function addToOutbox(item: Omit<OutboxItem, 'createdAt'>) {
+  const resolvedUserId = item.userId || item.payload?.ownerId || item.payload?.userId || item.payload?.supplierId || auth.currentUser?.uid || undefined;
   const fullItem: OutboxItem = {
     ...item,
+    userId: resolvedUserId,
     createdAt: Date.now()
   };
   await localDB.outbox.add(fullItem);
   
   // Silent background queuing
-  console.log(`[Sync] Operation queued for ${item.collection}/${item.docId} silently in background.`);
+  console.log(`[Sync] Operation queued for ${item.collection}/${item.docId} silently in background for user: ${resolvedUserId || 'anonymous'}.`);
   
   if (navigator.onLine) {
     triggerSync();
@@ -61,15 +169,16 @@ let syncInProgress = false;
 let retryCount = 0;
 let backoffTimer: NodeJS.Timeout | null = null;
 
-export async function triggerSync() {
-  if (syncInProgress || !navigator.onLine) return;
+export async function triggerSync(): Promise<boolean> {
+  if (syncInProgress || !navigator.onLine) return false;
   syncInProgress = true;
 
   try {
     const items = await localDB.outbox.orderBy('createdAt').toArray();
     if (items.length === 0) {
       retryCount = 0;
-      return;
+      clearSyncError();
+      return true;
     }
 
     console.log(`[Sync] Attempting to synchronize ${items.length} queued operations...`);
@@ -114,15 +223,24 @@ export async function triggerSync() {
         const rawName = item.payload?.name || item.payload?.title || item.payload?.productName || item.payload?.storeName || item.payload?.text || '';
         const itemName = rawName ? String(rawName).slice(0, 30) : `${item.collection.charAt(0).toUpperCase() + item.collection.slice(1)} item`;
         
-        setSyncError({
-          id: item.id,
-          collection: item.collection,
-          docId: item.docId,
-          itemName,
-          action: item.action,
-          errorMessage: error instanceof Error ? error.message : 'Network sync failed',
-          timestamp: Date.now()
-        });
+        const prevRetries = currentSyncError?.id === item.id ? currentSyncError.userRetries : 0;
+        const prevStatus = currentSyncError?.id === item.id ? currentSyncError.status : 'error';
+
+        // Only set active visible error if not currently in delayed_error or waiting_connection
+        if (prevStatus !== 'delayed_error' && prevStatus !== 'waiting_connection') {
+          setSyncError({
+            id: item.id,
+            collection: item.collection,
+            docId: item.docId,
+            itemName,
+            action: item.action,
+            errorMessage: error instanceof Error ? error.message : 'Network sync failed',
+            timestamp: Date.now(),
+            userRetries: prevRetries,
+            status: 'error',
+            userId: item.userId
+          });
+        }
         
         // Unrecoverable permission error => drop it
         if (error instanceof Error && error.message.toLowerCase().includes('permission')) {
@@ -136,8 +254,9 @@ export async function triggerSync() {
     if (allSucceeded) {
       retryCount = 0;
       clearSyncError();
-    } else if (navigator.onLine) {
-      // Exponential backoff
+      return true;
+    } else if (navigator.onLine && currentSyncError?.status !== 'waiting_connection') {
+      // Exponential backoff only if not waiting on manual user retry or queued for active connection
       retryCount++;
       const delay = Math.min(1000 * Math.pow(2, retryCount), 60000); // Max 1 minute
       console.warn(`[Sync] Sync incomplete. Retrying in ${delay}ms... (Attempt ${retryCount})`);
@@ -145,8 +264,10 @@ export async function triggerSync() {
       backoffTimer = setTimeout(() => {
         triggerSync();
       }, delay);
+      return false;
     }
 
+    return false;
   } finally {
     syncInProgress = false;
   }
@@ -162,10 +283,12 @@ export async function offlineResilientWrite(
   collectionName: string, 
   docId: string, 
   action: 'create' | 'update' | 'delete', 
-  payload: any = null
+  payload: any = null,
+  userId?: string
 ) {
   const now = Date.now();
   const { lastSynced, expiresAt } = calculateTTL();
+  const effectiveUserId = userId || payload?.ownerId || payload?.userId || payload?.supplierId || auth.currentUser?.uid || undefined;
 
   // 1. Update local cache and typed Dexie tables first for instant UI response (Optimistic)
   try {
@@ -242,7 +365,8 @@ export async function offlineResilientWrite(
       collection: collectionName,
       docId,
       action,
-      payload
+      payload,
+      userId: effectiveUserId
     });
   } catch (err) {
     console.warn('[Sync] Outbox queue error:', err);

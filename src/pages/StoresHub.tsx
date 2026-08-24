@@ -225,16 +225,58 @@ export default function StoresHub({ profile }: { profile: UserProfile | null }) 
               </React.Fragment>
             ))}
 
-            {!loading && filteredStores.length === 0 && (
-              <div className="col-span-full py-32 text-center space-y-6">
-                 <div className="w-20 h-20 bg-white/5 rounded-full flex items-center justify-center mx-auto text-gray-800 border border-white/5">
-                  <StoreIcon size={32} />
+            {!loading && stores.length === 0 && (
+              <div className="col-span-full py-16 px-6 text-center space-y-6 neon-card max-w-2xl mx-auto my-8">
+                <div className="w-20 h-20 bg-primary/10 rounded-3xl flex items-center justify-center mx-auto text-primary border border-primary/20 shadow-[0_0_25px_rgba(0,242,254,0.15)]">
+                  <StoreIcon size={36} />
                 </div>
                 <div className="space-y-2">
-                  <p className="text-xl font-bold text-white italic uppercase tracking-tight">No match detected</p>
-                  <p className="text-[10px] font-black text-gray-500 uppercase tracking-widest italic leading-relaxed">
-                    No stores found in <span className="text-primary">{activeCategory}</span> sector matching "{searchTerm}"
+                  <h3 className="text-2xl font-black text-white italic uppercase tracking-tight">Nothing has been created yet</h3>
+                  <p className="text-xs text-gray-400 font-medium max-w-md mx-auto leading-relaxed">
+                    No stores or supplier storefronts have been registered in this section yet. Take the lead and launch your verified enterprise presence or enlist your products directly!
                   </p>
+                </div>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+                  <button
+                    onClick={() => setActiveTab('manage')}
+                    className="w-full sm:w-auto btn-neon px-6 py-3.5 text-xs flex items-center justify-center gap-2"
+                  >
+                    <Plus size={16} /> Create Branded Storefront
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('manage')}
+                    className="w-full sm:w-auto px-6 py-3.5 bg-white/5 hover:bg-white/10 text-white rounded-2xl border border-white/10 text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2"
+                  >
+                    <Package size={16} className="text-primary" /> Enlist Products Directly (Skip Store)
+                  </button>
+                </div>
+              </div>
+            )}
+
+            {!loading && stores.length > 0 && filteredStores.length === 0 && (
+              <div className="col-span-full py-16 px-6 text-center space-y-6 neon-card max-w-2xl mx-auto my-8">
+                <div className="w-16 h-16 bg-white/5 rounded-2xl flex items-center justify-center mx-auto text-gray-500 border border-white/10">
+                  <Search size={28} />
+                </div>
+                <div className="space-y-2">
+                  <h3 className="text-xl font-black text-white italic uppercase tracking-tight">No Matching Stores Detected</h3>
+                  <p className="text-xs text-gray-400 font-medium max-w-md mx-auto leading-relaxed">
+                    No stores found in <span className="text-primary font-bold">{activeCategory}</span> sector matching <span className="text-white italic">"{searchTerm}"</span>.
+                  </p>
+                </div>
+                <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+                  <button
+                    onClick={() => { setSearchTerm(''); setActiveCategory('All'); }}
+                    className="w-full sm:w-auto px-6 py-3 bg-white/10 hover:bg-white/20 text-white rounded-xl text-xs font-black uppercase tracking-wider transition-all"
+                  >
+                    Clear Search & Filters
+                  </button>
+                  <button
+                    onClick={() => setActiveTab('manage')}
+                    className="w-full sm:w-auto btn-neon px-6 py-3 text-xs flex items-center justify-center gap-2"
+                  >
+                    <Plus size={14} /> Open Store in This Category
+                  </button>
                 </div>
               </div>
             )}

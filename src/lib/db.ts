@@ -14,6 +14,7 @@ export interface OutboxItem {
   action: 'create' | 'update' | 'delete';
   payload: any;
   createdAt: number;
+  userId?: string;
 }
 
 export interface CachedDoc {

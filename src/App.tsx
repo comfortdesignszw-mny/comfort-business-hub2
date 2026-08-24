@@ -841,7 +841,7 @@ function Sidebar({ profile, onClose, onLogout }: { profile: UserProfile | null, 
 }
 
 function NotificationsModal({ profile, onClose }: { profile: UserProfile | null, onClose: () => void }) {
-  const { notifications, markAsRead, markAllAsRead } = useNotifications();
+  const { notifications, markAsRead, markAllAsRead, resetAllNotificationsAndTransactions } = useNotifications();
   const navigate = useNavigate();
   const [showSettings, setShowSettings] = useState(false);
   const [activeNotification, setActiveNotification] = useState<AppNotification | null>(null);
@@ -995,15 +995,25 @@ function NotificationsModal({ profile, onClose }: { profile: UserProfile | null,
           </div>
         )}
 
-        <div className="p-4 bg-white/5 border-t border-white/5">
+        <div className="p-4 bg-white/5 border-t border-white/5 flex gap-2">
           <button 
             onClick={() => {
               markAllAsRead();
               onClose();
             }}
-            className="w-full py-3 bg-white/5 hover:bg-white/10 rounded-xl text-[9px] font-black text-gray-400 hover:text-white uppercase tracking-widest transition-all"
+            className="flex-1 py-3 bg-white/5 hover:bg-white/10 rounded-xl text-[9px] font-black text-gray-400 hover:text-white uppercase tracking-widest transition-all cursor-pointer"
           >
             Mark all read
+          </button>
+          <button 
+            onClick={async () => {
+              await resetAllNotificationsAndTransactions();
+              onClose();
+            }}
+            className="flex-1 py-3 bg-primary/10 border border-primary/20 hover:bg-primary/20 rounded-xl text-[9px] font-black text-primary hover:text-white uppercase tracking-widest transition-all cursor-pointer"
+            title="Reset alerts and transaction counters to 0 until new activity occurs"
+          >
+            Reset All Activity
           </button>
         </div>
 
