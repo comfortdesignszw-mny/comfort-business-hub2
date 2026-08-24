@@ -121,25 +121,7 @@ export async function resolveStoreByIdOrShortId(idParam: string): Promise<Store 
   if (!idParam) return null;
   const targetId = decodeURIComponent(idParam).trim();
 
-  // 1. Direct Firestore lookup by exact ID
-  try {
-    const directSnap = await getDoc(doc(db, 'stores', targetId));
-    if (directSnap.exists()) {
-      return { id: directSnap.id, ...directSnap.data() } as Store;
-    }
-  } catch (e) {}
-
-  // 2. Query Firestore by explicit shortId field
-  try {
-    const qShort = query(collection(db, 'stores'), where('shortId', '==', targetId), limit(1));
-    const snapShort = await getDocs(qShort);
-    if (!snapShort.empty) {
-      const d = snapShort.docs[0];
-      return { id: d.id, ...d.data() } as Store;
-    }
-  } catch (e) {}
-
-  // 3. Check Dexie local database cache
+  // 1. Check Dexie local database cache first for instant local-first response (0ms)
   try {
     const cachedRecords = await localDB.stores.toArray();
     if (cachedRecords.length > 0) {
@@ -150,34 +132,49 @@ export async function resolveStoreByIdOrShortId(idParam: string): Promise<Store 
     }
   } catch (e) {}
 
-  // 4. Check initial offline seed stores
+  // 2. Check general cache table in Dexie
+  try {
+    const generalCache = await localDB.cache.where('collection').equals('stores').toArray();
+    const generalMatch = generalCache.find(r => isStoreMatch(r.data, targetId));
+    if (generalMatch) {
+      return generalMatch.data as Store;
+    }
+  } catch (e) {}
+
+  // 3. Check initial offline seed stores
   const seedMatch = INITIAL_OFFLINE_STORES.find(s => isStoreMatch(s, targetId));
   if (seedMatch) {
     return seedMatch as unknown as Store;
   }
 
-  // 5. Query Firestore prefix range search
-  try {
-    const qRange = query(
-      collection(db, 'stores'),
-      where('__name__', '>=', targetId),
-      where('__name__', '<=', targetId + '\uf8ff'),
-      limit(10)
-    );
-    const snapRange = await getDocs(qRange);
-    if (!snapRange.empty) {
-      const match = snapRange.docs.find(d => isStoreMatch({ id: d.id, ...d.data() }, targetId));
-      if (match) return { id: match.id, ...match.data() } as Store;
-    }
-  } catch (e) {}
+  // 4. If online, query Firestore with a short 2s timeout and backfill local cache
+  if (navigator.onLine) {
+    try {
+      const directSnap = await Promise.race([
+        getDoc(doc(db, 'stores', targetId)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000))
+      ]);
+      if (directSnap.exists()) {
+        const found = { id: directSnap.id, ...directSnap.data() } as Store;
+        localDB.stores.put({ id: found.id, data: found, updatedAt: Date.now() }).catch(() => {});
+        return found;
+      }
+    } catch (e) {}
 
-  // 6. Fallback scan recent stores collection (up to 100)
-  try {
-    const qAll = query(collection(db, 'stores'), limit(100));
-    const snapAll = await getDocs(qAll);
-    const match = snapAll.docs.find(d => isStoreMatch({ id: d.id, ...d.data() }, targetId));
-    if (match) return { id: match.id, ...match.data() } as Store;
-  } catch (e) {}
+    try {
+      const qShort = query(collection(db, 'stores'), where('shortId', '==', targetId), limit(1));
+      const snapShort = await Promise.race([
+        getDocs(qShort),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000))
+      ]);
+      if (!snapShort.empty) {
+        const d = snapShort.docs[0];
+        const found = { id: d.id, ...d.data() } as Store;
+        localDB.stores.put({ id: found.id, data: found, updatedAt: Date.now() }).catch(() => {});
+        return found;
+      }
+    } catch (e) {}
+  }
 
   return null;
 }
@@ -190,25 +187,7 @@ export async function resolveProductByIdOrShortId(idParam: string): Promise<Prod
   if (!idParam) return null;
   const targetId = decodeURIComponent(idParam).trim();
 
-  // 1. Direct Firestore lookup by exact ID
-  try {
-    const directSnap = await getDoc(doc(db, 'products', targetId));
-    if (directSnap.exists()) {
-      return { id: directSnap.id, ...directSnap.data() } as Product;
-    }
-  } catch (e) {}
-
-  // 2. Query Firestore by explicit shortId field
-  try {
-    const qShort = query(collection(db, 'products'), where('shortId', '==', targetId), limit(1));
-    const snapShort = await getDocs(qShort);
-    if (!snapShort.empty) {
-      const d = snapShort.docs[0];
-      return { id: d.id, ...d.data() } as Product;
-    }
-  } catch (e) {}
-
-  // 3. Check Dexie local database cache - Exact Match First
+  // 1. Check Dexie local database cache first - Exact Match & Hash Match (0ms)
   try {
     const cachedRecords = await localDB.products.toArray();
     if (cachedRecords.length > 0) {
@@ -228,7 +207,16 @@ export async function resolveProductByIdOrShortId(idParam: string): Promise<Prod
     }
   } catch (e) {}
 
-  // 4. Check initial offline seed products - Exact Match First
+  // 2. Check general cache table in Dexie
+  try {
+    const generalCache = await localDB.cache.where('collection').equals('products').toArray();
+    const generalMatch = generalCache.find(r => isProductMatch(r.data, targetId));
+    if (generalMatch) {
+      return generalMatch.data as Product;
+    }
+  } catch (e) {}
+
+  // 3. Check initial offline seed products
   const seedExact = INITIAL_OFFLINE_PRODUCTS.find(p => p.id === targetId || (p as any).shortId === targetId);
   if (seedExact) {
     return seedExact as unknown as Product;
@@ -238,28 +226,34 @@ export async function resolveProductByIdOrShortId(idParam: string): Promise<Prod
     return seedMatch as unknown as Product;
   }
 
-  // 5. Query Firestore prefix range search
-  try {
-    const qRange = query(
-      collection(db, 'products'),
-      where('__name__', '>=', targetId),
-      where('__name__', '<=', targetId + '\uf8ff'),
-      limit(10)
-    );
-    const snapRange = await getDocs(qRange);
-    if (!snapRange.empty) {
-      const match = snapRange.docs.find(d => isProductMatch({ id: d.id, ...d.data() }, targetId));
-      if (match) return { id: match.id, ...match.data() } as Product;
-    }
-  } catch (e) {}
+  // 4. If online, query Firestore with a short 2s timeout and backfill local cache
+  if (navigator.onLine) {
+    try {
+      const directSnap = await Promise.race([
+        getDoc(doc(db, 'products', targetId)),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000))
+      ]);
+      if (directSnap.exists()) {
+        const found = { id: directSnap.id, ...directSnap.data() } as Product;
+        localDB.products.put({ id: found.id, storeId: found.storeId || '', data: found, updatedAt: Date.now() }).catch(() => {});
+        return found;
+      }
+    } catch (e) {}
 
-  // 6. Fallback scan recent products collection (up to 100)
-  try {
-    const qAll = query(collection(db, 'products'), limit(100));
-    const snapAll = await getDocs(qAll);
-    const match = snapAll.docs.find(d => isProductMatch({ id: d.id, ...d.data() }, targetId));
-    if (match) return { id: match.id, ...match.data() } as Product;
-  } catch (e) {}
+    try {
+      const qShort = query(collection(db, 'products'), where('shortId', '==', targetId), limit(1));
+      const snapShort = await Promise.race([
+        getDocs(qShort),
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000))
+      ]);
+      if (!snapShort.empty) {
+        const d = snapShort.docs[0];
+        const found = { id: d.id, ...d.data() } as Product;
+        localDB.products.put({ id: found.id, storeId: found.storeId || '', data: found, updatedAt: Date.now() }).catch(() => {});
+        return found;
+      }
+    } catch (e) {}
+  }
 
   return null;
 }

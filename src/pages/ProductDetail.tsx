@@ -51,7 +51,9 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
   useEffect(() => {
     if (!targetId) return;
 
-    setLoading(true);
+    if (!product) {
+      setLoading(true);
+    }
     let isMounted = true;
 
     resolveProductByIdOrShortId(targetId).then((foundProduct) => {
@@ -68,7 +70,7 @@ export default function ProductDetail({ profile, onGuestLogin }: { profile: User
             if (s && isMounted) setStore(s);
           });
         }
-      } else {
+      } else if (!product) {
         setError("Product not found in local inventory");
         setLoading(false);
       }

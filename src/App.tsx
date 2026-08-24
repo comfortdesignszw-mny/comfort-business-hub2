@@ -116,10 +116,25 @@ const ScrollToTop = () => {
 export default function App() {
   useMobileHeight();
   const [user, setUser] = useState<User | null>(null);
-  const [profile, setProfile] = useState<UserProfile | null>(null);
-  const [isGuest, setIsGuest] = useState<boolean>(false);
+  const [profile, setProfile] = useState<UserProfile | null>(() => {
+    try {
+      const savedGuest = localStorage.getItem('guest_profile');
+      if (savedGuest) return JSON.parse(savedGuest);
+      for (let i = 0; i < localStorage.length; i++) {
+        const key = localStorage.key(i);
+        if (key && key.startsWith('profile_cache_')) {
+          const val = localStorage.getItem(key);
+          if (val) return JSON.parse(val);
+        }
+      }
+    } catch (e) {}
+    return null;
+  });
+  const [isGuest, setIsGuest] = useState<boolean>(() => {
+    return !!localStorage.getItem('guest_profile');
+  });
   const [hasStore, setHasStore] = useState<boolean>(false);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
 
   const [showSidebar, setShowSidebar] = useState(false);
   const [showSupplierTutorial, setShowSupplierTutorial] = useState(false);

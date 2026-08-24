@@ -320,27 +320,20 @@ export default function Profile({ profile, setProfile }: { profile: UserProfile 
       return;
     }
     
-    if (document.querySelectorAll('[data-uploading="true"]').length > 0) {
-      alert("Please wait for your images to finish saving before saving.");
-      return;
-    }
-    
-    setLoading(true);
+    const newProfile = { ...profile, ...editData, updatedAt: new Date().toISOString() };
+    setProfile(newProfile);
+    setIsEditing(false);
+    setEditData({});
+
     try {
-      const data = {
-        ...editData,
-        updatedAt: new Date().toISOString()
-      };
-      await offlineResilientWrite('users', profile.uid, 'update', data);
-      const newProfile = { ...profile, ...editData };
-      setProfile(newProfile);
-      await syncPublicProfile(newProfile);
-      setIsEditing(false);
-      setEditData({});
+      localStorage.setItem(`profile_cache_${profile.uid}`, JSON.stringify({
+        ...newProfile,
+        _cachedAt: Date.now()
+      }));
+      await offlineResilientWrite('users', profile.uid, 'update', newProfile);
+      syncPublicProfile(newProfile).catch(() => {});
     } catch (e) {
-      handleFirestoreError(e, OperationType.UPDATE, `users/${profile.uid}`);
-    } finally {
-      setLoading(false);
+      console.warn('[Profile] Background sync notice:', e);
     }
   };
 

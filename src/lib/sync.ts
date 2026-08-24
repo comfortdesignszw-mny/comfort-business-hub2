@@ -109,7 +109,8 @@ export async function triggerSync() {
 export const processOutbox = triggerSync;
 
 /**
- * Universal wrapper for writes that handles offline state gracefully.
+ * Universal wrapper for writes that handles offline state gracefully and optimistically.
+ * Local storage is the immediate single source of truth. Remote writes happen in background via Outbox.
  */
 export async function offlineResilientWrite(
   collectionName: string, 
@@ -117,50 +118,92 @@ export async function offlineResilientWrite(
   action: 'create' | 'update' | 'delete', 
   payload: any = null
 ) {
-  // 1. Update local cache first for instant UI response (Optimistic)
-  if (action !== 'delete' && payload) {
-    const { lastSynced, expiresAt } = calculateTTL();
-    await localDB.cache.put({
-      id: `${collectionName}:${docId}`,
+  const now = Date.now();
+  const { lastSynced, expiresAt } = calculateTTL();
+
+  // 1. Update local cache and typed Dexie tables first for instant UI response (Optimistic)
+  try {
+    if (action !== 'delete' && payload) {
+      const dataWithTimestamp = {
+        ...payload,
+        updatedAt: payload.updatedAt || new Date().toISOString()
+      };
+
+      await localDB.cache.put({
+        id: `${collectionName}:${docId}`,
+        collection: collectionName,
+        docId,
+        data: dataWithTimestamp,
+        updatedAt: now,
+        lastSynced,
+        expiresAt
+      });
+
+      if (collectionName === 'products') {
+        await localDB.products.put({
+          id: docId,
+          storeId: payload.storeId || '',
+          data: dataWithTimestamp,
+          updatedAt: now,
+          lastSynced,
+          expiresAt
+        });
+      } else if (collectionName === 'stores') {
+        await localDB.stores.put({
+          id: docId,
+          data: dataWithTimestamp,
+          updatedAt: now,
+          lastSynced,
+          expiresAt
+        });
+      } else if (collectionName === 'deals') {
+        await localDB.deals.put({
+          id: docId,
+          supplierId: payload.supplierId || '',
+          customerId: payload.customerId || '',
+          data: dataWithTimestamp,
+          updatedAt: now,
+          lastSynced,
+          expiresAt
+        });
+      } else if (collectionName === 'users') {
+        await localDB.users.put({
+          id: docId,
+          data: dataWithTimestamp,
+          lastSynced,
+          expiresAt
+        });
+      }
+    } else if (action === 'delete') {
+      await localDB.cache.delete(`${collectionName}:${docId}`);
+      if (collectionName === 'products') {
+        await localDB.products.delete(docId);
+      } else if (collectionName === 'stores') {
+        await localDB.stores.delete(docId);
+      } else if (collectionName === 'deals') {
+        await localDB.deals.delete(docId);
+      } else if (collectionName === 'users') {
+        await localDB.users.delete(docId);
+      }
+    }
+  } catch (err) {
+    console.warn('[Sync] Local DB optimistic write warning:', err);
+  }
+
+  // 2. Add to Outbox for reliable background write-behind to Firebase
+  try {
+    await addToOutbox({
       collection: collectionName,
       docId,
-      data: payload,
-      updatedAt: Date.now(),
-      lastSynced,
-      expiresAt
+      action,
+      payload
     });
-  } else if (action === 'delete') {
-    await localDB.cache.delete(`${collectionName}:${docId}`);
+  } catch (err) {
+    console.warn('[Sync] Outbox queue error:', err);
   }
 
-  // 2. Try remote write
-  if (navigator.onLine) {
-    try {
-      const docRef = doc(db, collectionName, docId);
-      if (action === 'create' || action === 'update') {
-        await Promise.race([
-          setDoc(docRef, { ...payload, updatedAt: Timestamp.now() }, { merge: true }),
-          new Promise((_, reject) => setTimeout(() => reject(new Error("sync_timeout")), 30000))
-        ]);
-      } else {
-        await Promise.race([
-          deleteDoc(docRef),
-          new Promise((_, reject) => setTimeout(() => reject(new Error("sync_timeout")), 30000))
-        ]);
-      }
-      return; // Success
-    } catch (error) {
-      console.warn('[Sync] Online write failed, fallback to outbox', error);
-    }
-  }
-
-  // 3. Fallback to outbox if offline or remote write failed
-  await addToOutbox({
-    collection: collectionName,
-    docId,
-    action,
-    payload
-  });
+  // 3. Return immediately — NEVER block the caller on network roundtrip
+  return;
 }
 
 // Global Listeners

@@ -2,7 +2,7 @@ import React, { useState, useRef, useEffect } from 'react';
 import { Upload, Link as LinkIcon, X, Image as ImageIcon, Loader2 } from 'lucide-react';
 import { cn } from '../lib/utils';
 import { AnimatePresence, motion } from 'motion/react';
-import { uploadAndCompressImage } from '../lib/upload-utils';
+import { createInstantLocalImage, uploadImageInBackground } from '../lib/upload-utils';
 
 interface ImageInputProps {
   value: string;
@@ -16,25 +16,18 @@ interface ImageInputProps {
 export default function ImageInput({ value, onChange, label, className, aspectRatio = 'square', allowLocalUpload = true }: ImageInputProps) {
   const [mode, setMode] = useState<'upload' | 'url'>(value && value.startsWith('data:') ? 'upload' : 'url');
   const [isProcessing, setIsProcessing] = useState(false);
-  const [localUrl, setLocalUrl] = useState('');
+  const [localUrl, setLocalUrl] = useState(value || '');
   const [uploadError, setUploadError] = useState<string | null>(null);
-  const timeoutRef = useRef<NodeJS.Timeout | null>(null);
 
   // Sync mode with value changes if needed
   React.useEffect(() => {
-    if (value && value.startsWith('data:')) {
-      setMode('upload');
-    } else if (value) {
-      setMode('url');
+    if (value) {
       setLocalUrl(value);
+      if (value.startsWith('data:')) {
+        setMode('upload');
+      }
     }
   }, [value]);
-
-  useEffect(() => {
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
-  }, []);
 
   const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -43,70 +36,53 @@ export default function ImageInput({ value, onChange, label, className, aspectRa
     if (!allowLocalUpload) {
       setUploadError("Local upload limit reached (max 2 local uploads). Please enter image URL for additional images.");
       if (e.target) e.target.value = '';
-      setTimeout(() => setUploadError(null), 8000);
+      setTimeout(() => setUploadError(null), 6000);
       return;
     }
 
     // Validate if it is actually an image / supported file format
     if (!file.type || !file.type.startsWith('image/')) {
-      setUploadError("Error uploading file, this may be bad connection or wrong file format, please try again");
+      setUploadError("Invalid image format. Please choose a JPEG, PNG, or WebP image.");
       if (e.target) e.target.value = '';
-      setTimeout(() => {
-        setUploadError(null);
-      }, 10000);
+      setTimeout(() => setUploadError(null), 6000);
       return;
     }
 
-    setIsProcessing(true);
     setUploadError(null);
-    let isCompleted = false;
-
-    // Instantly provide local preview for snappy UI
-    const localPreviewUrl = URL.createObjectURL(file);
-    setLocalUrl(localPreviewUrl); // Show preview instantly without destroying component state
-    // We do NOT call onChange(localPreviewUrl) because it would unmount us from array lists!
-
-    // Setup 30-second timeout for robust sync and upload
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    timeoutRef.current = setTimeout(() => {
-      if (!isCompleted) {
-        setIsProcessing(false);
-        setLocalUrl(''); // revert local preview
-        if (e.target) e.target.value = '';
-        setUploadError("Error uploading file, this may be bad connection or wrong file format, please try again");
-        setTimeout(() => {
-          setUploadError(null);
-        }, 10000);
-      }
-    }, 30 * 1000); // 30 seconds!
 
     try {
-      const filename = `assets/images/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.\-_]/g, '')}`;
-      const downloadURL = await uploadAndCompressImage(file, filename, {
+      // 1. Instantly generate compressed local data URL (< 20ms)
+      const instantDataUrl = await createInstantLocalImage(file, {
         maxWidth: 800,
         maxHeight: 800,
-        quality: 0.6
+        quality: 0.65
       });
 
-      isCompleted = true;
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      
-      setLocalUrl(''); // clear local preview
-      onChange(downloadURL); // Pass the final Firebase URL
-      setIsProcessing(false);
+      // 2. Optimistic UI update in single frame
+      setLocalUrl(instantDataUrl);
+      onChange(instantDataUrl);
 
-    } catch (err) {
-      console.error("Error processing image:", err);
-      if (!isCompleted) {
-        isCompleted = true;
-        if (timeoutRef.current) clearTimeout(timeoutRef.current);
-        
-        setIsProcessing(false);
-        setLocalUrl(''); // revert local preview
-        if (e.target) e.target.value = '';
-        setUploadError("Error uploading file, this may be bad connection or wrong file format, please try again");
-        setTimeout(() => setUploadError(null), 10000);
-      }
+      // 3. Background upload to Firebase Storage (write-behind)
+      const filename = `assets/images/${Date.now()}_${file.name.replace(/[^a-zA-Z0-9.\-_]/g, '')}`;
+      setIsProcessing(true);
+      uploadImageInBackground(
+        file,
+        filename,
+        (remoteUrl) => {
+          setIsProcessing(false);
+          // In-place swap without UI disruption
+          onChange(remoteUrl);
+        },
+        () => {
+          // Failure or offline: keep the instant local data URL as source of truth
+          setIsProcessing(false);
+        }
+      );
+
+    } catch (err: any) {
+      console.error("Error creating local image preview:", err);
+      setUploadError(err.message || "Failed to process image file.");
+      setTimeout(() => setUploadError(null), 6000);
     }
   };
 
@@ -123,7 +99,7 @@ export default function ImageInput({ value, onChange, label, className, aspectRa
   };
 
   return (
-    <div className={cn("space-y-2", className)} data-uploading={isProcessing}>
+    <div className={cn("space-y-2", className)}>
       {label && <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">{label}</label>}
       
       <div className="flex bg-white/5 p-1 rounded-xl border border-white/5 mb-2">
@@ -171,8 +147,7 @@ export default function ImageInput({ value, onChange, label, className, aspectRa
               referrerPolicy="no-referrer"
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
-                target.src = "https://images.unsplash.com/photo-1541701494587-cb58502866ab?q=80&w=400&auto=format&fit=crop"; // Minimalist abstract placeholder
-                console.error("Image failed to load, placeholder applied:", value || localUrl);
+                target.src = "https://images.unsplash.com/photo-1541701494587-cb58502866ab?q=80&w=400&auto=format&fit=crop";
               }}
             />
             <div className="absolute inset-0 bg-black/60 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center gap-2">
@@ -187,6 +162,12 @@ export default function ImageInput({ value, onChange, label, className, aspectRa
                 <X size={20} />
               </button>
             </div>
+            {isProcessing && (
+              <div className="absolute bottom-2 right-2 px-2 py-1 bg-black/70 backdrop-blur-md rounded-md flex items-center gap-1 text-[9px] font-medium text-primary">
+                <Loader2 size={10} className="animate-spin" />
+                <span>Syncing</span>
+              </div>
+            )}
           </>
         ) : (
           <div className="absolute inset-0 flex flex-col items-center justify-center p-6 text-center space-y-3">
@@ -195,10 +176,10 @@ export default function ImageInput({ value, onChange, label, className, aspectRa
             </div>
             <div>
               <p className="text-[10px] font-black text-white uppercase tracking-widest mb-1">
-                {mode === 'url' ? 'Input Resource Link' : 'Select Network File'}
+                {mode === 'url' ? 'Input Resource Link' : 'Select File (Instant Preview)'}
               </p>
               <p className="text-[8px] text-gray-500 uppercase tracking-widest leading-relaxed">
-                {mode === 'url' ? 'Protocol: HTTPS preferred' : 'Limit: 1MB per asset'}
+                {mode === 'url' ? 'Protocol: HTTPS preferred' : 'Auto-optimized for instant offline & online view'}
               </p>
             </div>
           </div>
@@ -254,7 +235,7 @@ export default function ImageInput({ value, onChange, label, className, aspectRa
                 ✕
               </div>
               <div className="flex-1 min-w-0">
-                <h4 className="text-[10px] font-black text-red-500 uppercase tracking-widest">Upload Failed</h4>
+                <h4 className="text-[10px] font-black text-red-500 uppercase tracking-widest">Image Notice</h4>
                 <p className="text-xs text-red-400 font-semibold mt-1 leading-normal selection:bg-red-500/30">
                   {uploadError}
                 </p>

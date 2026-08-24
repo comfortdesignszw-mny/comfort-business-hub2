@@ -18,6 +18,59 @@ export function blobToDataUrl(blob: Blob): Promise<string> {
 }
 
 /**
+ * Creates an instant, highly-compressed local preview Data URL (< 150KB)
+ * for immediate display in the UI and instant local DB persistence.
+ */
+export async function createInstantLocalImage(
+  file: File,
+  options: { maxWidth?: number; maxHeight?: number; quality?: number } = {}
+): Promise<string> {
+  const error = validateImage(file);
+  if (error) throw new Error(error);
+
+  const compressedBlob = await compressImage(file, {
+    maxWidth: options.maxWidth || 800,
+    maxHeight: options.maxHeight || 800,
+    quality: options.quality || 0.65
+  });
+
+  return await blobToDataUrl(compressedBlob);
+}
+
+/**
+ * Background worker to upload an image to Firebase Storage without blocking UI interactions.
+ */
+export function uploadImageInBackground(
+  file: File,
+  path: string,
+  onUploaded?: (remoteUrl: string) => void,
+  onError?: (err: any) => void
+): void {
+  if (!navigator.onLine) {
+    return;
+  }
+
+  (async () => {
+    try {
+      const compressedBlob = await compressImage(file, {
+        maxWidth: 1000,
+        maxHeight: 1000,
+        quality: 0.65
+      });
+      const storageRef = ref(storage, path);
+      await uploadBytes(storageRef, compressedBlob, {
+        contentType: compressedBlob.type || 'image/jpeg'
+      });
+      const downloadURL = await getDownloadURL(storageRef);
+      if (onUploaded) onUploaded(downloadURL);
+    } catch (err) {
+      console.warn('[Image Upload Background] Upload postponed or failed:', err);
+      if (onError) onError(err);
+    }
+  })();
+}
+
+/**
  * Handles the complete flow of validating, compressing, and uploading an image.
  * Uses Firebase Storage with automatic fallback to high-compression Data URL if Storage is slow/unavailable.
  */
@@ -37,7 +90,7 @@ export async function uploadAndCompressImage(
     quality: options.quality || 0.65
   });
 
-  // 3. Attempt Firebase Storage upload with a 5-second timeout
+  // 3. Attempt Firebase Storage upload with a 4-second timeout
   const tryFirebaseUpload = async (): Promise<string> => {
     const storageRef = ref(storage, path);
     await uploadBytes(storageRef, compressedBlob, {
@@ -49,13 +102,12 @@ export async function uploadAndCompressImage(
   const timeoutPromise = new Promise<never>((_, reject) => {
     setTimeout(() => {
       reject(new Error("Firebase Storage timeout"));
-    }, 5000);
+    }, 4000);
   });
 
   try {
     return await Promise.race([tryFirebaseUpload(), timeoutPromise]);
   } catch (err) {
-    console.warn("Firebase Storage upload unsuccessful or timed out, using compressed Data URL fallback:", err);
     // Instant Fallback: Convert compressed blob to Data URL
     return await blobToDataUrl(compressedBlob);
   }

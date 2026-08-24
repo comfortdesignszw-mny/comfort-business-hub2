@@ -10,7 +10,7 @@ import {
 import { UserProfile, Product, Store as StoreType, Message, Spotlight, PublicProfile } from '../types';
 import { cn, formatCurrency, openWhatsApp } from '../lib/utils';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
-import { localDB } from '../lib/db';
+import { localDB, INITIAL_OFFLINE_STORES, INITIAL_OFFLINE_PRODUCTS } from '../lib/db';
 import { cacheCollection } from '../lib/dexieSyncManager';
 import { localDataRepository } from '../lib/localDataRepository';
 import { collection, query, limit, getDocs, where, addDoc, serverTimestamp, setDoc, doc, getDoc, orderBy, onSnapshot, getCountFromServer, startAt, endAt, deleteDoc } from 'firebase/firestore';
@@ -43,12 +43,12 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
   const { openUserList, openUserProfile } = useModals();
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
-  const [loading, setLoading] = useState(true);
-  const [productsLoading, setProductsLoading] = useState(true);
-  const [storesLoading, setStoresLoading] = useState(true);
-  const [spotlightsLoading, setSpotlightsLoading] = useState(true);
-  const [nearbyDeals, setNearbyDeals] = useState<Product[]>([]);
-  const [nearbyStores, setNearbyStores] = useState<StoreType[]>([]);
+  const [loading, setLoading] = useState(false);
+  const [productsLoading, setProductsLoading] = useState(false);
+  const [storesLoading, setStoresLoading] = useState(false);
+  const [spotlightsLoading, setSpotlightsLoading] = useState(false);
+  const [nearbyDeals, setNearbyDeals] = useState<Product[]>(INITIAL_OFFLINE_PRODUCTS as unknown as Product[]);
+  const [nearbyStores, setNearbyStores] = useState<StoreType[]>(INITIAL_OFFLINE_STORES as unknown as StoreType[]);
   const [spotlights, setSpotlights] = useState<Spotlight[]>([]);
   const [activeSpotlightIndex, setActiveSpotlightIndex] = useState(0);
   const [selectedSpotlightAd, setSelectedSpotlightAd] = useState<Spotlight | null>(null);

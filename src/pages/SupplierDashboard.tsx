@@ -291,29 +291,26 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
       return;
     }
     
-    if (document.querySelectorAll('[data-uploading="true"]').length > 0) {
-      alert("Please wait for store images to finish saving before saving.");
-      return;
+    const updatedStore = {
+      ...activeStore,
+      ...storeEditData,
+      updatedAt: new Date().toISOString()
+    };
+
+    if (storeEditData.lat && storeEditData.lng) {
+      (updatedStore as any).geohash = geohashForLocation([storeEditData.lat, storeEditData.lng]);
     }
-    
-    setIsSavingStore(true);
+
+    // Optimistic UI state update
+    setActiveStore(updatedStore as Store);
+    setStores(prev => prev.map(s => s.id === activeStore.id ? (updatedStore as Store) : s));
+    setIsEditingStore(false);
+    setStoreEditData({});
+
     try {
-      let data = {
-        ...storeEditData,
-        updatedAt: new Date().toISOString()
-      };
-
-      if (storeEditData.lat && storeEditData.lng) {
-        (data as any).geohash = geohashForLocation([storeEditData.lat, storeEditData.lng]);
-      }
-
-      await offlineResilientWrite('stores', activeStore.id, 'update', data);
-      setIsEditingStore(false);
-      setStoreEditData({});
+      await offlineResilientWrite('stores', activeStore.id, 'update', updatedStore);
     } catch (e) {
-      handleFirestoreError(e, OperationType.UPDATE, `stores/${activeStore.id}`);
-    } finally {
-      setIsSavingStore(false);
+      console.warn('[SupplierDashboard] Background store sync notice:', e);
     }
   };
 
@@ -392,63 +389,54 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
     e.preventDefault();
     if (!activeStore || !profile) return;
     
-    if (document.querySelectorAll('[data-uploading="true"]').length > 0) {
-      alert("Please wait for your images to finish saving before saving. It should take a few seconds.");
-      return;
+    const finalCategory = formData.category === 'Other' ? customCategory : formData.category;
+    const finalQuantityUnit = formData.quantityUnit === 'custom' || (!PRESET_QUANTITY_UNITS.includes(formData.quantityUnit || ''))
+      ? (customQuantityUnit.trim() || 'per item')
+      : (formData.quantityUnit || 'per item');
+    
+    const data = {
+      ...formData,
+      category: finalCategory,
+      quantityUnit: finalQuantityUnit,
+      storeId: activeStore.id,
+      ownerId: profile.uid,
+      images: formData.images.length > 0 ? formData.images : [`https://api.dicebear.com/7.x/shapes/svg?seed=${encodeURIComponent(formData.name)}`],
+      updatedAt: new Date().toISOString()
+    };
+
+    if (editingProduct) {
+      const updatedProduct: Product = {
+        ...editingProduct,
+        ...data,
+      } as Product;
+      // Instant UI update
+      setProducts(prev => prev.map(p => p.id === editingProduct.id ? updatedProduct : p));
+      offlineResilientWrite('products', editingProduct.id, 'update', data).catch(() => {});
+    } else {
+      const newId = `prod_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+      const newProduct: Product = {
+        ...data,
+        id: newId,
+        createdAt: new Date().toISOString()
+      } as Product;
+      // Instant UI update
+      setProducts(prev => [newProduct, ...prev]);
+      offlineResilientWrite('products', newId, 'create', newProduct).catch(() => {});
     }
     
-    setIsSubmitting(true);
-
-    try {
-      const finalCategory = formData.category === 'Other' ? customCategory : formData.category;
-      const finalQuantityUnit = formData.quantityUnit === 'custom' || (!PRESET_QUANTITY_UNITS.includes(formData.quantityUnit || ''))
-        ? (customQuantityUnit.trim() || 'per item')
-        : (formData.quantityUnit || 'per item');
-      
-      const data = {
-        ...formData,
-        category: finalCategory,
-        quantityUnit: finalQuantityUnit,
-        storeId: activeStore.id,
-        ownerId: profile.uid,
-        images: formData.images.length > 0 ? formData.images : [`https://api.dicebear.com/7.x/shapes/svg?seed=${encodeURIComponent(formData.name)}`],
-        updatedAt: new Date().toISOString()
-      };
-
-      if (editingProduct) {
-        const updatedProduct: Product = {
-          ...editingProduct,
-          ...data,
-        } as Product;
-        await offlineResilientWrite('products', editingProduct.id, 'update', data);
-        setProducts(prev => prev.map(p => p.id === editingProduct.id ? updatedProduct : p));
-      } else {
-        const newId = `prod_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-        const newProduct: Product = {
-          ...data,
-          id: newId,
-          createdAt: new Date().toISOString()
-        } as Product;
-        await offlineResilientWrite('products', newId, 'create', newProduct);
-        setProducts(prev => [newProduct, ...prev]);
-      }
-      
-      localStorage.removeItem('supplier_product_form_draft');
-      setIsWaitingForSync(false);
-      setShowProductForm(false);
-    } catch (e) {
-      handleFirestoreError(e, editingProduct ? OperationType.UPDATE : OperationType.CREATE, 'products');
-    } finally {
-      setIsSubmitting(false);
-    }
+    localStorage.removeItem('supplier_product_form_draft');
+    setIsWaitingForSync(false);
+    setShowProductForm(false);
   };
 
   const handleDeleteProduct = async (id: string) => {
+    // Optimistic UI state update
+    setProducts(prev => prev.filter(p => p.id !== id));
+    setProductToDelete(null);
     try {
       await offlineResilientWrite('products', id, 'delete');
-      setProductToDelete(null);
     } catch (e) {
-      handleFirestoreError(e, OperationType.DELETE, `products/${id}`);
+      console.warn('[SupplierDashboard] Delete product notice:', e);
     }
   };
 
