@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { 
   X, Compass, Search, Zap, MessageSquare, 
   Store, UserIcon, ShieldAlert, ShoppingBag, 
-  Sparkles, CheckCircle2
+  Sparkles
 } from 'lucide-react';
 import { useLocation } from 'react-router-dom';
 
@@ -12,6 +12,9 @@ interface NavInstruction {
   tip: string;
   icon: React.ElementType;
 }
+
+const VISITED_PAGES_KEY = 'comfort_nav_visited_pages';
+const MUTED_SESSION_KEY = 'comfort_nav_instructions_muted';
 
 export default function NavigationInstructionsPopup() {
   const location = useLocation();
@@ -22,76 +25,84 @@ export default function NavigationInstructionsPopup() {
   const countdownRef = useRef<NodeJS.Timeout | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
 
-  // Concise single-tip navigation guides
-  const getInstruction = (path: string): NavInstruction => {
-    if (path === '/' || path === '') {
-      return {
-        title: 'Explore Hub',
-        tip: 'Filter categories, search items, or switch to the GPS map to find suppliers.',
-        icon: Search
-      };
+  // Helper to normalize the pathname to a unique page key
+  const getPageKey = (path: string): string => {
+    if (path === '/' || path === '') return 'explore';
+    if (path.startsWith('/deals')) return 'deals';
+    if (path.startsWith('/chat')) return 'chat';
+    if (path.startsWith('/stores')) return 'stores';
+    if (path.startsWith('/store/') || path.startsWith('/s/')) return 'storefront';
+    if (path.startsWith('/product/') || path.startsWith('/p/')) return 'product';
+    if (path.startsWith('/admin')) return 'admin';
+    if (path.startsWith('/profile')) return 'profile';
+    if (path.startsWith('/login') || path.startsWith('/signup')) return 'auth';
+    return path.split('?')[0].replace(/\/$/, '') || 'default';
+  };
+
+  // Concise single-tip navigation guides tailored per page
+  const getInstruction = (pageKey: string): NavInstruction => {
+    switch (pageKey) {
+      case 'explore':
+        return {
+          title: 'Explore Hub',
+          tip: 'Filter categories, search items, or switch to the GPS map to find local suppliers.',
+          icon: Search
+        };
+      case 'deals':
+        return {
+          title: 'Deal Room',
+          tip: 'Track orders, upload Proof of Payment (POP), and monitor escrow progress.',
+          icon: Zap
+        };
+      case 'chat':
+        return {
+          title: 'Direct Chat',
+          tip: 'Message suppliers in real time to negotiate prices and delivery details.',
+          icon: MessageSquare
+        };
+      case 'stores':
+        return {
+          title: 'Supplier Hub',
+          tip: 'Manage your stores, add inventory with photos/videos, and view sales stats.',
+          icon: Store
+        };
+      case 'storefront':
+        return {
+          title: 'Storefront',
+          tip: 'Browse merchant catalog, read verified reviews, or tap Chat to contact supplier.',
+          icon: Store
+        };
+      case 'product':
+        return {
+          title: 'Product View',
+          tip: 'Check specs, stock, and tap Start Instant Deal to initiate purchase.',
+          icon: ShoppingBag
+        };
+      case 'admin':
+        return {
+          title: 'Admin Console',
+          tip: 'Review pending merchant KYC approvals, reports, and system telemetry.',
+          icon: ShieldAlert
+        };
+      case 'profile':
+        return {
+          title: 'Profile & Settings',
+          tip: 'Manage security, toggle biometric login, or switch between Buyer/Seller.',
+          icon: UserIcon
+        };
+      case 'auth':
+        return {
+          title: 'Secure Access',
+          tip: 'Sign in to access your registered stores, deal room, and direct messages.',
+          icon: Sparkles
+        };
+      default:
+        return {
+          title: 'Navigation Tip',
+          tip: 'Use the bottom dock to quickly jump between hub sections anytime.',
+          icon: Compass
+        };
     }
-    if (path.startsWith('/deals')) {
-      return {
-        title: 'Deal Room',
-        tip: 'Track orders, upload Proof of Payment (POP), and monitor escrow progress.',
-        icon: Zap
-      };
-    }
-    if (path.startsWith('/chat')) {
-      return {
-        title: 'Direct Chat',
-        tip: 'Message suppliers in real time to negotiate prices and delivery details.',
-        icon: MessageSquare
-      };
-    }
-    if (path.startsWith('/stores')) {
-      return {
-        title: 'Supplier Hub',
-        tip: 'Manage your stores, add inventory with photos/videos, and view sales stats.',
-        icon: Store
-      };
-    }
-    if (path.startsWith('/store/') || path.startsWith('/s/')) {
-      return {
-        title: 'Storefront',
-        tip: 'Browse merchant catalog, read reviews, or tap Chat to contact supplier.',
-        icon: Store
-      };
-    }
-    if (path.startsWith('/product/') || path.startsWith('/p/')) {
-      return {
-        title: 'Product View',
-        tip: 'Check specs, stock, and tap Start Instant Deal to initiate purchase.',
-        icon: ShoppingBag
-      };
-    }
-    if (path.startsWith('/admin')) {
-      return {
-        title: 'Admin Console',
-        tip: 'Review pending merchant KYC approvals, reports, and system telemetry.',
-        icon: ShieldAlert
-      };
-    }
-    if (path.startsWith('/profile')) {
-      return {
-        title: 'Profile & Settings',
-        tip: 'Manage security, toggle biometric login, or switch between Buyer/Seller.',
-        icon: UserIcon
-      };
-    }
-    if (path.startsWith('/login') || path.startsWith('/signup')) {
-      return {
-        title: 'Secure Access',
-        tip: 'Sign in to access your registered stores, deal room, and direct messages.',
-        icon: Sparkles
-      };
-    }
-    return {
-      title: 'Navigation Tip',
-      tip: 'Use the bottom dock to quickly jump between hub sections anytime.',
-      icon: Compass
-    };
   };
 
   const clearActiveTimers = () => {
@@ -105,27 +116,57 @@ export default function NavigationInstructionsPopup() {
     }
   };
 
-  // Trigger brief non-obstructive popup on route changes
+  // Trigger popup strictly ONCE per page on the first visit in the current session
   useEffect(() => {
-    const isMuted = sessionStorage.getItem('comfort_nav_instructions_muted') === 'true';
+    // 1. Check if user muted instructions for the session
+    const isMuted = sessionStorage.getItem(MUTED_SESSION_KEY) === 'true';
     if (isMuted) {
       setIsOpen(false);
+      clearActiveTimers();
       return;
     }
 
-    const instr = getInstruction(location.pathname);
+    const pageKey = getPageKey(location.pathname);
+
+    // 2. Check which pages have already been visited in this session
+    let visitedPages: string[] = [];
+    try {
+      const stored = sessionStorage.getItem(VISITED_PAGES_KEY);
+      if (stored) {
+        visitedPages = JSON.parse(stored);
+      }
+    } catch {
+      visitedPages = [];
+    }
+
+    // If page was already visited in this session, DO NOT show the popup again
+    if (visitedPages.includes(pageKey)) {
+      setIsOpen(false);
+      clearActiveTimers();
+      return;
+    }
+
+    // 3. First time visiting this page in the current session -> record it and show popup
+    visitedPages.push(pageKey);
+    try {
+      sessionStorage.setItem(VISITED_PAGES_KEY, JSON.stringify(visitedPages));
+    } catch {
+      // Ignore storage errors if private mode restricts it
+    }
+
+    const instr = getInstruction(pageKey);
     setCurrentInstruction(instr);
     setIsOpen(true);
     setTimeLeft(30);
 
     clearActiveTimers();
 
-    // Auto-disappear after 30 seconds
+    // Auto-disappear after exactly 30 seconds
     timerRef.current = setTimeout(() => {
       setIsOpen(false);
     }, 30000);
 
-    // 1-second countdown for progress
+    // 1-second countdown interval
     countdownRef.current = setInterval(() => {
       setTimeLeft((prev) => (prev <= 1 ? 0 : prev - 1));
     }, 1000);
@@ -135,7 +176,7 @@ export default function NavigationInstructionsPopup() {
     };
   }, [location.pathname]);
 
-  // Disappear when user clicks anywhere else in the app
+  // Disappear when user clicks anywhere else in the app to give screen priority
   useEffect(() => {
     const handleDocumentClick = (e: MouseEvent) => {
       if (!isOpen) return;
