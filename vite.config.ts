@@ -21,8 +21,8 @@ export default defineConfig(({mode}) => {
           name: 'Comfort Business Hub',
           short_name: 'ComfortHub',
           description: 'Fortress-grade Supply Node & Marketplace Matrix for the Modern Economy',
-          theme_color: '#0d1117',
-          background_color: '#05070a',
+          theme_color: '#f8fafc',
+          background_color: '#f8fafc',
           display: 'standalone',
           display_override: ['standalone', 'window-controls-overlay', "minimal-ui"],
           orientation: 'any',
@@ -42,7 +42,7 @@ export default defineConfig(({mode}) => {
               name: 'Orders & Deals',
               short_name: 'Orders',
               description: 'View active deal rooms',
-              url: '/chat',
+              url: '/deals',
               icons: [{ src: '/icons/icon-192x192.png', sizes: '192x192', type: 'image/png' }]
             }
           ],
@@ -75,7 +75,7 @@ export default defineConfig(({mode}) => {
         },
         injectManifest: {
           globPatterns: ['**/*.{js,css,html,ico,png,jpg,jpeg,svg,woff,woff2,json,manifest}'],
-          maximumFileSizeToCacheInBytes: 5 * 1024 * 1024,
+          maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
         }
       })
     ],
@@ -87,9 +87,41 @@ export default defineConfig(({mode}) => {
         '@': path.resolve(__dirname, '.'),
       },
     },
+    build: {
+      target: 'esnext',
+      cssCodeSplit: true,
+      minify: 'esbuild',
+      chunkSizeWarningLimit: 1200,
+      rollupOptions: {
+        output: {
+          manualChunks(id) {
+            if (id.includes('node_modules')) {
+              if (id.includes('react') || id.includes('react-dom') || id.includes('react-router-dom')) {
+                return 'vendor-react';
+              }
+              if (id.includes('firebase')) {
+                return 'vendor-firebase';
+              }
+              if (id.includes('lucide-react')) {
+                return 'vendor-icons';
+              }
+              if (id.includes('motion')) {
+                return 'vendor-motion';
+              }
+              if (id.includes('leaflet') || id.includes('react-leaflet')) {
+                return 'vendor-maps';
+              }
+              if (id.includes('recharts')) {
+                return 'vendor-charts';
+              }
+            }
+          }
+        }
+      }
+    },
     server: {
       // HMR is disabled in AI Studio via DISABLE_HMR env var.
-      // Do not modifyâfile watching is disabled to prevent flickering during agent edits.
+      // Do not modify—file watching is disabled to prevent flickering during agent edits.
       hmr: process.env.DISABLE_HMR !== 'true',
     },
   };

@@ -17,7 +17,7 @@ export const ThemeProvider: React.FC<{ children: React.ReactNode }> = ({ childre
       const saved = localStorage.getItem('comfort_hub_theme') as Theme;
       if (saved === 'dark' || saved === 'light') return saved;
     } catch (e) {}
-    return 'dark'; // default theme is dark
+    return 'light'; // default theme is now light
   });
 
   useEffect(() => {

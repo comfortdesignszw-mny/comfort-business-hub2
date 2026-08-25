@@ -12,9 +12,29 @@ async function startServer() {
   const PORT = 3000;
   let vite: any = null;
 
-  app.use(express.json());
+  // Enable trust proxy for horizontal load balancing behind Cloud Run & nginx proxies
+  app.set('trust proxy', 1);
+  app.disable('x-powered-by');
 
-  // Initialize Gemini only if key is present
+  // Performance and security middleware
+  app.use((req, res, next) => {
+    res.setHeader('X-Content-Type-Options', 'nosniff');
+    res.setHeader('X-Frame-Options', 'SAMEORIGIN');
+    next();
+  });
+
+  app.use(express.json({ limit: '10mb' }));
+
+  // High-availability health & readiness probes for load balancers
+  app.get(['/healthz', '/readyz', '/api/health'], (req, res) => {
+    res.status(200).json({
+      status: 'healthy',
+      ready: true,
+      timestamp: new Date().toISOString(),
+      uptime: process.uptime(),
+      api_configured: !!ai
+    });
+  });
   let ai: GoogleGenAI | null = null;
   const apiKey = process.env.GEMINI_API_KEY;
   
@@ -458,7 +478,7 @@ ${text}`,
     }
   });
 
-  // Vite middleware for development
+  // Vite middleware for development vs Production static serving
   if (process.env.NODE_ENV !== 'production') {
     vite = await createViteServer({
       server: { middlewareMode: true },
@@ -467,15 +487,44 @@ ${text}`,
     app.use(vite.middlewares);
   } else {
     const distPath = path.join(process.cwd(), 'dist');
-    app.use(express.static(distPath));
+    // Long-term caching for immutable hashed assets
+    app.use('/assets', express.static(path.join(distPath, 'assets'), {
+      maxAge: '1y',
+      immutable: true,
+      etag: true,
+    }));
+    // Standard caching for other public assets
+    app.use(express.static(distPath, {
+      maxAge: '1h',
+      etag: true,
+    }));
     app.get('*', (req, res) => {
+      res.setHeader('Cache-Control', 'no-cache');
       res.sendFile(path.join(distPath, 'index.html'));
     });
   }
 
-  app.listen(PORT, '0.0.0.0', () => {
-    console.log(`Server running on http://localhost:${PORT}`);
+  const server = app.listen(PORT, '0.0.0.0', () => {
+    console.log(`[Production Cluster] Server instance running on http://localhost:${PORT}`);
   });
+
+  // Graceful shutdown handling for horizontal load balancing and container auto-scaling
+  const handleGracefulShutdown = (signal: string) => {
+    console.log(`[Load Balancer] ${signal} signal received: closing HTTP server smoothly...`);
+    server.close(() => {
+      console.log('[Load Balancer] HTTP server closed cleanly. Process exiting.');
+      process.exit(0);
+    });
+
+    // Force exit after 10s timeout if connections hang
+    setTimeout(() => {
+      console.error('[Load Balancer] Forced shutdown after timeout.');
+      process.exit(1);
+    }, 10000);
+  };
+
+  process.on('SIGTERM', () => handleGracefulShutdown('SIGTERM'));
+  process.on('SIGINT', () => handleGracefulShutdown('SIGINT'));
 }
 
 startServer().catch(err => {
