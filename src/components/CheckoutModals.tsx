@@ -715,7 +715,7 @@ export function UnifiedCheckoutModal({ product, profile, onClose, onSwitchModal,
     if (aPrim && !bPrim) return -1;
     if (!aPrim && bPrim) return 1;
     if (aConf && !bConf) return -1;
-    if (aConf && !bConf) return 1;
+    if (!aConf && bConf) return 1;
     return 0;
   });
 

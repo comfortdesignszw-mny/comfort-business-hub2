@@ -120,43 +120,134 @@ html.light-theme .glass-pill {
   color: #334155;
 }
 
-/* Light theme high contrast surfaces and typography */
-html.light-theme .bg-\[\#05070a\],
-html.light-theme .bg-\[\#05070a\]\/90,
-html.light-theme .bg-\[\#05070a\]\/95,
-html.light-theme .bg-\[\#05070a\]\/80 {
+/* Light theme high contrast surfaces, typography, cards, and navigation */
+html.light-theme [class*="bg-[#05070a]"],
+html.light-theme [class*="bg-[#03060a]"],
+html.light-theme [class*="bg-[#080d14]"],
+html.light-theme [class*="bg-[#080d16]"],
+html.light-theme [class*="bg-[#080c14]"],
+html.light-theme [class*="bg-[#070b12]"],
+html.light-theme [class*="bg-[#0a0e17]"],
+html.light-theme [class*="bg-[#0b0e14]"],
+html.light-theme [class*="bg-[#0c0f17]"],
+html.light-theme [class*="bg-[#0c121e]"] {
   background-color: #f8fafc !important;
 }
 
-html.light-theme .bg-\[\#0a0f18\],
-html.light-theme .bg-\[\#0d1117\],
-html.light-theme .bg-\[\#0a0f18\]\/95,
-html.light-theme .bg-\[\#0a0f18\]\/90 {
+html.light-theme [class*="bg-[#0a0f18]"],
+html.light-theme [class*="bg-[#0a0f16]"],
+html.light-theme [class*="bg-[#0a0f1a]"],
+html.light-theme [class*="bg-[#0d1117]"],
+html.light-theme [class*="bg-[#11161d]"],
+html.light-theme [class*="bg-[#161b22]"] {
   background-color: #ffffff !important;
   color: #090d16 !important;
 }
 
-html.light-theme .bg-black\/40,
-html.light-theme .bg-black\/50,
-html.light-theme .bg-black\/60,
-html.light-theme .bg-black\/70,
-html.light-theme .bg-black\/80 {
+html.light-theme [class*="bg-black/"] {
   background-color: #f1f5f9 !important;
 }
 
+html.light-theme header {
+  background-color: rgba(255, 255, 255, 0.9) !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+/* 1. Floating Bottom Navigation Light Mode */
+html.light-theme .floating-bottom-nav {
+  background-color: rgba(255, 255, 255, 0.96) !important;
+  border-color: rgba(0, 0, 0, 0.1) !important;
+  box-shadow: 0 10px 35px rgba(0, 0, 0, 0.12), 0 2px 8px rgba(0, 242, 254, 0.15) !important;
+  color: #090d16 !important;
+}
+
+html.light-theme .floating-bottom-nav .inactive-nav-link {
+  color: #64748b !important;
+}
+
+html.light-theme .floating-bottom-nav .inactive-nav-link:hover {
+  color: #090d16 !important;
+}
+
+html.light-theme .floating-bottom-nav .active-nav-link {
+  color: #0284c7 !important;
+}
+
+html.light-theme .floating-bottom-nav .nav-glow-indicator {
+  background-color: rgba(0, 242, 254, 0.18) !important;
+}
+
+html.light-theme .floating-bottom-nav .nav-badge {
+  border-color: #ffffff !important;
+  box-shadow: 0 0 8px rgba(239, 68, 68, 0.4) !important;
+}
+
+/* 2. Market Spotlight & Classified Ads Preview Light Mode */
+html.light-theme .market-spotlight-section {
+  background-color: #ffffff !important;
+  border-color: rgba(0, 242, 254, 0.35) !important;
+  box-shadow: 0 4px 25px rgba(0, 242, 254, 0.12), 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+}
+
+html.light-theme .classified-ad-card {
+  background: linear-gradient(135deg, #fffdf7 0%, #fef3c7 40%, #ffffff 100%) !important;
+  border-color: rgba(245, 158, 11, 0.5) !important;
+  box-shadow: 0 4px 20px rgba(245, 158, 11, 0.15) !important;
+}
+
+html.light-theme .spotlight-ad-card {
+  background: linear-gradient(135deg, #f0fdff 0%, #e0f2fe 40%, #ffffff 100%) !important;
+  border-color: rgba(0, 242, 254, 0.5) !important;
+  box-shadow: 0 4px 20px rgba(0, 242, 254, 0.15) !important;
+}
+
+html.light-theme .spotlight-modal-card {
+  background-color: #ffffff !important;
+  border-color: rgba(0, 242, 254, 0.4) !important;
+  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.15) !important;
+  color: #090d16 !important;
+}
+
+/* 3. Recommended for You Section Light Mode */
+html.light-theme .recommended-for-you-section {
+  background: #ffffff !important;
+  border-color: rgba(0, 242, 254, 0.3) !important;
+  box-shadow: 0 6px 30px rgba(0, 242, 254, 0.1), 0 2px 8px rgba(0, 0, 0, 0.04) !important;
+}
+
+/* 4. Global Typography and Contrast In Light Theme */
 html.light-theme .text-white {
   color: #090d16 !important;
 }
 
-html.light-theme .text-gray-400,
+html.light-theme .text-gray-100,
+html.light-theme .text-gray-200 {
+  color: #1e293b !important;
+}
+
 html.light-theme .text-gray-300,
-html.light-theme .text-gray-500 {
-  color: #475569 !important;
+html.light-theme .text-gray-400 {
+  color: #334155 !important;
+}
+
+html.light-theme .text-gray-500,
+html.light-theme .text-gray-600 {
+  color: #64748b !important;
+}
+
+html.light-theme .text-primary {
+  color: #0284c7 !important;
+}
+
+html.light-theme .text-neon-green {
+  color: #059669 !important;
 }
 
 html.light-theme .border-white\/5,
 html.light-theme .border-white\/10,
-html.light-theme .border-white\/20 {
+html.light-theme .border-white\/15,
+html.light-theme .border-white\/20,
+html.light-theme .border-white\/30 {
   border-color: rgba(0, 0, 0, 0.08) !important;
 }
 
@@ -166,8 +257,21 @@ html.light-theme .bg-white\/10 {
 }
 
 html.light-theme .bg-white\/\[0\.03\],
-html.light-theme .bg-white\/\[0\.02\] {
+html.light-theme .bg-white\/\[0\.02\],
+html.light-theme .bg-white\/\[0\.05\] {
   background-color: #ffffff !important;
+}
+
+/* Modals and Drawers */
+html.light-theme aside {
+  background-color: #ffffff !important;
+  border-color: rgba(0, 0, 0, 0.08) !important;
+}
+
+html.light-theme [role="dialog"],
+html.light-theme .modal-container {
+  background-color: #ffffff !important;
+  color: #090d16 !important;
 }
 
 /* Form controls in light theme */

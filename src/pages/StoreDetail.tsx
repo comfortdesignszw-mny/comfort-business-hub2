@@ -618,9 +618,9 @@ export function StoreDetailContent({ store, profile, onGuestLogin, showMap = tru
         ) : (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
             {products.length > 0 ? (
-              Array.from(new Map<string, Product>(products.filter(p => p && p.id).map(p => [p.id, p])).values()).map((p, idx) => (
+              Array.from(new Map<string, Product>(products.filter(p => p && p.id).map(p => [p.id, p])).values()).map((p) => (
                 <ProductCard 
-                  key={`sd-prod-${p.id || idx}-${idx}`} 
+                  key={`sd-prod-${p.id}`} 
                   product={p} 
                   profile={profile} 
                   store={store}
@@ -734,9 +734,9 @@ export function StoreDetailContent({ store, profile, onGuestLogin, showMap = tru
         {/* Reviews List */}
         <div className="grid gap-4">
           {storeReviews.length > 0 ? (
-            storeReviews.map((rev, idx) => (
+            Array.from(new Map(storeReviews.filter(r => r && r.id).map(r => [r.id, r])).values()).map((rev) => (
               <div
-                key={`sd-rev-${rev.id || idx}-${idx}`}
+                key={`sd-rev-${rev.id}`}
                 className="p-4 bg-white/5 border border-white/5 rounded-2xl flex flex-col sm:flex-row sm:items-start justify-between gap-3 hover:border-amber-400/20 transition-all"
               >
                 <div className="flex items-start gap-3">

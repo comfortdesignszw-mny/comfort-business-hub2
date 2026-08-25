@@ -3,7 +3,7 @@ service cloud.firestore {
   match /databases/{database}/documents {
     // Health Check
     match /test/{document=**} {
-      allow read: if true;
+      allow read: if isSignedIn();
     }
 
     // 1. PRIMITIVES & HELPERS

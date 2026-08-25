@@ -114,9 +114,9 @@ export default function UserListModal({ isOpen, onClose, onUserClick }: UserList
                 </div>
               ) : filteredUsers.length > 0 ? (
                 <div className="grid gap-3">
-                  {filteredUsers.map((user, idx) => (
+                  {Array.from(new Map(filteredUsers.filter(u => u && u.uid).map(u => [u.uid, u])).values()).map((user) => (
                     <motion.div 
-                      key={`ulm-usr-${user.uid || idx}-${idx}`}
+                      key={`ulm-usr-${user.uid}`}
                       whileHover={{ x: 5 }}
                       onClick={() => onUserClick(user.uid)}
                       className="p-4 bg-white/5 border border-white/5 rounded-2xl flex items-center justify-between group hover:border-primary/20 transition-all cursor-pointer"

@@ -677,13 +677,13 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
     );
   }
 
-  if (!activeStore) {
+  if (!activeStore && products.length === 0) {
     if (showStoreSetup) {
       return (
         <div className="relative">
           <button 
             onClick={() => setShowStoreSetup(false)}
-            className="absolute top-4 right-4 z-10 p-2 text-gray-500 hover:text-white"
+            className="absolute top-4 right-4 z-10 p-2 text-gray-400 hover:text-white bg-white/5 rounded-xl"
           >
             <X size={24} />
           </button>
@@ -700,20 +700,47 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
       );
     }
     return (
-      <div className="p-12 text-center space-y-6">
-        <div className="w-20 h-20 bg-white/5 rounded-3xl flex items-center justify-center mx-auto text-gray-700">
-          <StoreIcon size={40} />
+      <div className="p-6 sm:p-12 max-w-2xl mx-auto text-center space-y-6">
+        <div className="w-24 h-24 bg-primary/10 rounded-3xl flex items-center justify-center mx-auto text-primary border border-primary/20 shadow-[0_0_30px_rgba(0,242,254,0.15)]">
+          <StoreIcon size={44} />
         </div>
         <div className="space-y-2">
-          <p className="text-sm font-black text-white uppercase tracking-widest">No Stores Found</p>
-          <p className="text-[10px] text-gray-500 font-bold uppercase tracking-widest">Create your first store to start selling</p>
+          <h2 className="text-2xl font-black text-white uppercase italic tracking-tight">Nothing has been created yet</h2>
+          <p className="text-xs text-gray-400 font-medium max-w-md mx-auto leading-relaxed">
+            Welcome to the Supplier Network. You can deploy a full branded storefront with customized logo & cover banner, or immediately enlist products and services directly to your seller profile.
+          </p>
         </div>
-        <button 
-          onClick={() => setShowStoreSetup(true)}
-          className="btn-neon px-8 py-4 text-xs"
-        >
-          Create Store
-        </button>
+        <div className="flex flex-col sm:flex-row items-center justify-center gap-3 pt-2">
+          <button 
+            onClick={() => setShowStoreSetup(true)}
+            className="w-full sm:w-auto btn-neon px-7 py-4 text-xs flex items-center justify-center gap-2"
+          >
+            <Plus size={16} /> Create Branded Storefront
+          </button>
+          <button 
+            onClick={() => {
+              setEditingProduct(null);
+              setFormData({
+                name: '',
+                description: '',
+                price: 0,
+                category: PRODUCT_CATEGORIES[0],
+                images: [],
+                buyButtonType: 'checkout',
+                buyButtonLink: '',
+                isActive: true,
+                itemType: 'product',
+                currency: 'USD',
+                pricingOption: 'fixed',
+                quantityUnit: 'per item'
+              });
+              setShowProductForm(true);
+            }}
+            className="w-full sm:w-auto px-7 py-4 bg-white/5 hover:bg-white/10 text-white rounded-2xl border border-white/10 text-xs font-black uppercase tracking-wider transition-all flex items-center justify-center gap-2"
+          >
+            <Package size={16} className="text-primary" /> Enlist Products Directly (Skip Store)
+          </button>
+        </div>
       </div>
     );
   }
@@ -765,9 +792,9 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
           </div>
         </div>
         <div className="flex gap-3 overflow-x-auto no-scrollbar pb-2">
-          {Array.from(new Map(stores.filter(s => s && s.id).map(s => [s.id, s])).values()).map((s, idx) => (
+          {Array.from(new Map(stores.filter(s => s && s.id).map(s => [s.id, s])).values()).map((s) => (
             <button
-              key={`sup-store-${s.id || idx}-${idx}`}
+              key={`sup-store-${s.id}`}
               onClick={() => switchStore(s)}
               className={cn(
                 "px-5 py-3 rounded-2xl border transition-all flex flex-col items-start gap-1 min-w-[140px]",
@@ -1060,7 +1087,7 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
         <div className="space-y-4">
           {Array.from(new Map<string, Product>(products.filter(p => p && p.id).map(p => [p.id, p])).values()).map((product, index) => (
             <ExpandableProductInventoryCard
-              key={`sup-prod-${product.id || index}-${index}`}
+              key={`sup-prod-${product.id}`}
               product={product}
               storeName={activeStore?.name}
               isTopPerformer={product.id === topPerformerProductId}
@@ -1123,336 +1150,377 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
               onClick={() => setShowProductForm(false)}
             />
               <motion.div 
-                initial={{ opacity: 0, scale: 0.9, y: 20 }}
+                initial={{ opacity: 0, scale: 0.95, y: 20 }}
                 animate={{ opacity: 1, scale: 1, y: 0 }}
-                exit={{ opacity: 0, scale: 0.9, y: 20 }}
-                className="relative w-full max-w-lg neon-card !bg-[#0d1117] p-0 max-h-[90vh] flex flex-col overflow-hidden shadow-2xl border border-white/10"
+                exit={{ opacity: 0, scale: 0.95, y: 20 }}
+                className="relative w-full max-w-2xl neon-card !bg-[#0d1117] p-0 max-h-[92vh] flex flex-col overflow-hidden shadow-2xl border border-white/10"
               >
                 {/* Sticky Header */}
-                <div className="p-6 border-b border-white/5 relative z-10 bg-[#0d1117]/80 backdrop-blur-md flex justify-between items-start">
-                  <header className="space-y-1">
-                    <h3 className="text-xl font-black text-white italic uppercase tracking-tighter">
-                      {editingProduct ? 'Edit Entity' : 'New Product'}
-                    </h3>
-                    <p className="text-[9px] text-primary/60 font-bold uppercase tracking-widest">Operational Parameters Identification</p>
-                  </header>
+                <div className="p-6 border-b border-white/5 relative z-10 bg-[#0d1117]/90 backdrop-blur-md flex justify-between items-center">
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 bg-primary/20 rounded-xl flex items-center justify-center text-primary border border-primary/30">
+                      {formData.itemType === 'service' ? <Wrench size={20} /> : <Package size={20} />}
+                    </div>
+                    <div>
+                      <h3 className="text-lg sm:text-xl font-black text-white italic uppercase tracking-tighter">
+                        {editingProduct ? 'Edit Catalog Entry' : 'Enlist New Listing'}
+                      </h3>
+                      <p className="text-[10px] text-gray-400 font-bold uppercase tracking-widest mt-0.5">
+                        {activeStore ? `Deploying to ${activeStore.name}` : 'Direct Seller Inventory Listing'}
+                      </p>
+                    </div>
+                  </div>
                   <button 
                     onClick={() => setShowProductForm(false)}
-                    className="text-gray-400 hover:text-white bg-white/5 p-2 rounded-xl border border-white/10 transition-all hover:scale-110 active:scale-95"
+                    className="text-gray-400 hover:text-white bg-white/5 p-2.5 rounded-xl border border-white/10 transition-all hover:scale-110 active:scale-95"
                   >
-                    <X size={20} />
+                    <X size={18} />
                   </button>
                 </div>
 
+                {/* Stages Bar */}
+                <div className="grid grid-cols-4 gap-1 px-6 py-2.5 bg-white/[0.02] border-b border-white/5 text-[9px] font-black uppercase tracking-wider text-gray-400">
+                  <span className="flex items-center gap-1 text-primary"><span className="w-4 h-4 rounded-full bg-primary/20 flex items-center justify-center text-[8px]">1</span> Media</span>
+                  <span className="flex items-center gap-1"><span className="w-4 h-4 rounded-full bg-white/10 flex items-center justify-center text-[8px]">2</span> Profile</span>
+                  <span className="flex items-center gap-1"><span className="w-4 h-4 rounded-full bg-white/10 flex items-center justify-center text-[8px]">3</span> Pricing</span>
+                  <span className="flex items-center gap-1"><span className="w-4 h-4 rounded-full bg-white/10 flex items-center justify-center text-[8px]">4</span> Gateway</span>
+                </div>
+
                 {/* Scrollable Form Content */}
-                <div className="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar scroll-smooth overscroll-behavior-contain">
+                <div className="flex-1 overflow-y-auto p-6 md:p-8 custom-scrollbar space-y-6">
                   <form id="product-form" onSubmit={handleSubmit} className="space-y-6">
-                    <div className="space-y-6">
-                      {/* Image Upload */}
-                      <div className="space-y-4">
-                        <div className="flex items-center justify-between ml-1">
-                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest">
-                            Product Images ({formData.images.length}/5 max total • Max 2 local uploads)
+                    
+                    {/* Stage 1: Media Gallery */}
+                    <div className="p-5 bg-white/[0.02] border border-white/5 rounded-2xl space-y-4">
+                      <div className="flex items-center justify-between">
+                        <div>
+                          <label className="text-[10px] font-black text-white uppercase tracking-widest block">
+                            Stage 1 • Visual Media Assets
                           </label>
+                          <p className="text-[9px] text-gray-500">Upload high-resolution photography or product diagrams ({formData.images.length}/5 total)</p>
                         </div>
+                      </div>
+                      
+                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
+                        {formData.images.map((img, idx) => {
+                          const localUploads = formData.images.filter((i, iIdx) => iIdx !== idx && (i.startsWith('data:') || i.startsWith('blob:') || i.includes('firebasestorage'))).length;
+                          return (
+                            <div key={idx} className="relative">
+                              <ImageInput 
+                                value={img} 
+                                allowLocalUpload={localUploads < 2}
+                                onChange={(val) => {
+                                  const newImages = [...formData.images];
+                                  if (val) {
+                                    newImages[idx] = val;
+                                  } else {
+                                    newImages.splice(idx, 1);
+                                  }
+                                  setFormData({ ...formData, images: newImages });
+                                }} 
+                                aspectRatio="square"
+                              />
+                            </div>
+                          );
+                        })}
                         
-                        <div className="grid grid-cols-2 gap-4">
-                          {formData.images.map((img, idx) => {
-                            const localUploads = formData.images.filter((i, iIdx) => iIdx !== idx && (i.startsWith('data:') || i.startsWith('blob:') || i.includes('firebasestorage'))).length;
-                            return (
-                              <div key={idx} className="relative">
-                                <ImageInput 
-                                  value={img} 
-                                  allowLocalUpload={localUploads < 2}
-                                  onChange={(val) => {
-                                    const newImages = [...formData.images];
-                                    if (val) {
-                                      newImages[idx] = val;
-                                    } else {
-                                      newImages.splice(idx, 1);
-                                    }
-                                    setFormData({ ...formData, images: newImages });
-                                  }} 
-                                  aspectRatio="square"
-                                />
-                              </div>
-                            );
-                          })}
-                          
-                          {formData.images.length < 5 && (() => {
-                            const currentLocalCount = formData.images.filter(i => i.startsWith('data:') || i.startsWith('blob:') || i.includes('firebasestorage')).length;
-                            return (
-                              <div className="relative">
-                                <ImageInput 
-                                  value="" 
-                                  allowLocalUpload={currentLocalCount < 2}
-                                  onChange={(val) => {
-                                    if (val) {
-                                      setFormData({ ...formData, images: [...formData.images, val] });
-                                    }
-                                  }} 
-                                  aspectRatio="square"
-                                  label="Add Asset"
-                                />
-                              </div>
-                            );
-                          })()}
+                        {formData.images.length < 5 && (() => {
+                          const currentLocalCount = formData.images.filter(i => i.startsWith('data:') || i.startsWith('blob:') || i.includes('firebasestorage')).length;
+                          return (
+                            <div className="relative">
+                              <ImageInput 
+                                value="" 
+                                allowLocalUpload={currentLocalCount < 2}
+                                onChange={(val) => {
+                                  if (val) {
+                                    setFormData({ ...formData, images: [...formData.images, val] });
+                                  }
+                                }} 
+                                aspectRatio="square"
+                                label="Upload Photo"
+                              />
+                            </div>
+                          );
+                        })()}
+                      </div>
+                    </div>
+
+                    {/* Stage 2: Listing Type & Identity */}
+                    <div className="p-5 bg-white/[0.02] border border-white/5 rounded-2xl space-y-4">
+                      <div>
+                        <label className="text-[10px] font-black text-white uppercase tracking-widest block">
+                          Stage 2 • Listing Type & Identity
+                        </label>
+                        <p className="text-[9px] text-gray-500">Specify whether you are selling tangible products or bookable services</p>
+                      </div>
+
+                      {/* Listing Type Choice */}
+                      <div className="grid grid-cols-2 gap-3">
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, itemType: 'product' })}
+                          className={cn(
+                            "py-3.5 px-4 rounded-2xl border text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all",
+                            formData.itemType === 'product'
+                              ? "bg-primary/20 border-primary text-primary shadow-[0_0_15px_rgba(0,242,254,0.15)]"
+                              : "bg-white/5 border-white/10 text-gray-400 hover:text-white"
+                          )}
+                        >
+                          <Package size={16} /> Physical Product
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setFormData({ ...formData, itemType: 'service' })}
+                          className={cn(
+                            "py-3.5 px-4 rounded-2xl border text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all",
+                            formData.itemType === 'service'
+                              ? "bg-emerald-500/20 border-emerald-400 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.15)]"
+                              : "bg-white/5 border-white/10 text-gray-400 hover:text-white"
+                          )}
+                        >
+                          <Wrench size={16} /> Professional Service
+                        </button>
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                          {formData.itemType === 'service' ? 'Service Title / Designation' : 'Product / Inventory Name'} <span className="text-primary">*</span>
+                        </label>
+                        <input 
+                          type="text"
+                          className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3.5 text-white placeholder-gray-600 outline-none focus:border-primary/50 font-bold italic text-sm transition-all"
+                          placeholder={formData.itemType === 'service' ? "e.g. Turnkey Solar Inverter Installation & Certificate of Compliance" : "e.g. Deye 8kW Hybrid Inverter + 10kWh Lithium Battery Bank"}
+                          value={formData.name}
+                          onChange={e => setFormData({ ...formData, name: e.target.value })}
+                          required
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                          Technical Specifications & Scope of Work <span className="text-primary">*</span>
+                        </label>
+                        <textarea 
+                          className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3.5 text-white placeholder-gray-600 outline-none focus:border-primary/50 text-xs font-medium min-h-[90px] leading-relaxed transition-all"
+                          placeholder={formData.itemType === 'service' ? "List all service inclusions, response times, warranty terms, and prerequisites for the client..." : "Detailed product specifications, dimensions, brand manufacturer, compatibility, and warranties included..."}
+                          rows={3}
+                          value={formData.description}
+                          onChange={e => setFormData({ ...formData, description: e.target.value })}
+                          required
+                        />
+                      </div>
+
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Category Alignment <span className="text-primary">*</span></label>
+                        <select 
+                          className="w-full bg-[#0d1117] border border-white/10 rounded-2xl px-4 py-3.5 text-white outline-none focus:border-primary/50 text-xs font-bold appearance-none cursor-pointer shadow-xl"
+                          value={formData.category}
+                          onChange={e => setFormData({ ...formData, category: e.target.value })}
+                        >
+                          {PRODUCT_CATEGORIES.map(cat => (
+                            <option key={cat} value={cat} className="bg-[#0d1117] text-white py-2">{cat}</option>
+                          ))}
+                          <option value="Other" className="bg-[#0d1117] text-white py-2">✨ Custom Category...</option>
+                        </select>
+                      </div>
+
+                      {formData.category === 'Other' && (
+                        <div className="space-y-1.5 pt-1">
+                          <label className="text-[10px] font-black text-primary uppercase tracking-widest">Define Custom Category <span className="text-primary">*</span></label>
+                          <input 
+                            type="text"
+                            className="w-full bg-white/5 border border-primary/30 rounded-2xl px-4 py-3.5 text-white placeholder-gray-600 outline-none focus:border-primary font-bold text-xs transition-all"
+                            placeholder="Enter specialized product or service classification"
+                            value={customCategory}
+                            onChange={e => setCustomCategory(e.target.value)}
+                            required
+                          />
+                        </div>
+                      )}
+                    </div>
+
+                    {/* Stage 3: Pricing & Commercial Terms */}
+                    <div className="p-5 bg-white/[0.02] border border-white/5 rounded-2xl space-y-4">
+                      <div>
+                        <label className="text-[10px] font-black text-white uppercase tracking-widest block">
+                          Stage 3 • Pricing & Commercial Terms
+                        </label>
+                        <p className="text-[9px] text-gray-500">Configure your selling rate, accepted currency, and flexible payment conditions</p>
+                      </div>
+
+                      {/* Pricing Terms / Options */}
+                      <div className="space-y-2">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Payment Structure</label>
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
+                          {[
+                            { id: 'fixed', label: 'Fixed Price' },
+                            { id: 'negotiable', label: 'Negotiable' },
+                            { id: 'installments', label: 'Installments' },
+                            { id: 'contact_seller_for_price', label: 'Contact for Price' }
+                          ].map((opt) => (
+                            <button
+                              key={opt.id}
+                              type="button"
+                              onClick={() => {
+                                const isContact = opt.id === 'contact_seller_for_price';
+                                setFormData({ 
+                                  ...formData, 
+                                  pricingOption: opt.id as any,
+                                  buyButtonType: isContact ? 'chat' : formData.buyButtonType
+                                });
+                              }}
+                              className={cn(
+                                "py-2.5 px-3 rounded-xl border text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center text-center",
+                                formData.pricingOption === opt.id
+                                  ? opt.id === 'contact_seller_for_price'
+                                    ? "bg-emerald-500/20 border-emerald-400 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.2)]"
+                                    : "bg-primary/20 border-primary text-primary shadow-[0_0_15px_rgba(0,242,254,0.15)]"
+                                  : "bg-white/5 border-white/10 text-gray-400 hover:text-white"
+                              )}
+                            >
+                              {opt.label}
+                            </button>
+                          ))}
                         </div>
                       </div>
 
-                      <div className="space-y-4">
-                        {/* Listing Type Choice: Product or Service */}
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Listing Type</label>
-                          <div className="grid grid-cols-2 gap-3">
-                            <button
-                              type="button"
-                              onClick={() => setFormData({ ...formData, itemType: 'product' })}
-                              className={cn(
-                                "py-3 px-4 rounded-2xl border text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all",
-                                formData.itemType === 'product'
-                                  ? "bg-primary/20 border-primary text-primary shadow-[0_0_15px_rgba(0,242,254,0.15)]"
-                                  : "bg-white/5 border-white/10 text-gray-400 hover:text-white"
-                              )}
-                            >
-                              <Package size={16} /> Physical Product
-                            </button>
-                            <button
-                              type="button"
-                              onClick={() => setFormData({ ...formData, itemType: 'service' })}
-                              className={cn(
-                                "py-3 px-4 rounded-2xl border text-xs font-black uppercase tracking-wider flex items-center justify-center gap-2 transition-all",
-                                formData.itemType === 'service'
-                                  ? "bg-emerald-500/20 border-emerald-400 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.15)]"
-                                  : "bg-white/5 border-white/10 text-gray-400 hover:text-white"
-                              )}
-                            >
-                              <Wrench size={16} /> Professional Service
-                            </button>
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">
-                            {formData.itemType === 'service' ? 'Service Title' : 'Item Name'}
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                            Unit Price {formData.pricingOption === 'contact_seller_for_price' ? '(Optional)' : '*'}
                           </label>
-                          <input 
-                            type="text"
-                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-white outline-none focus:border-primary/50 font-bold italic transition-all"
-                            placeholder={formData.itemType === 'service' ? "e.g. Solar Inverter Installation & Wiring" : "e.g. 5KVA Inverter System"}
-                            value={formData.name}
-                            onChange={e => setFormData({ ...formData, name: e.target.value })}
-                            required
-                          />
-                        </div>
-
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Data Description</label>
-                          <textarea 
-                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-white outline-none focus:border-primary/50 text-sm min-h-[100px] transition-all"
-                            placeholder="Full specifications or service deliverables..."
-                            rows={3}
-                            value={formData.description}
-                            onChange={e => setFormData({ ...formData, description: e.target.value })}
-                            required
-                          />
-                        </div>
-
-                        {/* Pricing Terms / Options */}
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Pricing Terms & Structure</label>
-                          <div className="grid grid-cols-2 md:grid-cols-4 gap-2">
-                            {[
-                              { id: 'fixed', label: 'Fixed Price' },
-                              { id: 'negotiable', label: 'Negotiable' },
-                              { id: 'installments', label: 'Installments' },
-                              { id: 'contact_seller_for_price', label: 'Contact for Price' }
-                            ].map((opt) => (
-                              <button
-                                key={opt.id}
-                                type="button"
-                                onClick={() => {
-                                  const isContact = opt.id === 'contact_seller_for_price';
-                                  setFormData({ 
-                                    ...formData, 
-                                    pricingOption: opt.id as any,
-                                    buyButtonType: isContact ? 'chat' : formData.buyButtonType
-                                  });
-                                }}
-                                className={cn(
-                                  "py-2.5 px-3 rounded-xl border text-[9px] font-black uppercase tracking-wider transition-all flex items-center justify-center text-center",
-                                  formData.pricingOption === opt.id
-                                    ? opt.id === 'contact_seller_for_price'
-                                      ? "bg-emerald-500/20 border-emerald-400 text-emerald-400 shadow-[0_0_15px_rgba(16,185,129,0.2)]"
-                                      : "bg-primary/20 border-primary text-primary shadow-[0_0_15px_rgba(0,242,254,0.15)]"
-                                    : "bg-white/5 border-white/10 text-gray-400 hover:text-white"
-                                )}
-                              >
-                                {opt.label}
-                              </button>
-                            ))}
+                          <div className="relative">
+                            <DollarSign size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-primary" />
+                            <input 
+                              type="number"
+                              className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-4 py-3.5 text-white placeholder-gray-600 outline-none focus:border-primary/50 font-mono text-sm"
+                              placeholder={formData.pricingOption === 'contact_seller_for_price' ? 'Contact for quote' : 'e.g. 850.00'}
+                              value={formData.price || ''}
+                              onChange={e => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
+                              required={formData.pricingOption !== 'contact_seller_for_price'}
+                            />
                           </div>
                         </div>
 
-                        <div className="grid grid-cols-2 gap-4">
-                          <div className="space-y-2">
-                            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">
-                              Unit Price {formData.pricingOption === 'contact_seller_for_price' ? '(Optional)' : ''}
-                            </label>
-                            <div className="relative">
-                              <DollarSign size={16} className="absolute left-4 top-1/2 -translate-y-1/2 text-primary" />
-                              <input 
-                                type="number"
-                                className="w-full bg-white/5 border border-white/10 rounded-2xl pl-12 pr-4 py-4 text-white outline-none focus:border-primary/50 font-mono"
-                                placeholder={formData.pricingOption === 'contact_seller_for_price' ? 'Contact Seller' : '0.00'}
-                                value={formData.price || ''}
-                                onChange={e => setFormData({ ...formData, price: parseFloat(e.target.value) || 0 })}
-                                required={formData.pricingOption !== 'contact_seller_for_price'}
-                              />
-                            </div>
-                          </div>
-                          <div className="space-y-2">
-                            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Currency</label>
-                            <select 
-                              className="w-full bg-[#0d1117] border border-white/10 rounded-2xl px-4 py-4 text-white outline-none focus:border-primary/50 text-xs font-bold appearance-none cursor-pointer shadow-xl"
-                              value={formData.currency}
-                              onChange={e => setFormData({ ...formData, currency: e.target.value })}
-                            >
-                              <option value="USD" className="bg-[#0d1117] text-white py-2">USD (US Dollar)</option>
-                              <option value="ZiG" className="bg-[#0d1117] text-white py-2">ZiG (Zimbabwe Gold)</option>
-                            </select>
-                          </div>
-                        </div>
-
-                        {/* Quantity Unit / Pricing Condition (Immediately after price) */}
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">
-                            Quantity Unit / Pricing Condition
-                          </label>
-                          <div className="space-y-2">
-                            <select 
-                              className="w-full bg-[#0d1117] border border-white/10 rounded-2xl px-4 py-4 text-white outline-none focus:border-primary/50 text-xs font-bold appearance-none cursor-pointer shadow-xl"
-                              value={
-                                PRESET_QUANTITY_UNITS.includes(formData.quantityUnit || 'per item')
-                                  ? (formData.quantityUnit || 'per item')
-                                  : 'custom'
-                              }
-                              onChange={e => {
-                                const val = e.target.value;
-                                setFormData(prev => ({ ...prev, quantityUnit: val }));
-                              }}
-                            >
-                              <option value="per item" className="bg-[#0d1117] text-white py-2">per item / unit (Standard)</option>
-                              <option value="per kg" className="bg-[#0d1117] text-white py-2">per kg (Kilogram)</option>
-                              <option value="per tonne" className="bg-[#0d1117] text-white py-2">per tonne (Tonne)</option>
-                              <option value="per night" className="bg-[#0d1117] text-white py-2">per night (Hotel / Lodge Bookings)</option>
-                              <option value="per day" className="bg-[#0d1117] text-white py-2">per day (Car Rental / Daily Rate)</option>
-                              <option value="per session" className="bg-[#0d1117] text-white py-2">per session (Service / Booking)</option>
-                              <option value="per box" className="bg-[#0d1117] text-white py-2">per box / package</option>
-                              <option value="per litre" className="bg-[#0d1117] text-white py-2">per litre (Liquid / Fuel)</option>
-                              <option value="custom" className="bg-[#0d1117] text-white py-2">✨ Custom Quantity or Condition...</option>
-                            </select>
-
-                            {(formData.quantityUnit === 'custom' || (!PRESET_QUANTITY_UNITS.includes(formData.quantityUnit || 'per item') && formData.quantityUnit !== undefined)) && (
-                              <div className="space-y-1 pt-1">
-                                <label className="text-[9px] font-black text-neon-green uppercase tracking-widest ml-1">Specify Custom Quantity or Condition</label>
-                                <input 
-                                  type="text"
-                                  className="w-full bg-white/5 border border-primary/40 rounded-2xl px-4 py-4 text-white outline-none focus:border-primary font-bold text-xs transition-all shadow-[0_0_15px_rgba(0,242,254,0.1)]"
-                                  placeholder="e.g. per crate, per hour, per 50kg bag, per trip"
-                                  value={customQuantityUnit}
-                                  onChange={e => {
-                                    setCustomQuantityUnit(e.target.value);
-                                  }}
-                                  required
-                                />
-                              </div>
-                            )}
-                          </div>
-                        </div>
-
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Category Alignment</label>
+                        <div className="space-y-1.5">
+                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">Currency *</label>
                           <select 
-                            className="w-full bg-[#0d1117] border border-white/10 rounded-2xl px-4 py-4 text-white outline-none focus:border-primary/50 text-xs font-bold appearance-none cursor-pointer shadow-xl"
-                            value={formData.category}
-                            onChange={e => setFormData({ ...formData, category: e.target.value })}
+                            className="w-full bg-[#0d1117] border border-white/10 rounded-2xl px-4 py-3.5 text-white outline-none focus:border-primary/50 text-xs font-bold appearance-none cursor-pointer shadow-xl"
+                            value={formData.currency}
+                            onChange={e => setFormData({ ...formData, currency: e.target.value })}
                           >
-                            {PRODUCT_CATEGORIES.map(cat => (
-                              <option key={cat} value={cat} className="bg-[#0d1117] text-white py-2">{cat}</option>
-                            ))}
-                            <option value="Other" className="bg-[#0d1117] text-white py-2">Custom Category...</option>
+                            <option value="USD" className="bg-[#0d1117] text-white py-2">USD (US Dollar)</option>
+                            <option value="ZiG" className="bg-[#0d1117] text-white py-2">ZiG (Zimbabwe Gold)</option>
                           </select>
                         </div>
+                      </div>
 
-                        {formData.category === 'Other' && (
-                          <div className="space-y-2">
-                            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Define Custom Category</label>
+                      {/* Quantity Unit / Pricing Condition */}
+                      <div className="space-y-1.5">
+                        <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">
+                          Unit Basis / Billing Measure *
+                        </label>
+                        <select 
+                          className="w-full bg-[#0d1117] border border-white/10 rounded-2xl px-4 py-3.5 text-white outline-none focus:border-primary/50 text-xs font-bold appearance-none cursor-pointer shadow-xl"
+                          value={
+                            PRESET_QUANTITY_UNITS.includes(formData.quantityUnit || 'per item')
+                              ? (formData.quantityUnit || 'per item')
+                              : 'custom'
+                          }
+                          onChange={e => {
+                            const val = e.target.value;
+                            setFormData(prev => ({ ...prev, quantityUnit: val }));
+                          }}
+                        >
+                          <option value="per item" className="bg-[#0d1117] text-white py-2">per item / unit (Standard piece rate)</option>
+                          <option value="per kg" className="bg-[#0d1117] text-white py-2">per kg (Kilogram)</option>
+                          <option value="per tonne" className="bg-[#0d1117] text-white py-2">per tonne (Bulk tonne)</option>
+                          <option value="per night" className="bg-[#0d1117] text-white py-2">per night (Hospitality & Accommodation)</option>
+                          <option value="per day" className="bg-[#0d1117] text-white py-2">per day (Equipment Hire / Daily Rate)</option>
+                          <option value="per session" className="bg-[#0d1117] text-white py-2">per session (Consultation / Project Call)</option>
+                          <option value="per box" className="bg-[#0d1117] text-white py-2">per box / pack</option>
+                          <option value="per litre" className="bg-[#0d1117] text-white py-2">per litre (Liquid / Fuel / Oil)</option>
+                          <option value="custom" className="bg-[#0d1117] text-white py-2">✨ Custom Quantity or Condition...</option>
+                        </select>
+
+                        {(formData.quantityUnit === 'custom' || (!PRESET_QUANTITY_UNITS.includes(formData.quantityUnit || 'per item') && formData.quantityUnit !== undefined)) && (
+                          <div className="space-y-1 pt-1">
+                            <label className="text-[9px] font-black text-primary uppercase tracking-widest">Specify Custom Unit *</label>
                             <input 
                               type="text"
-                              className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-white outline-none focus:border-primary/50 font-bold italic text-xs transition-all"
-                              placeholder="Enter specific category name"
-                              value={customCategory}
-                              onChange={e => setCustomCategory(e.target.value)}
+                              className="w-full bg-white/5 border border-primary/40 rounded-2xl px-4 py-3.5 text-white placeholder-gray-600 outline-none focus:border-primary font-bold text-xs transition-all shadow-[0_0_15px_rgba(0,242,254,0.1)]"
+                              placeholder="e.g. per installed kilowatt, per crate, per square meter"
+                              value={customQuantityUnit}
+                              onChange={e => setCustomQuantityUnit(e.target.value)}
                               required
                             />
                           </div>
                         )}
+                      </div>
+                    </div>
 
-                        <div className="space-y-2">
-                          <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">Buy Logic Gateway</label>
-                          <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
-                            {[
-                              { id: 'checkout', icon: ShoppingBag, label: 'Direct' },
-                              { id: 'chat', icon: MessageSquare, label: 'Inbox' },
-                              { id: 'link', icon: LinkIcon, label: 'Gateway' },
-                              { id: 'ecocash', icon: EcoCashLogo, label: 'EcoCash' },
-                              { id: 'pod', icon: Package, label: 'POD' }
-                            ].map((t) => (
-                              <button
-                                key={t.id}
-                                type="button"
-                                onClick={() => setFormData({ ...formData, buyButtonType: t.id as BuyButtonType })}
-                                className={cn(
-                                  "flex flex-col items-center gap-2 p-3 rounded-2xl border transition-all hover:scale-105 active:scale-95",
-                                  formData.buyButtonType === t.id 
-                                    ? "bg-primary/20 border-primary text-primary shadow-[0_0_15px_rgba(0,242,254,0.1)]" 
-                                    : "bg-white/5 border-white/5 text-gray-500"
-                                )}
-                              >
-                                <t.icon size={18} />
-                                <span className="text-[8px] font-black uppercase tracking-widest">{t.label}</span>
-                              </button>
-                            ))}
-                          </div>
-                        </div>
+                    {/* Stage 4: Conversion & Call to Action */}
+                    <div className="p-5 bg-white/[0.02] border border-white/5 rounded-2xl space-y-4">
+                      <div>
+                        <label className="text-[10px] font-black text-white uppercase tracking-widest block">
+                          Stage 4 • Buyer Conversion Gateway
+                        </label>
+                        <p className="text-[9px] text-gray-500">Choose the primary action button buyers see on your listing</p>
+                      </div>
 
-                        {formData.buyButtonType === 'link' && (
-                          <div className="space-y-2">
-                            <label className="text-[10px] font-black text-gray-500 uppercase tracking-widest ml-1">External Link</label>
-                            <input 
-                              type="url"
-                              className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-4 text-white outline-none focus:border-primary/50 text-xs font-mono transition-all"
-                              placeholder="https://payments.gateway.zw/..."
-                              value={formData.buyButtonLink}
-                              onChange={e => setFormData({ ...formData, buyButtonLink: e.target.value })}
-                              required
-                            />
-                          </div>
-                        )}
+                      <div className="grid grid-cols-3 md:grid-cols-5 gap-2">
+                        {[
+                          { id: 'checkout', icon: ShoppingBag, label: 'Direct Buy' },
+                          { id: 'chat', icon: MessageSquare, label: 'Chat Inbox' },
+                          { id: 'link', icon: LinkIcon, label: 'Link' },
+                          { id: 'ecocash', icon: EcoCashLogo, label: 'EcoCash' },
+                          { id: 'pod', icon: Package, label: 'Pay On Deliv' }
+                        ].map((t) => (
+                          <button
+                            key={t.id}
+                            type="button"
+                            onClick={() => setFormData({ ...formData, buyButtonType: t.id as BuyButtonType })}
+                            className={cn(
+                              "flex flex-col items-center gap-1.5 p-3 rounded-2xl border transition-all hover:scale-105 active:scale-95 text-center",
+                              formData.buyButtonType === t.id 
+                                ? "bg-primary/20 border-primary text-primary shadow-[0_0_15px_rgba(0,242,254,0.1)]" 
+                                : "bg-white/5 border-white/5 text-gray-500 hover:text-white"
+                            )}
+                          >
+                            <t.icon size={18} />
+                            <span className="text-[8px] font-black uppercase tracking-wider">{t.label}</span>
+                          </button>
+                        ))}
+                      </div>
 
-                        <div className="flex items-center gap-3 p-4 bg-white/5 rounded-2xl border border-white/5 hover:border-white/10 transition-colors cursor-pointer group" onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}>
+                      {formData.buyButtonType === 'link' && (
+                        <div className="space-y-1.5 pt-1">
+                          <label className="text-[10px] font-black text-gray-400 uppercase tracking-widest">External Payment URL / Landing Page *</label>
                           <input 
-                            type="checkbox"
-                            id="isActive"
-                            className="w-5 h-5 accent-primary bg-transparent rounded border-white/10 cursor-pointer"
-                            checked={formData.isActive}
-                            onChange={e => {
-                               e.stopPropagation();
-                               setFormData({ ...formData, isActive: e.target.checked });
-                            }}
+                            type="url"
+                            className="w-full bg-white/5 border border-white/10 rounded-2xl px-4 py-3.5 text-white placeholder-gray-600 outline-none focus:border-primary/50 text-xs font-mono transition-all"
+                            placeholder="https://payments.yourdomain.zw/order-id"
+                            value={formData.buyButtonLink}
+                            onChange={e => setFormData({ ...formData, buyButtonLink: e.target.value })}
+                            required
                           />
-                          <label htmlFor="isActive" className="text-[10px] font-black text-white uppercase tracking-widest cursor-pointer group-hover:text-primary transition-colors">Online Availability</label>
+                        </div>
+                      )}
+
+                      <div className="flex items-center gap-3 p-4 bg-white/5 rounded-2xl border border-white/5 hover:border-white/10 transition-colors cursor-pointer group" onClick={() => setFormData({ ...formData, isActive: !formData.isActive })}>
+                        <input 
+                          type="checkbox"
+                          id="isActive"
+                          className="w-5 h-5 accent-primary bg-transparent rounded border-white/10 cursor-pointer"
+                          checked={formData.isActive}
+                          onChange={e => {
+                             e.stopPropagation();
+                             setFormData({ ...formData, isActive: e.target.checked });
+                          }}
+                        />
+                        <div>
+                          <label htmlFor="isActive" className="text-[10px] font-black text-white uppercase tracking-widest cursor-pointer group-hover:text-primary transition-colors block">Publish Immediately</label>
+                          <p className="text-[9px] text-gray-500">Make this listing visible to all customers on the Comfort Hub discovery engine</p>
                         </div>
                       </div>
                     </div>
@@ -1460,19 +1528,19 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
                 </div>
 
                 {/* Sticky Footer */}
-                <div className="p-6 border-t border-white/5 bg-[#0d1117]/80 backdrop-blur-md">
+                <div className="p-6 border-t border-white/5 bg-[#0d1117]/90 backdrop-blur-md">
                   <button 
                     type="submit"
                     form="product-form"
                     disabled={isSubmitting}
-                    className="w-full btn-neon py-5 text-sm uppercase tracking-[0.2em] italic flex items-center justify-center gap-3 transition-all transform active:scale-95 shadow-xl disabled:opacity-50"
+                    className="w-full btn-neon py-4 text-xs uppercase tracking-[0.2em] italic flex items-center justify-center gap-3 transition-all transform active:scale-95 shadow-xl disabled:opacity-50"
                   >
                     {isSubmitting ? (
-                      <Loader2 className="animate-spin" size={20} />
+                      <Loader2 className="animate-spin" size={18} />
                     ) : (
                       <>
-                        {editingProduct ? <Check size={20} /> : <Plus size={20} />}
-                        {editingProduct ? 'Update Listing' : 'Create Product'}
+                        {editingProduct ? <Check size={18} /> : <Plus size={18} />}
+                        {editingProduct ? 'Save Listing Changes' : 'Publish & Enlist Product'}
                       </>
                     )}
                   </button>

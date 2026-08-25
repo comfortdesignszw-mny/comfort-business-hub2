@@ -267,9 +267,9 @@ export default function UserProfileModal({ userId, isOpen, onClose, currentUserP
                       
                       <div className="grid gap-3">
                         {stores.length > 0 ? (
-                          stores.map((store, idx) => (
+                          Array.from(new Map(stores.filter(s => s && s.id).map(s => [s.id, s])).values()).map((store) => (
                             <div 
-                              key={`upm-store-${store.id || idx}-${idx}`}
+                              key={`upm-store-${store.id}`}
                               onClick={() => {
                                 onClose();
                                 navigate(`/store/${store.id}`);

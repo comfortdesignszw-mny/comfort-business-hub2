@@ -3,7 +3,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useNavigate, useSearchParams } from 'react-router-dom';
 import { 
   Store as StoreIcon, Search, MapPin, Star, ArrowRight, Building2, 
-  MapPinned, SlidersHorizontal, ArrowLeft, Check, Sparkles, Package
+  MapPinned, SlidersHorizontal, ArrowLeft, Check, Sparkles, Package, Plus
 } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
 import { collection, query, limit, onSnapshot, where } from 'firebase/firestore';

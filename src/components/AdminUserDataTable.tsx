@@ -356,7 +356,7 @@ export const AdminUserDataTable: React.FC<AdminUserDataTableProps> = ({
                 const isPrimaryAdmin = user.email === 'comfort.designszw@gmail.com' || user.isAdmin;
 
                 return (
-                  <React.Fragment key={`user-row-${user.uid || idx}-${idx}`}>
+                  <React.Fragment key={`user-row-${user.uid || `idx-${idx}`}`}>
                     <tr className="hover:bg-white/[0.02] transition-colors group">
                       {/* Operator / Account Column */}
                       <td className="py-3.5 px-4">

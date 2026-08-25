@@ -11,7 +11,7 @@ import { doc, getDoc, setDoc, updateDoc, serverTimestamp, onSnapshot } from 'fir
 import { 
   Search, ShoppingBag, MessageSquare, User as UserIcon, Store, LayoutGrid, 
   Zap, Menu, Bell, ArrowLeft, ArrowRight, X, Heart, Star, UserPlus, Check, Loader2, Users, ShieldAlert,
-  LogIn, Download, Compass, Settings, HelpCircle, Megaphone, Share2
+  LogIn, Download, Compass, Settings, HelpCircle, Megaphone, Share2, Sun, Moon
 } from 'lucide-react';
 import ShareModal from './components/ShareModal';
 import { SharePayload, getAppSharePayload, executeShare } from './lib/shareUtils';
@@ -25,6 +25,7 @@ import { cn, formatAuditableStamp } from './lib/utils';
 import { MessagingProvider, useMessaging } from './components/MessagingProvider';
 import { NotificationProvider, useNotifications } from './components/NotificationProvider';
 import { ModalProvider } from './context/ModalContext';
+import { ThemeProvider, useTheme } from './context/ThemeContext';
 import SyncIndicator from './components/SyncIndicator';
 import { interactionService } from './services/interactionService';
 import PWAPrompt from './components/PWAPrompt';
@@ -423,21 +424,23 @@ export default function App() {
 
   return (
     <ErrorBoundary>
-      <Router>
-        <ScrollToTop />
-        <div className="flex flex-col h-screen-mobile bg-[#05070a] relative shadow-2xl">
-          <AppRoutes 
-            profile={profile}
-            setProfile={setProfile}
-            handleGuestLogin={handleGuestLogin}
-            user={user}
-            isProfileIncomplete={isProfileIncomplete}
-            showSidebar={showSidebar}
-            setShowSidebar={setShowSidebar}
-            handleLogout={handleLogout}
-          />
-        </div>
-      </Router>
+      <ThemeProvider>
+        <Router>
+          <ScrollToTop />
+          <div className="flex flex-col h-screen-mobile bg-canvas relative shadow-2xl transition-colors duration-300">
+            <AppRoutes 
+              profile={profile}
+              setProfile={setProfile}
+              handleGuestLogin={handleGuestLogin}
+              user={user}
+              isProfileIncomplete={isProfileIncomplete}
+              showSidebar={showSidebar}
+              setShowSidebar={setShowSidebar}
+              handleLogout={handleLogout}
+            />
+          </div>
+        </Router>
+      </ThemeProvider>
     </ErrorBoundary>
   );
 }
@@ -580,7 +583,7 @@ function AppRoutes({
             onClose={() => setIsShareModalOpen(false)} 
             payload={sharePayload} 
           />
-          <SyncIndicator />
+          <SyncIndicator profile={profile} />
         </ModalProvider>
       </MessagingProvider>
     </NotificationProvider>
@@ -592,12 +595,13 @@ function Header({ profile, onMenuClick, onLogout }: { profile: UserProfile | nul
   const navigate = useNavigate();
   const isHome = location.pathname === '/' || location.pathname === '';
   const { unreadCount } = useNotifications();
+  const { isDark, toggleTheme } = useTheme();
   const [showNotifications, setShowNotifications] = useState(false);
   const [showTutorial, setShowTutorial] = useState(false);
   const [showSupplierTutorial, setShowSupplierTutorial] = useState(false);
 
   return (
-    <header className="bg-white/5 backdrop-blur-xl border-b border-white/5 p-4 sticky top-0 z-20">
+    <header className="bg-white/5 backdrop-blur-xl border-b border-white/5 p-4 sticky top-0 z-20 transition-colors">
       <div className="max-w-7xl mx-auto flex items-center justify-between">
         <div className="flex items-center gap-4">
           {!isHome ? (
@@ -624,6 +628,20 @@ function Header({ profile, onMenuClick, onLogout }: { profile: UserProfile | nul
           </div>
         </div>
         <div className="flex items-center gap-2">
+          {/* Theme Mode Toggle */}
+          <button
+            onClick={toggleTheme}
+            className="w-10 h-10 bg-white/5 hover:bg-white/10 rounded-xl flex items-center justify-center text-gray-400 hover:text-white transition-all border border-white/10 relative group shadow-sm"
+            title={isDark ? "Switch to High-Contrast Light Theme" : "Switch to Neon Dark Theme"}
+            aria-label="Toggle Theme"
+          >
+            {isDark ? (
+              <Sun size={18} className="text-amber-400 group-hover:rotate-45 group-hover:scale-110 transition-all duration-300" />
+            ) : (
+              <Moon size={18} className="text-cyan-500 group-hover:-rotate-12 group-hover:scale-110 transition-all duration-300" />
+            )}
+          </button>
+
           <button
             onClick={async () => {
               const payload = getAppSharePayload();
@@ -945,14 +963,14 @@ function NotificationsModal({ profile, onClose }: { profile: UserProfile | null,
           <div className="flex-1 overflow-y-auto p-4 space-y-3 custom-scrollbar scroll-smooth">
             {notifications.length > 0 ? (
               (() => {
-                const unread = notifications.filter(n => !n.read);
-                const read = notifications.filter(n => n.read);
+                const unread = Array.from(new Map(notifications.filter(n => !n.read && n && n.id).map(n => [n.id, n])).values());
+                const read = Array.from(new Map(notifications.filter(n => n.read && n && n.id).map(n => [n.id, n])).values());
                 
                 return (
                   <>
-                    {unread.map((n, idx) => (
+                    {unread.map((n) => (
                       <NotificationItem 
-                        key={`unread-${n.id ? `${n.id}-${idx}` : idx}`} 
+                        key={`notif-unread-${n.id}`} 
                         n={n} 
                         markAsRead={markAsRead} 
                         onSelect={(item) => setActiveNotification(item)}
@@ -972,9 +990,9 @@ function NotificationsModal({ profile, onClose }: { profile: UserProfile | null,
                       </div>
                     )}
                     
-                    {read.map((n, idx) => (
+                    {read.map((n) => (
                       <NotificationItem 
-                        key={`read-${n.id ? `${n.id}-${idx}` : idx}`} 
+                        key={`notif-read-${n.id}`} 
                         n={n} 
                         markAsRead={markAsRead} 
                         onSelect={(item) => setActiveNotification(item)}
@@ -1156,7 +1174,7 @@ function Navigation({ profile }: { profile: UserProfile | null }) {
 
   return (
     <nav className="fixed bottom-6 left-1/2 -translate-x-1/2 w-full max-w-7xl px-4 z-30 flex justify-center pointer-events-none">
-      <div className="bg-[#0d1117]/80 backdrop-blur-2xl border border-white/10 p-2 rounded-2xl shadow-2xl flex items-center justify-between w-full max-w-[400px] pointer-events-auto">
+      <div className="floating-bottom-nav bg-[#0d1117]/80 backdrop-blur-2xl border border-white/10 p-2 rounded-2xl shadow-2xl flex items-center justify-between w-full max-w-[400px] pointer-events-auto">
         {navItems.map((item) => {
           const isActive = location.pathname === item.path || (item.path === '/' && location.pathname === '');
           return (
@@ -1165,13 +1183,13 @@ function Navigation({ profile }: { profile: UserProfile | null }) {
               to={item.path}
               className={cn(
                 "relative flex-1 flex flex-col items-center gap-1 py-2 rounded-xl transition-all duration-300 group",
-                isActive ? "text-primary" : "text-gray-500 hover:text-gray-300"
+                isActive ? "text-primary active-nav-link" : "text-gray-500 hover:text-gray-300 inactive-nav-link"
               )}
             >
               {isActive && (
                 <motion.div 
                   layoutId="nav-glow"
-                  className="absolute inset-0 bg-primary/10 rounded-xl blur-md"
+                  className="absolute inset-0 bg-primary/10 rounded-xl blur-md nav-glow-indicator"
                 />
               )}
               <item.icon 
@@ -1182,17 +1200,17 @@ function Navigation({ profile }: { profile: UserProfile | null }) {
                 )} 
               />
               {item.label === 'Comms' && unreadMessagesCount > 0 && (
-                <span className="absolute top-1.5 right-1.5 min-w-[14px] h-[14px] px-1 bg-red-600 rounded-full border border-[#05070a] flex items-center justify-center text-[7px] font-black text-white z-20 shadow-[0_0_8px_rgba(255,0,0,0.5)] animate-pulse">
+                <span className="absolute top-1.5 right-1.5 min-w-[14px] h-[14px] px-1 bg-red-600 rounded-full border border-[#05070a] flex items-center justify-center text-[7px] font-black text-white z-20 shadow-[0_0_8px_rgba(255,0,0,0.5)] animate-pulse nav-badge">
                   {unreadMessagesCount}
                 </span>
               )}
               {item.path === '/deals' && activeOrdersCount > 0 && (
-                <span className="absolute top-1.5 right-1.5 min-w-[14px] h-[14px] px-1 bg-red-600 rounded-full border border-[#05070a] flex items-center justify-center text-[7px] font-black text-white z-20 shadow-[0_0_8px_rgba(255,0,0,0.5)] animate-pulse">
+                <span className="absolute top-1.5 right-1.5 min-w-[14px] h-[14px] px-1 bg-red-600 rounded-full border border-[#05070a] flex items-center justify-center text-[7px] font-black text-white z-20 shadow-[0_0_8px_rgba(255,0,0,0.5)] animate-pulse nav-badge">
                   {activeOrdersCount}
                 </span>
               )}
               {item.path === '/admin' && pendingApprovalsCount > 0 && (
-                <span className="absolute top-1.5 right-1.5 min-w-[14px] h-[14px] px-1 bg-red-600 rounded-full border border-[#05070a] flex items-center justify-center text-[7px] font-black text-white z-20 shadow-[0_0_8px_rgba(255,0,0,0.5)] animate-pulse">
+                <span className="absolute top-1.5 right-1.5 min-w-[14px] h-[14px] px-1 bg-red-600 rounded-full border border-[#05070a] flex items-center justify-center text-[7px] font-black text-white z-20 shadow-[0_0_8px_rgba(255,0,0,0.5)] animate-pulse nav-badge">
                   {pendingApprovalsCount}
                 </span>
               )}

@@ -524,7 +524,7 @@ useEffect(() => {
               initial={{ scale: 0.9, opacity: 0, y: 20 }}
               animate={{ scale: 1, opacity: 1, y: 0 }}
               exit={{ scale: 0.9, opacity: 0, y: 20 }}
-              className="relative w-full max-w-lg bg-[#0d1117] border border-primary/40 rounded-[2.5rem] p-6 sm:p-8 overflow-hidden shadow-[0_0_60px_rgba(0,242,254,0.2)] z-10 text-left space-y-6"
+              className="spotlight-modal-card relative w-full max-w-lg bg-[#0d1117] border border-primary/40 rounded-[2.5rem] p-6 sm:p-8 overflow-hidden shadow-[0_0_60px_rgba(0,242,254,0.2)] z-10 text-left space-y-6"
             >
               <button 
                 onClick={() => setSelectedSpotlightAd(null)}
@@ -726,9 +726,9 @@ useEffect(() => {
 
             {profile && (
               <div className="flex gap-1 overflow-x-auto pb-0.5 no-scrollbar scroll-smooth">
-                {categories.map((cat, idx) => (
+                {categories.map((cat) => (
                   <button
-                    key={`disc-cat-${cat}-${idx}`}
+                    key={`disc-cat-${cat}`}
                     onClick={() => setActiveCategory(cat)}
                     className={cn(
                       "whitespace-nowrap px-2 py-0.5 rounded-md text-[8px] font-black uppercase tracking-wider transition-all border shrink-0",
@@ -775,7 +775,7 @@ useEffect(() => {
         </section>
 
         {/* 2. Market Spotlight / Classified Carousel Section (Constant Landscape Ad Shape) */}
-        <section className="relative overflow-hidden rounded-2xl border border-primary/30 shadow-xl bg-[#05070a] h-[175px] max-h-[175px]">
+        <section className="market-spotlight-section relative overflow-hidden rounded-2xl border border-primary/30 shadow-xl bg-[#05070a] h-[175px] max-h-[175px]">
           <AnimatePresence mode="wait">
             {spotlights.length > 0 ? (
               (() => {
@@ -793,10 +793,10 @@ useEffect(() => {
                     transition={{ duration: 0.25, ease: 'easeOut' }}
                     onClick={() => setSelectedSpotlightAd(currentSpotlight)}
                     className={cn(
-                      "relative h-full p-3 group cursor-pointer overflow-hidden rounded-2xl border transition-all text-left shadow-lg flex flex-col justify-between",
+                      "market-spotlight-card relative h-full p-3 group cursor-pointer overflow-hidden rounded-2xl border transition-all text-left shadow-lg flex flex-col justify-between",
                       isClassified 
-                        ? "border-amber-500/40 shadow-[0_0_25px_rgba(245,158,11,0.15)] bg-gradient-to-br from-[#181108] via-[#0d1017] to-[#05070a]" 
-                        : "border-primary/40 shadow-[0_0_25px_rgba(0,242,254,0.15)] bg-gradient-to-br from-[#07131e] via-[#080d14] to-[#05070a]"
+                        ? "border-amber-500/40 shadow-[0_0_25px_rgba(245,158,11,0.15)] bg-gradient-to-br from-[#181108] via-[#0d1017] to-[#05070a] classified-ad-card" 
+                        : "border-primary/40 shadow-[0_0_25px_rgba(0,242,254,0.15)] bg-gradient-to-br from-[#07131e] via-[#080d14] to-[#05070a] spotlight-ad-card"
                     )}
                   >
                     {/* Background Subtle Ambient Glow */}
@@ -918,7 +918,7 @@ useEffect(() => {
                       <div className="relative z-10 flex justify-center gap-1.5 items-center pt-1.5 border-t border-white/10 mt-1">
                         {spotlights.map((s, idx) => (
                           <div 
-                            key={`spotlight-dot-${s.id ? `${s.id}-${idx}` : idx}`} 
+                            key={`spotlight-dot-${s.id || idx}`} 
                             onClick={(e) => {
                               e.stopPropagation();
                               setActiveSpotlightIndex(idx);
@@ -950,7 +950,7 @@ useEffect(() => {
 
       {/* Recommended for You Section - Temporarily removed when user is actively searching */}
       {!searchTerm.trim() && (
-        <section className="bg-gradient-to-r from-[#0d1117] via-[#080b10] to-[#0d1117] border border-primary/25 rounded-[2rem] p-4 sm:p-6 shadow-2xl space-y-4 relative overflow-hidden">
+        <section className="recommended-for-you-section bg-gradient-to-r from-[#0d1117] via-[#080b10] to-[#0d1117] border border-primary/25 rounded-[2rem] p-4 sm:p-6 shadow-2xl space-y-4 relative overflow-hidden">
           {/* Glow backdrop */}
           <div className="absolute top-0 right-0 w-64 h-64 bg-primary/5 rounded-full blur-3xl pointer-events-none" />
 
@@ -973,7 +973,7 @@ useEffect(() => {
                   <span>
                     Curated based on your viewed stores and favorite categories:{' '}
                     {recommendations.topCategories.map((cat, i) => (
-                      <span key={`rec-top-cat-${cat}-${i}`} className="text-primary font-bold">
+                      <span key={`rec-top-cat-${cat}`} className="text-primary font-bold">
                         {cat}{i < recommendations.topCategories.length - 1 ? ', ' : ''}
                       </span>
                     ))}
@@ -1030,9 +1030,9 @@ useEffect(() => {
           {recommendations.hasHistory && recommendations.topCategories.length > 0 && (
             <div className="flex items-center gap-1.5 overflow-x-auto no-scrollbar pt-1">
               <span className="text-[8px] font-bold uppercase tracking-wider text-gray-500 shrink-0">Active Preference Signals:</span>
-              {recommendations.topCategories.map((cat, idx) => (
+              {recommendations.topCategories.map((cat) => (
                 <button
-                  key={`rec-signal-badge-${cat}-${idx}`}
+                  key={`rec-signal-badge-${cat}`}
                   onClick={() => setActiveCategory(cat)}
                   className="px-2.5 py-0.5 rounded-full bg-white/5 hover:bg-primary/20 border border-white/10 hover:border-primary/40 text-[8px] font-black text-gray-300 hover:text-primary transition-all flex items-center gap-1 shrink-0"
                 >
@@ -1047,9 +1047,9 @@ useEffect(() => {
             <div className="space-y-3">
               {/* Single Horizontal Line Container: 4 cards visible on desktop, 1 card on phone */}
               <div className="flex gap-3 overflow-x-auto pb-3 pt-1 scroll-smooth snap-x snap-mandatory items-stretch overflow-y-hidden focus:outline-none">
-                {recommendations.products.map(({ product, reasons }, idx) => (
+                {Array.from(new Map(recommendations.products.filter(p => p?.product?.id).map(p => [p.product.id, p])).values()).map(({ product, reasons }) => (
                   <div 
-                    key={`rec-prod-${product.id || idx}-${idx}`} 
+                    key={`rec-prod-${product.id}`} 
                     className="w-[82vw] sm:w-[260px] lg:w-[calc((100%-2.25rem)/4)] shrink-0 snap-start flex flex-col"
                   >
                     <ProductCard
@@ -1097,8 +1097,8 @@ useEffect(() => {
           ) : (
             <div className="space-y-3">
               <div className="flex gap-3 overflow-x-auto pb-3 pt-1 scroll-smooth snap-x snap-mandatory items-stretch overflow-y-hidden">
-                {recommendations.stores.map(({ store, reasons }, idx) => (
-                  <div key={`rec-store-${store.id || idx}-${idx}`} className="w-[82vw] sm:w-[260px] lg:w-[calc((100%-2.25rem)/4)] shrink-0 snap-start flex flex-col">
+                {Array.from(new Map(recommendations.stores.filter(s => s?.store?.id).map(s => [s.store.id, s])).values()).map(({ store, reasons }) => (
+                  <div key={`rec-store-${store.id}`} className="w-[82vw] sm:w-[260px] lg:w-[calc((100%-2.25rem)/4)] shrink-0 snap-start flex flex-col">
                     {reasons.length > 0 && (
                       <div className="mb-1">
                         <span className="px-2 py-0.5 rounded-full bg-accent/90 text-white text-[7.5px] font-black uppercase tracking-wider shadow-lg inline-flex items-center gap-1 backdrop-blur-md">
@@ -1145,8 +1145,8 @@ useEffect(() => {
           </div>
         ) : filteredDeals.length > 0 ? (
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6 px-1">
-            {Array.from(new Map<string, Product>(filteredDeals.filter(p => p && p.id).map(p => [p.id, p])).values()).map((product: any, idx: number) => (
-              <div key={`disc-deal-${product.id || idx}-${idx}`} id={`product-${product.id}`} className={cn("contents", sharedProductId === product.id && "ring-2 ring-primary ring-offset-4 ring-offset-[#05070a] rounded-3xl")}>
+            {Array.from(new Map<string, Product>(filteredDeals.filter(p => p && p.id).map(p => [p.id, p])).values()).map((product: any) => (
+              <div key={`disc-deal-${product.id}`} id={`product-${product.id}`} className={cn("contents", sharedProductId === product.id && "ring-2 ring-primary ring-offset-4 ring-offset-[#05070a] rounded-3xl")}>
                 <ProductCard 
                   product={product} 
                   profile={profile} 

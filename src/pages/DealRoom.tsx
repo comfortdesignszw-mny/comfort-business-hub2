@@ -598,9 +598,9 @@ export default function DealRoom({ profile }: { profile: UserProfile | null }) {
           /* SECTION 2: NETWORK FEED */
           filteredEngagements.length > 0 ? (
             <div className="grid grid-cols-1 gap-4">
-              {filteredEngagements.map((eng, idx) => (
+              {Array.from(new Map(filteredEngagements.filter(e => e && e.id).map(e => [e.id, e])).values()).map((eng) => (
                 <EngagementCard 
-                  key={`eng-${eng.id || idx}-${idx}`} 
+                  key={`eng-${eng.id}`} 
                   engagement={eng} 
                   currentUserId={profile?.uid}
                 />
@@ -629,9 +629,9 @@ export default function DealRoom({ profile }: { profile: UserProfile | null }) {
           /* SECTION 1: SALES AND BUYER ORDER TRACKING */
           filteredDeals.length > 0 ? (
             <div className="space-y-5">
-              {filteredDeals.map((deal, idx) => (
+              {Array.from(new Map(filteredDeals.filter(d => d && d.id).map(d => [d.id, d])).values()).map((deal) => (
                 <DealCard 
-                  key={`deal-${deal.id || idx}-${idx}`} 
+                  key={`deal-${deal.id}`} 
                   deal={deal} 
                   profile={profile}
                   onUpdateStage={handleUpdateStage}
