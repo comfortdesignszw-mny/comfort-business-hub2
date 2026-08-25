@@ -86,7 +86,7 @@ service cloud.firestore {
       allow get, list: if true;
       allow create: if isSignedIn() && isValidStore(incoming()) && isValidId(storeId);
       allow update: if isHardcodedAdmin() || isAdmin() || (isSignedIn() && isOwner(existing().ownerId)) || 
-        incoming().diff(existing()).affectedKeys().hasOnly(['followerCount', 'likeCount', 'rating', 'reviewCount', 'orderClicks', 'whatsappClicks', 'estimatedSalesUsd', 'updatedAt', '_syncedAt']);
+        incoming().diff(existing()).affectedKeys().hasOnly(['followerCount', 'likeCount', 'rating', 'reviewCount', 'orderClicks', 'whatsappClicks', 'estimatedSalesUsd', 'clickCount', 'shareCount', 'reportCount', 'updatedAt', '_syncedAt']);
       allow delete: if isSignedIn() && (isOwner(existing().ownerId) || isHardcodedAdmin() || isAdmin());
     }
 
@@ -94,7 +94,7 @@ service cloud.firestore {
       allow get, list: if true;
       allow create: if isSignedIn() && isValidProduct(incoming()) && isValidId(productId);
       allow update: if isHardcodedAdmin() || isAdmin() || (isSignedIn() && isOwner(existing().ownerId)) || 
-        incoming().diff(existing()).affectedKeys().hasOnly(['rating', 'reviewCount', 'likeCount', 'updatedAt', '_syncedAt']);
+        incoming().diff(existing()).affectedKeys().hasOnly(['rating', 'reviewCount', 'likeCount', 'clickCount', 'detailClicks', 'ctaClicks', 'shareCount', 'reportCount', 'updatedAt', '_syncedAt']);
       allow delete: if isSignedIn() && (isOwner(existing().ownerId) || isHardcodedAdmin() || isAdmin());
     }
 

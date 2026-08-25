@@ -388,7 +388,8 @@ export const interactionService = {
       }
       await updateDoc(storeRef, updates);
     } catch (err) {
-      console.error('Failed logging store engagement stats:', err);
+      // Telemetry error suppressed for smooth user experience
+      console.warn('Store engagement metric notice:', err);
     }
   },
 
@@ -408,7 +409,8 @@ export const interactionService = {
       }
       await updateDoc(pRef, updates);
     } catch (err) {
-      console.error('Failed logging product click:', err);
+      // Telemetry error suppressed for smooth user experience
+      console.warn('Product click metric notice:', err);
     }
   },
 
@@ -422,7 +424,7 @@ export const interactionService = {
         updatedAt: new Date().toISOString()
       });
     } catch (err) {
-      console.error('Failed logging product share:', err);
+      console.warn('Product share metric notice:', err);
     }
   },
 
@@ -436,7 +438,7 @@ export const interactionService = {
         updatedAt: new Date().toISOString()
       });
     } catch (err) {
-      console.error('Failed logging product report:', err);
+      console.warn('Product report metric notice:', err);
     }
   }
 };

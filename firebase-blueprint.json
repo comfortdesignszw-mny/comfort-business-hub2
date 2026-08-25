@@ -73,6 +73,12 @@
         "reviewCount": { "type": "number" },
         "followerCount": { "type": "number" },
         "likeCount": { "type": "number" },
+        "orderClicks": { "type": "number" },
+        "whatsappClicks": { "type": "number" },
+        "estimatedSalesUsd": { "type": "number" },
+        "clickCount": { "type": "number" },
+        "shareCount": { "type": "number" },
+        "reportCount": { "type": "number" },
         "createdAt": { "type": "string", "format": "date-time" }
       },
       "required": ["id", "ownerId", "name", "geohash", "email", "contactNumbers"]
@@ -96,6 +102,11 @@
         "rating": { "type": "number" },
         "reviewCount": { "type": "number" },
         "likeCount": { "type": "number" },
+        "clickCount": { "type": "number" },
+        "detailClicks": { "type": "number" },
+        "ctaClicks": { "type": "number" },
+        "shareCount": { "type": "number" },
+        "reportCount": { "type": "number" },
         "isActive": { "type": "boolean" },
         "createdAt": { "type": "string", "format": "date-time" }
       },

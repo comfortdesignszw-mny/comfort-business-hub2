@@ -29,6 +29,8 @@ import { ThemeProvider, useTheme } from './context/ThemeContext';
 import SyncIndicator from './components/SyncIndicator';
 import { interactionService } from './services/interactionService';
 import PWAPrompt from './components/PWAPrompt';
+import UnregisteredUserPrompt from './components/UnregisteredUserPrompt';
+import NavigationInstructionsPopup from './components/NavigationInstructionsPopup';
 import { ErrorBoundary } from './components/ErrorBoundary';
 import { useMobileHeight } from './hooks/useMobileHeight';
 
@@ -577,6 +579,8 @@ function AppRoutes({
             </div>
           </main>
           <Navigation profile={profile} />
+          <UnregisteredUserPrompt user={user} profile={profile} />
+          <NavigationInstructionsPopup />
           <PWAPrompt />
           <ShareModal 
             isOpen={isShareModalOpen} 
