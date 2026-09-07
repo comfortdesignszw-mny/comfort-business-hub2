@@ -1,8 +1,8 @@
 /// <reference lib="webworker" />
 declare let self: ServiceWorkerGlobalScope;
 
-import { precacheAndRoute, cleanupOutdatedCaches, createHandlerBoundToURL } from 'workbox-precaching';
-import { registerRoute, NavigationRoute, setCatchHandler } from 'workbox-routing';
+import { precacheAndRoute, cleanupOutdatedCaches, matchPrecache } from 'workbox-precaching';
+import { registerRoute, setCatchHandler } from 'workbox-routing';
 import { StaleWhileRevalidate, CacheFirst } from 'workbox-strategies';
 import { ExpirationPlugin } from 'workbox-expiration';
 import { clientsClaim } from 'workbox-core';
@@ -10,6 +10,8 @@ import { clientsClaim } from 'workbox-core';
 // Ensure new deployments take effect immediately across Cloudflare Pages & browsers
 self.skipWaiting();
 clientsClaim();
+
+const SHELL_CACHE_NAME = 'comfort-app-shell-v3';
 
 // Listen for explicit SW control messages
 self.addEventListener('message', (event) => {
@@ -22,27 +24,78 @@ self.addEventListener('message', (event) => {
 cleanupOutdatedCaches();
 precacheAndRoute(self.__WB_MANIFEST);
 
-// SPA Navigation Handler:
-// Guarantees that ANY page load or route navigation (e.g., /, /discovery, /chat, /profile, /stores, /?source=pwa)
-// immediately serves precached index.html when offline or online without waiting for network delays, enabling zero-connection app launch.
-const navigationHandler = createHandlerBoundToURL('/index.html');
-const navigationRoute = new NavigationRoute(navigationHandler, {
-  denylist: [
-    /^\/api\/.*/,
-    /^\/__/,
-    /\.[a-zA-Z0-9]+$/ // Do not intercept direct asset files with extension (e.g., .png, .css, .js)
-  ]
+// 1. Explicitly precache app shell on service worker install to guarantee offline boot
+self.addEventListener('install', (event) => {
+  self.skipWaiting();
+  event.waitUntil(
+    caches.open(SHELL_CACHE_NAME).then(async (cache) => {
+      try {
+        await cache.addAll([
+          '/',
+          '/index.html',
+          '/manifest.json',
+          '/favicon.ico',
+          '/icon.png'
+        ]);
+      } catch (err) {
+        console.warn('[SW] App shell initial cache note:', err);
+      }
+    })
+  );
 });
-registerRoute(navigationRoute);
+
+// 2. Unconditional Zero-Connection Navigation Route:
+// Intercepts ANY page navigation (/, /discovery, /chat, /stores, /deals, /profile, /?source=pwa).
+// Serves cached index.html immediately with ZERO HTTP handshake and ZERO dependence on online status.
+registerRoute(
+  ({ request }) => request.mode === 'navigate',
+  async ({ request }) => {
+    // A. Check Workbox precache first (try both 'index.html' and '/index.html')
+    try {
+      const precached = (await matchPrecache('index.html')) || (await matchPrecache('/index.html'));
+      if (precached) return precached;
+    } catch (e) {}
+
+    // B. Check dedicated app shell cache & all active caches
+    try {
+      const cached = (await caches.match('/index.html')) ||
+                     (await caches.match('index.html')) ||
+                     (await caches.match('/'));
+      if (cached) return cached;
+    } catch (e) {}
+
+    // C. If online, fetch from network and dynamically store in shell cache for offline restart
+    try {
+      const response = await fetch(request);
+      if (response && response.status === 200) {
+        const cache = await caches.open(SHELL_CACHE_NAME);
+        cache.put('/index.html', response.clone());
+        cache.put('/', response.clone());
+      }
+      return response;
+    } catch (fetchErr) {
+      // D. Network failed (offline) - try any cached HTML response
+      const fallback = (await caches.match('/index.html')) ||
+                       (await caches.match('index.html')) ||
+                       (await caches.match('/'));
+      if (fallback) return fallback;
+      throw fetchErr;
+    }
+  }
+);
 
 // Cache static scripts, styles, and web workers using CacheFirst to ensure immediate startup with zero HTTP handshake
 registerRoute(
-  ({ request }) => request.destination === 'script' || request.destination === 'style' || request.destination === 'worker',
+  ({ request, url }) => 
+    request.destination === 'script' || 
+    request.destination === 'style' || 
+    request.destination === 'worker' ||
+    url.pathname.startsWith('/assets/'),
   new CacheFirst({
     cacheName: 'app-static-code-cache',
     plugins: [
       new ExpirationPlugin({
-        maxEntries: 120,
+        maxEntries: 150,
         maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
       })
     ]
@@ -80,7 +133,11 @@ registerRoute(
 // Offline Fallback for missing resources and zero-connection navigation
 setCatchHandler(async ({ request }) => {
   if (request.mode === 'navigate') {
-    const cachedIndex = await caches.match('/index.html');
+    const cachedIndex = (await matchPrecache('index.html')) ||
+                        (await matchPrecache('/index.html')) ||
+                        (await caches.match('/index.html')) || 
+                        (await caches.match('index.html')) || 
+                        (await caches.match('/'));
     if (cachedIndex) return cachedIndex;
   }
   if (request.destination === 'image') {

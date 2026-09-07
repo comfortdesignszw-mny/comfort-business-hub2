@@ -76,6 +76,11 @@ export default defineConfig(({mode}) => {
         injectManifest: {
           globPatterns: ['**/*.{js,css,html,ico,png,jpg,jpeg,svg,woff,woff2,json,manifest}'],
           maximumFileSizeToCacheInBytes: 6 * 1024 * 1024,
+        },
+        devOptions: {
+          enabled: true,
+          type: 'module',
+          navigateFallback: 'index.html',
         }
       })
     ],
