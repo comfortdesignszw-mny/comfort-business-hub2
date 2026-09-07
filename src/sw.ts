@@ -35,6 +35,20 @@ const navigationRoute = new NavigationRoute(navigationHandler, {
 });
 registerRoute(navigationRoute);
 
+// Cache static scripts, styles, and web workers using CacheFirst to ensure immediate startup with zero HTTP handshake
+registerRoute(
+  ({ request }) => request.destination === 'script' || request.destination === 'style' || request.destination === 'worker',
+  new CacheFirst({
+    cacheName: 'app-static-code-cache',
+    plugins: [
+      new ExpirationPlugin({
+        maxEntries: 120,
+        maxAgeSeconds: 60 * 60 * 24 * 365 // 1 year
+      })
+    ]
+  })
+);
+
 // Cache Google Fonts
 registerRoute(
   /^https:\/\/fonts\.(googleapis|gstatic)\.com\/.*/i,
@@ -63,8 +77,12 @@ registerRoute(
   })
 );
 
-// Offline Fallback for missing resources
+// Offline Fallback for missing resources and zero-connection navigation
 setCatchHandler(async ({ request }) => {
+  if (request.mode === 'navigate') {
+    const cachedIndex = await caches.match('/index.html');
+    if (cachedIndex) return cachedIndex;
+  }
   if (request.destination === 'image') {
     const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="200" height="200" viewBox="0 0 200 200">
       <rect width="100%" height="100%" fill="#0d1117"/>

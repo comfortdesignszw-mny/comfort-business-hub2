@@ -118,11 +118,31 @@ const ScrollToTop = () => {
 
 export default function App() {
   useMobileHeight();
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<User | null>(() => {
+    try {
+      const cached = localStorage.getItem('comfort_cached_auth_user');
+      if (cached) return JSON.parse(cached);
+    } catch (e) {}
+    return null;
+  });
+
   const [profile, setProfile] = useState<UserProfile | null>(() => {
     try {
+      // 1. Check if cached auth user has a profile
+      const cachedAuth = localStorage.getItem('comfort_cached_auth_user');
+      if (cachedAuth) {
+        const parsed = JSON.parse(cachedAuth);
+        if (parsed?.uid) {
+          const p = localStorage.getItem(`profile_cache_${parsed.uid}`);
+          if (p) return JSON.parse(p);
+        }
+      }
+
+      // 2. Check for guest profile in localStorage
       const savedGuest = localStorage.getItem('guest_profile');
       if (savedGuest) return JSON.parse(savedGuest);
+
+      // 3. Check for any profile_cache_
       for (let i = 0; i < localStorage.length; i++) {
         const key = localStorage.key(i);
         if (key && key.startsWith('profile_cache_')) {
@@ -130,13 +150,46 @@ export default function App() {
           if (val) return JSON.parse(val);
         }
       }
-    } catch (e) {}
-    return null;
+
+      // 4. Default instant local guest session in localStorage (first source of truth)
+      const defaultGuest: UserProfile = {
+        uid: 'guest_' + Date.now(),
+        name: 'Guest User',
+        displayName: 'Guest User',
+        phone: '',
+        currentRole: 'customer',
+        isVerified: false,
+        isGuest: true,
+        updatedAt: new Date().toISOString()
+      };
+      localStorage.setItem('guest_profile', JSON.stringify(defaultGuest));
+      return defaultGuest;
+    } catch (e) {
+      return null;
+    }
   });
+
   const [isGuest, setIsGuest] = useState<boolean>(() => {
-    return !!localStorage.getItem('guest_profile');
+    try {
+      if (localStorage.getItem('comfort_cached_auth_user')) return false;
+      return !!localStorage.getItem('guest_profile');
+    } catch (e) {
+      return false;
+    }
   });
-  const [hasStore, setHasStore] = useState<boolean>(false);
+
+  const [hasStore, setHasStore] = useState<boolean>(() => {
+    try {
+      const cachedAuth = localStorage.getItem('comfort_cached_auth_user');
+      if (cachedAuth) {
+        const parsed = JSON.parse(cachedAuth);
+        if (parsed?.uid) {
+          return localStorage.getItem(`has_store_${parsed.uid}`) === 'true';
+        }
+      }
+    } catch (e) {}
+    return false;
+  });
   const [loading, setLoading] = useState(false);
 
   const [showSidebar, setShowSidebar] = useState(false);
@@ -196,28 +249,19 @@ export default function App() {
       } catch (e) {
         console.error("Failed to parse guest profile", e);
       }
-    } else if (!user && typeof navigator !== 'undefined' && !navigator.onLine && !savedGuestProfile) {
-      // Offline launch without saved user session - assign default offline guest operator profile
-      const defaultOfflineGuest: UserProfile = {
-        uid: 'guest_offline_' + Date.now(),
-        name: 'Offline Guest Operator',
-        displayName: 'Offline Guest Operator',
-        phone: '',
-        currentRole: 'customer',
-        isVerified: false,
-        isGuest: true,
-        updatedAt: new Date().toISOString()
-      };
-      setProfile(defaultOfflineGuest);
-      setIsGuest(true);
-      localStorage.setItem('guest_profile', JSON.stringify(defaultOfflineGuest));
     }
 
     const unsubscribe = onAuthStateChanged(auth, async (firebaseUser) => {
       if (firebaseUser) {
         setIsGuest(false);
         localStorage.removeItem('guest_profile');
-        const userPath = `users/${firebaseUser.uid}`;
+        localStorage.setItem('comfort_cached_auth_user', JSON.stringify({
+          uid: firebaseUser.uid,
+          email: firebaseUser.email,
+          displayName: firebaseUser.displayName,
+          photoURL: firebaseUser.photoURL,
+          emailVerified: firebaseUser.emailVerified
+        }));
 
         // 1. Instantly restore from local cache for blazing fast load!
         let hasLoadedFromCache = false;
@@ -391,11 +435,14 @@ export default function App() {
   };
 
   const handleLogout = async () => {
+    localStorage.removeItem('comfort_cached_auth_user');
     if (isGuest) {
       setProfile(null);
       setIsGuest(false);
       localStorage.removeItem('guest_profile');
     } else {
+      setUser(null);
+      setProfile(null);
       await auth.signOut();
     }
   };

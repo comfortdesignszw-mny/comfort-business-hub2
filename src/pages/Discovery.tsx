@@ -47,9 +47,36 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
   const [productsLoading, setProductsLoading] = useState(false);
   const [storesLoading, setStoresLoading] = useState(false);
   const [spotlightsLoading, setSpotlightsLoading] = useState(false);
-  const [nearbyDeals, setNearbyDeals] = useState<Product[]>(INITIAL_OFFLINE_PRODUCTS as unknown as Product[]);
-  const [nearbyStores, setNearbyStores] = useState<StoreType[]>(INITIAL_OFFLINE_STORES as unknown as StoreType[]);
-  const [spotlights, setSpotlights] = useState<Spotlight[]>([]);
+  const [nearbyDeals, setNearbyDeals] = useState<Product[]>(() => {
+    try {
+      const raw = localStorage.getItem('comfort_cached_deals');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return INITIAL_OFFLINE_PRODUCTS as unknown as Product[];
+  });
+  const [nearbyStores, setNearbyStores] = useState<StoreType[]>(() => {
+    try {
+      const raw = localStorage.getItem('comfort_cached_stores');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return INITIAL_OFFLINE_STORES as unknown as StoreType[];
+  });
+  const [spotlights, setSpotlights] = useState<Spotlight[]>(() => {
+    try {
+      const raw = localStorage.getItem('comfort_cached_spotlights');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return [];
+  });
   const [activeSpotlightIndex, setActiveSpotlightIndex] = useState(0);
   const [selectedSpotlightAd, setSelectedSpotlightAd] = useState<Spotlight | null>(null);
   const [viewMode, setViewMode] = useState<'list' | 'map'>('list');
@@ -185,8 +212,9 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
       setNearbyDeals(allProducts);
       setProductsLoading(false);
       
-      // Update local cache for next time
+      // Update local cache and localStorage for zero-connection restart
       try {
+        localStorage.setItem('comfort_cached_deals', JSON.stringify(allProducts));
         cacheCollection('products', allProducts);
       } catch (e) {
         console.error('Cache update failed', e);
@@ -241,6 +269,7 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
       setStoresLoading(false);
 
       try {
+        localStorage.setItem('comfort_cached_stores', JSON.stringify(allStores));
         cacheCollection('stores', allStores);
       } catch (e) {}
     }, (error) => {
@@ -270,6 +299,9 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
       });
 
       setSpotlights(validSpotlights);
+      try {
+        localStorage.setItem('comfort_cached_spotlights', JSON.stringify(validSpotlights));
+      } catch (e) {}
       setSpotlightsLoading(false);
       setLoading(false);
     }, (error) => {

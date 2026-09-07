@@ -21,9 +21,22 @@ import imageCompression from 'browser-image-compression';
 import { useMessaging } from '../components/MessagingProvider';
 
 export default function Chat({ profile }: { profile: UserProfile | null }) {
+  let guestId = localStorage.getItem('guest_uid');
+  if (!guestId) {
+    guestId = `guest_${Date.now()}_${Math.random().toString(36).substring(7)}`;
+    localStorage.setItem('guest_uid', guestId);
+  }
+  const activeUid = profile?.uid || guestId;
+
   const [selectedConvo, setSelectedConvo] = useState<string | null>(null);
-  const [conversations, setConversations] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [conversations, setConversations] = useState<any[]>(() => {
+    try {
+      const cached = localStorage.getItem(`comfort_cached_convos_${activeUid}`);
+      if (cached) return JSON.parse(cached);
+    } catch (e) {}
+    return [];
+  });
+  const [loading, setLoading] = useState(false);
   const { isOnline, queuedMessages } = useMessaging();
 
   useEffect(() => {
@@ -33,13 +46,6 @@ export default function Chat({ profile }: { profile: UserProfile | null }) {
       setSelectedConvo(convoId);
     }
   }, []);
-
-  let guestId = localStorage.getItem('guest_uid');
-  if (!guestId) {
-    guestId = `guest_${Date.now()}_${Math.random().toString(36).substring(7)}`;
-    localStorage.setItem('guest_uid', guestId);
-  }
-  const activeUid = profile?.uid || guestId;
 
   useEffect(() => {
     const q = query(
@@ -96,6 +102,9 @@ export default function Chat({ profile }: { profile: UserProfile | null }) {
         };
       }));
       setConversations(convos);
+      try {
+        localStorage.setItem(`comfort_cached_convos_${activeUid}`, JSON.stringify(convos));
+      } catch (e) {}
       setLoading(false);
     }, (err) => {
       handleFirestoreError(err, OperationType.LIST, 'conversations');

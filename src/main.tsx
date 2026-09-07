@@ -4,8 +4,21 @@ import App from './App.tsx';
 import './index.css';
 import { localDataRepository } from './lib/localDataRepository';
 import { processOutboxSync } from './lib/dexieSyncManager';
+import { INITIAL_OFFLINE_PRODUCTS, INITIAL_OFFLINE_STORES } from './lib/db';
 // @ts-ignore
 import { registerSW } from 'virtual:pwa-register';
+
+// Synchronously seed localStorage as the absolute FIRST source of truth for zero-connection startup
+try {
+  if (typeof window !== 'undefined' && window.localStorage) {
+    if (!localStorage.getItem('comfort_cached_deals')) {
+      localStorage.setItem('comfort_cached_deals', JSON.stringify(INITIAL_OFFLINE_PRODUCTS));
+    }
+    if (!localStorage.getItem('comfort_cached_stores')) {
+      localStorage.setItem('comfort_cached_stores', JSON.stringify(INITIAL_OFFLINE_STORES));
+    }
+  }
+} catch (e) {}
 
 // Non-blocking initialization sequence
 function initializeLocalServices() {

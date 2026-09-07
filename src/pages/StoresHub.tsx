@@ -21,8 +21,17 @@ import { viewHistoryService } from '../services/viewHistory';
 export default function StoresHub({ profile }: { profile: UserProfile | null }) {
   const navigate = useNavigate();
   const [searchParams] = useSearchParams();
-  const [stores, setStores] = useState<StoreType[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [stores, setStores] = useState<StoreType[]>(() => {
+    try {
+      const raw = localStorage.getItem('comfort_cached_stores');
+      if (raw) {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+      }
+    } catch (e) {}
+    return [];
+  });
+  const [loading, setLoading] = useState(false);
   const [searchTerm, setSearchTerm] = useState('');
   const [activeCategory, setActiveCategory] = useState('All');
   const [activeTab, setActiveTab] = useState<'browse' | 'manage'>('manage');
@@ -71,7 +80,10 @@ export default function StoresHub({ profile }: { profile: UserProfile | null }) 
       setStores(fetchedStores);
       setLoading(false);
 
-      // Save to local cache for next startup
+      // Save to localStorage & local cache for zero-connection startup
+      try {
+        localStorage.setItem('comfort_cached_stores', JSON.stringify(fetchedStores));
+      } catch (e) {}
       import('../lib/dexieSyncManager').then(({ cacheCollection }) => {
         cacheCollection('stores', fetchedStores);
       }).catch(() => {});

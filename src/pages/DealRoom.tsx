@@ -72,9 +72,15 @@ export default function DealRoom({ profile }: { profile: UserProfile | null }) {
   // Search filter
   const [searchQuery, setSearchQuery] = useState('');
 
-  const [deals, setDeals] = useState<Deal[]>([]);
+  const [deals, setDeals] = useState<Deal[]>(() => {
+    try {
+      const cached = localStorage.getItem(`comfort_cached_deals_room_${profile?.uid || 'guest'}`);
+      if (cached) return JSON.parse(cached);
+    } catch (e) {}
+    return [];
+  });
   const [engagements, setEngagements] = useState<Engagement[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [loading, setLoading] = useState(false);
   const [guestPhoneSearch, setGuestPhoneSearch] = useState('');
   
   const location = useLocation();
@@ -171,6 +177,9 @@ export default function DealRoom({ profile }: { profile: UserProfile | null }) {
           });
 
           cacheCollection('deals', combined);
+          try {
+            localStorage.setItem(`comfort_cached_deals_room_${profile?.uid || 'guest'}`, JSON.stringify(combined));
+          } catch (e) {}
           setDeals(combined);
           setEngagements([]);
           setLoading(false);
