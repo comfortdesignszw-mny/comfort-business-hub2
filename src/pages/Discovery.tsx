@@ -52,20 +52,20 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
       const raw = localStorage.getItem('comfort_cached_deals');
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0 && !parsed[0]?.id?.startsWith('prod_maize')) return parsed;
       }
     } catch (e) {}
-    return INITIAL_OFFLINE_PRODUCTS as unknown as Product[];
+    return [];
   });
   const [nearbyStores, setNearbyStores] = useState<StoreType[]>(() => {
     try {
       const raw = localStorage.getItem('comfort_cached_stores');
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0 && !parsed[0]?.id?.startsWith('store_harare')) return parsed;
       }
     } catch (e) {}
-    return INITIAL_OFFLINE_STORES as unknown as StoreType[];
+    return [];
   });
   const [spotlights, setSpotlights] = useState<Spotlight[]>(() => {
     try {
@@ -196,18 +196,37 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
 
     tryLoadFromCache();
 
-    // Phase 2: Real-time listener for products
+    // Phase 2: Dual-path products fetch (fast direct getDocs + live onSnapshot)
     const pq = query(
       collection(db, 'products'),
-      where('isActive', '==', true),
-      limit(100)
+      limit(150)
     );
+
+    // Fast initial fetch from persistent cache / cloud
+    getDocs(pq).then((snapshot) => {
+      if (!snapshot.empty) {
+        const allProducts = snapshot.docs
+          .map(doc => ({ id: doc.id, ...doc.data() } as Product))
+          .filter(p => p.isActive !== false)
+          .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+        
+        if (allProducts.length > 0) {
+          setNearbyDeals(allProducts);
+          setProductsLoading(false);
+          setLoading(false);
+          try {
+            localStorage.setItem('comfort_cached_deals', JSON.stringify(allProducts));
+            cacheCollection('products', allProducts);
+          } catch (e) {}
+        }
+      }
+    }).catch(() => {});
     
     const unsubscribeProducts = onSnapshot(pq, async (snapshot) => {
-      const allProducts = snapshot.docs.map(doc => ({
-        id: doc.id,
-        ...doc.data()
-      } as Product)).sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+      const allProducts = snapshot.docs
+        .map(doc => ({ id: doc.id, ...doc.data() } as Product))
+        .filter(p => p.isActive !== false)
+        .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
       
       setNearbyDeals(allProducts);
       setProductsLoading(false);
@@ -236,20 +255,32 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
       setLoading(false);
     });
 
-    // Start Stores Loading
+    // Start Stores Loading (fast direct query + live listener)
+    const sq = query(collection(db, 'stores'), limit(150));
+
+    // Fast initial fetch for stores
+    getDocs(sq).then((snapshot) => {
+      if (!snapshot.empty) {
+        const allStores = snapshot.docs
+          .map(doc => ({ id: doc.id, ...doc.data() } as StoreType))
+          .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
+        
+        if (allStores.length > 0) {
+          setNearbyStores(allStores);
+          setStoresLoading(false);
+          try {
+            localStorage.setItem('comfort_cached_stores', JSON.stringify(allStores));
+            cacheCollection('stores', allStores);
+          } catch (e) {}
+        }
+      }
+    }).catch(() => {});
+
     const loadStores = async () => {
       try {
-        const cachedStoresDoc = await localDB.cache.where('collection').equals('stores').toArray();
-        if (cachedStoresDoc.length > 0) {
-          const cachedStores = cachedStoresDoc.map(c => c.data as StoreType);
-          cachedStores.sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime());
-          setNearbyStores(cachedStores);
-          setStoresLoading(false);
-        } else {
-          const repoStores = await localDataRepository.getStores();
-          if (repoStores.data && repoStores.data.length > 0) {
-            setNearbyStores(repoStores.data as any);
-          }
+        const repoStores = await localDataRepository.getStores();
+        if (repoStores.data && repoStores.data.length > 0) {
+          setNearbyStores(repoStores.data as any);
           setStoresLoading(false);
         }
       } catch (err) {
@@ -258,7 +289,6 @@ export default function Discovery({ profile, setProfile, onGuestLogin }: { profi
     };
     loadStores();
 
-    const sq = query(collection(db, 'stores'), limit(150));
     const unsubscribeStores = onSnapshot(sq, async (snapshot) => {
       const allStores = snapshot.docs.map(doc => ({
         id: doc.id,

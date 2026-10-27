@@ -366,9 +366,19 @@ ${text}`,
   }
 
   async function fetchFirestoreDocument(collection: string, id: string): Promise<any> {
-    const projectId = "gen-lang-client-0045594701";
-    const databaseId = "ai-studio-8691367b-abd4-4f01-8572-65d212fbad17";
-    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${databaseId}/documents/${collection}/${id}`;
+    let firebaseConfig: any = {};
+    try {
+      const configPath = path.join(process.cwd(), 'firebase-applet-config.json');
+      if (fs.existsSync(configPath)) {
+        firebaseConfig = JSON.parse(fs.readFileSync(configPath, 'utf-8'));
+      }
+    } catch (e) {}
+
+    const projectId = firebaseConfig.projectId || "gen-lang-client-0045594701";
+    const databaseId = firebaseConfig.firestoreDatabaseId || "ai-studio-8691367b-abd4-4f01-8572-65d212fbad17";
+    const apiKey = firebaseConfig.apiKey || "";
+    const keyParam = apiKey ? `?key=${apiKey}` : '';
+    const url = `https://firestore.googleapis.com/v1/projects/${projectId}/databases/${databaseId}/documents/${collection}/${id}${keyParam}`;
     
     try {
       const res = await fetch(url);

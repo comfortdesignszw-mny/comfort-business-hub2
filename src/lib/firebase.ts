@@ -2,6 +2,7 @@ import { initializeApp } from 'firebase/app';
 import { getAuth } from 'firebase/auth';
 import { 
   initializeFirestore, 
+  getFirestore,
   doc, 
   getDocFromCache, 
   getDocsFromCache, 
@@ -11,6 +12,8 @@ import {
   Query, 
   DocumentSnapshot, 
   QuerySnapshot,
+  persistentLocalCache,
+  persistentMultipleTabManager,
   memoryLocalCache
 } from 'firebase/firestore';
 import { getStorage } from 'firebase/storage';
@@ -24,7 +27,7 @@ if (typeof window !== 'undefined') {
     if (typeof msg === 'string' && msg.includes('FIRESTORE') && msg.includes('INTERNAL ASSERTION FAILED')) {
       event.preventDefault();
       event.stopPropagation();
-      console.warn('[Firestore Telemetry Notice] Handled internal stream assertion cleanly:', msg);
+      console.warn('[Firestore Notice] Handled internal assertion cleanly:', msg);
     }
   });
 
@@ -34,17 +37,34 @@ if (typeof window !== 'undefined') {
     if (typeof msg === 'string' && msg.includes('FIRESTORE') && msg.includes('INTERNAL ASSERTION FAILED')) {
       event.preventDefault();
       event.stopPropagation();
-      console.warn('[Firestore Telemetry Notice] Handled internal stream unhandled rejection cleanly:', msg);
+      console.warn('[Firestore Notice] Handled internal unhandled rejection cleanly:', msg);
     }
   });
 }
 
 const app = initializeApp(firebaseConfig);
 
-// Initialize Firestore with memoryLocalCache to ensure reliable real-time listeners across browser iframes and tabs
-export const db = initializeFirestore(app, {
-  localCache: memoryLocalCache(),
-}, firebaseConfig.firestoreDatabaseId);
+// Initialize Firestore with modern multi-tab persistent IndexedDB cache
+// and auto-detected long polling for resilient network operation
+export const db = (() => {
+  try {
+    return initializeFirestore(app, {
+      localCache: persistentLocalCache({
+        tabManager: persistentMultipleTabManager()
+      }),
+      experimentalAutoDetectLongPolling: true
+    }, firebaseConfig.firestoreDatabaseId);
+  } catch (err) {
+    try {
+      return getFirestore(app, firebaseConfig.firestoreDatabaseId);
+    } catch {
+      return initializeFirestore(app, {
+        localCache: memoryLocalCache(),
+        experimentalAutoDetectLongPolling: true
+      }, firebaseConfig.firestoreDatabaseId);
+    }
+  }
+})();
 
 export const auth = getAuth(app);
 export const storage = getStorage(app);

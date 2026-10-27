@@ -46,8 +46,8 @@ export class LocalDataRepository {
 
     const hasLocalData = localResult !== null && (Array.isArray(localResult) ? localResult.length > 0 : true);
 
-    // If offline or fast local hit requested and we have valid local data, return local immediately
-    if (hasLocalData && (!navigator.onLine || !options.forceNetworkRefresh)) {
+    // If completely offline, return local data immediately
+    if (hasLocalData && !navigator.onLine) {
       return {
         data: localResult as T,
         isStale: false,
@@ -55,34 +55,55 @@ export class LocalDataRepository {
       };
     }
 
-    // Try network with 5s timeout
-    try {
-      const networkPromise = fetchNetwork();
-      const timeoutPromise = new Promise<never>((_, reject) =>
-        setTimeout(() => reject(new Error(`Network request timed out after ${timeoutMs}ms`)), timeoutMs)
-      );
+    // Modern Stale-While-Revalidate: If we have local data, initiate a background network fetch
+    // while returning local data instantly to unblock UI.
+    const networkFetchPromise = (async () => {
+      try {
+        const networkPromise = fetchNetwork();
+        const timeoutPromise = new Promise<never>((_, reject) =>
+          setTimeout(() => reject(new Error(`Network request timed out after ${timeoutMs}ms`)), timeoutMs)
+        );
 
-      const freshData = await Promise.race([networkPromise, timeoutPromise]);
+        const freshData = await Promise.race([networkPromise, timeoutPromise]);
 
-      if (freshData !== null && freshData !== undefined) {
-        const { lastSynced, expiresAt } = calculateTTL(ttlMs);
-        try {
-          await saveLocal(freshData, lastSynced, expiresAt);
-        } catch (saveErr) {
-          console.warn(`[LocalDataRepository] Failed to update local cache for ${cacheKey}:`, saveErr);
+        if (freshData !== null && freshData !== undefined) {
+          const { lastSynced, expiresAt } = calculateTTL(ttlMs);
+          try {
+            await saveLocal(freshData, lastSynced, expiresAt);
+          } catch (saveErr) {
+            console.warn(`[LocalDataRepository] Failed to update local cache for ${cacheKey}:`, saveErr);
+          }
+          return freshData;
         }
-
-        return {
-          data: freshData,
-          isStale: false,
-          fromCache: false,
-        };
+      } catch (netErr: any) {
+        console.warn(`[LocalDataRepository] Network fetch notice for ${cacheKey}:`, netErr?.message || netErr);
       }
-    } catch (netErr: any) {
-      console.warn(`[LocalDataRepository] Network fetch failed/timed out for ${cacheKey}:`, netErr?.message || netErr);
+      return null;
+    })();
+
+    // If we have cached local data, return it immediately (0ms UI render)
+    // while the background networkFetchPromise updates the store
+    if (hasLocalData && !options.forceNetworkRefresh) {
+      // Fire-and-forget background update
+      networkFetchPromise.catch(() => {});
+      return {
+        data: localResult as T,
+        isStale: false,
+        fromCache: true,
+      };
     }
 
-    // Fallback path: serve local result if available, else serve seed default fallback
+    // Otherwise (no local data or forceNetworkRefresh), wait for network result
+    const freshData = await networkFetchPromise;
+    if (freshData !== null && freshData !== undefined) {
+      return {
+        data: freshData,
+        isStale: false,
+        fromCache: false,
+      };
+    }
+
+    // Fallback path: serve local result if available, else empty array / default fallback
     if (localResult !== null) {
       return {
         data: localResult,
@@ -96,7 +117,7 @@ export class LocalDataRepository {
       data: defaultFallback,
       isStale: true,
       fromCache: true,
-      error: 'Served default offline seed data',
+      error: 'Initial data pending network sync',
     };
   }
 
@@ -121,10 +142,10 @@ export class LocalDataRepository {
         await localDB.stores.bulkPut(records);
       },
       async () => {
-        const snap = await getDocs(query(collection(db, 'stores'), limit(50)));
+        const snap = await getDocs(query(collection(db, 'stores'), limit(100)));
         return snap.docs.map(d => ({ id: d.id, ...d.data() }));
       },
-      INITIAL_OFFLINE_STORES,
+      [],
       options
     );
   }
@@ -151,10 +172,10 @@ export class LocalDataRepository {
         await localDB.products.bulkPut(records);
       },
       async () => {
-        const snap = await getDocs(query(collection(db, 'products'), limit(50)));
+        const snap = await getDocs(query(collection(db, 'products'), limit(150)));
         return snap.docs.map(d => ({ id: d.id, ...d.data() }));
       },
-      INITIAL_OFFLINE_PRODUCTS,
+      [],
       options
     );
   }
@@ -197,34 +218,12 @@ export class LocalDataRepository {
    */
   async seedInitialDataIfNeeded(): Promise<void> {
     try {
-      const storeCount = await localDB.stores.count();
-      if (storeCount === 0) {
-        const { lastSynced, expiresAt } = calculateTTL(DEFAULT_TTL_MS * 2);
-        const storeRecords = INITIAL_OFFLINE_STORES.map(s => ({
-          id: s.id,
-          data: s,
-          updatedAt: Date.now(),
-          lastSynced,
-          expiresAt,
-        }));
-        await localDB.stores.bulkPut(storeRecords);
-      }
-
-      const prodCount = await localDB.products.count();
-      if (prodCount === 0) {
-        const { lastSynced, expiresAt } = calculateTTL(DEFAULT_TTL_MS * 2);
-        const prodRecords = INITIAL_OFFLINE_PRODUCTS.map(p => ({
-          id: p.id,
-          storeId: p.storeId,
-          data: p,
-          updatedAt: Date.now(),
-          lastSynced,
-          expiresAt,
-        }));
-        await localDB.products.bulkPut(prodRecords);
-      }
+      // Purge legacy mock data if present
+      await localDB.stores.where('id').anyOf(['store_harare_central', 'store_bulawayo_hardware']).delete();
+      await localDB.products.where('id').anyOf(['prod_maize_50kg', 'prod_cement_bag']).delete();
+      await localDB.cache.where('id').anyOf(['stores:store_harare_central', 'stores:store_bulawayo_hardware', 'products:prod_maize_50kg', 'products:prod_cement_bag']).delete();
     } catch (e) {
-      console.warn('[LocalDataRepository] Error seeding initial data:', e);
+      console.warn('[LocalDataRepository] Cleanup note:', e);
     }
   }
 }

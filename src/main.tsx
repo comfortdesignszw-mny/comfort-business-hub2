@@ -8,14 +8,16 @@ import { INITIAL_OFFLINE_PRODUCTS, INITIAL_OFFLINE_STORES } from './lib/db';
 // @ts-ignore
 import { registerSW } from 'virtual:pwa-register';
 
-// Synchronously seed localStorage as the absolute FIRST source of truth for zero-connection startup
+// Clean legacy mock seed data so real production Firestore data loads immediately
 try {
   if (typeof window !== 'undefined' && window.localStorage) {
-    if (!localStorage.getItem('comfort_cached_deals')) {
-      localStorage.setItem('comfort_cached_deals', JSON.stringify(INITIAL_OFFLINE_PRODUCTS));
+    const rawStores = localStorage.getItem('comfort_cached_stores');
+    if (rawStores && (rawStores.includes('store_harare_central') || rawStores.includes('Harare Wholesale Hub'))) {
+      localStorage.removeItem('comfort_cached_stores');
     }
-    if (!localStorage.getItem('comfort_cached_stores')) {
-      localStorage.setItem('comfort_cached_stores', JSON.stringify(INITIAL_OFFLINE_STORES));
+    const rawDeals = localStorage.getItem('comfort_cached_deals');
+    if (rawDeals && (rawDeals.includes('prod_maize_50kg') || rawDeals.includes('Grade A White Maize Meal'))) {
+      localStorage.removeItem('comfort_cached_deals');
     }
   }
 } catch (e) {}

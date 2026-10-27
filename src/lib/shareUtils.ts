@@ -147,12 +147,12 @@ export async function resolveStoreByIdOrShortId(idParam: string): Promise<Store 
     return seedMatch as unknown as Store;
   }
 
-  // 4. If online, query Firestore with a short 2s timeout and backfill local cache
+  // 4. If online, query Firestore and backfill local cache
   if (navigator.onLine) {
     try {
       const directSnap = await Promise.race([
         getDoc(doc(db, 'stores', targetId)),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000))
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000))
       ]);
       if (directSnap.exists()) {
         const found = { id: directSnap.id, ...directSnap.data() } as Store;
@@ -165,7 +165,7 @@ export async function resolveStoreByIdOrShortId(idParam: string): Promise<Store 
       const qShort = query(collection(db, 'stores'), where('shortId', '==', targetId), limit(1));
       const snapShort = await Promise.race([
         getDocs(qShort),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000))
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000))
       ]);
       if (!snapShort.empty) {
         const d = snapShort.docs[0];
@@ -226,12 +226,12 @@ export async function resolveProductByIdOrShortId(idParam: string): Promise<Prod
     return seedMatch as unknown as Product;
   }
 
-  // 4. If online, query Firestore with a short 2s timeout and backfill local cache
+  // 4. If online, query Firestore and backfill local cache
   if (navigator.onLine) {
     try {
       const directSnap = await Promise.race([
         getDoc(doc(db, 'products', targetId)),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000))
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000))
       ]);
       if (directSnap.exists()) {
         const found = { id: directSnap.id, ...directSnap.data() } as Product;
@@ -244,7 +244,7 @@ export async function resolveProductByIdOrShortId(idParam: string): Promise<Prod
       const qShort = query(collection(db, 'products'), where('shortId', '==', targetId), limit(1));
       const snapShort = await Promise.race([
         getDocs(qShort),
-        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 2000))
+        new Promise<never>((_, reject) => setTimeout(() => reject(new Error('timeout')), 8000))
       ]);
       if (!snapShort.empty) {
         const d = snapShort.docs[0];

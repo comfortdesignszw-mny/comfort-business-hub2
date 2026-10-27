@@ -298,10 +298,46 @@ export default function App() {
         }
 
         try {
+          let profileData: UserProfile | null = null;
           const docSnap = await getDocCacheFirst(doc(db, 'users', firebaseUser.uid));
           if (docSnap.exists()) {
-            const profileData = docSnap.data() as UserProfile;
-            
+            profileData = docSnap.data() as UserProfile;
+          } else {
+            // Check public_profiles fallback
+            try {
+              const pubSnap = await getDocCacheFirst(doc(db, 'public_profiles', firebaseUser.uid));
+              if (pubSnap.exists()) {
+                profileData = pubSnap.data() as UserProfile;
+              }
+            } catch (e) {}
+          }
+
+          const isHardcodedAdmin = firebaseUser.email === 'comfort.designszw@gmail.com';
+
+          if (!profileData) {
+            profileData = {
+              uid: firebaseUser.uid,
+              name: firebaseUser.displayName || (isHardcodedAdmin ? 'Comfort Designs' : 'User'),
+              email: firebaseUser.email || '',
+              phone: firebaseUser.phoneNumber || '',
+              avatar: firebaseUser.photoURL || '',
+              currentRole: isHardcodedAdmin ? 'supplier' : 'customer',
+              isAdmin: isHardcodedAdmin,
+              isVerified: isHardcodedAdmin || Boolean(firebaseUser.emailVerified),
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            };
+            try {
+              await setDoc(doc(db, 'users', firebaseUser.uid), profileData, { merge: true });
+              syncPublicProfile(profileData);
+            } catch (e) {}
+          }
+
+          if (profileData) {
+            if (isHardcodedAdmin && !profileData.isAdmin) {
+              profileData.isAdmin = true;
+            }
+
             // Update cache with timestamp for stale cleanup (7-day rule)
             localStorage.setItem(`profile_cache_${firebaseUser.uid}`, JSON.stringify({
               ...profileData,
@@ -322,12 +358,16 @@ export default function App() {
           }
           
           setUser(firebaseUser);
-          if (docSnap.exists()) {
-            const profileData = docSnap.data() as UserProfile;
-            setProfile(profileData); // update with fresh data
+          if (profileData) {
+            setProfile(profileData);
             
             let needsUpdate = false;
             const updates: any = {};
+
+            if (isHardcodedAdmin && !profileData.isAdmin) {
+              updates.isAdmin = true;
+              needsUpdate = true;
+            }
 
             if (firebaseUser.emailVerified && !profileData.isVerified) {
               updates.isVerified = true;
@@ -346,18 +386,21 @@ export default function App() {
 
             if (needsUpdate) {
               updates.updatedAt = serverTimestamp();
-              await updateDoc(doc(db, 'users', firebaseUser.uid), updates);
+              await updateDoc(doc(db, 'users', firebaseUser.uid), updates).catch(() => {});
               setProfile({ ...profileData, ...updates, updatedAt: new Date().toISOString() });
-            } else {
-              setProfile(profileData);
             }
 
             syncPublicProfile(profileData);
 
-            if (profileData.currentRole === 'supplier') {
+            if (profileData.currentRole === 'supplier' || isHardcodedAdmin) {
               const { collection, query, where, getDocs } = await import('firebase/firestore');
               const storeRes = await getDocs(query(collection(db, 'stores'), where('ownerId', '==', firebaseUser.uid)));
-              const userHasStore = !storeRes.empty;
+              let userHasStore = !storeRes.empty;
+              if (!userHasStore && isHardcodedAdmin) {
+                // Verify if Comfort Designs store belongs to this account
+                const adminStore = await getDocs(query(collection(db, 'stores'), where('name', '>=', 'Comfort Designs')));
+                if (!adminStore.empty) userHasStore = true;
+              }
               setHasStore(userHasStore);
               localStorage.setItem(`has_store_${firebaseUser.uid}`, userHasStore ? 'true' : 'false');
             }

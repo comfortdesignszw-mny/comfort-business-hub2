@@ -6,7 +6,7 @@ import {
   MapPinned, SlidersHorizontal, ArrowLeft, Check, Sparkles, Package, Plus
 } from 'lucide-react';
 import { db, handleFirestoreError, OperationType } from '../lib/firebase';
-import { collection, query, limit, onSnapshot, where } from 'firebase/firestore';
+import { collection, query, limit, onSnapshot, where, getDocs } from 'firebase/firestore';
 import { PublicProfile } from '../types';
 import { useModals } from '../context/ModalContext';
 import { Users, Shield, ExternalLink } from 'lucide-react';
@@ -26,7 +26,7 @@ export default function StoresHub({ profile }: { profile: UserProfile | null }) 
       const raw = localStorage.getItem('comfort_cached_stores');
       if (raw) {
         const parsed = JSON.parse(raw);
-        if (Array.isArray(parsed) && parsed.length > 0) return parsed;
+        if (Array.isArray(parsed) && parsed.length > 0 && !parsed[0]?.id?.startsWith('store_harare')) return parsed;
       }
     } catch (e) {}
     return [];
@@ -74,7 +74,22 @@ export default function StoresHub({ profile }: { profile: UserProfile | null }) 
       }).catch(() => { setLoading(false); });
     });
 
-    const sq = query(collection(db, 'stores'), limit(50));
+    const sq = query(collection(db, 'stores'), limit(150));
+
+    // Direct fast query to ensure immediate rendering from database/cache
+    getDocs(sq).then((snapshot) => {
+      if (!snapshot.empty) {
+        const fetchedStores = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StoreType));
+        if (fetchedStores.length > 0) {
+          setStores(fetchedStores);
+          setLoading(false);
+          try {
+            localStorage.setItem('comfort_cached_stores', JSON.stringify(fetchedStores));
+          } catch (e) {}
+        }
+      }
+    }).catch(() => {});
+
     const unsubscribe = onSnapshot(sq, (snapshot) => {
       const fetchedStores = snapshot.docs.map(doc => ({ id: doc.id, ...doc.data() } as StoreType));
       setStores(fetchedStores);

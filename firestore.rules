@@ -73,7 +73,8 @@ service cloud.firestore {
     }
 
     match /users/{userId} {
-      allow get, list: if isSignedIn();
+      allow get: if true;
+      allow list: if isSignedIn();
       allow create, update, delete: if isSignedIn();
     }
 

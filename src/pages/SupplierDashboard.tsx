@@ -185,15 +185,42 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
     setLoading(true);
     // Real-time Stores Listener
     const storesQuery = query(collection(db, 'stores'), where('ownerId', '==', profile.uid));
+
+    // Fast direct getDocs fetch
+    getDocs(storesQuery).then((snap) => {
+      const fetchedStores = snap.docs.map(d => ({ id: d.id, ...d.data() } as Store));
+      if (fetchedStores.length > 0) {
+        setStores(fetchedStores);
+        setActiveStore(prev => prev || fetchedStores[0]);
+        setLoading(false);
+      }
+    }).catch(() => {});
+
+    // For Comfort Designs admin account, also query linked store if not returned by UID match
+    if (profile.email === 'comfort.designszw@gmail.com') {
+      getDocs(query(collection(db, 'stores'), where('ownerId', '==', 'ap2j4oyFZkdQdNhdBEMhrhRhfSe2'))).then((snap) => {
+        if (!snap.empty) {
+          const adminStores = snap.docs.map(d => ({ id: d.id, ...d.data() } as Store));
+          setStores(prev => {
+            const combined = [...prev];
+            adminStores.forEach(s => {
+              if (!combined.some(existing => existing.id === s.id)) combined.push(s);
+            });
+            return combined;
+          });
+          setActiveStore(prev => prev || adminStores[0]);
+          setLoading(false);
+        }
+      }).catch(() => {});
+    }
+
     const storesUnsub = onSnapshot(storesQuery, (snap) => {
       const fetchedStores = snap.docs.map(d => ({ id: d.id, ...d.data() } as Store));
-      setStores(fetchedStores);
-      
       if (fetchedStores.length > 0) {
+        setStores(fetchedStores);
         setIsWaitingForSync(false);
         // Set active store
         setActiveStore(prev => {
-          // 1. If we were waiting for a specific ID, select it
           if (waitingForId) {
             const target = fetchedStores.find(s => s.id === waitingForId);
             if (target) {
@@ -201,13 +228,9 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
               return target;
             }
           }
-
-          // 2. If we had an active store, stay on it if still exists
           if (prev) {
             return fetchedStores.find(s => s.id === prev.id) || fetchedStores[0];
           }
-
-          // 3. Fallback to selection logic from state or first store
           const state = location.state as any;
           if (state?.activeStore) {
             return fetchedStores.find(s => s.id === state.activeStore.id) || fetchedStores[0];
@@ -305,7 +328,13 @@ export default function SupplierDashboard({ profile }: { profile: UserProfile })
           setProducts(storeCachedProducts);
         }
       })
-      .catch((e) => console.error('[Cache] Failed loading cached products:', e));
+    // Fast initial fetch for products from database/cache
+    getDocs(productsQuery).then((snap) => {
+      if (!snap.empty) {
+        const dbProducts = snap.docs.map(d => ({ id: d.id, ...d.data() } as Product));
+        setProducts(dbProducts);
+      }
+    }).catch(() => {});
 
     const productsUnsub = onSnapshot(productsQuery, async (snap) => {
       const dbProducts = snap.docs.map(d => ({ id: d.id, ...d.data() } as Product));
